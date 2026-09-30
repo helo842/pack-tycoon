@@ -1,0 +1,25 @@
+[gd_resource type="Theme" load_steps=2 format=3]
+
+; El texto YA NO es lo unico que no es pixel art: usa font_pack.fnt, la fuente de
+; mapa de bits que genera tools/make_font.py desde los patrones de
+; tools/font_patterns.py. Los rotulos salen a escala entera porque UIKit ajusta
+; cada tamano al multiplo de 7 mas cercano (FONT_STEP), que es la altura de un
+; glifo de arte.
+;
+; El contorno oscuro de antes (outline_size) se ha quitado: la fuente trae su
+; propio contorno de 1 px de #101020 pintado en la hoja, igual que el resto del
+; juego. El de Godot solo hacia falta para la fuente suave anterior.
+;
+; Para cambiar el texto de color, default_font_color / el font_color de cada
+; Label. La fuente se pinta en blanco puro a proposito: Godot la tiñe.
+
+[ext_resource type="FontFile" path="res://Sprites/font/font_pack.fnt" id="1_font"]
+
+[resource]
+default_font = ExtResource("1_font")
+default_font_size = 42
+Label/colors/font_color = Color(0.988235, 0.92549, 0.768627, 1)
+Button/colors/font_color = Color(0.988235, 0.92549, 0.768627, 1)
+Button/colors/font_hover_color = Color(1, 0.960784, 0.858824, 1)
+Button/colors/font_pressed_color = Color(0.831373, 0.721569, 0.533333, 1)
+Button/font_sizes/font_size = 42

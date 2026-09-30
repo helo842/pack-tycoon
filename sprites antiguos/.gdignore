@@ -1,0 +1,4 @@
+# Esta carpeta es un archivo de sprites retirados, no arte del juego.
+# El fichero .gdignore hace que Godot NO escanee lo que hay aqui: asi no
+# importa los 100 PNG (ni genera sus .import) y no ensucia el arbol del
+# proyecto ni el panel de recursos. El juego no los usa.

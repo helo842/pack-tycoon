@@ -1,0 +1,39 @@
+# Godot 4
+.godot/
+# Los .import SI se versionan: son parte del proyecto (guardan como se importa
+# cada textura y el filtro NEAREST con el que se pintan). Al mover un sprite hay
+# que moverlo con su .import, o borrarlo y dejar que Godot lo regenere.
+*.translation
+
+# Python
+__pycache__/
+*.pyc
+
+# Salidas de las herramientas de sprites
+tools/_preview.png
+tools/_font_preview.png
+
+# Hojas de revision: se generan para mirarlas y ya estan.
+# Tambien sus .import: Godot escanea tools/ y los crea igual que si fueran
+# sprites del juego, asi que sin esto quedarian imports versionados de unos
+# png que no estan, y un .import sin su png es un import roto.
+tools/_wear_*.png
+tools/_wear_*.png.import
+tools/_preview_*.png
+tools/_preview_*.png.import
+tools/_preview.png.import
+tools/_font_preview.png.import
+
+# Revision visual (HTML con capturas embebidas, solo para revisar en el chat)
+_revision/
+
+# El arte de partida no lo usa el juego, asi que que no entre en el proyecto.
+# Se ignoran sus .import para que no salga en el arbol de Godot.
+source_art/*.import
+
+# El documento de diseño original no se publica: es material de trabajo.
+# El README lo describe para que se sepa que existe.
+Idea.pdf
+
+# Metadatos locales de la herramienta
+.freebuff/

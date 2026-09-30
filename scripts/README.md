@@ -1,0 +1,66 @@
+# scripts/ - el codigo del juego
+
+GDScript, repartido por lo que hace cada cosa y no por antiguedad. Los
+ficheros se referencian entre si por `class_name` (que es global), no por ruta,
+asi que mover uno aqui no obliga a tocar a los demas.
+
+```
+core/       lo que esta siempre vivo
+  main.gd         MainRoot: la raiz que va cambiando de pantalla
+  game_state.gd   el autoload "Game": dinero, inventario, ajustes, guardado
+  audio.gd        el autoload "Sound": efectos, musica y los tres buses
+  palette.gd      los tokens de color que Tambien usa el generador
+
+data/       lo que se toca para reequilibrar el juego
+  loot_db.gd      precios, tiempos, que cae en cada paquete, cuanto vale
+
+ui/         las piezas de interfaz, reutilizables
+  ui_kit.gd       fabrica de controles: etiquetas, botones, paneles, sprites
+  sprites.gd      carga un PNG por nombre corto usando Sprites/index.tsv
+  pixel_number.gd numeros grandes con los sprites num_*
+  pixel_slider.gd deslizador con los sprites ui_slider_*
+  timer_ring.gd   el anillo de la espera
+
+screens/    una clase por pantalla
+  menu.gd           el menu de inicio
+  game.gd           la partida: la mesa, el bucle y las automatizaciones
+  shop_panel.gd     la tienda
+  reveal_card.gd    la tarjeta de revelado
+  settings_panel.gd los ajustes
+  table_element.gd  un objeto de la mesa: el paquete que se abre, el botin que
+                    se vende, y se arrastra por la mesa
+```
+
+## Que NO va aqui
+
+- **Los sprites** estan en `Sprites/`, en subcarpetas. Se piden por nombre
+  corto (`Sprites.tex("loot_vinyl_psa7")`) y la ruta la resuelve
+  `Sprites/index.tsv`, que escribe el generador de Python. **Y los sonidos**
+  igual, en `Sounds/` con `Sound.play("sfx_sell")` y su propio `index.tsv`.
+  Son dos indices y no uno porque son dos medios distintos, pero la idea es
+  la misma: el codigo pide un nombre, nunca una ruta.
+- **Las escenas** estan en `scenes/`, y son practicamente vacias: cada una tiene
+  un unico nodo raiz con el script de `screens/` puesto. Todo lo demas se monta
+  en codigo desde `ui_kit.gd`, porque casi todas las piezas se repiten con
+  parametros (una ranura por paquete, una estrella por punto de la nota PSA) y
+  en codigo salen de un bucle.
+- **Las herramientas de desarrollo** estan en `dev/` y no se empaquetan.
+- **Los generadores de Python** estan en `tools/`.
+
+## El orden de las capas
+
+`data/` no depende de nada de la interfaz. `ui/` no sabe nada del juego, solo de
+sprites. `screens/` es lo unico que las mezcla. Asi que se puede cambiar la
+interfaz entera sin tocar los datos, y reequilibrar el juego sin abrir un
+fichero de la interfaz.
+
+**El audio es una capa aparte, y por eso lo pone `screens/`.** `Sound` sabe
+reproducir un nombre y nada mas: no conoce el juego. Quien decide que vender
+suena es `game.gd`, que es quien vende. Si `Sound` supiera que existe algo
+llamado "vender" habria que tocar el audio cada vez que se toca una regla.
+
+**Quien decide es la pantalla, no la tarjeta.** `reveal_card.gd` dice QUE se ha
+elegido (`resolved("store")`, `"sell"` o `"later"`) y se cierra; quien mueve el
+dinero, el inventario y la mesa es `game.gd`, que es quien los tiene. Por eso
+GUARDAR no mete nada en el inventario por su cuenta: solo lo pide. Y por eso
+cerrar sin elegir es una tercera respuesta y no un "no ha pasado nada".

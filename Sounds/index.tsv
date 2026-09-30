@@ -1,0 +1,14 @@
+# Indice de sonidos: nombre corto<TAB>ruta dentro de Sounds/.
+# Lo genera tools/make_sounds.py. No editar a mano.
+# El juego lo lee en scripts/core/audio.gd.
+music_backroom	music/music_backroom.wav
+sfx_buy	sfx/sfx_buy.wav
+sfx_click	sfx/sfx_click.wav
+sfx_error	sfx/sfx_error.wav
+sfx_open	sfx/sfx_open.wav
+sfx_rare	sfx/sfx_rare.wav
+sfx_rip	sfx/sfx_rip.wav
+sfx_sell	sfx/sfx_sell.wav
+sfx_sell_all	sfx/sfx_sell_all.wav
+sfx_toggle	sfx/sfx_toggle.wav
+sfx_tool	sfx/sfx_tool.wav
