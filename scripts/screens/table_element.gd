@@ -32,6 +32,12 @@ const SHADOW_SIZE := Vector2(128, 128)
 const RING_SIZE := Vector2(320, 320)
 const HIT_RECT := Rect2(Vector2(20, 10), Vector2(260, 330))
 
+## Barra de resistencia. Va en la parte de arriba de la caja, para que se vea
+## cuanto le queda sin tapar el dibujo ni la chapita del precio.
+const HP_BAR_POS := Vector2(30, 6)
+const HP_BAR_SIZE := Vector2(240, 20)
+const HP_FILL_PAD := 3.0
+
 ## Cuanto hay que mover el raton para que un movimiento cuente como arrastre y
 ## no como un clic. Por debajo de esto es un clic con el pulso temblando.
 const DRAG_SLOP := 8.0
@@ -39,6 +45,10 @@ const DRAG_SLOP := 8.0
 var state: State = State.CLOSED
 var pack: Dictionary = {}
 var loot: Dictionary = {}
+
+## Resistencia. Baja a golpes de carga (o de los Pinchos) hasta romper la caja.
+var hp: float = 1.0
+var max_hp: float = 1.0
 
 ## Zona de la mesa por la que se puede mover el objeto, en coordenadas del
 ## padre. Es la mesa ENTERA, no el hueco que le queda al elemento: el que se
@@ -49,9 +59,9 @@ var bounds := Rect2()
 var _rng := RandomNumberGenerator.new()
 var _art: TextureRect = null
 var _ring: TimerRing = null
-var _wait := 0.0
+var _hp_fill: ColorRect = null
+var _charge := 0.0
 var _total := 1.0
-var _swapped := false
 var _busy := false
 
 var _hit: Button = null
@@ -83,6 +93,8 @@ func _ready() -> void:
 func setup_pack(pack_data: Dictionary) -> void:
 	pack = pack_data
 	state = State.CLOSED
+	max_hp = float(LootDB.pack_hp(str(pack_data.get("id", "cards"))))
+	hp = max_hp
 
 
 func setup_loot(item: Dictionary) -> void:
@@ -113,10 +125,18 @@ func _build_pack() -> void:
 	add_child(UIKit.image("shadow_small", SHADOW_CENTER, SHADOW_SIZE,
 			Color(1, 1, 1, 0.55)))
 
+	# La barra de resistencia va encima, en el margen transparente de arriba del
+	# sprite, para que se lea sin tapar el dibujo de la caja.
+	_build_hp_bar()
+
 	# La chapita del precio va DESPUES del aro para que se lea por encima (el aro
 	# le pasa por detras a la altura de abajo), y la zona de clic va la ultima de
 	# todas para que el clic lo siga cogiendo el boton.
-	_add_tag(int(pack.get("price", 0)))
+	#
+	# El sobre gratuito (precio 0, el inicial) NO lleva chapita: un "0" ahi no
+	# dice nada, y lo que dice que es gratis es la columna de sobres.
+	if int(pack.get("price", 0)) > 0:
+		_add_tag(int(pack.get("price", 0)))
 	_hit = UIKit.hit_area(self, HIT_RECT, "Abrir %s" % pack.get("name", ""))
 	_hit.pressed.connect(_on_pressed)
 	_hit.gui_input.connect(_on_hit_input)
@@ -145,6 +165,64 @@ func _build_loot() -> void:
 			int(loot.get("value", 0))))
 	_hit.pressed.connect(_on_pressed)
 	_hit.gui_input.connect(_on_hit_input)
+
+
+## La barra de resistencia: fondo oscuro y relleno que se acorta a cada golpe.
+## Los dos son ColorRect planos, como los puntos de nivel de la tienda, porque
+## son informacion, no arte.
+func _build_hp_bar() -> void:
+	var back := ColorRect.new()
+	back.color = Color(0.05, 0.04, 0.08, 0.82)
+	back.position = HP_BAR_POS
+	back.size = HP_BAR_SIZE
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(back)
+
+	_hp_fill = ColorRect.new()
+	_hp_fill.color = _bar_color(1.0)
+	_hp_fill.position = HP_BAR_POS + Vector2(HP_FILL_PAD, HP_FILL_PAD)
+	_hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_hp_fill)
+	_refresh_hp_bar()
+
+
+## Color del relleno: verde arriba, rojo abajo. Es lo unico del juego con esta
+## escala de color, y es a proposito: la vida se tiene que leer de un vistazo.
+func _bar_color(frac: float) -> Color:
+	if frac > 0.5:
+		return Color(0.35, 0.75, 0.42)
+	if frac > 0.25:
+		return Color(0.85, 0.65, 0.20)
+	return Color(0.80, 0.28, 0.22)
+
+
+func _refresh_hp_bar() -> void:
+	if _hp_fill == null:
+		return
+	var frac := clampf(hp / maxf(1.0, max_hp), 0.0, 1.0)
+	var inner := HP_BAR_SIZE - Vector2(HP_FILL_PAD, HP_FILL_PAD) * 2.0
+	_hp_fill.size = Vector2(maxf(0.0, inner.x * frac), inner.y)
+	_hp_fill.color = _bar_color(frac)
+
+
+## Cambia el sprite del paquete segun lo danado que este. Es lo que pide el PDF:
+## la caja se va abriendo (agrietandose) a cada golpe, no de golpe al final.
+func _refresh_damage_art() -> void:
+	if _art == null:
+		return
+	_art.texture = Sprites.tex(_damage_art_name())
+
+
+func _damage_art_name() -> String:
+	var base := str(pack.get("art", "pack_cards"))
+	var frac := clampf(hp / maxf(1.0, max_hp), 0.0, 1.0)
+	if frac > 0.72:
+		return base
+	if frac > 0.45:
+		return base + "_d1"
+	if frac > 0.22:
+		return base + "_d2"
+	return base + "_d3"
 
 
 ## La chapita de valor con el numero dentro.
@@ -183,15 +261,14 @@ func start_opening() -> bool:
 	if not can_open():
 		return false
 	state = State.OPENING
-	_total = maxf(0.05, Game.open_time(str(pack.get("id", "cards"))))
-	_wait = 0.0
-	_swapped = false
+	_total = maxf(0.05, Game.charge_time())
+	_charge = 0.0
 	# El rasgado va aqui y no en el clic: asi suena tambien cuando abre la
 	# automatizacion, que es la mitad de las aperturas de una partida larga.
 	Sound.play("sfx_rip")
 	_ring.modulate.a = 1.0
 	set_process(true)
-	_tap()
+	_tap(false)
 	return true
 
 
@@ -226,29 +303,75 @@ func _stop_drop() -> void:
 	scale = Vector2.ONE
 
 
-## Cada latigazo del anillo sacude el paquete. Es el "estallido de material" que
-## pedia el Idea.pdf, pero sin sonido: ese sprite de sonido todavia no existe.
-func _tap() -> void:
+## Cada latigazo de la carga sacude el paquete. Es el "estallido de material"
+## que pedia el Idea.pdf, pero sin sonido: ese sprite de sonido todavia no
+## existe. En un golpe critico la sacudida es mas fuerte y el paquete destella.
+func _tap(crit: bool) -> void:
 	if _art == null:
 		return
-	_art.scale = Vector2(1.08, 0.92)
+	_art.scale = Vector2(1.18, 0.82) if crit else Vector2(1.08, 0.92)
 	var tw := create_tween()
-	tw.tween_property(_art, "scale", Vector2.ONE, 0.14).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(_art, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK)
+	if crit:
+		_art.modulate = Color(1.7, 1.2, 0.8)
+		create_tween().tween_property(_art, "modulate", Color.WHITE, 0.22)
 
 
 func _process(delta: float) -> void:
 	if state != State.OPENING:
 		set_process(false)
 		return
-	_wait += delta
-	var p := clampf(_wait / _total, 0.0, 1.0)
+	_charge += delta
+	var p := clampf(_charge / _total, 0.0, 1.0)
 	_ring.progress = p
-	if not _swapped and p >= 0.45:
-		_swapped = true
-		_art.texture = Sprites.tex(str(pack.get("art_open", "pack_cards_open")))
-		_tap()
 	if p >= 1.0:
+		# Un ciclo completo es un golpe. La vida no baja de golpe, pero sube
+		# otra vez la carga: por eso hacen falta varios ciclos para abrir.
+		_charge = 0.0
+		_strike()
+
+
+## Un golpe: resta a la resistencia el dano del jugador (con critico si toca) y,
+## si llega a cero, la caja se rompe y sale el botin.
+func _strike() -> void:
+	var dmg := Game.damage_per_hit()
+	var crit := false
+	if Game.crit_chance() > 0.0 and _rng.randf() < Game.crit_chance():
+		crit = true
+		dmg *= Game.crit_mult()
+	hp = maxf(0.0, hp - dmg)
+	_tap(crit)
+	if hp <= 0.0:
+		if _art != null:
+			_art.texture = Sprites.tex(str(pack.get("art_open", "pack_cards_open")))
+		_refresh_hp_bar()
 		_finish()
+		return
+	_refresh_damage_art()
+	_refresh_hp_bar()
+	# Un ciclo es un golpe y un clic: si la caja aguanta, vuelve a quedar quieta
+	# esperando a que el jugador vuelva a pulsarla. Sin esto se abriria sola de
+	# una tirada encadenando ciclos.
+	state = State.CLOSED
+	set_process(false)
+	_ring.progress = 0.0
+	_ring.modulate.a = 0.0
+
+
+## Dano externo (los Pinchos) sin pasar por la carga del boton. Si rompe la caja
+## se abre igual, y si estaba quieta tambien: los Pinchos trabajan solos.
+func take_damage(amount: float) -> void:
+	if _busy or state == State.LOOT or state == State.OPENED or amount <= 0.0:
+		return
+	hp = maxf(0.0, hp - amount)
+	if hp <= 0.0:
+		if _art != null:
+			_art.texture = Sprites.tex(str(pack.get("art_open", "pack_cards_open")))
+		_refresh_hp_bar()
+		_finish()
+		return
+	_refresh_damage_art()
+	_refresh_hp_bar()
 
 
 func _finish() -> void:
@@ -280,7 +403,9 @@ func _on_pressed() -> void:
 	if _busy:
 		return
 	if state == State.CLOSED:
-		start_opening()
+		# Lo pide al juego y no lo hace el solo: quien sabe cuantos paquetes caben
+		# cargando a la vez (los Guantes) es game.gd, no el elemento.
+		Game.request_open(self)
 	elif state == State.LOOT:
 		_sell()
 

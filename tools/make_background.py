@@ -46,9 +46,11 @@ RGB = Tuple[int, int, int]
 BASE_W, BASE_H = 320, 180
 SCALE = 6
 
-# La mesa. 228x94 x8 son 1824x752, que es exactamente el rectangulo de la mesa
-# del juego (game.gd, TABLE_RECT): si cambia alli, se cambia aqui.
-TABLE_W, TABLE_H = 228, 94
+# La mesa. 168x94 x8 son 1344x752, que es exactamente el rectangulo de la mesa
+# del juego (game.gd, TABLE_RECT): si cambia alli, se cambia aqui. Son 168 y no
+# 228 porque la columna de sobres le come a la mesa los 576 px de la izquierda
+# (game.gd, PACK_ZONE).
+TABLE_W, TABLE_H = 168, 94
 TABLE_SCALE = 8
 
 TABLE_TOP: RGB = (122, 74, 44)      # madera de la superficie, bajo la luz
@@ -350,7 +352,7 @@ def main() -> None:
                     help="semilla del desorden de las baldas (cambiala para otra variante)")
     ap.add_argument("--table", action="store_true",
                     help="en vez del fondo, la superficie de la mesa: escribe "
-                         "bg_table.png (1824x752, el rectangulo de la mesa del juego)")
+                         "bg_table.png (1344x752, el rectangulo de la mesa del juego)")
     ap.add_argument("--table-scale", type=int, default=TABLE_SCALE,
                     help=f"factor de escalado de la mesa (por defecto {TABLE_SCALE} "
                          f"-> 1824x752)")

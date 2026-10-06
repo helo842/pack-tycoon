@@ -714,23 +714,7 @@ def draw_pack_cards(s: Sprite) -> None:
 
 def draw_pack_cards_open(s: Sprite) -> None:
     """El mismo sobre, rasgado por arriba, con cartas asomando."""
-    draw_pack_cards(s)
-    # desgarro: se borra la parte de arriba del sobre
-    s.rect(8, 0, 23, 9, TRANSPARENT)
-    # borde rasgado, con el interior oscuro
-    s.poly([(9, 11), (11, 7), (14, 10), (17, 6), (20, 10), (22, 8), (22, 11)], DARK)
-    s.rect(9, 11, 22, 13, DARK)
-    s.line([(9, 11), (22, 11)], GOLD_D)
-    s.dots([(10, 8), (13, 7), (16, 6), (19, 7), (21, 9)], GOLD_D)
-    # cartas bien asomando por encima del desgarro
-    s.rect(10, 1, 15, 8, CREAM)
-    s.rect(10, 1, 15, 1, WHITE)
-    s.rect(10, 4, 15, 4, CREAM_D)
-    s.px(12, 2, TEAL)
-    s.rect(16, 2, 21, 9, CREAM)
-    s.rect(16, 2, 21, 2, WHITE)
-    s.rect(16, 5, 21, 5, CREAM_D)
-    s.px(18, 3, RED)
+    _cards_open(draw_pack_cards, s, GOLD_D)
 
 
 def draw_pack_vinyls(s: Sprite) -> None:
@@ -756,19 +740,7 @@ def draw_pack_vinyls(s: Sprite) -> None:
 
 def draw_pack_vinyls_open(s: Sprite) -> None:
     """La misma funda, rasgada por una esquina, con el vinilo fuera."""
-    draw_pack_vinyls(s)
-    # el vinilo sale entero por la esquina superior derecha
-    s.ellipse(14, 1, 30, 19, DARK)
-    s.ellipse(15, 2, 29, 18, DARK_SOFT)
-    s.ellipse(20, 7, 24, 11, GOLD_D)
-    s.ellipse(20, 7, 23, 10, GOLD_XL)
-    s.ring(16, 3, 28, 17, DARK)
-    # desgarro del carton
-    s.poly([(12, 6), (16, 9), (20, 6), (24, 9), (27, 6), (27, 12), (12, 12)], DARK)
-    s.line([(12, 12), (27, 12)], GOLD_D)
-    s.dots([(13, 7), (17, 10), (21, 7), (25, 10)], GOLD_D)
-    s.px(14, 6, CREAM_D)
-    s.px(23, 6, CREAM_D)
+    _vinyls_open(draw_pack_vinyls, s, DARK, DARK_SOFT, GOLD_D, GOLD_XL, GOLD_D)
 
 
 def draw_pack_sneakers(s: Sprite) -> None:
@@ -793,27 +765,7 @@ def draw_pack_sneakers(s: Sprite) -> None:
 
 def draw_pack_sneakers_open(s: Sprite) -> None:
     """La misma caja con la tapa levantada y una zapatilla saliendo."""
-    # tapa levantada, por detras
-    s.poly([(2, 12), (8, 5), (27, 5), (29, 12)], CREAM)
-    s.poly([(8, 5), (27, 5), (27, 7), (9, 7)], CREAM_D)   # canto de la tapa
-    s.poly([(2, 12), (8, 5), (9, 7), (3, 12)], CREAM_D)    # lateral en sombra
-    # papel de seda
-    s.poly([(4, 13), (9, 9), (22, 9), (27, 13)], WHITE)
-    s.poly([(4, 13), (9, 9), (15, 9), (10, 13)], TISSUE)
-    # zapatilla blanca saliendo
-    s.poly([(10, 18), (11, 13), (15, 12), (19, 15), (24, 16), (27, 19), (27, 21), (10, 21)], WHITE)
-    s.poly([(10, 20), (27, 19), (27, 21), (10, 21)], CREAM_D)   # suela
-    s.poly([(12, 16), (19, 15), (23, 16), (22, 18), (12, 18)], GOLD)   # franja
-    s.px(14, 14, CREAM_D)
-    # cuerpo de la caja
-    s.rect(2, 13, 29, 26, CREAM)
-    s.rect(2, 13, 29, 15, CREAM_D)
-    s.rect(2, 25, 29, 26, CREAM_D)
-    s.rect(2, 13, 2, 26, CREAM_D)
-    s.rect(8, 19, 23, 24, GOLD_D)
-    s.rect(9, 20, 22, 23, GOLD)
-    s.rect(9, 20, 22, 20, GOLD_L)
-    s.rect(11, 21, 20, 22, BROWN)
+    _sneakers_open(s, CREAM, CREAM_D, CREAM, CREAM_D, GOLD_D, GOLD, GOLD_L, BROWN)
 
 
 def draw_pack_electronics(s: Sprite) -> None:
@@ -845,21 +797,7 @@ def draw_pack_electronics(s: Sprite) -> None:
 
 def draw_pack_electronics_open(s: Sprite) -> None:
     """La misma caja con el plastico rasgado y arrancado."""
-    draw_pack_electronics(s)
-    # plastico descolgandose por un lado
-    s.poly([(19, 3), (26, 6), (27, 14), (22, 12), (20, 8)], DARK_SOFT)
-    s.poly([(19, 3), (26, 6), (27, 8), (21, 6)], SLATE)
-    s.dots([(24, 10), (25, 12)], STEEL_DD)
-    # hueco rasgado, con el interior oscuro
-    s.rect(7, 11, 24, 20, DARK)
-    s.poly([(7, 11), (10, 9), (14, 11), (18, 8), (24, 11), (24, 20), (7, 20)], DARK)
-    s.poly([(7, 11), (10, 9), (14, 11), (18, 8), (24, 11), (24, 13), (7, 13)], PLASTIC)
-    # bordes del desgarro
-    s.dots([(8, 11), (12, 10), (16, 10), (20, 9), (23, 11)], STEEL_D)
-    # cable enrollado asomando
-    s.arc(11, 13, 21, 19, 20, 340, fill=TEAL_D, width=2)
-    s.arc(12, 14, 20, 18, 30, 300, fill=TEAL, width=1)
-    s.px(20, 15, GOLD_HI)
+    _electronics_open(draw_pack_electronics, s, DARK_SOFT, SLATE, STEEL_DD, STEEL_D)
 
 
 def draw_pack_misc(s: Sprite) -> None:
@@ -902,6 +840,375 @@ def draw_pack_misc_open(s: Sprite) -> None:
     s.rect(4, 15, 28, 18, GOLD)
     s.rect(4, 15, 28, 15, GOLD_L)
     s.rect(4, 18, 28, 18, GOLD_D)
+
+
+# --------------------------------------------------------------------------- #
+# Escalones 2 y 3: los mismos cuatro sobres, con acabado de lujo
+# --------------------------------------------------------------------------- #
+#
+# Los tres escalones de un tipo son el MISMO sobre: misma silueta y misma caja
+# de dano (PACK_BOXES). Lo que cambia al subir es el material. El escalon 1 es
+# el de siempre (carton, plastico, madera); el 2 va forrado de pan de oro; el 3
+# es laca oscura con filetes de macizo y una joya montada.
+#
+# Se dibujan aparte y no con un tinte encima del escalon 1 porque un tinte plano
+# se come el sombreado (el brillo del carton, el bisel de la tapa) y deja tres
+# manchas del mismo dibujo en vez de tres sobres. Las tres versiones comparten
+# coordenadas a proposito: el contorno no se toca NUNCA, o al partirse el sobre
+# se veria otra caja y el jugador no reconoceria lo que esta golpeando.
+#
+# Las piezas nuevas (pan de oro, laca, joya, precinto de crema) usan la paleta
+# de siempre: oro, crema y el turquesa de las gemas. Ojo con la laca: NO es
+# negro puro. El fondo de la columna de sobres es casi negro (0.02, 0.015, 0.04)
+# y un sobre negro se leeria como un hueco en la tienda; por eso el escalon 3 va
+# de gris violaceo (DARK_SOFT/SLATE/NIGHT), que junto al oro se lee como laca
+# sin desaparecer sobre el fondo.
+
+
+def _draw_diamond(s: Sprite, cx: int, cy: int, r: int) -> None:
+    """Joya tallada: rombo aguamarina con facetas y un destello blanco.
+
+    Es el mismo truco de facetas que draw_gem(), pero en turquesa en vez de en
+    el color de una rareza: el escalon 3 no lleva una gema de rareza, lleva
+    joya. El turquesa ya esta en la paleta (es el de las esquinas del sobre de
+    cartas), asi que no se mete ningun color nuevo en el juego.
+    """
+    cima, derecha = (cx, cy - r), (cx + r, cy)
+    fondo, izquierda = (cx, cy + r), (cx - r, cy)
+    s.poly([cima, (cx, cy), izquierda], TEAL_L)     # cara alta, a la luz
+    s.poly([cima, derecha, (cx, cy)], WHITE)        # cara alta, al sol
+    s.poly([izquierda, (cx, cy), fondo], TEAL)      # cara baja
+    s.poly([(cx, cy), derecha, fondo], TEAL_D)      # cara baja en sombra
+    brillo = max(1, r // 2)
+    s.px(cx - brillo, cy - brillo - 1, WHITE)
+
+
+# --- las capas de APERTURA de los tres escalones --------------------------- #
+#
+# Cada sobre abierto es su escalon cerrado con el desgarro encima. El desgarro
+# es el mismo en los tres (mismas coordenadas, mismo hueco oscuro): lo unico que
+# cambia es el color del borde rasgado, que en el 1 es el oro del marco y en el
+# 2 y el 3 es oro vivo, porque el material de debajo es otro. Estan aqui y no
+# repetidos tres veces porque un desgarro a mano por escalon es la forma mas
+# rapida de que los tres dejen de encajar al retocar uno.
+
+
+def _cards_open(base: Item, s: Sprite, rim: RGBA) -> None:
+    """Sobre de cartas rasgado por arriba, con las cartas asomando."""
+    base(s)
+    # desgarro: se borra la parte de arriba del sobre
+    s.rect(8, 0, 23, 9, TRANSPARENT)
+    # borde rasgado, con el interior oscuro
+    s.poly([(9, 11), (11, 7), (14, 10), (17, 6), (20, 10), (22, 8), (22, 11)], DARK)
+    s.rect(9, 11, 22, 13, DARK)
+    s.line([(9, 11), (22, 11)], rim)
+    s.dots([(10, 8), (13, 7), (16, 6), (19, 7), (21, 9)], rim)
+    # cartas bien asomando por encima del desgarro
+    s.rect(10, 1, 15, 8, CREAM)
+    s.rect(10, 1, 15, 1, WHITE)
+    s.rect(10, 4, 15, 4, CREAM_D)
+    s.px(12, 2, TEAL)
+    s.rect(16, 2, 21, 9, CREAM)
+    s.rect(16, 2, 21, 2, WHITE)
+    s.rect(16, 5, 21, 5, CREAM_D)
+    s.px(18, 3, RED)
+
+
+def _vinyls_open(base: Item, s: Sprite, disco: RGBA, disco_soft: RGBA,
+                 sello: RGBA, sello_hi: RGBA, rim: RGBA) -> None:
+    """Funda de vinilos rasgada por una esquina, con el disco fuera."""
+    base(s)
+    # el disco sale entero por la esquina superior derecha
+    s.ellipse(14, 1, 30, 19, disco)
+    s.ellipse(15, 2, 29, 18, disco_soft)
+    s.ellipse(20, 7, 24, 11, sello)
+    s.ellipse(20, 7, 23, 10, sello_hi)
+    s.ring(16, 3, 28, 17, disco)
+    # desgarro del carton
+    s.poly([(12, 6), (16, 9), (20, 6), (24, 9), (27, 6), (27, 12), (12, 12)], DARK)
+    s.line([(12, 12), (27, 12)], rim)
+    s.dots([(13, 7), (17, 10), (21, 7), (25, 10)], rim)
+    s.px(14, 6, CREAM_D)
+    s.px(23, 6, CREAM_D)
+
+
+def _sneakers_open(s: Sprite, cuerpo: RGBA, cuerpo_d: RGBA, tapa: RGBA,
+                   tapa_d: RGBA, etiqueta_d: RGBA, etiqueta: RGBA,
+                   etiqueta_l: RGBA, tinta: RGBA) -> None:
+    """Caja de zapatillas con la tapa levantada y una zapatilla saliendo.
+
+    Se parametriza el carton porque la caja del escalon 2 es de oro y la del 3
+    de laca: la zapatilla de dentro (que es el producto) no cambia, y la tapa
+    tiene que ser del mismo material que la caja cerrada de su escalon o se
+    verian dos cajas distintas.
+    """
+    # tapa levantada, por detras
+    s.poly([(2, 12), (8, 5), (27, 5), (29, 12)], tapa)
+    s.poly([(8, 5), (27, 5), (27, 7), (9, 7)], tapa_d)   # canto de la tapa
+    s.poly([(2, 12), (8, 5), (9, 7), (3, 12)], tapa_d)    # lateral en sombra
+    # papel de seda
+    s.poly([(4, 13), (9, 9), (22, 9), (27, 13)], WHITE)
+    s.poly([(4, 13), (9, 9), (15, 9), (10, 13)], TISSUE)
+    # zapatilla blanca saliendo
+    s.poly([(10, 18), (11, 13), (15, 12), (19, 15), (24, 16), (27, 19), (27, 21), (10, 21)], WHITE)
+    s.poly([(10, 20), (27, 19), (27, 21), (10, 21)], CREAM_D)   # suela
+    s.poly([(12, 16), (19, 15), (23, 16), (22, 18), (12, 18)], GOLD)   # franja
+    s.px(14, 14, CREAM_D)
+    # cuerpo de la caja
+    s.rect(2, 13, 29, 26, cuerpo)
+    s.rect(2, 13, 29, 15, cuerpo_d)
+    s.rect(2, 25, 29, 26, cuerpo_d)
+    s.rect(2, 13, 2, 26, cuerpo_d)
+    s.rect(8, 19, 23, 24, etiqueta_d)
+    s.rect(9, 20, 22, 23, etiqueta)
+    s.rect(9, 20, 22, 20, etiqueta_l)
+    s.rect(11, 21, 20, 22, tinta)
+
+
+def _electronics_open(base: Item, s: Sprite, lamina: RGBA, lamina_hi: RGBA,
+                      lamina_d: RGBA, rim: RGBA) -> None:
+    """Caja de electronica con el plastico rasgado y arrancado."""
+    base(s)
+    # la lamina descolgandose por un lado
+    s.poly([(19, 3), (26, 6), (27, 14), (22, 12), (20, 8)], lamina)
+    s.poly([(19, 3), (26, 6), (27, 8), (21, 6)], lamina_hi)
+    s.dots([(24, 10), (25, 12)], lamina_d)
+    # hueco rasgado, con el interior oscuro
+    s.rect(7, 11, 24, 20, DARK)
+    s.poly([(7, 11), (10, 9), (14, 11), (18, 8), (24, 11), (24, 20), (7, 20)], DARK)
+    s.poly([(7, 11), (10, 9), (14, 11), (18, 8), (24, 11), (24, 13), (7, 13)], PLASTIC)
+    # bordes del desgarro
+    s.dots([(8, 11), (12, 10), (16, 10), (20, 9), (23, 11)], rim)
+    # cable enrollado asomando
+    s.arc(11, 13, 21, 19, 20, 340, fill=TEAL_D, width=2)
+    s.arc(12, 14, 20, 18, 30, 300, fill=TEAL, width=1)
+    s.px(20, 15, GOLD_HI)
+
+
+# --- ESCALON 2: pan de oro ------------------------------------------------ #
+
+def draw_pack_cards2(s: Sprite) -> None:
+    """Sobre de cartas de ORO: el mismo sobre, forrado de pan de oro."""
+    x0, x1, y0, y1 = 9, 22, 3, 29
+    s.rect(x0, y0, x1, y1, GOLD_HI)                  # canto de oro vivo
+    s.rect(x0 + 1, y0 + 1, x1 - 1, y1 - 1, GOLD)
+    s.rect(x0 + 1, y0 + 1, x1 - 1, y0 + 3, GOLD_XL)  # luz del canto
+    s.rect(x0 + 1, y1 - 3, x1 - 1, y1 - 1, GOLD_D)   # sombra del canto
+    s.rect(x0 + 2, y0 + 4, x1 - 2, y1 - 4, GOLD_L)   # cara del pan de oro
+    s.rect(x0 + 2, y0 + 4, x1 - 2, y0 + 6, GOLD_XL)
+    # banda batida en el pie
+    s.rect(x0 + 2, 24, x1 - 2, 26, GOLD_XL)
+    s.rect(x0 + 2, 24, x1 - 2, 24, GOLD_HI)
+    s.rect(x0 + 2, 26, x1 - 2, 26, GOLD_D)
+    # el sello de lacre, con la gema de las cartas
+    s.ellipse(10, 11, 21, 22, GOLD_D)
+    s.ellipse(11, 12, 20, 21, CREAM)
+    s.ellipse(12, 13, 19, 19, CREAM_L)
+    draw_gem(s, 15, 16, 3, RARITIES["rare"])
+    # el pan de oro destella, no brilla liso
+    s.dots([(10, 5), (21, 5), (10, 21), (21, 21)], GOLD_HI)
+    s.px(12, 8, WHITE)
+    s.px(19, 9, GOLD_HI)
+    _serrated_top(s, x0, x1, y0 - 2)
+
+
+def draw_pack_cards2_open(s: Sprite) -> None:
+    """El sobre de oro, rasgado: mismo desgarro, canto de oro vivo."""
+    _cards_open(draw_pack_cards2, s, GOLD_XL)
+
+
+def draw_pack_vinyls2(s: Sprite) -> None:
+    """Funda de vinilos de ORO: el carton de siempre, de oro batido."""
+    x0, x1, y0, y1 = 4, 27, 6, 28
+    s.rect(x0, y0, x1, y1, GOLD_D)                   # canto de la funda
+    s.rect(x0, y0, x1, y0 + 1, GOLD)
+    s.rect(x0, y0, x0, y1, GOLD)
+    s.rect(x1, y0, x1, y1, GOLD_D)
+    s.rect(x0 + 1, y0 + 1, x1 - 1, y1 - 1, GOLD_L)   # cara del pan de oro
+    s.rect(x0 + 1, y0 + 1, x1 - 1, y0 + 2, GOLD_XL)
+    s.rect(x0 + 1, y1 - 2, x1 - 1, y1 - 1, GOLD_D)
+    # la veta del pan de oro: dos rayas PARALELAS, que es como se lee una
+    # lamina batida. En diagonal y no verticales porque la funda ya lleva una
+    # banda vertical en la cinta, y dos rayas verticales aqui se leen como una
+    # tercera cinta en vez de como el brillo del material.
+    s.line([(5, 24), (11, 12)], GOLD_XL)
+    s.line([(7, 26), (13, 14)], GOLD_XL)
+    # sello de lacre dorado con la gema
+    s.ellipse(11, 9, 20, 18, GOLD_D)
+    s.ellipse(12, 10, 19, 17, CREAM)
+    draw_gem(s, 15, 13, 3, RARITIES["rare"])
+    # el disco de ORO asomando por arriba
+    s.rect(x0 + 2, y0 - 2, x1 - 2, y0, GOLD_D)
+    s.dots([(7, y0 - 1), (15, y0 - 2), (24, y0 - 1)], GOLD_HI)
+
+
+def draw_pack_vinyls2_open(s: Sprite) -> None:
+    """La funda de oro abierta: el disco de oro fuera, con su etiqueta."""
+    _vinyls_open(draw_pack_vinyls2, s, GOLD_D, GOLD_L, CREAM_D, CREAM_L, GOLD_XL)
+
+
+def draw_pack_sneakers2(s: Sprite) -> None:
+    """Caja de zapatillas de ORO: la caja entera, de oro batido."""
+    x0, x1, y0, y1 = 2, 29, 12, 26
+    s.rect(x0, y0, x1, y1, GOLD)
+    s.rect(x0, y0, x1, y0 + 2, GOLD_XL)              # tapa
+    s.rect(x0, y0, x1, y0, GOLD_HI)
+    s.rect(x0, y0 + 2, x1, y0 + 3, GOLD_D)
+    s.rect(x0, y1 - 1, x1, y1, GOLD_D)
+    s.rect(x0, y0, x0, y1, GOLD_D)
+    s.rect(x0 + 1, y0 + 4, x1 - 1, y0 + 6, GOLD_D)   # sombra bajo la tapa
+    # etiqueta de crema: sobre el oro es lo unico que se lee
+    s.rect(8, 19, 23, 24, GOLD_D)
+    s.rect(9, 20, 22, 23, CREAM)
+    s.rect(9, 20, 22, 20, CREAM_L)
+    s.rect(11, 21, 20, 22, GOLD_D)                   # texto falso de la etiqueta
+    # el pan de oro destella
+    s.px(3, 14, WHITE)
+    s.px(28, 25, GOLD_HI)
+    s.px(4, 25, GOLD_HI)
+
+
+def draw_pack_sneakers2_open(s: Sprite) -> None:
+    """La caja de oro abierta: tapa y cuerpo del mismo oro, etiqueta crema."""
+    _sneakers_open(s, GOLD_L, GOLD_D, GOLD_XL, GOLD_D, GOLD_D, CREAM, CREAM_L, GOLD_D)
+
+
+def draw_pack_electronics2(s: Sprite) -> None:
+    """Caja de electronica de ORO: el mismo plastico, laminado en oro."""
+    x0, x1, y0, y1 = 9, 22, 3, 28
+    s.rect(x0, y0, x1, y1, GOLD)                     # lamina de oro
+    s.rect(x0, y0, x0 + 2, y1, GOLD_XL)              # brillo de la lamina
+    s.rect(x0, y1 - 1, x1, y1, GOLD_D)
+    s.rect(x1 - 1, y0, x1, y1, GOLD_D)
+    # filetes oscuros: las dos bandas que sujetan la caja
+    s.rect(x0, 8, x1, 10, GOLD_D)
+    s.rect(x0, 8, x1, 8, GOLD_XL)
+    s.rect(x0, 20, x1, 22, GOLD_D)
+    s.rect(x0, 20, x1, 20, GOLD_XL)
+    # precinto de crema, como el de un paquete de lujo
+    s.rect(13, y0, 18, y1, CREAM_D)
+    s.rect(14, y0, 17, y1, CREAM)
+    s.rect(14, y0, 14, y1, WHITE)
+    # etiqueta oscura con letras de oro
+    s.rect(11, 13, 20, 18, DARK)
+    s.rect(11, 13, 20, 13, NIGHT_L)
+    s.dots([(13, 15), (16, 15), (18, 16), (13, 17), (15, 17)], GOLD_XL)
+    s.px(12, 5, WHITE)
+    s.px(19, 26, GOLD_HI)
+
+
+def draw_pack_electronics2_open(s: Sprite) -> None:
+    """La caja de oro abierta: la lamina de oro descolgandose."""
+    _electronics_open(draw_pack_electronics2, s, GOLD_L, GOLD_XL, GOLD_D, GOLD_D)
+
+
+# --- ESCALON 3: laca y joya ----------------------------------------------- #
+#
+# El escalon que se paga a precio de millon: laca oscura, filetes de oro
+# macizo y una joya montada. Los tres elementos se leen de lejos y ninguno se
+# apoya en un color nuevo: si el jugador mira la columna de reojo, el 3 tiene
+# que ser el unico con algo que brilla dentro de un marco de oro.
+
+def draw_pack_cards3(s: Sprite) -> None:
+    """Sobre de cartas de LUJO: laca oscura, filetes de oro y una joya."""
+    x0, x1, y0, y1 = 9, 22, 3, 29
+    s.rect(x0, y0, x1, y1, GOLD_HI)                  # filete de oro exterior
+    s.rect(x0 + 1, y0 + 1, x1 - 1, y1 - 1, GOLD_D)
+    s.rect(x0 + 2, y0 + 2, x1 - 2, y1 - 2, DARK_SOFT)   # laca
+    s.rect(x0 + 2, y0 + 2, x1 - 2, y0 + 4, NIGHT_L)     # el brillo de la laca
+    s.rect(x0 + 2, y1 - 5, x1 - 2, y1 - 2, NIGHT)
+    # filete interior, que es donde va montada la joya
+    s.rect(x0 + 2, 9, x1 - 2, 9, GOLD_D)
+    s.rect(x0 + 2, 23, x1 - 2, 23, GOLD_D)
+    s.rect(x0 + 2, 9, x0 + 2, 23, GOLD_D)
+    s.rect(x1 - 2, 9, x1 - 2, 23, GOLD_D)
+    _draw_diamond(s, 15, 16, 4)
+    # esquinas y destellos
+    s.dots([(x0 + 4, 6), (x1 - 4, 6), (x0 + 4, 26), (x1 - 4, 26)], GOLD_XL)
+    s.px(19, 7, WHITE)
+    _serrated_top(s, x0, x1, y0 - 2)
+
+
+def draw_pack_cards3_open(s: Sprite) -> None:
+    """El sobre de lujo, rasgado: mismo desgarro, canto de oro vivo."""
+    _cards_open(draw_pack_cards3, s, GOLD_XL)
+
+
+def draw_pack_vinyls3(s: Sprite) -> None:
+    """Funda de vinilos de LUJO: laca oscura con filetes y una joya."""
+    x0, x1, y0, y1 = 4, 27, 6, 28
+    s.rect(x0, y0, x1, y1, GOLD_HI)                  # filete exterior
+    s.rect(x0 + 1, y0 + 1, x1 - 1, y1 - 1, GOLD_D)
+    s.rect(x0 + 2, y0 + 2, x1 - 2, y1 - 2, DARK_SOFT)   # laca
+    s.rect(x0 + 2, y0 + 2, x1 - 2, y0 + 4, NIGHT_L)
+    s.rect(x0 + 2, y1 - 5, x1 - 2, y1 - 2, NIGHT)
+    # la cinta, ahora de oro macizo
+    s.rect(x0 + 2, 14, x1 - 2, 18, GOLD)
+    s.rect(x0 + 2, 14, x1 - 2, 14, GOLD_XL)
+    s.rect(x0 + 2, 18, x1 - 2, 18, GOLD_D)
+    # joya montada en la cinta
+    _draw_diamond(s, 15, 16, 5)
+    s.dots([(x0 + 3, 8), (x1 - 3, 8), (x0 + 3, 26), (x1 - 3, 26)], GOLD_XL)
+    s.px(23, 10, WHITE)
+
+
+def draw_pack_vinyls3_open(s: Sprite) -> None:
+    """La funda de lujo abierta: el disco fuera y el canto de oro vivo."""
+    _vinyls_open(draw_pack_vinyls3, s, DARK, DARK_SOFT, GOLD_D, GOLD_XL, GOLD_XL)
+
+
+def draw_pack_sneakers3(s: Sprite) -> None:
+    """Caja de zapatillas de LUJO: lacada, con la tapa de oro."""
+    x0, x1, y0, y1 = 2, 29, 12, 26
+    s.rect(x0, y0, x1, y1, DARK_SOFT)                # laca
+    s.rect(x0, y0, x1, y0 + 2, GOLD)                 # tapa de oro
+    s.rect(x0, y0, x1, y0, GOLD_HI)
+    s.rect(x0, y0 + 2, x1, y0 + 3, GOLD_D)
+    s.rect(x0, y1 - 1, x1, y1, NIGHT)
+    s.rect(x0, y0, x0, y1, NIGHT)
+    s.rect(x0 + 1, y0 + 4, x1 - 1, y0 + 6, NIGHT)    # sombra bajo la tapa
+    # etiqueta de oro con la joya montada
+    s.rect(8, 18, 23, 24, GOLD_D)
+    s.rect(9, 19, 22, 23, DARK)
+    _draw_diamond(s, 15, 21, 2)
+    s.px(27, 25, GOLD_HI)
+    s.px(3, 25, GOLD_HI)
+
+
+def draw_pack_sneakers3_open(s: Sprite) -> None:
+    """La caja lacada abierta: misma laca, tapa de oro, etiqueta de oro."""
+    _sneakers_open(s, DARK_SOFT, NIGHT, GOLD, GOLD_D, GOLD_D, GOLD, GOLD_XL, DARK)
+
+
+def draw_pack_electronics3(s: Sprite) -> None:
+    """Caja de electronica de LUJO: laca, filetes de oro y una joya."""
+    x0, x1, y0, y1 = 9, 22, 3, 28
+    s.rect(x0, y0, x1, y1, GOLD_HI)                  # filete exterior de oro
+    s.rect(x0 + 1, y0 + 1, x1 - 1, y1 - 1, GOLD_D)
+    s.rect(x0 + 2, y0 + 2, x1 - 2, y1 - 2, DARK_SOFT)   # laca
+    s.rect(x0 + 2, y0 + 2, x0 + 3, y1 - 2, SLATE)       # brillo de la laca
+    s.rect(x0 + 2, y1 - 4, x1 - 2, y1 - 2, NIGHT)
+    # bandas de oro macizo
+    s.rect(x0, 8, x1, 10, GOLD)
+    s.rect(x0, 8, x1, 8, GOLD_HI)
+    s.rect(x0, 10, x1, 10, GOLD_D)
+    s.rect(x0, 20, x1, 22, GOLD)
+    s.rect(x0, 20, x1, 20, GOLD_HI)
+    s.rect(x0, 22, x1, 22, GOLD_D)
+    # precinto de oro, como el del escalon 1 pero macizo
+    s.rect(13, y0, 18, y1, GOLD_D)
+    s.rect(14, y0, 17, y1, GOLD)
+    s.rect(14, y0, 14, y1, GOLD_HI)
+    s.dots([(15, 6), (15, 9), (15, 24)], GOLD_XL)
+    # la joya, montada en un marco oscuro sobre el precinto
+    s.rect(11, 12, 20, 19, GOLD_D)
+    s.rect(12, 13, 19, 18, DARK)
+    _draw_diamond(s, 15, 16, 3)
+
+
+def draw_pack_electronics3_open(s: Sprite) -> None:
+    """La caja de lujo abierta: la lamina de oro descolgandose."""
+    _electronics_open(draw_pack_electronics3, s, GOLD_D, GOLD, GOLD_D, GOLD)
 
 
 # --------------------------------------------------------------------------- #
@@ -1294,6 +1601,208 @@ def draw_crowbar(s: Sprite) -> None:
     # vueltas de la cinta
     s.dots([(12, 10), (14, 12), (16, 14)], BROWN_D)
     s.dots([(13, 11), (15, 13), (17, 15)], BROWN_L)
+
+
+# --------------------------------------------------------------------------- #
+# ITEMS SHOP: los ocho objetos equipables del Idea.pdf
+#
+# Sustituyen a las cuatro herramientas: ya no acortan la espera, suben el dano,
+# la suerte o el espacio de la mesa. Se dibujan a 32x32 y salen a 512, como las
+# herramientas, para que la tienda los pinte al mismo tamano.
+# --------------------------------------------------------------------------- #
+
+def draw_item_guantes(s: Sprite) -> None:
+    """Guante de trabajo. Reutiliza el dibujo del guante de las herramientas."""
+    draw_gloves(s)
+
+
+def draw_item_trebol(s: Sprite) -> None:
+    """Trebol de cuatro hojas: tira mas botin raro."""
+    # tallo
+    s.rect(15, 17, 16, 27, GREEN_D)
+    s.rect(15, 17, 15, 27, GREEN)
+    # cuatro hojas, mirando a las diagonales
+    s.ellipse(8, 5, 16, 14, GREEN_D)
+    s.ellipse(16, 5, 24, 14, GREEN_D)
+    s.ellipse(8, 11, 16, 20, GREEN_D)
+    s.ellipse(16, 11, 24, 20, GREEN_D)
+    s.ellipse(9, 6, 15, 13, GREEN)
+    s.ellipse(17, 6, 23, 13, GREEN)
+    s.ellipse(9, 12, 15, 19, GREEN)
+    s.ellipse(17, 12, 23, 19, GREEN)
+    # brillo de la hoja de arriba-izquierda
+    s.ellipse(10, 7, 13, 10, GREEN_L)
+    s.dots([(12, 8), (20, 8)], GREEN_L)
+    # muesca entre hojas
+    s.px(14, 10, GREEN_D)
+    s.px(17, 10, GREEN_D)
+    s.px(14, 16, GREEN_D)
+    s.px(17, 16, GREEN_D)
+
+
+def draw_item_pinchos(s: Sprite) -> None:
+    """Banda de pinchos: danan todas las cajas de la mesa a la vez."""
+    # base metalica
+    s.rect(3, 20, 28, 25, STEEL_D)
+    s.rect(3, 20, 28, 21, STEEL)
+    s.rect(3, 24, 28, 25, STEEL_DD)
+    # punta de cada pincho
+    for x in range(4, 27, 5):
+        s.poly([(x, 20), (x + 2, 6), (x + 4, 20)], STEEL_D)
+        s.poly([(x + 1, 20), (x + 2, 7), (x + 3, 20)], STEEL)
+        s.line([(x + 2, 7), (x + 2, 20)], WHITE)   # filo iluminado
+    # remaches de la base
+    s.dots([(5, 23), (15, 23), (26, 23)], GOLD_D)
+
+
+def draw_item_cajon(s: Sprite) -> None:
+    """Cajon de madera: mas espacio en la mesa."""
+    # cuerpo
+    s.rect(4, 8, 27, 26, BROWN)
+    s.rect(4, 8, 27, 10, BROWN_L)          # canto superior
+    s.rect(4, 24, 27, 26, BROWN_D)         # canto inferior
+    s.rect(4, 8, 4, 26, BROWN_L)           # lateral iluminado
+    s.rect(27, 8, 27, 26, BROWN_D)
+    # tirador
+    s.rect(8, 16, 23, 20, BROWN_D)
+    s.rect(9, 17, 22, 19, GOLD_D)
+    s.rect(9, 17, 22, 17, GOLD)
+    s.dots([(11, 18), (20, 18)], GOLD_HI)
+    # esquinas metalicas
+    s.dots([(5, 9), (26, 9), (5, 25), (26, 25)], STEEL_DD)
+
+
+def draw_item_pc(s: Sprite) -> None:
+    """Ordenador: zona de compra automatica por tiempo."""
+    # pantalla
+    s.rect(5, 5, 26, 20, STEEL_D)
+    s.rect(5, 5, 26, 6, STEEL)
+    s.rect(5, 19, 26, 20, STEEL_DD)
+    s.rect(7, 7, 24, 18, LCD_D)
+    s.rect(8, 8, 23, 17, LCD)
+    # lineas de "codigo" en el monitor
+    s.dots([(9, 10), (12, 10), (17, 10)], LCD_L)
+    s.dots([(9, 12), (14, 12), (20, 12)], LCD_D)
+    s.dots([(9, 14), (12, 14)], LCD_L)
+    # peana
+    s.rect(13, 20, 18, 24, STEEL_D)
+    s.rect(9, 24, 22, 26, STEEL_D)
+    s.rect(9, 24, 22, 24, STEEL)
+
+
+def draw_item_armario(s: Sprite) -> None:
+    """Armario de dos puertas: expone objetos y da stats."""
+    s.rect(5, 4, 26, 28, BROWN)
+    s.rect(5, 4, 26, 5, BROWN_L)
+    s.rect(5, 27, 26, 28, BROWN_D)
+    s.rect(5, 4, 5, 28, BROWN_L)
+    s.rect(26, 4, 26, 28, BROWN_D)
+    # junta de las puertas
+    s.rect(15, 5, 16, 27, BROWN_D)
+    s.rect(15, 5, 15, 27, BROWN_L)
+    # paneles
+    s.rect(8, 8, 13, 24, BROWN_D)
+    s.rect(18, 8, 23, 24, BROWN_D)
+    # tiradores dorados
+    s.rect(13, 15, 14, 18, GOLD)
+    s.rect(17, 15, 18, 18, GOLD)
+    s.px(13, 15, GOLD_HI)
+    s.px(18, 15, GOLD_HI)
+
+
+def draw_item_ojo_verde(s: Sprite) -> None:
+    """Ojo verde: probabilidad de critico al golpear la caja."""
+    # almendra del ojo
+    s.poly([(3, 16), (9, 9), (22, 9), (28, 16), (22, 23), (9, 23)], WHITE)
+    s.poly([(3, 16), (9, 9), (22, 9), (28, 16), (20, 15), (10, 15)], CREAM_D)
+    # iris
+    s.ellipse(11, 10, 21, 22, GREEN_D)
+    s.ellipse(12, 11, 20, 21, GREEN)
+    s.ellipse(15, 13, 18, 17, DARK)
+    s.px(14, 12, GREEN_L)          # brillo
+    # pestana superior marcada
+    s.line([(3, 16), (9, 9)], OUTLINE)
+
+
+def draw_item_laser(s: Sprite) -> None:
+    """Laser: sube el dano critico."""
+    # cuerpo
+    s.rect(4, 13, 17, 20, STEEL_D)
+    s.rect(4, 13, 17, 14, STEEL)
+    s.rect(4, 19, 17, 20, STEEL_DD)
+    # boca / lente
+    s.rect(17, 14, 20, 19, DARK_SOFT)
+    s.rect(20, 15, 21, 18, DARK)
+    # empunadura
+    s.rect(6, 20, 11, 27, DARK_SOFT)
+    s.rect(6, 20, 11, 21, STEEL_DD)
+    # haz
+    s.rect(21, 16, 29, 17, RED_L)
+    s.rect(21, 16, 26, 16, RED)
+    s.px(29, 16, RED_L)
+    # boton
+    s.px(8, 18, GOLD_HI)
+
+
+# --------------------------------------------------------------------------- #
+# Paquetes danados
+#
+# El paquete se abre en varios golpes, asi que necesita estados intermedios
+# entre el cerrado y el roto. Cada estado es el dibujo base con una capa de
+# dano encima (rayajos, una esquina levantada y, al final, un agujero), y la
+# caja se mantiene la misma: solo cambia lo castigada que esta.
+# --------------------------------------------------------------------------- #
+
+def apply_pack_damage(s: Sprite, stage: int, box: Tuple[int, int, int, int]) -> None:
+    """Marcas de dano dentro de la caja del paquete (x0, y0, x1, y1).
+
+    Todo se pinta DENTRO de `box` a proposito: fuera de la silueta del paquete
+    el lienzo es transparente, y una marca suelta ahi quedaria como un pixel
+    flotante con su contorno, no como un dano.
+    """
+    x0, y0, x1, y1 = box
+    rng = random.Random(9000 + stage * 131 + x0 * 17 + y0 * 7)
+    # rayajos claros, mas cuanto mas golpeada esta
+    for _ in range(stage * 3):
+        x = rng.randint(x0 + 1, max(x0 + 1, x1 - 4))
+        y = rng.randint(y0 + 1, max(y0 + 1, y1 - 4))
+        s.line([(x, y), (x + 2, y + 2)], CREAM_D)
+        s.px(x, y, DARK_SOFT)
+    if stage >= 2:
+        # esquina levantada por arriba a la derecha
+        tx, ty = x1 - 1, y0
+        s.poly([(tx - 6, ty), (tx, ty), (tx, ty + 6), (tx - 3, ty + 4)], DARK_SOFT)
+        s.line([(tx - 6, ty), (tx, ty)], CREAM_D)
+        s.line([(tx, ty), (tx, ty + 6)], CREAM_D)
+    if stage >= 3:
+        # agujero: ya se ve el interior de la caja
+        cx = (x0 + x1) // 2
+        cy = (y0 + y1) // 2
+        s.ellipse(cx - 5, cy - 4, cx + 5, cy + 5, DARK)
+        s.dots([(cx - 3, cy - 1), (cx + 1, cy + 1), (cx - 2, cy + 3)], DARK_SOFT)
+        s.px(cx - 5, cy - 3, CREAM_D)
+        s.px(cx + 5, cy + 4, CREAM_D)
+
+
+# Caja de cada paquete, para saber donde puede pintarse el dano.
+PACK_BOXES: Dict[str, Tuple[int, int, int, int]] = {
+    "cards": (9, 3, 22, 29),
+    "vinyls": (4, 4, 27, 28),
+    "sneakers": (2, 12, 29, 26),
+    "electronics": (9, 3, 22, 28),
+    "misc": (4, 3, 28, 28),
+}
+
+
+def _pack_damaged(base: Item, stage: int, key: str) -> Item:
+    """Paquete base con una capa de dano de un tramo concreto."""
+    box = PACK_BOXES[key]
+
+    def draw(s: Sprite) -> None:
+        base(s)
+        apply_pack_damage(s, stage, box)
+    return draw
+
 
 # --------------------------------------------------------------------------- #
 # Objetos con variante de rareza
@@ -2558,12 +3067,25 @@ LOOT_ITEMS: Dict[str, Item] = {
     "card_edited": draw_card_edited,
     "card_vintage": draw_card_vintage,
     "card_foil": draw_card_foil,
-    # herramientas equipables: acortan el tiempo de apertura del paquete
+    # herramientas equipables: ya no se usan, pero se dejan generadas por si
+    # vuelven (su prefijo las manda a tools/)
     "cutter": draw_cutter,
     "scissors": draw_scissors,
     "gloves": draw_gloves,
     "crowbar": draw_crowbar,
-    # paquetes: lo que se compra a ciegas, en sus dos estados
+    # ITEMS SHOP: los ocho objetos equipables que sustituyen a las herramientas
+    "guantes": draw_item_guantes,
+    "trebol": draw_item_trebol,
+    "pinchos": draw_item_pinchos,
+    "cajon": draw_item_cajon,
+    "pc": draw_item_pc,
+    "armario": draw_item_armario,
+    "ojo_verde": draw_item_ojo_verde,
+    "laser": draw_item_laser,
+    # paquetes: lo que se compra a ciegas, en sus TRES escalones. El 2 y el 3 no
+    # salen de aqui a mano: los registra el bucle de abajo, para que anadir un
+    # escalon no sea escribir cinco claves mas por tipo (y olvidarse de la caja
+    # de dano, que es justo lo que se olvida).
     "cards": draw_pack_cards,
     "cards_open": draw_pack_cards_open,
     "vinyls": draw_pack_vinyls,
@@ -2574,6 +3096,22 @@ LOOT_ITEMS: Dict[str, Item] = {
     "electronics_open": draw_pack_electronics_open,
     "misc": draw_pack_misc,
     "misc_open": draw_pack_misc_open,
+    # paquetes a medio abrir: un estado por tramo de dano (1 leve, 3 casi roto)
+    "cards_d1": _pack_damaged(draw_pack_cards, 1, "cards"),
+    "cards_d2": _pack_damaged(draw_pack_cards, 2, "cards"),
+    "cards_d3": _pack_damaged(draw_pack_cards, 3, "cards"),
+    "vinyls_d1": _pack_damaged(draw_pack_vinyls, 1, "vinyls"),
+    "vinyls_d2": _pack_damaged(draw_pack_vinyls, 2, "vinyls"),
+    "vinyls_d3": _pack_damaged(draw_pack_vinyls, 3, "vinyls"),
+    "sneakers_d1": _pack_damaged(draw_pack_sneakers, 1, "sneakers"),
+    "sneakers_d2": _pack_damaged(draw_pack_sneakers, 2, "sneakers"),
+    "sneakers_d3": _pack_damaged(draw_pack_sneakers, 3, "sneakers"),
+    "electronics_d1": _pack_damaged(draw_pack_electronics, 1, "electronics"),
+    "electronics_d2": _pack_damaged(draw_pack_electronics, 2, "electronics"),
+    "electronics_d3": _pack_damaged(draw_pack_electronics, 3, "electronics"),
+    "misc_d1": _pack_damaged(draw_pack_misc, 1, "misc"),
+    "misc_d2": _pack_damaged(draw_pack_misc, 2, "misc"),
+    "misc_d3": _pack_damaged(draw_pack_misc, 3, "misc"),
     # sombras de mesa, en multiplos enteros
     "small": draw_shadow_small,
     "medium": draw_shadow_medium,
@@ -2581,6 +3119,33 @@ LOOT_ITEMS: Dict[str, Item] = {
     # moneda suelta (la pila es currency_coins, de Gemini)
     "coin": draw_coin,
 }
+
+# Los escalones 2 y 3 de los cuatro sobres. Cada familia es (cerrado, abierto)
+# por escalon, y la clave del archivo sale del nombre de la familia mas el
+# escalon: cards -> pack_cards, cards2 -> pack_cards2, cards3 -> pack_cards3.
+#
+# El escalon 1 sigue en el diccionario de arriba a pelo (es el que llevaba ahi
+# desde el principio y no se toca), pero los tres comparten la misma caja de
+# dano: los tramos d1/d2/d3 se generan del dibujo CERRADO de su escalon, que es
+# lo que hace que un sobre de oro roto se vea de oro y no de carton.
+PACK_TIERS: Dict[str, Dict[int, Tuple[Item, Item]]] = {
+    "cards": {2: (draw_pack_cards2, draw_pack_cards2_open),
+              3: (draw_pack_cards3, draw_pack_cards3_open)},
+    "vinyls": {2: (draw_pack_vinyls2, draw_pack_vinyls2_open),
+               3: (draw_pack_vinyls3, draw_pack_vinyls3_open)},
+    "sneakers": {2: (draw_pack_sneakers2, draw_pack_sneakers2_open),
+                 3: (draw_pack_sneakers3, draw_pack_sneakers3_open)},
+    "electronics": {2: (draw_pack_electronics2, draw_pack_electronics2_open),
+                    3: (draw_pack_electronics3, draw_pack_electronics3_open)},
+}
+
+for _familia, _escalones in PACK_TIERS.items():
+    for _escalon, (_cerrado, _abierto) in _escalones.items():
+        LOOT_ITEMS[f"{_familia}{_escalon}"] = _cerrado
+        LOOT_ITEMS[f"{_familia}{_escalon}_open"] = _abierto
+        for _tramo in (1, 2, 3):
+            LOOT_ITEMS[f"{_familia}{_escalon}_d{_tramo}"] = _pack_damaged(
+                _cerrado, _tramo, _familia)
 
 # Los diecisiete objetos que tienen una variante por nota PSA. Se registro de la nota
 # 10 a la 1 para que la hoja de contactos se lea como una degradacion de izquierda
@@ -2722,21 +3287,56 @@ ITEM_PREFIX: Dict[str, str] = {
     "scissors": "tool",
     "gloves": "tool",
     "crowbar": "tool",
+    # items de la tienda del PDF
+    "guantes": "item",
+    "trebol": "item",
+    "pinchos": "item",
+    "cajon": "item",
+    "pc": "item",
+    "armario": "item",
+    "ojo_verde": "item",
+    "laser": "item",
     "cards": "pack",
     "cards_open": "pack",
+    "cards_d1": "pack",
+    "cards_d2": "pack",
+    "cards_d3": "pack",
     "vinyls": "pack",
     "vinyls_open": "pack",
+    "vinyls_d1": "pack",
+    "vinyls_d2": "pack",
+    "vinyls_d3": "pack",
     "sneakers": "pack",
     "sneakers_open": "pack",
+    "sneakers_d1": "pack",
+    "sneakers_d2": "pack",
+    "sneakers_d3": "pack",
     "electronics": "pack",
     "electronics_open": "pack",
+    "electronics_d1": "pack",
+    "electronics_d2": "pack",
+    "electronics_d3": "pack",
     "misc": "pack",
     "misc_open": "pack",
+    "misc_d1": "pack",
+    "misc_d2": "pack",
+    "misc_d3": "pack",
     "small": "shadow",
     "medium": "shadow",
     "large": "shadow",
     "coin": "currency",
 }
+
+# Los escalones 2 y 3 de los sobres: mismo prefijo "pack" que el escalon 1, y
+# en bucle por el mismo motivo que el registro de LOOT_ITEMS. Sin esto,
+# output_name() los mandaria a loot_ y el sobre de oro acabaria en
+# Sprites/loot/pack_cards2.png, que no es donde vive ninguno de sus hermanos.
+for _familia in PACK_TIERS:
+    for _escalon in PACK_TIERS[_familia]:
+        ITEM_PREFIX[f"{_familia}{_escalon}"] = "pack"
+        ITEM_PREFIX[f"{_familia}{_escalon}_open"] = "pack"
+        for _tramo in (1, 2, 3):
+            ITEM_PREFIX[f"{_familia}{_escalon}_d{_tramo}"] = "pack"
 
 
 # --------------------------------------------------------------------------- #

@@ -5,12 +5,14 @@ roto nada, y hacen falta antes de dar cualquier cambio por bueno.
 
 ```
 smoke_test.gd    el test automatico. Arranca el juego de verdad y comprueba
-                 mas de 180 cosas: que se compra, que la mesa se llena, que el
+                 mas de 300 cosas: que se compra, que la mesa se llena, que el
                  sprite lleva la nota, que la fuente se escala entera, que los
                  indices de sprites y de sonidos estan completos
 input_test.gd    el test del RATON. Manda clics y arrastres sinteticos y
                  comprueba que los reciben: menu, tienda, cerrar, la mesa, los
-                 dos botones de la tarjeta y el arrastre de un objeto
+                 dos botones de la tarjeta, el arrastre de un objeto, la rueda
+                 de la columna de sobres y el mini menu de la compra automatica
+                 (que con los Pinchos, y no con el PC, no se abre)
 screenshots.gd   guarda un PNG de cada pantalla en user://shots/
 probe_font.gd    mide de verdad cuanto ocupa cada rotulo con la fuente
 ```
@@ -42,6 +44,21 @@ arrastre de un objeto de la mesa usa la posicion que TRAE el evento
 Godot entrega la posicion ya pasada al espacio local del control que la recibe) y
 no esa consulta. Si alguien vuelve a meter `get_global_mouse_position()` en el
 arrastre, esto lo caza: el objeto dejaria de seguir al raton.
+
+### El giro de rueda necesita las DOS mitades
+
+`_wheel()` manda el giro como **pulsar Y soltar**, y no es un detalle: el
+`Viewport` se queda con el control que recibe la pulsacion (`mouse_focus`) hasta
+que ve el suelte. Un giro que solo pulsa deja el raton pegado al
+`ScrollContainer` de la columna de sobres, y a partir de ahi el `ScrollContainer`
+se come **todos** los clics de la pantalla: el test daba cuatro fallos en botones
+que funcionan perfectamente.
+
+En X11 el giro llega como `ButtonPress` **y** `ButtonRelease` (los botones 4 y 5)
+y Godot pasa los dos, asi que el juego de verdad no tiene el problema; el que se
+lo inventaba era la prueba. Costo una tarde encontrarlo, y por eso esta escrito
+aqui: si alguien vuelve a mandar el giro suelto, van a fallar los botones de
+despues y va a parecer que el fallo esta en el juego.
 
 ## Cómo se ejecuta
 
@@ -114,6 +131,55 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
 - Que un objeto no pueda salir de la mesa al moverlo, y que soltarlo tras
   arrastrarlo no lo abra ni lo venda. El arrastre de verdad (pulsar, mover y
   soltar) lo prueba `input_test`.
+- Que **un clic abra UN paquete y no varios**. Los Guantes suben cuantos
+  paquetes caben cargando a la vez (`Game.open_count()`: 1 sin ellos, 3 al nivel
+  1...), asi que el check arranca cuatro con Guantes nivel 1, comprueba que tras
+  el primer clic solo carga uno, que pulsando cada uno cargan los tres, que el
+  cuarto no entra, y que al soltar un hueco el que esperaba entra. Antes era al
+  reves (un clic arrancaba los tres de golpe y el jugador machacaba el mismo
+  sobre), y por eso la prueba mira el NUMERO de paquetes cargando y no solo que
+  el clic llegue.
+- Que el precio de un sobre quepa **en la banda blanca de su chapa**, no solo en
+  el hueco del sprite. La cinta solo pinta una franja en medio (`PACK_TAG_INK`,
+  un 59 % del alto), y con la chapa baja el número se leía encima de la cinta:
+  el check mide contra la BANDA y pide 4 px de aire, que es lo que ocupa de más
+  el contorno del número. Comprobado que caza el fallo: bajando la chapa a 56 px
+  vuelve a fallar.
+- Que la columna de sobres tenga **fondo propio y opaco**. Sin el, los nombres y
+  los precios de ocho y nueve cifras se leian encima de las monedas y las baldas
+  claras del fondo de la trastienda. El check mira el **alfa**: con menos de 1 el
+  fondo se vuelve a transparentar, que es justo el fallo que se arreglo.
+- Que la apertura automatica se encienda **solo con los Pinchos** y la compra
+  automatica **solo con el PC**. Antes hacian falta las dos piezas para
+  cualquiera de las dos, y comprar el PC y que su boton siguiera apagado se lee
+  como que la compra no ha servido de nada.
+- Que haya **dos clases de item y no se mezclen**: los seis de estadisticas
+  suben hasta ocho niveles (cada uno mas caro) y el PC y los Pinchos son de
+  compra unica, asi que su `item_cost()` contesta -1 en cuanto se tienen. La
+  tienda lo dice con COMPRADO en esos dos y con AL TOPE en los que llegan a los
+  ocho, y donde los otros llevan los puntos de nivel esos dos llevan el rotulo
+  **COMPRA UNICA**: sin el, su fila solo se distinguia por lo que *no* tenia, y
+  eso hay que deducirlo. Los dos rotulos son `Label` a proposito: antes aqui iba
+  un "MAX" en un `PixelNumber`, que solo tiene glifos de digitos y por eso no
+  dibujaba nada (la fila parecia tener un hueco roto).
+- Que la escalera de la columna de sobres **suba tambien en resistencia**, no
+  solo en precio: si el escalon de arriba fuera igual de blando, el precio solo
+  compraria botin mejor. Y que el sobre basico pida **cuatro golpes** con el
+  dano base (45 de vida entre 12 de dano): se mira en golpes y no en el numero
+  suelto, para que el check siga diciendo algo si cambia el dano base.
+- Que **cada escalon de un tipo tenga su propio dibujo**. Los tres escalones
+  compartian sprite (el mismo sobre dibujado tres veces en una columna de doce),
+  y el fallo no da ningun error: sale el de siempre y no se nota. El check pide
+  los tres artes distintos y que existan los cinco PNG de cada uno (el cerrado,
+  el abierto y los tres tramos de dano), porque el dano NO se guarda en los
+  datos: se deduce del nombre ("pack_cards" + "_d2" a secas), asi que un arte
+  nuevo sin sus tres tramos se veria bien hasta el segundo golpe. Comprobado que
+  caza el fallo: devolviendo el arte del escalon 2 al del 1, el check falla.
+- Que **los doce nombres de sobre quepan a 28** en la caja del nombre. El tamano
+  de la columna es el del nombre mas largo (`UIKit.row_size`), asi que un solo
+  nombre de 17 caracteres encoge los doce a 21 y el de arriba se queda enano: es
+  lo que pasa si alguien bautiza un escalon "DE DIAMANTE" en vez de "LUJO".
+  Comprobado al reves: con "SOBRES DE DIAMANTE" el check falla y sale con 1.
 - Que las dos casillas de los ajustes (pantalla completa y venta automatica)
   enciendan y apaguen el ajuste de verdad y cambien de dibujo, y que esten a 96
   px o mas de distancia, que es lo que mide su zona de clic.

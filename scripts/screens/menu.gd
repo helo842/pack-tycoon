@@ -19,32 +19,22 @@ func _ready() -> void:
 
 
 func _build_title() -> void:
-	var t := UIKit.label("PACK", 128, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0)
-	t.size = Vector2(900, 160)
-	t.position = Vector2(510, 150)
-	add_child(t)
-
-	var s := UIKit.label("TYCOON", 128, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0)
-	s.size = Vector2(900, 160)
-	s.position = Vector2(510, 300)
-	add_child(s)
-
-	var sub := UIKit.label("ABRE PAQUETES. A CIEGAS.", 40, Palette.CREAM_D,
-			HORIZONTAL_ALIGNMENT_CENTER, 0)
-	sub.size = Vector2(900, 60)
-	# A 460 el rotulo quedaba a 1 px del marco de la chapa de JUGAR (que sube
-	# hasta y 512). Con 450 el hueco es de 11 px por arriba y por abajo.
-	sub.position = Vector2(510, 450)
-	add_child(sub)
-
-	# El destello_detras del titulo: el sprite fx_shine, que es lo unico con
-	# alfa graduado del catalogo y por eso sirve justo para esto.
-	var shine := UIKit.art("fx_shine", Vector2(960, 300), 2.6, Color(1, 1, 1, 0.16))
-	shine.modulate.a = 0.0
-	add_child(shine)
-	var tw := create_tween().set_loops()
-	tw.tween_property(shine, "modulate:a", 0.30, 2.1).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(shine, "modulate:a", 0.10, 2.1).set_trans(Tween.TRANS_SINE)
+	# El titulo va con label_at y no con label + size a mano: asi la caja se
+	# agranda si el texto no cabe y nunca se recorta por los lados, que es lo que
+	# le pasaba al subtitulo con la caja de 900.
+	#
+	# Y NO lleva destello detras. El fx_shine que habia sobre el fondo de la
+	# trastienda se leia como un halo azulado, no como luz, y el usuario lo quito
+	# a proposito: sin el, el titulo se apoya en el fondo oscuro y se lee mejor.
+	# La fuente del titulo no lleva contorno: el borde negro se veia como una
+	# sombra gorda sobre el fondo y el usuario lo quito.
+	add_child(UIKit.title_label_at("PACK", Vector2(960, 210), Vector2(1200, 150), 112,
+			Palette.CREAM))
+	add_child(UIKit.title_label_at("TYCOON", Vector2(960, 345), Vector2(1200, 170), 140,
+			Palette.GOLD_XL))
+	# A 480 el rotulo queda a 32 px de la chapa de JUGAR (que sube hasta y 512).
+	add_child(UIKit.label_at("ABRE PAQUETES. A CIEGAS.", Vector2(960, 480),
+			Vector2(1200, 60), 35, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0))
 
 
 func _build_buttons() -> void:
@@ -75,7 +65,7 @@ func _build_footer() -> void:
 	# label_at y no label + size a mano: el texto son 36 caracteres (756 px a
 	# tamano 21) y la caja de 900 se queda corta si se pide mas.
 	add_child(UIKit.label_at("PRIMERA VERSION - SIN LOGROS TODAVIA",
-			Vector2(1210, 1045), Vector2(900, 50), 30, Palette.CREAM_D,
+			Vector2(960, 1045), Vector2(900, 50), 30, Palette.CREAM_D,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 

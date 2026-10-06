@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://cx05lv7s44i1t"
+path="res://.godot/imported/font_title.fnt-9e1d9e3f5f63e1d67e91010bf248f57c.fontdata"
+
+[deps]
+
+source_file="res://Sprites/font/font_title.fnt"
+dest_files=["res://.godot/imported/font_title.fnt-9e1d9e3f5f63e1d67e91010bf248f57c.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=1

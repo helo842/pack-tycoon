@@ -85,3 +85,39 @@ static func tex(sprite_name: String) -> Texture2D:
 ## Solo comprueba si existe, sin cargarlo. Para no pedir en un bucle.
 static func has(sprite_name: String) -> bool:
 	return path_of(sprite_name) != ""
+
+
+static var _used: Dictionary = {}
+
+
+## El rectangulo de pixeles CON TINTA del sprite, medido sobre su lienzo.
+##
+## Hace falta porque todos los sprites se pintan sobre el mismo lienzo de 512
+## para compartir escala, pero cada dibujo ocupa un trozo distinto de el: un
+## sobre de cartas ocupa 256x496 (estrecho y alto) y una caja de zapatillas
+## 480x272 (ancha y baja). Colocandolos y escalandolos por el LIENZO, los dos
+## acaban midiendo lo mismo en pantalla, pero el de cartas sale flaco y el de
+## zapatillas flotando en un hueco. Con esto se pueden escalar por su dibujo.
+##
+## Se mide una vez por sprite y se guarda: get_image() copia la textura a RAM.
+## Si no se puede medir (textura nula o comprimida) devuelve el lienzo entero,
+## que es la suposicion vieja y no rompe nada.
+static func used_rect(sprite_name: String) -> Rect2:
+	if _used.has(sprite_name):
+		return _used[sprite_name]
+	var rect := Rect2()
+	var t := tex(sprite_name)
+	if t == null:
+		_used[sprite_name] = rect
+		return rect
+	var lienzo := Rect2(Vector2.ZERO, Vector2(t.get_size()))
+	var img := t.get_image()
+	var usado := Rect2i()
+	if img != null:
+		usado = img.get_used_rect()
+	if usado.size.x <= 0 or usado.size.y <= 0:
+		rect = lienzo
+	else:
+		rect = Rect2(Vector2(usado.position), Vector2(usado.size))
+	_used[sprite_name] = rect
+	return rect

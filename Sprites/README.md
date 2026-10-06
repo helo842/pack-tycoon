@@ -267,6 +267,23 @@ es lo que cae en la mesa, y el roto, que es lo que se ve cuando termina de
 abrirse. El estado roto reutiliza el cuerpo del cerrado y le arranca la parte de
 arriba, así que se ve que es la misma caja y no otro objeto parecido.
 
+Los cuatro de categoría salen **en tres escalones**, y el escalón se ve en el
+dibujo, no solo en el precio: el 1 es el de siempre (cartón, plástico, madera),
+el 2 va forrado de pan de oro y el 3 es laca oscura con filetes de oro y una
+joya. El archivo lleva el escalón pegado al nombre (`pack_cards`,
+`pack_cards2`, `pack_cards3`) y **cada escalón trae sus propios tramos de daño**
+(`_d1`, `_d2`, `_d3`). Eso último no es opcional: el daño no se guarda en los
+datos, se deduce del nombre del arte (`"pack_cards2" + "_d2"`), así que un
+escalón con arte nuevo y sin sus tres tramos se ve bien hasta el segundo golpe.
+Las tres versiones comparten coordenadas a propósito — el contorno no se toca —
+o al partirse el sobre se vería otra caja y no se reconocería lo que se golpea.
+
+La laca del escalón 3 **no es negro puro a propósito**: el fondo de la columna
+de sobres es casi negro (0.02, 0.015, 0.04) y un sobre negro se leería como un
+hueco en la tienda sin ningún error. Va de gris violáceo
+(`DARK_SOFT`/`SLATE`/`NIGHT`) con un filete de oro por fuera, que es lo que
+separa el sobre del fondo.
+
 | Archivo | Qué es |
 |---|---|
 | `pack_cards.png` | Sobre de cartas coleccionables, vertical, con gema turquesa y borde en sierra |
@@ -279,6 +296,9 @@ arriba, así que se ve que es la misma caja y no otro objeto parecido.
 | `pack_electronics_open.png` | La misma con el plástico rasgado y un cable enrollado dentro |
 | `pack_misc.png` | Paquete genérico sellado con cinta cruzada, sin marca |
 | `pack_misc_open.png` | El mismo abierto y arrugado, con objetos variados dentro |
+| `pack_*2.png` / `pack_*2_open.png` | El escalón **ORO**: el mismo sobre forrado de pan de oro, con el sello de lacre, la banda batida y los destellos |
+| `pack_*3.png` / `pack_*3_open.png` | El escalón **LUJO**: laca oscura con filete de oro, oro macizo y una joya tallada en turquesa |
+| `pack_*_d1/d2/d3.png` | Los tres tramos de daño, por escalón: rayajos, esquina levantada y agujero. El dibujo del tramo sale del sobre CERRADO de su escalón |
 
 ### El flujo de apertura, revela y venta
 
@@ -689,8 +709,8 @@ borde para poder estirarse.
 python3 tools/make_background.py                                    # trastienda 1920x1080
 python3 tools/make_background.py --scale 4                          # trastienda 1280x720
 python3 tools/make_background.py --seed 7 --name bg_menu_v2.png     # otra tirada
-python3 tools/make_background.py --table                            # mesa 1824x752
-python3 tools/make_background.py --table --table-scale 4            # mesa 912x376
+python3 tools/make_background.py --table                            # mesa 1344x752
+python3 tools/make_background.py --table --table-scale 4            # mesa 672x376
 ```
 
 Se dibuja a **320×180** y se escala con un factor entero (`--scale`), así que el
@@ -704,12 +724,14 @@ mismo comando te da cualquier resolución sin romper la rejilla: 4 → 1280×720
 > queda despejado y en penumbra cálida a propósito, para que el título y los
 > botones se lean encima.
 
-**La mesa va al revés: 8 px por píxel de arte** (228×94 × 8 = 1824×752), que es
+**La mesa va al revés: 8 px por píxel de arte** (168×94 × 8 = 1344×752), que es
 justo lo que mide un píxel de arte de un objeto de la mesa. Así el grano de la
 madera y el del objeto que se apoya encima son el mismo, y la mesa no parece un
 fondo pegado detrás. El rectángulo es el que usa el juego (`TABLE_RECT` en
-`screens/game.gd`, en (48, 140)): de ahí para dentro nacen los objetos y hasta
+`screens/game.gd`, en (528, 140)): de ahí para dentro nacen los objetos y hasta
 ahí se pueden arrastrar, así que si se cambia el tamaño hay que cambiar los dos.
+Son 168 y no 228 porque a la izquierda está la **columna de sobres**
+(`PACK_ZONE`, en (32, 140) y 480 de ancho, con scroll).
 
 ### Componer las pantallas de ejemplo
 

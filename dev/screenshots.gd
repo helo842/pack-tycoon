@@ -112,19 +112,36 @@ func _run() -> void:
 	var g = _screen()
 	await _shot("03_game")
 
+	# La columna de la izquierda tiene scroll y en pantalla solo caben cuatro
+	# sobres: los de arriba son los cuatro BASICOS. Aqui se baja para ver los
+	# escalones 2 y 3, que es justo lo que cambio: antes los tres escalones de un
+	# tipo compartian sprite y en la columna se veia el mismo dibujo tres veces.
+	# Con dinero, que si no los caros salen apagados.
+	Game.money = 12000000
+	await _frames(3)
+	g._pack_scroll.scroll_vertical = int(g.PACK_ROW_STEP * 4.0)
+	await _frames(4)
+	await _shot("03b_columna_oro")
+	g._pack_scroll.scroll_vertical = int(g.PACK_ROW_STEP * 8.0)
+	await _frames(4)
+	await _shot("03c_columna_lujo")
+	g._pack_scroll.scroll_vertical = 0
+	await _frames(3)
+
 	# Tienda
 	g._open_shop()
 	await _frames(4)
 	await _shot("04_shop")
 
-	# Comprar y ver el paquete en la mesa
+	# Comprar y ver el paquete en la mesa. La compra se hace desde la columna de
+	# la izquierda, que es ahora la unica puerta de entrada de sobres.
 	Game.money = 900000
-	g._shop._on_pack("electronics")
+	g._buy_pack("electronics")
 	await _frames(2)
 	g._close_shop()
 	await _frames(4)
 	g._spawn_pack("cards")
-	g._spawn_pack("vinyls")
+	g._spawn_pack("electronics")
 	await _wait(1.2)
 	await _shot("05_table")
 
@@ -134,6 +151,38 @@ func _run() -> void:
 		g._spawn_loot(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
 	await _wait(1.2)
 	await _shot("05b_mesa_llena")
+
+	# LOS TRES ESCALONES DE UN TIPO, uno al lado del otro, y los tres ya golpeados
+	# un poco mas abajo. Es la captura que hay que mirar cuando se toque el arte de
+	# los sobres: hasta ahora los tres escalones de un tipo compartian el mismo
+	# sprite, y en una columna de doce repetido tres veces no habia forma de ver
+	# cual valia un millon. En 03_game los caros se ven apagados (no hay dinero),
+	# asi que aqui se compran de verdad.
+	for e in g._elements.duplicate():
+		g._remove_from_table(e)
+	await _frames(2)
+	Game.money = 50000000
+	for id in ["cards", "cards2", "cards3", "vinyls3", "sneakers3", "electronics3"]:
+		g._buy_pack(id)
+	await _wait(0.8)
+	# A los tres de abajo se les quita vida para que salga su arte del tramo medio
+	# y del ultimo: lo que se quiere ver es que el dano lo pinta el DIBUJO DEL
+	# ESCALON (un sobre de laca roto sigue siendo de laca), no el del escalon 1.
+	g._elements[3].take_damage(g._elements[3].max_hp * 0.5)
+	g._elements[4].take_damage(g._elements[4].max_hp * 0.6)
+	g._elements[5].take_damage(g._elements[5].max_hp * 0.9)
+	await _wait(0.6)
+	await _shot("05c_escalones")
+	for e in g._elements.duplicate():
+		g._remove_from_table(e)
+	await _frames(2)
+	# Y la mesa otra vez como estaba, que el resto de la tanda de capturas cuenta
+	# con ello.
+	g._spawn_pack("cards")
+	g._spawn_pack("electronics")
+	for i in 5:
+		g._spawn_loot(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
+	await _wait(1.2)
 
 	# Apertura a media carga, para ver el anillo
 	var el: TableElement = g._elements[0]
@@ -150,10 +199,13 @@ func _run() -> void:
 	await _wait(1.0)
 
 	# Mesa con botin + inventario
-	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "vinyls"))
+	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "electronics"))
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "sneakers"))
-	Game.tools = [2, 1, 0, 0]
+	# Guantes al nivel 3 y Trebol al 2: los seis items de estadisticas siguen
+	# subiendo de nivel (los otros dos son las piezas de las automatizaciones, que
+	# se compran una sola vez: ver LootDB.item_max_level()).
+	Game.items = [3, 2, 0, 0, 0, 0, 0, 0]
 	await _frames(4)
 	await _shot("08_inventario")
 
@@ -179,9 +231,9 @@ func _run() -> void:
 			["15_limitada", "sneakers", "shoe_x"],
 			["16_cartucho", "electronics", "cart_c"],
 			["17_portatil", "electronics", "hand_c"],
-			["18_cable", "misc", "cab_c"],
-			["19_lingote", "misc", "ing_c"],
-			["20_bolsillo", "misc", "pwt_c"]]:
+			["18_cable", "electronics", "cab_c"],
+			["19_lingote", "electronics", "ing_e"],
+			["20_bolsillo", "electronics", "pwt_l"]]:
 		await _volcar_caso(caso[0], caso[1], 8, caso[2])
 
 	# Tienda con dinero para ver las herramientas
@@ -189,6 +241,23 @@ func _run() -> void:
 	g._open_shop()
 	await _frames(4)
 	await _shot("09_shop_lleno")
+
+	# Las automatizaciones, que son lo ultimo que se desbloquea: en 03_game los
+	# dos botones de la barra salen APAGADOS (una partida nueva no tiene ni
+	# Pinchos ni PC), y aqui se compran las dos piezas y se abre el mini menu de
+	# la compra automatica, que es a donde lleva el boton cuando ya se puede usar.
+	Game.buy_item(LootDB.item_index("pinchos"))
+	Game.buy_item(LootDB.item_index("pc"))
+	# La tienda con cuatro items comprados: es donde se ve como queda una fila
+	# cuando ya es tuya (rotulo COMPRADO en vez de precio).
+	await _frames(3)
+	await _shot("22_shop_comprado")
+	g._close_shop()
+	await _frames(3)
+	g._open_auto_buy()
+	await _frames(4)
+	await _shot("21_auto_compra")
+	await _frames(1)
 
 	print("capturas listas")
 	# Ver Sound.stop_all(): al parar una voz, quien suelta su WAV es el hilo de

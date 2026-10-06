@@ -12,19 +12,27 @@ core/       lo que esta siempre vivo
   palette.gd      los tokens de color que Tambien usa el generador
 
 data/       lo que se toca para reequilibrar el juego
-  loot_db.gd      precios, tiempos, que cae en cada paquete, cuanto vale
+  loot_db.gd      precios, tiempos, que cae en cada paquete, cuanto vale, los
+                  items de la tienda (seis con ocho niveles y dos piezas de
+                  compra unica: ver item_max_level) y con que pieza se enciende
+                  cada automatizacion
 
 ui/         las piezas de interfaz, reutilizables
   ui_kit.gd       fabrica de controles: etiquetas, botones, paneles, sprites
-  sprites.gd      carga un PNG por nombre corto usando Sprites/index.tsv
+                  (image, square, art y fit_art, que escala por el dibujo)
+  sprites.gd      carga un PNG por nombre corto usando Sprites/index.tsv, y
+                  mide la tinta de cada sprite (used_rect) para poder escalar
+                  por el dibujo y no por el lienzo
   pixel_number.gd numeros grandes con los sprites num_*
   pixel_slider.gd deslizador con los sprites ui_slider_*
   timer_ring.gd   el anillo de la espera
 
 screens/    una clase por pantalla
   menu.gd           el menu de inicio
-  game.gd           la partida: la mesa, el bucle y las automatizaciones
+  game.gd           la partida: la mesa, la columna de sobres (con scroll y sus
+                    constantes PACK_*), el bucle y las automatizaciones
   shop_panel.gd     la tienda
+  auto_buy_panel.gd el mini menu de la compra automatica (que sobres se compran)
   reveal_card.gd    la tarjeta de revelado
   settings_panel.gd los ajustes
   table_element.gd  un objeto de la mesa: el paquete que se abre, el botin que

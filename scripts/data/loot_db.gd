@@ -31,11 +31,39 @@ extends RefCounted
 # --------------------------------------------------------------------------- #
 # Paquetes
 # --------------------------------------------------------------------------- #
-# "time" son los segundos de espera sin herramientas. Las herramientas no hacen
-# dano: acortan la espera (la decision que se tomo al montar el juego).
+# Cada paquete tiene "hp": su resistencia. Ya no se abre esperando un tiempo,
+# sino golpeandolo: cada carga del boton resta el dano del jugador (ver
+# damage_per_hit) y hacen faltan varios ciclos hasta romper la caja. La vida
+# sube con el nivel del paquete, que es su escalon de precio.
+#
+# LA VIDA SUBIO UN 50 % de golpe (los doce valores, de una vez). Los sobres se
+# abrian demasiado rapido: con los cuatro items de dano comprados la caja basica
+# caia en dos clics y no daba tiempo ni a ver la barra. Alargar la vida y no la
+# espera es a proposito: lo que se alarga es el rato que estas dandole al boton,
+# no el rato que esperas mirando. Los tres escalones mantienen la proporcion que
+# tenian entre si (el 2 es 1,5 veces el 1 y el 3 el doble del 1) para que un
+# ESCALON siga siendo mas duro que el anterior tipo, y no solo mas caro.
+#
+# SON DOCE: CUATRO TIPOS x TRES ESCALONES. Primero van los cuatro de siempre
+# -SOBRES, VINILOS, ZAPATILLAS, ELECTRONICA- y luego se repiten dos veces mas,
+# en el mismo orden, cada vez mas caros y con el botin multiplicado (ver
+# "vmult"). El primero de todos (SOBRES) cuesta 0: es el sobre inicial, gratis
+# en cualquier momento de la partida, para que nunca se quede sin poder abrir
+# nada. El ultimo (ELECTRONICA 3) cuesta diez millones.
+#
+# LOS TRES ESCALONES DE UN TIPO COMPARTEN TABLA DE BOTIN. La escribe entera el
+# escalon 1 en su propio "loot", y los otros dos solo dicen de quien es
+# ("loot_id") y cuanto multiplican el valor ("vmult"). Subir de escalon es
+# pagar mas por el mismo botin multiplicado, y no hay que mantener doce listas
+# de objetos que se irian desincronizando (y con ellas los pesos y las rarezas).
+#
+# Lo que SI cambia con el escalon es el nombre y el dibujo del sobre: el 2 va de
+# pan de oro y el 3 de laca con joya. Antes los tres escalones de un tipo
+# compartian el mismo sprite, y en una columna de doce con el mismo dibujo
+# repetido tres veces no habia forma de saber cual valia un millon.
 const PACKS: Array = [
 	{
-		"id": "cards", "name": "SOBRES", "price": 150, "time": 1.4,
+		"id": "cards", "name": "SOBRES", "price": 0, "hp": 45, "vmult": 1.0,
 		"art": "pack_cards", "art_open": "pack_cards_open",
 		"loot": [
 			{"id": "card_c", "name": "CARTA COMUN", "art": "loot_card_common", "graded": true,
@@ -49,7 +77,7 @@ const PACKS: Array = [
 		],
 	},
 	{
-		"id": "vinyls", "name": "VINILOS", "price": 850, "time": 2.0,
+		"id": "vinyls", "name": "VINILOS", "price": 1000, "hp": 90, "vmult": 1.0,
 		"art": "pack_vinyls", "art_open": "pack_vinyls_open",
 		"loot": [
 			{"id": "vinyl_c", "name": "VINILO", "art": "loot_vinyl", "graded": true,
@@ -63,7 +91,7 @@ const PACKS: Array = [
 		],
 	},
 	{
-		"id": "sneakers", "name": "ZAPATILLAS", "price": 4200, "time": 2.8,
+		"id": "sneakers", "name": "ZAPATILLAS", "price": 6000, "hp": 180, "vmult": 1.0,
 		"art": "pack_sneakers", "art_open": "pack_sneakers_open",
 		"loot": [
 			{"id": "shoe_c", "name": "ZAPATILLA BLANCA", "art": "loot_sneaker", "graded": true,
@@ -78,7 +106,7 @@ const PACKS: Array = [
 		],
 	},
 	{
-		"id": "electronics", "name": "ELECTRONICA", "price": 26000, "time": 3.8,
+		"id": "electronics", "name": "ELECTRONICA", "price": 25000, "hp": 360, "vmult": 1.0,
 		"art": "pack_electronics", "art_open": "pack_electronics_open",
 		"loot": [
 			{"id": "cons_c", "name": "CONSOLA", "art": "loot_console", "graded": true,
@@ -121,62 +149,49 @@ const PACKS: Array = [
 				"rarity": "legendary", "value": 99000, "w": 1},
 			{"id": "hand_l", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
 				"rarity": "legendary", "value": 495000, "w": 2},
-		],
-	},
-	{
-		"id": "misc", "name": "VARIOS", "price": 160000, "time": 5.0,
-		"art": "pack_misc", "art_open": "pack_misc_open",
-		"loot": [
-			{"id": "wat_c", "name": "RELOJ", "art": "loot_watch", "graded": true,
-				"rarity": "common", "value": 45000, "w": 30},
-			{"id": "sho_c", "name": "ZAPATILLA", "art": "loot_sneaker", "graded": true,
-				"rarity": "common", "value": 38000, "w": 13},
-			{"id": "cam_c", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"rarity": "common", "value": 75000, "w": 12},
+			# Los cuatro objetos que tenian sobre propio entran aqui: son los que le
+			# faltaban a esta tabla para ser "lo caro" del juego, y sin un sitio se
+			# quedaban sin salir nunca (y sus cuarenta sprites con ellos). Los
+			# valores van puestos al nivel de esta tabla, no al que tenian.
 			{"id": "cab_c", "name": "CABLE", "art": "loot_cable", "graded": true,
-				"rarity": "common", "value": 22000, "w": 6},
-			{"id": "ing_c", "name": "LINGOTE DE ORO", "art": "loot_ingot", "graded": true,
-				"rarity": "common", "value": 85000, "w": 5},
-			{"id": "pwt_c", "name": "RELOJ DE BOLSILLO", "art": "loot_pocket_watch", "graded": true,
-				"rarity": "common", "value": 130000, "w": 4},
+				"rarity": "common", "value": 2200, "w": 6},
 			{"id": "wat_r", "name": "RELOJ", "art": "loot_watch", "graded": true,
-				"rarity": "rare", "value": 153000, "w": 13},
-			{"id": "sho_r", "name": "ZAPATILLA", "art": "loot_sneaker", "graded": true,
-				"rarity": "rare", "value": 129000, "w": 8},
-			{"id": "cam_r", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"rarity": "rare", "value": 255000, "w": 7},
-			{"id": "cab_r", "name": "CABLE", "art": "loot_cable", "graded": true,
-				"rarity": "rare", "value": 74800, "w": 3},
-			{"id": "ing_r", "name": "LINGOTE DE ORO", "art": "loot_ingot", "graded": true,
-				"rarity": "rare", "value": 289000, "w": 3},
-			{"id": "pwt_r", "name": "RELOJ DE BOLSILLO", "art": "loot_pocket_watch", "graded": true,
-				"rarity": "rare", "value": 442000, "w": 2},
-			{"id": "wat_e", "name": "RELOJ", "art": "loot_watch", "graded": true,
-				"rarity": "epic", "value": 675000, "w": 6},
-			{"id": "sho_e", "name": "ZAPATILLA", "art": "loot_sneaker", "graded": true,
-				"rarity": "epic", "value": 570000, "w": 4},
-			{"id": "cam_e", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"rarity": "epic", "value": 1125000, "w": 3},
-			{"id": "cab_e", "name": "CABLE", "art": "loot_cable", "graded": true,
-				"rarity": "epic", "value": 330000, "w": 1},
+				"rarity": "rare", "value": 15300, "w": 6},
 			{"id": "ing_e", "name": "LINGOTE DE ORO", "art": "loot_ingot", "graded": true,
-				"rarity": "epic", "value": 1275000, "w": 1},
-			{"id": "pwt_e", "name": "RELOJ DE BOLSILLO", "art": "loot_pocket_watch", "graded": true,
-				"rarity": "epic", "value": 1950000, "w": 1},
-			{"id": "wat_l", "name": "RELOJ", "art": "loot_watch", "graded": true,
-				"rarity": "legendary", "value": 2475000, "w": 2},
-			{"id": "sho_l", "name": "ZAPATILLA", "art": "loot_sneaker", "graded": true,
-				"rarity": "legendary", "value": 2090000, "w": 1},
-			{"id": "cam_l", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"rarity": "legendary", "value": 4125000, "w": 1},
-			{"id": "cab_l", "name": "CABLE", "art": "loot_cable", "graded": true,
-				"rarity": "legendary", "value": 1210000, "w": 1},
-			{"id": "ing_l", "name": "LINGOTE DE ORO", "art": "loot_ingot", "graded": true,
-				"rarity": "legendary", "value": 4675000, "w": 1},
+				"rarity": "epic", "value": 90000, "w": 3},
 			{"id": "pwt_l", "name": "RELOJ DE BOLSILLO", "art": "loot_pocket_watch", "graded": true,
-				"rarity": "legendary", "value": 7150000, "w": 1},
+				"rarity": "legendary", "value": 495000, "w": 2},
 		],
 	},
+	# --- los otros ocho sobres ------------------------------------------- #
+	# Mismo botin que su escalon 1, mas caro y multiplicado. El precio y el vmult
+	# van aparte a proposito: subir uno sin subir el otro seria un timo, y asi se
+	# puede tocar el equilibrio sin reescribir ninguna tabla de objetos.
+	# El NOMBRE y el DIBUJO cambian con el escalon; la tabla de botin no. El
+	# escalon 2 va de pan de oro y el 3 de laca con joya (ver tools/make_sprites.py,
+	# seccion "escalones 2 y 3"), asi que de un vistazo se sabe cual se esta
+	# abriendo sin leer el precio. Los nombres tienen que caber a 28 px en la
+	# columna de la izquierda (16 caracteres: PACK_NAME_BOX.x / 28), o UIKit
+	# encoge los doce a la vez y el "SOBRES" de arriba se queda enano.
+	{"id": "cards2", "name": "SOBRES ORO", "price": 4000, "hp": 68, "vmult": 20.0,
+		"loot_id": "cards", "art": "pack_cards2", "art_open": "pack_cards2_open"},
+	{"id": "vinyls2", "name": "VINILOS ORO", "price": 20000, "hp": 135, "vmult": 20.0,
+		"loot_id": "vinyls", "art": "pack_vinyls2", "art_open": "pack_vinyls2_open"},
+	{"id": "sneakers2", "name": "ZAPATILLAS ORO", "price": 120000, "hp": 270, "vmult": 20.0,
+		"loot_id": "sneakers", "art": "pack_sneakers2", "art_open": "pack_sneakers2_open"},
+	{"id": "electronics2", "name": "ELECTRONICA ORO", "price": 500000, "hp": 540,
+		"vmult": 20.0, "loot_id": "electronics",
+		"art": "pack_electronics2", "art_open": "pack_electronics2_open"},
+	{"id": "cards3", "name": "SOBRES LUJO", "price": 80000, "hp": 90, "vmult": 400.0,
+		"loot_id": "cards", "art": "pack_cards3", "art_open": "pack_cards3_open"},
+	{"id": "vinyls3", "name": "VINILOS LUJO", "price": 400000, "hp": 180, "vmult": 400.0,
+		"loot_id": "vinyls", "art": "pack_vinyls3", "art_open": "pack_vinyls3_open"},
+	{"id": "sneakers3", "name": "ZAPATILLAS LUJO", "price": 2500000, "hp": 360,
+		"vmult": 400.0, "loot_id": "sneakers",
+		"art": "pack_sneakers3", "art_open": "pack_sneakers3_open"},
+	{"id": "electronics3", "name": "ELECTRONICA LUJO", "price": 10000000, "hp": 720,
+		"vmult": 400.0, "loot_id": "electronics",
+		"art": "pack_electronics3", "art_open": "pack_electronics3_open"},
 ]
 
 # --------------------------------------------------------------------------- #
@@ -200,18 +215,113 @@ const PSA_MIN := 1
 const GRADE_MAX := 10
 
 # --------------------------------------------------------------------------- #
-# Herramientas: acortan la espera. Cada nivel suma un 22% al divisor.
+# Items equipables (ITEMS SHOP del Idea.pdf)
 # --------------------------------------------------------------------------- #
-const TOOL_SPEED_PER_LEVEL := 0.22
-const TOOL_MAX_LEVEL := 5
-const TOOL_COST_GROWTH := 1.85
+# Sustituyen a las cuatro herramientas. Antes solo acortaban la espera; ahora
+# cambian como se abre el paquete: suben el dano, la suerte, el espacio de la
+# mesa o la automatizacion. Todos se compran con el mismo dinero.
+#
+# DOS CLASES DE ITEM, y se nota en la tienda:
+#
+#   - Los seis de ESTADISTICAS suben de nivel: ocho niveles, cada uno mas caro
+#     que el anterior (x1.9) y mas efecto. Es la escalera de siempre.
+#   - El PC y los PINCHOS son de COMPRA UNICA: se pagan una vez y ya esta. Su
+#     efecto es un si o un no -la automatizacion esta encendida o no-, asi que
+#     pagarlos ocho veces no tendria sentido. En la tienda, una fila con precio
+#     es algo que aun no tienes (o que puedes subir) y una que pone COMPRADO es
+#     una pieza que ya no se vende.
+#
+# Quien decide cual es cual NO es una lista aparte: son AUTO_ITEM_OPEN y
+# AUTO_ITEM_BUY, que son los mismos ids que encienden las automatizaciones. Ver
+# item_max_level().
+const ITEM_MAX_LEVEL := 8
+const ITEM_COST_GROWTH := 1.9
+## Niveles que tienen las piezas de las automatizaciones: una compra y ya.
+const ITEM_SINGLE_LEVEL := 1
 
-const TOOLS: Array = [
-	{"id": "cutter", "name": "CORTADOR", "art": "tool_cutter", "base_cost": 600},
-	{"id": "scissors", "name": "TIJERAS", "art": "tool_scissors", "base_cost": 1200},
-	{"id": "gloves", "name": "GUANTES", "art": "tool_gloves", "base_cost": 2400},
-	{"id": "crowbar", "name": "PALANCA", "art": "tool_crowbar", "base_cost": 5000},
+const ITEMS: Array = [
+	{"id": "guantes", "name": "GUANTES", "art": "item_guantes", "base_cost": 900,
+		"desc": "VARIOS PAQUETES A LA VEZ"},
+	{"id": "trebol", "name": "TREBOL", "art": "item_trebol", "base_cost": 1400,
+		"desc": "MAS BOTIN RARO"},
+	{"id": "cajon", "name": "CAJON", "art": "item_cajon", "base_cost": 2600,
+		"desc": "MAS ESPACIO EN LA MESA"},
+	{"id": "ojo_verde", "name": "OJO VERDE", "art": "item_ojo_verde", "base_cost": 4200,
+		"desc": "PROBABILIDAD DE CRITICO"},
+	{"id": "laser", "name": "LASER", "art": "item_laser", "base_cost": 6000,
+		"desc": "MAS DANO CRITICO"},
+	{"id": "pc", "name": "PC", "art": "item_pc", "base_cost": 12000,
+		"desc": "COMPRA LOS SOBRES SOLO"},
+	{"id": "pinchos", "name": "PINCHOS", "art": "item_pinchos", "base_cost": 20000,
+		"desc": "ABRE LOS PAQUETES SOLO"},
+	{"id": "armario", "name": "ARMARIO", "art": "item_armario", "base_cost": 35000,
+		"desc": "SUBE EL VALOR DEL BOTIN"},
 ]
+
+## CADA AUTOMATIZACION VA CON SU PIEZA. Los Pinchos son la fuerza (golpean la
+## mesa en vez del dedo del jugador) y el PC es la cabeza (el que compra solo).
+##
+## Antes hacian falta LAS DOS para encender CUALQUIERA de las dos, y eso se
+## quito: comprar el PC y que el boton siguiera apagado por no tener los Pinchos
+## solo se lee como que la compra no ha servido de nada. Ahora cada boton mira su
+## pieza, y comprar una enciende lo suyo sin esperar a la otra.
+const AUTO_ITEM_OPEN := "pinchos"
+const AUTO_ITEM_BUY := "pc"
+
+# --- el dano y la apertura ------------------------------------------------- #
+## Dano de un golpe sin mejoras. Un paquete basico (45 de vida) son cuatro
+## ciclos: con doce de dano, el cuarto golpe le sobra medio y el sobrante NO se
+## guarda, cada caja empieza de cero.
+const BASE_DAMAGE := 12.0
+## Cada nivel comprado de CUALQUIER item suma un 18% al dano base. Los dos de
+## compra unica (PC y Pinchos) aportan su unico nivel, que es lo que aportaba su
+## primera compra.
+const DAMAGE_PER_LEVEL := 0.18
+## Segundos que tarda un ciclo de carga del boton. Es el ritmo al que se golpea.
+const CHARGE_TIME := 0.55
+## Cada nivel comprado acelera la carga un 5% (menos tiempo por golpe).
+const CYCLE_SPEED_PER_LEVEL := 0.05
+
+# --- el critico (Ojo verde + Laser) --------------------------------------- #
+## Probabilidad de critico con el Ojo verde comprado ("base stat 50%" del PDF).
+const CRIT_CHANCE_BASE := 0.50
+## El critico multiplica el dano; el Laser sube ese multiplicador por nivel.
+const CRIT_MULT_BASE := 2.0
+const CRIT_MULT_PER_LEVEL := 0.05
+
+# --- otros efectos -------------------------------------------------------- #
+## Guantes: paquetes que se pueden llevar a la vez (1 sin item; +2 por nivel).
+##
+## OJO: NO son paquetes que se abren con un clic. Un clic arranca SIEMPRE un solo
+## paquete, el pulsado; lo que sube con los Guantes es cuantos caben cargando al
+## mismo tiempo. Con Guantes el jugador tiene que ir pulsando uno y otro en vez de
+## machacar el mismo, que es justo lo que se queria quitar.
+const OPEN_PER_LEVEL := 2
+## Trebol: +2% de peso a los objetos no comunes por nivel.
+const LUCK_PER_LEVEL := 0.02
+## Cajon: huecos extra en la mesa. 2 por nivel, y 5 a partir del nivel 5.
+const DRAWER_BASE := 2
+const DRAWER_HIGH := 5
+const DRAWER_HIGH_LEVEL := 5
+## Mesa sin cajon.
+const TABLE_BASE := 8
+## Pinchos: dano por segundo a TODOS los paquetes de la mesa mientras la apertura
+## automatica esta encendida. Antes eran seis por nivel; con una sola compra se
+## queda en el nivel medio de los ocho, que una automatizacion que tarda cinco
+## segundos por sobre no se usa.
+const SPIKE_DPS := 24.0
+## PC: segundos entre compras automaticas. Con el PC comprado van siempre a este
+## ritmo; el valor lento es el de una partida sin PC (que ya no puede pasar,
+## porque la compra automatica no se enciende sin el).
+const AUTO_BUY_INTERVAL := 0.75
+const AUTO_BUY_BASE := 1.2
+## Armario: objetos que se pueden exponer (uno por nivel, hasta 3).
+const LOCKER_MAX := 3
+
+# Valor extra que aporta cada objeto expuesto, por rareza.
+const LOCKER_BONUS: Dictionary = {
+	"common": 0.03, "rare": 0.06, "epic": 0.10, "legendary": 0.18,
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -240,46 +350,211 @@ static func pack_index(pack_id: String) -> int:
 	return 0
 
 
-static func tool_count() -> int:
-	return TOOLS.size()
+## Resistencia de un paquete. Sube con su nivel (su escalon de precio).
+static func pack_hp(pack_id: String) -> int:
+	return int(pack_by_id(pack_id)["hp"])
 
 
-static func tool_at(index: int) -> Dictionary:
-	return TOOLS[clampi(index, 0, TOOLS.size() - 1)]
+## Los objetos que pueden salir de un sobre.
+##
+## Los escalones 2 y 3 no llevan tabla propia: apuntan a la del escalon 1 con
+## "loot_id". Si el id apunta a si mismo (o a nada) se contesta la tabla del
+## primer sobre, que es la que siempre existe.
+static func loot_table(pack_id: String) -> Array:
+	var pack := pack_by_id(pack_id)
+	if pack.has("loot"):
+		return pack["loot"]
+	var source := str(pack.get("loot_id", ""))
+	if source == "" or source == str(pack["id"]) or not _has_loot(source):
+		return PACKS[0].get("loot", [])
+	return pack_by_id(source)["loot"]
+
+
+static func _has_loot(pack_id: String) -> bool:
+	for p in PACKS:
+		if p["id"] == pack_id and p.has("loot"):
+			return true
+	return false
+
+
+## Lo que multiplica el valor del botin en este escalon del sobre. Es la otra
+## mitad del par precio/recompensa: subir de escalon sube los dos, y este numero
+## es el que hace que el sobre caro pague mas por el mismo objeto.
+static func tier_mult(pack_id: String) -> float:
+	return float(pack_by_id(pack_id).get("vmult", 1.0))
+
+
+static func item_count() -> int:
+	return ITEMS.size()
+
+
+static func item_at(index: int) -> Dictionary:
+	return ITEMS[clampi(index, 0, ITEMS.size() - 1)]
+
+
+static func item_by_id(item_id: String) -> Dictionary:
+	for it in ITEMS:
+		if it["id"] == item_id:
+			return it
+	return ITEMS[0]
+
+
+## Indice de un item por su id. -1 si no existe.
+static func item_index(item_id: String) -> int:
+	for i in ITEMS.size():
+		if ITEMS[i]["id"] == item_id:
+			return i
+	return -1
+
+
+## Nivel comprado de un item concreto dentro del array de niveles.
+static func item_level(levels: Array, item_id: String) -> int:
+	var i := item_index(item_id)
+	if i < 0 or i >= levels.size():
+		return 0
+	return int(levels[i])
 
 
 # --------------------------------------------------------------------------- #
 # Economia de las herramientas
 # --------------------------------------------------------------------------- #
 
-static func tool_cost(index: int, current_level: int) -> int:
-	if current_level >= TOOL_MAX_LEVEL:
-		return -1          # -1 = al maximo
-	var base: float = TOOLS[index]["base_cost"]
-	return int(round(base * pow(TOOL_COST_GROWTH, current_level)))
+## Niveles que tiene un item. 1 para el PC y los Pinchos (compra unica) y
+## ITEM_MAX_LEVEL para los seis de estadisticas.
+static func item_max_level(index: int) -> int:
+	var item_id := str(ITEMS[clampi(index, 0, ITEMS.size() - 1)]["id"])
+	if item_id == AUTO_ITEM_OPEN or item_id == AUTO_ITEM_BUY:
+		return ITEM_SINGLE_LEVEL
+	return ITEM_MAX_LEVEL
 
 
-## Segundos que se espera realmente con las herramientas que tengas compradas.
-static func open_time(pack_id: String, tool_levels: Array) -> float:
-	var base: float = pack_by_id(pack_id)["time"]
-	return base / speed_multiplier(tool_levels)
+## Lo que cuesta el SIGUIENTE nivel de un item. -1 cuando ya no hay nada que
+## vender: porque es de compra unica y ya lo tienes, o porque esta al tope. Es
+## "no hay precio", que es lo que la tienda necesita para saber que esa fila ya
+## no se puede pagar (y no un precio de cero, que se leeria como un chollo).
+static func item_cost(index: int, current_level: int) -> int:
+	if current_level >= item_max_level(index):
+		return -1
+	var base: float = ITEMS[clampi(index, 0, ITEMS.size() - 1)]["base_cost"]
+	return int(round(base * pow(ITEM_COST_GROWTH, current_level)))
 
 
-static func speed_multiplier(tool_levels: Array) -> float:
+## Suma de niveles de todos los items. Es la medida de "cuanto llevo mejorado" y
+## lo que multiplica el dano base y acelera la carga.
+static func total_levels(levels: Array) -> int:
 	var total := 0
-	for lvl in tool_levels:
+	for lvl in levels:
 		total += int(lvl)
-	return 1.0 + TOOL_SPEED_PER_LEVEL * float(total)
+	return total
+
+
+## Dano de cada golpe: base mas el 18% por nivel comprado.
+static func damage_per_hit(levels: Array) -> float:
+	return BASE_DAMAGE * (1.0 + DAMAGE_PER_LEVEL * float(total_levels(levels)))
+
+
+## Segundos por ciclo de carga. Baja con los niveles comprados.
+static func charge_time(levels: Array) -> float:
+	return CHARGE_TIME / (1.0 + CYCLE_SPEED_PER_LEVEL * float(total_levels(levels)))
+
+
+## Probabilidad de critico. Cero sin Ojo verde; con el, la base del PDF.
+static func crit_chance(levels: Array) -> float:
+	if item_level(levels, "ojo_verde") <= 0:
+		return 0.0
+	return CRIT_CHANCE_BASE
+
+
+## Multiplicador del critico. El Laser suma un 5% por nivel.
+static func crit_mult(levels: Array) -> float:
+	return CRIT_MULT_BASE + CRIT_MULT_PER_LEVEL * float(item_level(levels, "laser"))
+
+
+## Cuantos paquetes se pueden llevar A LA VEZ (Guantes). Ver game.gd,
+## _on_open_requested(): es el tope de paquetes empezados que caben a la vez.
+static func open_count(levels: Array) -> int:
+	return 1 + OPEN_PER_LEVEL * item_level(levels, "guantes")
+
+
+## Multiplicador de peso de los objetos no comunes (Trebol).
+static func luck(levels: Array) -> float:
+	return 1.0 + LUCK_PER_LEVEL * float(item_level(levels, "trebol"))
+
+
+## Huecos de mesa: la base mas el Cajon (2 por nivel, 5 desde el nivel 5).
+static func table_slots(levels: Array) -> int:
+	var lvl := item_level(levels, "cajon")
+	var extra := int(mini(lvl, DRAWER_HIGH_LEVEL)) * DRAWER_BASE
+	if lvl > DRAWER_HIGH_LEVEL:
+		extra += (lvl - DRAWER_HIGH_LEVEL) * DRAWER_HIGH
+	return TABLE_BASE + extra
+
+
+## Segundos entre compras automaticas. El PC es de compra unica, asi que el ritmo
+## es el de su unico nivel; sin el PC va al lento (que hoy no se alcanza: la
+## compra automatica no se enciende sin el, ver auto_buy_unlocked()).
+static func auto_buy_interval(levels: Array) -> float:
+	if item_level(levels, "pc") <= 0:
+		return AUTO_BUY_BASE
+	return AUTO_BUY_INTERVAL
+
+
+## Dano por segundo de los Pinchos a todos los paquetes de la mesa.
+##
+## Los Pinchos NO van solos: esto es lo que pegan cuando la apertura automatica
+## esta encendida (ver game.gd, _spike_step()). Apagada no hacen nada, porque
+## entonces el que golpea es el jugador con el boton.
+static func spike_dps(levels: Array) -> float:
+	if item_level(levels, "pinchos") <= 0:
+		return 0.0
+	return SPIKE_DPS
+
+
+## ¿Se puede encender la apertura automatica? Hace falta SU pieza: los Pinchos.
+static func auto_open_unlocked(levels: Array) -> bool:
+	return item_level(levels, AUTO_ITEM_OPEN) > 0
+
+
+## ¿Se puede encender la compra automatica? Hace falta SU pieza: el PC.
+static func auto_buy_unlocked(levels: Array) -> bool:
+	return item_level(levels, AUTO_ITEM_BUY) > 0
+
+
+## Objetos que se pueden exponer en el Armario (uno por nivel, hasta 3).
+static func locker_slots(levels: Array) -> int:
+	return mini(LOCKER_MAX, item_level(levels, "armario"))
+
+
+## Valor extra que da exponer un objeto, segun su rareza.
+static func locker_item_bonus(rarity_id: String) -> float:
+	return float(LOCKER_BONUS.get(rarity_id, 0.0))
 
 
 # --------------------------------------------------------------------------- #
 # Tiradas
 # --------------------------------------------------------------------------- #
 
-## Elige un objeto del paquete por peso.
-static func roll_item(rng: RandomNumberGenerator, pack_id: String) -> Dictionary:
-	var table: Array = pack_by_id(pack_id)["loot"]
-	return _pick(rng, table, "w").duplicate(true)
+## Elige un objeto del paquete por peso. `luck` (>1) engorda el peso de todo lo
+## que no es comun, que es el efecto del Trebol.
+static func roll_item(rng: RandomNumberGenerator, pack_id: String,
+		luck: float = 1.0) -> Dictionary:
+	var table: Array = loot_table(pack_id)
+	var total := 0.0
+	for e in table:
+		total += _lucky_weight(e, luck)
+	var r := rng.randf() * total
+	for e in table:
+		r -= _lucky_weight(e, luck)
+		if r <= 0.0:
+			return e.duplicate(true)
+	return table[table.size() - 1].duplicate(true)
+
+
+static func _lucky_weight(entry: Dictionary, luck: float) -> float:
+	var w := float(entry["w"])
+	if str(entry.get("rarity", "common")) == "common":
+		return w
+	return w * luck
 
 
 ## La insignia de estado que corresponde a una nota. 9-10 como nuevo, 7-8 buen
@@ -311,7 +586,7 @@ static func roll_grade(rng: RandomNumberGenerator) -> int:
 ## hacia de factor aparte. Al derivar el estado de la nota, el multiplicador se
 ## reescalo para que la media se quede en 1: la media de la nota sale en 7.6, y
 ## 0.50 + 0.07*(7.6-1) da 0.96. Asi los precios de la tabla de arriba siguen
-## valiendo lo que valian y no hay que reequilibrar los 5 paquetes.
+## valiendo lo que valian y no hay que reequilibrar los paquetes.
 static func grade_mult(grade: int) -> float:
 	return 0.50 + 0.07 * float(clampi(grade, PSA_MIN, GRADE_MAX) - 1)
 
@@ -323,8 +598,13 @@ static func art_for(item: Dictionary, grade: int) -> String:
 	return "%s_psa%d" % [str(item["art"]), clampi(grade, PSA_MIN, GRADE_MAX)]
 
 
+## Multiplicador global de lo que valen los objetos. Es la palanca para subir o
+## bajar TODAS las ganancias de golpe cuando la partida se atasca por ganar poco.
+const VALUE_SCALE := 2.2
+
+
 static func final_value(item: Dictionary, grade: int) -> int:
-	var v: float = float(item["value"]) * grade_mult(grade)
+	var v: float = float(item["value"]) * grade_mult(grade) * VALUE_SCALE
 	return maxi(1, int(round(v)))
 
 
@@ -335,14 +615,24 @@ static func grade_stars(grade: int) -> int:
 
 ## Tirada completa de un paquete: objeto, nota, estado, sprite y valor final.
 ## El estado sale de la nota, asi que aqui no hay nada que repartir.
-static func roll_pack(rng: RandomNumberGenerator, pack_id: String) -> Dictionary:
-	var item := roll_item(rng, pack_id)
+##
+## Al valor se le aplican DOS multiplicadores: el del escalon del sobre (vmult,
+## que es lo que hace que el mismo objeto valga 400 veces mas en ELECTRONICA 3
+## que en ELECTRONICA) y el del Armario, que va aparte porque lo pone el jugador.
+static func roll_pack(rng: RandomNumberGenerator, pack_id: String,
+		luck: float = 1.0, value_mult: float = 1.0) -> Dictionary:
+	var item := roll_item(rng, pack_id, luck)
 	var grade := roll_grade(rng)
+	# El valor final lleva el bonus del Armario: lo que dan de mas los objetos
+	# expuestos se paga al encontrar el botin, no al venderlo, para que el numero
+	# que se ve en la tarjeta sea el que se cobra.
+	var value := maxi(1, int(round(float(final_value(item, grade))
+			* value_mult * tier_mult(pack_id))))
 	return {
 		"id": item["id"], "name": item["name"], "art": art_for(item, grade),
 		"rarity": item["rarity"], "base_value": item["value"],
 		"condition": condition_for_grade(grade), "grade": grade,
-		"value": final_value(item, grade),
+		"value": value,
 	}
 
 

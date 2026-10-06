@@ -47,9 +47,12 @@ func _check(ok: bool, what: String) -> void:
 
 
 func _run() -> void:
-	# Una partida guardada de una sesion anterior puede venir con la autoventa y
-	# las automatizaciones encendidas, y entonces el paquete se abriria solo y no
-	# habria tarjeta que pulsar.
+	# Se empieza de CERO, no solo apagando automatizaciones: una partida guardada
+	# puede traer items comprados (los Pinchos y el PC, sin ir mas lejos, son los
+	# que encienden las automatizaciones y abririan la mesa antes de que el test
+	# llegue a pulsarla). smoke_test deja el guardado con todo al maximo, asi que
+	# los dos tests se pisarian.
+	Game.hard_reset()
 	Game.set_auto_sell(false)
 	Game.set_auto_open(false)
 	Game.set_auto_buy(false)
@@ -98,9 +101,18 @@ func _run() -> void:
 	_check(el.state == TableElement.State.OPENING, "el paquete empieza a abrirse")
 
 	print("Tarjeta de revelado:")
-	await _wait(2.2)
+	# La caja necesita varios golpes y cada uno es un clic. Lo que prueba ESTE
+	# test es que el clic llega al boton (arriba queda comprobado), asi que las
+	# pulsaciones que faltan se hacen con start_opening() hasta que salga la
+	# tarjeta.
+	var clicks := 0
+	while game._reveal == null and clicks < 40:
+		if is_instance_valid(el) and el.can_open():
+			el.start_opening()
+		await _wait(0.3)
+		clicks += 1
 	var card: Node = game._reveal
-	_check(card != null, "el paquete se abre solo y sale la tarjeta")
+	_check(card != null, "el paquete se abre al insistir y sale la tarjeta")
 	if card != null:
 		_check(_find_button(card, "GUARDAR") != null, "la tarjeta trae el boton GUARDAR")
 		var vender := _find_button(card, "VENDER")
@@ -113,7 +125,7 @@ func _run() -> void:
 
 	print("Arrastrar por la mesa:")
 	var botin: TableElement = game._spawn_loot(
-		LootDB.roll_pack(RandomNumberGenerator.new(), "vinyls"))
+		LootDB.roll_pack(RandomNumberGenerator.new(), "electronics"))
 	# Hay que dejarle aterrizar: mientras cae lo mueve el tween de la entrada, no
 	# el raton.
 	await _wait(0.9)
@@ -133,6 +145,88 @@ func _run() -> void:
 	_check(botin.state == TableElement.State.LOOT,
 		"soltar tras arrastrar no vende el botin")
 	_check(game.table_count() == 1, "el objeto arrastrado sigue en la mesa")
+
+	print("Zona de sobres:")
+	var celdas: Array = game._pack_cells
+	_check(celdas.size() == LootDB.pack_count(), "la columna trae los doce sobres")
+	if not celdas.is_empty():
+		# Esta es la compra de verdad: un clic en la columna de la izquierda, sin
+		# abrir ningun panel de por medio. La primera celda es SOBRES, el sobre
+		# inicial, que no cuesta nada.
+		var antes: int = game.table_count()
+		var dinero: int = Game.money
+		_check(_click(celdas[0]["button"]),
+			"el clic en el sobre de la izquierda llega al boton")
+		await _frames(3)
+		_check(game.table_count() == antes + 1, "el sobre comprado cae en la mesa")
+		_check(Game.money == dinero, "el sobre inicial es gratis: no cobra nada")
+
+		# La rueda del raton sobre la lista. Se manda el giro justo encima de una
+		# fila (que es donde se usa) y no en el hueco de al lado, que es el caso que
+		# importa: si el boton de la fila se comiera el evento, no habria scroll a
+		# mano.
+		var scroll: ScrollContainer = game._pack_scroll
+		var quieto: int = scroll.scroll_vertical
+		_wheel(game.PACK_ZONE.get_center(), MOUSE_BUTTON_WHEEL_DOWN)
+		await _frames(4)
+		_check(scroll.scroll_vertical > quieto, "la rueda recorre la lista de sobres")
+		_check(scroll.scroll_vertical
+			<= int(scroll.get_v_scroll_bar().max_value),
+			"y no se pasa del final de la lista")
+
+
+	print("Compra automatica:")
+	# Con la partida recien empezada no hay PC, asi que el boton esta BLOQUEADO:
+	# el clic tiene que llegar igual (es lo unico que permite explicar que falta)
+	# pero no puede abrir nada.
+	var auto_btn := _find_tooltip(game,
+			"Compra automatica (con el PC): elige que sobres se compran solos")
+	_check(auto_btn != null, "el boton de la compra automatica existe")
+	_check(_click(auto_btn), "el clic en el boton bloqueado llega igual")
+	await _frames(3)
+	_check(not _main.has_veil(), "bloqueado no abre el mini menu")
+
+	# Con los PINCHOS el boton sigue bloqueado: esa es la pieza de la apertura, no
+	# la de la compra. Es la comprobacion que se rompe sola si alguien vuelve a
+	# juntar las dos piezas en un mismo candado.
+	Game.money = 100000000
+	Game.buy_item(LootDB.item_index("pinchos"))
+	_check(_click(auto_btn), "con los Pinchos el clic llega igual")
+	await _frames(3)
+	_check(not _main.has_veil(), "pero no abre nada: el PC es la otra pieza")
+
+	# Con el PC, el mismo boton abre su lista.
+	Game.buy_item(LootDB.item_index("pc"))
+	_check(_click(auto_btn), "con el PC el clic llega al boton")
+	await _frames(3)
+	_check(_main.has_veil(), "y abre el mini menu de la compra automatica")
+	var panel: Node = null
+	for c in _main._veil_host.get_children():
+		if c is AutoBuyPanel:
+			panel = c
+	_check(panel != null, "el panel abierto es el de la compra automatica")
+	if panel != null:
+		# El sobre gratuito no entra en la lista: la compra automatica lo salta
+		# siempre, asi que una casilla suya no haria nada.
+		_check(panel._cells.size() == LootDB.pack_count() - 1,
+			"la lista trae los once sobres de pago")
+		# Un clic en una fila marca o desmarca ese sobre: es la unica forma de
+		# decir QUE se compra solo.
+		var marcados: int = Game.auto_buy_packs.size()
+		_check(_click(panel._cells[0]["button"]),
+			"el clic en una fila de la lista llega")
+		await _frames(2)
+		_check(Game.auto_buy_packs.size() == marcados - 1,
+			"esa fila deja de comprarse sola")
+		_check(_click(panel._cells[0]["button"]),
+			"el clic otra vez llega igual")
+		await _frames(2)
+		_check(Game.auto_buy_packs.size() == marcados,
+			"y la vuelve a marcar")
+		var cerrar := _find_tooltip(_main._veil_host, "Cerrar")
+		_check(cerrar != null and _click(cerrar), "el mini menu tiene cerrar")
+		await _frames(3)
+		_check(not _main.has_veil(), "y el cerrar cierra el mini menu")
 
 	print("Menu otra vez:")
 	_main.show_menu()
@@ -178,6 +272,27 @@ func _drag(from: Vector2, to: Vector2, steps: int = 13) -> void:
 	up.position = to
 	up.global_position = to
 	get_viewport().push_input(up, true)
+
+
+## Un giro de rueda. Va aparte de _click porque el scroll no se prueba con un
+## clic: lo que se comprueba es que el evento LLEGA al ScrollContainer.
+##
+## Se mandan las DOS mitades, pulsar y soltar, y no es un detalle. El Viewport
+## se queda con el control que recibe la pulsacion del raton (mouse_focus) hasta
+## que ve el suelte; un giro que solo pulsa deja el raton pegado al
+## ScrollContainer, y a partir de ahi el ScrollContainer se come TODOS los clics
+## de la pantalla y ningun boton vuelve a responder. En X11 el giro llega como
+## ButtonPress Y ButtonRelease (los botones 4 y 5), y Godot los pasa los dos; en
+## la prueba hay que hacer lo mismo o el test se inventa un fallo que no existe.
+func _wheel(at: Vector2, button: int) -> void:
+	for pulsar in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = button
+		e.pressed = pulsar
+		e.factor = 1.0
+		e.position = at
+		e.global_position = at
+		get_viewport().push_input(e, true)
 
 
 ## Un clic completo (raton -> pulsar -> soltar) sobre el centro del boton.

@@ -84,7 +84,12 @@ func _build_checks() -> void:
 ## y la casilla empieza en 1002.
 func _check_row(icon: String, text: String, y: float, on: bool,
 		action: Callable) -> TextureRect:
-	add_child(UIKit.art(icon, Vector2(300, y), 0.5))
+	# El icono va por TAMANO (128x128) y no por escala. Con art(..., 0.5) cada
+	# icono se escalaba sobre SU propio lienzo, y no todos miden lo mismo: los
+	# ui_icon_* son de 256 (salian a 128) y currency_coin es de 512, asi que
+	# salia a 256 y tapaba media pantalla. Con el tamano fijo da igual de que
+	# medida sea el sprite.
+	add_child(UIKit.image(icon, Vector2(300, y), Vector2(128, 128)))
 	# El rotulo tiene 17 caracteres, asi que a tamano 42 son 714 px y se saldria
 	# de la caja de 560. Con shrink=True el tamano baja hasta que quepa.
 	add_child(UIKit.label_at(text, Vector2(660, y), Vector2(560, 60), 40,

@@ -22,6 +22,7 @@ nueva, solo le da sitio a lo que el nombre ya decia.
       loot/          loot_*                el botin (objetos y cartas)
       packs/         pack_*                los sobres que se compran
       tools/         tool_*                las herramientas
+      items/         item_*                los items de la tienda equipables
       ui/panels/     ui_panel_*            los marcos de ventana
       ui/controls/   ui_*, menos iconos    botones, deslizadores, casillas
       ui/icons/      ui_icon_*             los iconos sueltos
@@ -48,6 +49,7 @@ FOLDER_BY_PREFIX: Dict[str, str] = {
     "loot": "loot",
     "pack": "packs",
     "tool": "tools",
+    "item": "items",
     "ui_icon": "ui/icons",
     "ui_panel": "ui/panels",
     "ui_button": "ui/controls",

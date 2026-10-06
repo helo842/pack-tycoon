@@ -331,7 +331,12 @@ def main() -> int:
     ap.add_argument("--ink", default="#FFFFFF",
                     help="color de la tinta del glifo; blanco para que el tema lo tiña")
     ap.add_argument("--outline", default="#101020",
-                    help="color del contorno de 1 px de arte")
+                    help="color del contorno de 1 px de arte; con alfa 00 no se "
+                         "pinta contorno (RRGGBB o RRGGBBAA)")
+    ap.add_argument("--name", default="font_pack",
+                    help="nombre base de la fuente (font_pack por defecto). Con "
+                         "otro nombre sale una SEGUNDA fuente, por ejemplo "
+                         "font_title sin contorno para el titulo")
     ap.add_argument("--preview", action="store_true",
                     help="escribe ademas tools/_font_preview.png con todo escrito")
     args = ap.parse_args()
@@ -342,7 +347,8 @@ def main() -> int:
 
     def _rgb(hexs: str) -> Tuple[int, int, int, int]:
         h = hexs.lstrip("#")
-        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 255)
+        a = int(h[6:8], 16) if len(h) >= 8 else 255
+        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), a)
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sprites = os.path.join(root, "Sprites")
@@ -351,26 +357,27 @@ def main() -> int:
     # La fuente va a Sprites/font/, decided por su prefijo como cualquier otro
     # sprite (ver sprite_paths.py). El .fnt tiene que vivir al lado de su PNG
     # porque dentro lleva la ruta relativa de la pagina.
+    base = args.name.strip() or "font_pack"
     img, donde = build_sheet(args.scale, _rgb(args.ink), _rgb(args.outline))
-    png = in_folder(sprites, "font_pack.png")
+    png = in_folder(sprites, base + ".png")
     img.save(png)
 
-    fnt = build_fnt(donde, args.scale, "font_pack.png")
+    fnt = build_fnt(donde, args.scale, base + ".png")
     ruta_fnt = png[:-4] + ".fnt"
     with open(ruta_fnt, "w", encoding="utf-8") as fh:
         fh.write(fnt)
     # La hoja tambien se apunta en el indice, por si algun dia se pide por
     # nombre corto y no por ruta. El .fnt no: no es un sprite, se carga por
     # ruta desde ui_kit.gd.
-    add_to_index(sprites, [rel_path("font_pack.png")])
+    add_to_index(sprites, [rel_path(base + ".png")])
 
     # El .import tiene que quedar en escala entera; si Godot todavia no ha
     # importado el .fnt no hay fichero que parchear, y se avisa.
     if fix_import(ruta_fnt):
         print("Import: scaling_mode=1 (solo escalas enteras)")
     else:
-        print("AVISO: aun no hay font_pack.fnt.import; cuando Godot importe la "
-              "fuente, ejecuta otra vez make_font.py para dejar scaling_mode=1",
+        print("AVISO: aun no hay %s.import; cuando Godot importe la fuente, "
+              "ejecuta otra vez make_font.py para dejar scaling_mode=1" % (base + ".fnt"),
               file=sys.stderr)
 
     print(f"Fuente: {os.path.relpath(ruta_fnt, root)}  "

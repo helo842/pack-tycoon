@@ -231,12 +231,26 @@ func _check_fonts() -> void:
 	# tiene que caber en la caja de la tarjeta de revelado (620 px). Con una
 	# lista escrita a mano esto se rompe en cuanto se anade un objeto y nadie
 	# se entera hasta que se juega; leyendo loot_db no puede pasar.
+	# Solo los escalones 1 llevan tabla propia: los otros dos apuntan a la de su
+	# tipo, asi que recorrerlos todos seria comprobar tres veces lo mismo.
 	for pack in LootDB.PACKS:
-		for item in pack["loot"]:
+		if not pack.has("loot"):
+			continue
+		for item in LootDB.loot_table(str(pack["id"])):
 			var nombre: String = str(item["name"])
 			var t: int = UIKit.fit_size(nombre, 620.0, 42)
 			_check("el nombre \"%s\" (%s) cabe en la tarjeta" % [nombre, pack["name"]],
 					UIKit.text_width(nombre, t) <= 620.0 + 1.0)
+
+
+## Deja la mesa vacia DE VERDAD. No basta con vaciar la lista: los elementos son
+## hijos del nodo de la mesa, y los que siguen vivos reciben los Pinchos y
+## cuentan para el siguiente trozo de la prueba.
+func _empty_table(g: Node) -> void:
+	for el in (g._elements as Array).duplicate():
+		g._drop_element(el)
+		el.queue_free()
+	await get_tree().process_frame
 
 
 func _screen() -> Node:
@@ -248,6 +262,15 @@ func _screen() -> Node:
 
 func _wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
+
+
+## Cuantos paquetes de la mesa estan cargando AHORA MISMO.
+func _cuantos_abriendo(g: Node) -> int:
+	var n := 0
+	for puesto in g._elements:
+		if is_instance_valid(puesto) and (puesto as TableElement).is_opening():
+			n += 1
+	return n
 
 
 # --------------------------------------------------------------------------- #
@@ -286,6 +309,68 @@ func _tinta(n: Control, solo_glifo: bool = false) -> Rect2:
 			Vector2(w, h))
 
 
+## ¿Algun nodo del arbol dibuja este sprite? Sirve tanto para comprobar que algo
+## esta puesto (la moneda del contador) como que algo quitado no ha vuelto.
+func _usa_sprite(de: Node, nombre: String) -> bool:
+	var quiero := Sprites.tex(nombre)
+	var pila: Array = [de]
+	while not pila.is_empty():
+		var n: Node = pila.pop_back()
+		var t := n as TextureRect
+		if t != null and t.texture == quiero:
+			return true
+		pila.append_array(n.get_children())
+	return false
+
+
+## ¿Este sprite se dibuja mas grande que `lado` en algun sitio del arbol?
+##
+## Es el check de la moneda gigante de los ajustes: los iconos se dibujaban con
+## art(), que escala sobre el lienzo DEL SPRITE, y no todos miden lo mismo (los
+## ui_icon_* son de 256, la moneda de 512), asi que uno salia al doble y tapaba
+## media pantalla.
+func _sprite_gigante(de: Node, nombre: String, lado: float) -> bool:
+	var quiero := Sprites.tex(nombre)
+	var pila: Array = [de]
+	while not pila.is_empty():
+		var n: Node = pila.pop_back()
+		var t := n as TextureRect
+		if t != null and t.texture == quiero and t.size.x > lado:
+			return true
+		pila.append_array(n.get_children())
+	return false
+
+
+## ¿Algun rotulo del arbol dice esto? Con `empieza` en true vale con que EMPIECE
+## por el texto, que es lo que hace falta para "DANO 12" sin saber el numero.
+func _dice(de: Node, texto: String, empieza: bool = false) -> bool:
+	var pila: Array = [de]
+	while not pila.is_empty():
+		var n: Node = pila.pop_back()
+		var l := n as Label
+		if l != null and (l.text.begins_with(texto) if empieza else l.text == texto):
+			return true
+		pila.append_array(n.get_children())
+	return false
+
+
+## La tinta que de verdad se VE de un nodo: la de _tinta(), recortada por lo que
+## la recorta. Hace falta desde que la columna de sobres tiene scroll: la lista
+## mide 1632 px dentro de una ventana de 752, asi que hay rotulos y precios que
+## existen en el arbol y no se ven. Sin recortarlos, los dos checks de "cabe en
+## la pantalla" y "no pisa una chapa" saltaban con las filas que estan por
+## debajo del scroll, que es justo donde no se ven.
+func _visible(n: Control, solo_glifo: bool = false) -> Rect2:
+	var r := _tinta(n, solo_glifo)
+	var p := n.get_parent()
+	while p != null:
+		var c := p as Control
+		if c != null and (c is ScrollContainer or c.clip_contents):
+			r = r.intersection(c.get_global_rect())
+		p = p.get_parent()
+	return r
+
+
 func _texto_de(n: Control) -> String:
 	var l := n as Label
 	if l != null:
@@ -303,8 +388,8 @@ func _fuera(de: Node, dentro: Rect2) -> Array:
 		var n: Node = pila.pop_back()
 		var c := n as Control
 		if c != null and (c is Label or c is PixelNumber) and c.visible:
-			var r := _tinta(c)
-			if r.size.x > 0.0 and not caja.encloses(r):
+			var r := _visible(c)
+			if r.size.x > 0.0 and r.size.y > 0.0 and not caja.encloses(r):
 				malas.append("%s \"%s\" en (%.0f, %.0f) %.0fx%.0f" % [
 					"numero" if c is PixelNumber else "rotulo", _texto_de(c),
 					r.position.x, r.position.y, r.size.x, r.size.y])
@@ -346,8 +431,8 @@ func _check_sin_encimarse(what: String, de: Node) -> void:
 		var c := n as Control
 		if c != null and c.visible:
 			if c is Label or c is PixelNumber:
-				var r := _tinta(c, true)
-				if r.size.x > 0.0:
+				var r := _visible(c, true)
+				if r.size.x > 0.0 and r.size.y > 0.0:
 					textos.append([c, r])
 			elif c is BaseButton and _es_chapa(c):
 				chapas.append([c, _marco_de_chapa(c)])
@@ -443,6 +528,14 @@ func _check_dentro_de(what: String, hijo: Control, padre: Control) -> void:
 		print("         numero en ", str(b), " y la chapa es ", str(a))
 
 
+## Hasta que nivel se compra cada item en el bloque de numeros extremos: todos
+## al tope menos el ultimo, que se queda uno por debajo para que su chapa siga
+## enseñando el precio mas largo de la tienda.
+func _nivel_buscado(index: int, ultimo: int) -> int:
+	var tope := Game.item_max_level(index)
+	return tope if index < ultimo else tope - 1
+
+
 ## Un boton del arbol, buscado por el texto que lleva dentro.
 ##
 ## Las chapas de UIKit son un Button pelado con un Label dentro (el texto va en un
@@ -475,6 +568,8 @@ func _run() -> void:
 	var menu := _main._screen_host.get_child(0)
 	_check_cabe("el menu no saca texto de la pantalla", menu, PANTALLA)
 	_check_sin_encimarse("el menu no pone texto encima de una chapa", menu)
+	_check("el menu trae la moneda del pie", _usa_sprite(menu, "currency_coin"))
+	_check("y a tamano normal", not _sprite_gigante(menu, "currency_coin", 96.0))
 
 	# --- ajustes ---
 	menu._on_settings()
@@ -482,6 +577,10 @@ func _run() -> void:
 	await _wait(0.2)
 	var ajustes = _main._veil_host.get_child(0) if _main._veil_host.get_child_count() > 0 else null
 	_check("los ajustes se abren", ajustes != null)
+	# La moneda de la fila de VENTA AUTOMATICA es un sprite de 512: dibujada por
+	# escala sobre su lienzo salia a 256 y tapaba las filas de al lado.
+	_check("la moneda de los ajustes no es gigante",
+		ajustes != null and not _sprite_gigante(ajustes, "currency_coin", 160.0))
 	_check_cabe("los ajustes no sacan texto del panel", ajustes, PANEL)
 	_check_sin_encimarse("los ajustes no ponen texto encima de una chapa", ajustes)
 	# La casilla de venta automatica: el interruptor tiene que encender y apagar
@@ -513,6 +612,183 @@ func _run() -> void:
 	_check("la partida empieza con dinero", Game.money > 0)
 	_check_cabe("la pantalla de juego no saca texto de la pantalla", g, PANTALLA)
 	_check_sin_encimarse("la mesa no pone texto encima de una chapa", g)
+	# El contador de dinero lleva la moneda delante, a tamano de contador.
+	_check("la partida dibuja la moneda del contador", _usa_sprite(g, "currency_coin"))
+	_check("a tamano de contador, no gigante",
+		not _sprite_gigante(g, "currency_coin", 128.0))
+	# Y el rotulo del dano sigue quitado: es un numero que no se consulta en
+	# ninguna parte de la pantalla de partida.
+	_check("la partida no lleva el rotulo de dano", not _dice(g, "DANO", true))
+	# La columna de sobres de la izquierda: doce, comprables sin abrir nada.
+	_check("la zona de sobres tiene una celda por sobre",
+		g._pack_cells.size() == LootDB.pack_count())
+	_check("hay doce sobres", LootDB.pack_count() == 12)
+	# Cuatro tipos y tres escalones de cada uno, en el mismo orden: sobre, vinilo,
+	# zapatillas, electronica, y otra vez con mas precio y mas botin. El NOMBRE
+	# tambien sube de escalon (ORO / LUJO), no solo el precio: el escalon 2 va de
+	# pan de oro y el 3 de laca con joya, y el rotulo lo dice.
+	_check("y son cuatro tipos repetidos tres veces",
+		LootDB.pack_at(0)["name"] == "SOBRES"
+		and LootDB.pack_at(1)["name"] == "VINILOS"
+		and LootDB.pack_at(2)["name"] == "ZAPATILLAS"
+		and LootDB.pack_at(3)["name"] == "ELECTRONICA"
+		and LootDB.pack_at(4)["name"] == "SOBRES ORO"
+		and LootDB.pack_at(8)["name"] == "SOBRES LUJO"
+		and LootDB.pack_at(11)["name"] == "ELECTRONICA LUJO")
+	_check("el que mas cuesta es el de diez millones",
+		LootDB.pack_at(LootDB.pack_count() - 1)["price"] == 10000000)
+	# El nombre mas largo tiene que caber a 28 en la caja del nombre. Si no,
+	# UIKit.row_size encoge los DOCE a la vez y el "SOBRES" de arriba se queda
+	# enano: es facil de romper sin querer (basta bautizar un escalon "DE
+	# DIAMANTE", un caracter de mas), asi que se comprueba en vez de confiar en
+	# que nadie toque los nombres.
+	var nombres: Array = []
+	var nombre_mas_largo := ""
+	for i in LootDB.pack_count():
+		var n := str(LootDB.pack_at(i)["name"])
+		nombres.append(n)
+		if n.length() > nombre_mas_largo.length():
+			nombre_mas_largo = n
+	_check("los doce nombres de sobre caben a 28 en la columna (el mas largo: %s)"
+			% nombre_mas_largo,
+		UIKit.row_size(nombres, g.PACK_NAME_BOX.x, 28) == 28)
+	# La columna tiene SCROLL: doce filas de 136 px son 1632 de lista en una
+	# ventana de 752. Lo que hay que comprobar es que la lista es mas alta que su
+	# ventana (si no, no habria nada que recorrer) y que las filas van una debajo
+	# de otra sin pisarse DENTRO de la lista: sin scroll el paso se comprimia a 62
+	# px para que cupieran las doce, y ese apinamiento es lo que se ha quitado.
+	var filas: Array = []
+	var alto := 0.0
+	for cell in g._pack_cells:
+		var r := (cell["button"] as Control).get_rect()
+		filas.append(r)
+		alto = maxf(alto, r.end.y)
+	var solapan := false
+	for i in filas.size():
+		for j in range(i + 1, filas.size()):
+			# Con medio pixel de margen: las filas son contiguas a proposito, y con
+			# los redondeos del paso los bordes que se tocan salen a veces como un
+			# solape de una billonesima. Lo que se busca es un solape de verdad, que
+			# seria una franja de clic que se come a la de al lado.
+			if (filas[i] as Rect2).grow(-0.5).intersects((filas[j] as Rect2).grow(-0.5)):
+				solapan = true
+	_check("las doce filas de sobres van una debajo de otra sin pisarse", not solapan)
+	_check("y la lista es mas alta que su ventana: hay scroll",
+		alto > g.PACK_ZONE.size.y + 1.0)
+	# Cada sobre llena su hueco. El dibujo se escala por el DIBUJO (Sprites.
+	# used_rect) y no por el lienzo de 512: los cuatro tipos ocupan trozos muy
+	# distintos de su lienzo (cartas 256x496, zapatillas 480x272), asi que
+	# escalando por el lienzo el de cartas salia flaco, el de zapatillas diminuto
+	# y los dos dentro de un marco que les sobraba por todas partes. Con la caja
+	# del dibujo, el lado mas largo del sobre siempre toca el borde de la suya.
+	var flojos: Array = []
+	var desbordan: Array = []
+	for i in g._pack_cells.size():
+		var arte: TextureRect = g._pack_cells[i]["art"]
+		var usado := Sprites.used_rect(str(LootDB.pack_at(i)["art"]))
+		var escala := arte.size.x / 512.0
+		var dibujo := usado.size * escala
+		if absf(maxf(dibujo.x, dibujo.y) - maxf(g.PACK_ART_BOX.x, g.PACK_ART_BOX.y)) > 1.0:
+			flojos.append(str(LootDB.pack_at(i)["name"]))
+		if dibujo.x > g.PACK_ART_BOX.x + 1.0 or dibujo.y > g.PACK_ART_BOX.y + 1.0:
+			desbordan.append(str(LootDB.pack_at(i)["name"]))
+	_check("los doce sobres llenan su hueco (manda el dibujo, no el lienzo)",
+		flojos.is_empty() and desbordan.is_empty())
+	# Y ya no van dentro de un marco de ranura: doce marcos naranjas seguidos se
+	# comian la columna. La comprobacion es sobre la LISTA, porque el ui_slot
+	# sigue usandose en la mesa, que es donde si pinta algo.
+	var marcos := 0
+	for hijo in (g._pack_scroll.get_child(0) as Control).get_children():
+		var arte := hijo as TextureRect
+		if arte != null and arte.texture == Sprites.tex("ui_slot"):
+			marcos += 1
+	_check("los sobres de la columna ya no van enmarcados", marcos == 0)
+	# Detras de las filas va un FONDO NEGRO OPACO. La columna estuvo sin fondo, y
+	# entonces los precios y los nombres se leian encima de las monedas y las
+	# baldas de la trastienda: con nueve cifras no hay quien los lea. Se comprueba
+	# que existe, que tapa la columna entera y que NO es translucido (un alfa por
+	# debajo de 1 dejaria pasar el fondo otra vez, que es justo el fallo).
+	var fondo := g.get_node_or_null("PackBackdrop") as ColorRect
+	_check("la columna de sobres tiene fondo propio", fondo != null)
+	if fondo != null:
+		_check("y el fondo es OPACO, no translucido", fondo.color.a >= 0.999)
+		_check("y tapa la columna entera",
+			fondo.get_global_rect().encloses(g.PACK_ZONE.grow(-1.0)))
+		_check("y va detras de los sobres",
+			fondo.get_index() < g._pack_scroll.get_index())
+	# La barra: que recorra la lista entera, que no salga con el gris redondeado
+	# del tema de Godot y que vaya atenuada. A todo color y ancha era lo mas
+	# llamativo de la pantalla, una franja naranja pegada a la mesa.
+	var barra: VScrollBar = g._pack_scroll.get_v_scroll_bar()
+	_check("la barra de scroll llega hasta el final de la lista",
+		barra != null and barra.max_value > barra.page)
+	var cacha: StyleBoxFlat = null
+	if barra != null:
+		cacha = barra.get_theme_stylebox("grabber") as StyleBoxFlat
+	_check("y esta pintada con el dorado del juego, atenuado",
+		cacha != null and cacha.bg_color.r == Palette.GOLD_D.r
+			and cacha.bg_color.g == Palette.GOLD_D.g
+			and cacha.bg_color.b == Palette.GOLD_D.b
+			and cacha.bg_color.a < 1.0)
+	# La escalera, tipo por tipo: cada escalon cuesta mas y multiplica mas el
+	# botin, y los tres dan la misma lista de objetos (que es de donde sale que
+	# subir de escalon no sea cambiar de juego).
+	for tipo in 4:
+		var escalones := [LootDB.pack_at(tipo), LootDB.pack_at(tipo + 4),
+				LootDB.pack_at(tipo + 8)]
+		var uno: Dictionary = escalones[0]
+		var dos: Dictionary = escalones[1]
+		var tres: Dictionary = escalones[2]
+		_check("el escalon 2 de %s cuesta mas que el 1" % uno["name"],
+			int(dos["price"]) > int(uno["price"]))
+		_check("el escalon 3 de %s cuesta mas que el 2" % uno["name"],
+			int(tres["price"]) > int(dos["price"]))
+		# Y aguanta mas: subir de escalon es pagar mas por un sobre MAS DURO del
+		# mismo tipo. Si el de arriba fuera igual de blando, el precio solo
+		# compraria botin mejor, y los tres escalones se leeran como el mismo sobre
+		# tres veces.
+		_check("y el escalon 2 de %s aguanta mas que el 1" % uno["name"],
+			LootDB.pack_hp(str(dos["id"])) > LootDB.pack_hp(str(uno["id"])))
+		_check("y el escalon 3 aguanta mas que el 2 (%s)" % uno["name"],
+			LootDB.pack_hp(str(tres["id"])) > LootDB.pack_hp(str(dos["id"])))
+		_check("y paga mas por el mismo objeto (%s)" % uno["name"],
+			LootDB.tier_mult(str(tres["id"])) > LootDB.tier_mult(str(dos["id"]))
+			and LootDB.tier_mult(str(dos["id"])) > LootDB.tier_mult(str(uno["id"])))
+		var tabla_uno := LootDB.loot_table(str(uno["id"]))
+		_check("los tres escalones de %s dan los mismos objetos" % uno["name"],
+			tabla_uno.size() > 0
+			and tabla_uno.size() == LootDB.loot_table(str(dos["id"])).size()
+			and tabla_uno.size() == LootDB.loot_table(str(tres["id"])).size())
+	# Pero el DIBUJO si cambia con el escalon. Era el pendiente de siempre: los
+	# tres escalones de un tipo compartian sprite y, en una columna de doce con el
+	# mismo dibujo repetido tres veces, no habia forma de saber cual valia un
+	# millon. Se comprueba el arte CERRADO, el ABIERTO y los tres tramos de dano de
+	# los tres escalones, porque el dano no se guarda en los datos: se deduce del
+	# nombre del arte ("pack_cards" + "_d2"), y un arte nuevo sin sus tres tramos
+	# se veria bien hasta el segundo golpe.
+	var repetidos: Array = []
+	var sin_arte: Array = []
+	for tipo in 4:
+		var artes: Array = []
+		for escalon in 3:
+			var p: Dictionary = LootDB.pack_at(tipo + escalon * 4)
+			var base := str(p["art"])
+			artes.append(base)
+			for nombre in [base, str(p["art_open"]),
+					base + "_d1", base + "_d2", base + "_d3"]:
+				if Sprites.tex(nombre) == null:
+					sin_arte.append(nombre)
+		if artes[0] == artes[1] or artes[1] == artes[2]:
+			repetidos.append(str(LootDB.pack_at(tipo)["name"]))
+	_check("cada escalon de un tipo tiene su propio dibujo", repetidos.is_empty())
+	_check("y cada escalon tiene arte cerrado, abierto y los tres tramos de dano",
+		sin_arte.is_empty())
+	_check("el sobre inicial se anuncia como GRATIS", g._pack_cells[0]["free"].visible)
+	_check("y los demas sobres no", not Game.pack_free("electronics"))
+	_check("el precio del inicial es 0", Game.pack_price("cards") == 0)
+	_check("el de los demas es el de loot_db",
+		Game.pack_price("electronics")
+		== int(LootDB.pack_by_id("electronics")["price"]))
 	var start_money: int = Game.money
 
 	# --- tienda ---
@@ -520,21 +796,25 @@ func _run() -> void:
 	await get_tree().process_frame
 	var shop = g._shop
 	_check("la tienda se abre", shop != null)
-	_check("hay 5 celdas de paquete", shop._pack_cells.size() == LootDB.pack_count())
-	_check("hay 4 herramientas", shop._tool_cells.size() == LootDB.tool_count())
-	# El multiplicador de velocidad se creo con label_at() y se le olvido el
-	# add_child: la etiqueta se quedaba sin padre y no se veia nunca, sin ningun
-	# error. Este check mira lo mismo para que no vuelva a colarse.
-	_check("el multiplicador de la tienda esta en pantalla",
-		shop._speed != null and shop._speed.is_visible_in_tree()
-		and shop._speed.text != "")
+	_check("hay 8 items", shop._item_cells.size() == LootDB.item_count())
+	# La tienda se ha quedado con los items: ni sobres, ni titulo, ni moneda, ni
+	# el rotulo del dano. Es facil que cualquiera de los cuatro vuelva al pintar
+	# el panel, asi que se comprueba que no estan.
+	_check("la tienda no vende sobres", not _usa_sprite(shop, "pack_cards"))
+	_check("la tienda no lleva el titulo TIENDA", not _dice(shop, "TIENDA"))
+	_check("la tienda no lleva el rotulo de dano", not _dice(shop, "DANO", true))
+	_check("la tienda trae la moneda del contador", _usa_sprite(shop, "currency_coin"))
 	_check_cabe("la tienda no saca texto del panel", shop, PANEL)
 	_check_sin_encimarse("la tienda no pone texto encima de una chapa", shop)
 
-	shop._on_pack("cards")
+	# El sobre inicial se compra DESDE LA COLUMNA de la izquierda, no desde el
+	# panel, y no cuesta nada NUNCA (no es "el primero gratis").
+	g._buy_pack("cards")
 	await get_tree().process_frame
 	await _wait(0.9)
-	_check("comprar descuenta el precio", Game.money == start_money - 150)
+	_check("el sobre inicial no cuesta nada", Game.money == start_money)
+	_check("y sigue costando 0 despues de comprarlo", Game.pack_free("cards"))
+	_check("su celda sigue diciendo GRATIS", g._pack_cells[0]["free"].visible)
 	_check("el paquete cae en la mesa", g.table_count() == 1)
 	_check("el paquete espera en la mesa", g._elements[0].is_waiting_pack())
 
@@ -554,19 +834,57 @@ func _run() -> void:
 	_check("el anillo es mas ancho que el dibujo del paquete",
 		el._ring.size.x > TableElement.ART_SIZE.x)
 	_check("el anillo avanza", el._ring.progress > 0.05)
-	_check("sigue abriendose", el.is_opening())
+	_check("sigue cargando", el.is_opening())
+	# Un clic es UN golpe: al terminar el ciclo la caja baja resistencia y vuelve
+	# a quedarse quieta esperando otro clic (no se abre sola de una tirada).
+	await _wait(0.4)
+	_check("un clic no abre la caja del todo", not el.is_opening())
+	_check("la resistencia ha bajado", el.hp < el.max_hp)
 
-	# --- las herramientas acortan la espera ---
-	var t_cards := LootDB.open_time("cards", [0, 0, 0, 0])
-	var t_fast := LootDB.open_time("cards", [3, 0, 0, 0])
-	_check("las herramientas acortan la espera", t_fast < t_cards)
-	_check("el precio de la herramienta sube con el nivel",
-			LootDB.tool_cost(0, 1) > LootDB.tool_cost(0, 0))
-	_check("la herramienta tope no tiene precio", LootDB.tool_cost(0, 99) < 0)
+	# --- los items suben el dano y aceleran la carga ---
+	var cero := [0, 0, 0, 0, 0, 0, 0, 0]
+	var d0 := LootDB.damage_per_hit(cero)
+	var d1 := LootDB.damage_per_hit([3, 0, 0, 0, 0, 0, 0, 0])
+	_check("los items suben el dano", d1 > d0)
+	_check("los items aceleran la carga",
+			LootDB.charge_time([3, 0, 0, 0, 0, 0, 0, 0]) < LootDB.charge_time(cero))
+	_check("una caja necesita varios golpes",
+			float(LootDB.pack_hp("cards")) / d0 >= 2.0)
+	# La vida de los sobres subio un 50 % de golpe: el basico (45) pide CUATRO
+	# ciclos con el dano base (12), no tres. Se mira en golpes y no en el numero
+	# suelto para que la comprobacion siga diciendo algo si el dano base cambia.
+	_check("un sobre basico aguanta cuatro golpes sin nada comprado (45 de vida)",
+			ceili(float(LootDB.pack_hp("cards")) / d0) == 4)
+	_check("el precio del item sube con el nivel",
+			LootDB.item_cost(0, 1) > LootDB.item_cost(0, 0))
+	_check("el item tope no tiene precio", LootDB.item_cost(0, 99) < 0)
+	# DOS CLASES DE ITEM. Los seis de estadisticas tienen ITEM_MAX_LEVEL niveles;
+	# el PC y los Pinchos son de COMPRA UNICA (un nivel y ya), porque su efecto es
+	# un si o un no: pagarlos ocho veces no tendria sentido.
+	var pc_i := LootDB.item_index("pc")
+	var pin_i := LootDB.item_index("pinchos")
+	_check("el PC y los Pinchos son de compra unica: un nivel y ya",
+			LootDB.item_max_level(pc_i) == 1 and LootDB.item_max_level(pin_i) == 1)
+	_check("y por eso no se pueden pagar dos veces",
+		LootDB.item_cost(pc_i, 0) > 0 and LootDB.item_cost(pc_i, 1) < 0)
+	_check("los seis de estadisticas llegan hasta los ocho niveles",
+		LootDB.item_max_level(0) == LootDB.ITEM_MAX_LEVEL)
+	_check("el Ojo verde da critico", LootDB.crit_chance([0, 0, 0, 1, 0, 0, 0, 0]) > 0.0)
+	_check("el Laser sube el dano critico",
+			LootDB.crit_mult([0, 0, 0, 0, 3, 0, 0, 0]) > LootDB.crit_mult(cero))
+	_check("el Cajon da mas huecos de mesa",
+			LootDB.table_slots([0, 0, 1, 0, 0, 0, 0, 0]) > LootDB.TABLE_BASE)
 
 	# --- revelado ---
-	await _wait(2.4)
-	_check("sale la tarjeta de revelado", g._reveal != null)
+	# Hay que insistir: cada ciclo es un golpe y la caja no se abre sola. Se pulsa
+	# hasta que salga la tarjeta, con un tope por si algo se quedara colgado.
+	var clicks := 0
+	while g._reveal == null and clicks < 40:
+		if is_instance_valid(el) and el.can_open():
+			el.start_opening()
+		await _wait(0.3)
+		clicks += 1
+	_check("sale la tarjeta de revelado al insistir", g._reveal != null)
 	if g._reveal != null:
 		var card = g._reveal
 		_check_cabe("la tarjeta no saca texto del panel", card, PANEL)
@@ -633,7 +951,13 @@ func _run() -> void:
 	# --- el otro boton: vender desde la tarjeta ---
 	var el_sell: TableElement = g._spawn_pack("cards")
 	_check("el segundo paquete se puede abrir", el_sell.start_opening())
-	await _wait(2.2)
+	# Varios clics otra vez: cada ciclo es un golpe.
+	var clicks_sell := 0
+	while g._reveal == null and clicks_sell < 40:
+		if is_instance_valid(el_sell) and el_sell.can_open():
+			el_sell.start_opening()
+		await _wait(0.3)
+		clicks_sell += 1
 	_check("el objeto esta en la mesa antes de venderlo", g.table_count() == 1)
 	var money_card: int = Game.money
 	var vender: BaseButton = null
@@ -648,7 +972,7 @@ func _run() -> void:
 	_check("vender desde la tarjeta no guarda nada", Game.inventory.is_empty())
 
 	# --- cerrar sin elegir: el objeto se queda en la mesa ---
-	var suelto: Dictionary = LootDB.roll_pack(RandomNumberGenerator.new(), "vinyls")
+	var suelto: Dictionary = LootDB.roll_pack(RandomNumberGenerator.new(), "electronics")
 	var el_free: TableElement = g._spawn_loot(suelto)
 	g._on_reveal_resolved(RevealCard.ACTION_LATER, suelto, el_free)
 	await get_tree().process_frame
@@ -675,6 +999,19 @@ func _run() -> void:
 	g._sell_all_table()
 	await _wait(0.5)
 	_check("vender todo recoge lo que quedaba", g.table_count() == 0)
+	# Y suelta el turno de los paquetes a medias: si no, uno que se estaba
+	# abriendo seguiria ocupando un hueco de los Guantes sin estar ya en la mesa.
+	Game.items[LootDB.item_index("guantes")] = 1
+	var a_medias: TableElement = g._spawn_pack("cards")
+	g._on_open_requested(a_medias)
+	_check("un paquete a medias ocupa su hueco del turno", g._worked.size() == 1)
+	g._sell_all_table()
+	_check("y vender todo lo suelta", g._worked.is_empty())
+	# VENDER TODO no paga un paquete a medio abrir (solo vende botin), asi que se
+	# quita de la mesa a mano para que no siga cargando por detras.
+	a_medias.queue_free()
+	Game.items[LootDB.item_index("guantes")] = 0
+	await get_tree().process_frame
 
 	# --- venta automatica ---
 	# Se llama al manejador de "paquete abierto" en vez de esperar los segundos de
@@ -699,67 +1036,268 @@ func _run() -> void:
 	while g.table_count() < 8:
 		g._spawn_pack("cards")
 	_check("la mesa se llena hasta 8", g.table_count() == 8)
-	var before_refund: int = Game.money
-	g._on_pack_chosen("cards")
+	var before_full: int = Game.money
+	g._buy_pack("electronics")
 	_check("con la mesa llena no entra nada mas", g.table_count() == 8)
-	_check("con la mesa llena se devuelve el dinero",
-			Game.money == before_refund + int(LootDB.pack_by_id("cards")["price"]))
+	# La mesa se mira ANTES de cobrar: si no cabe, no se cobra y no hay que
+	# devolver nada.
+	_check("con la mesa llena no se cobra el sobre", Game.money == before_full)
 
-	# --- automatizaciones ---
+	# --- automatizaciones: cada boton con SU pieza ---
+	# La tienda se cierra antes de probar nada de esto: la compra automatica se
+	# para mientras hay un panel abierto (no tiene sentido que compre mientras el
+	# jugador mira la tienda), y con ella abierta desde hace veinte comprobaciones
+	# lo que se probaria es la pausa, no la compra.
+	g._close_shop()
+	await get_tree().process_frame
+	# Sin piezas ninguno de los dos botones enciende nada, y devuelven false para
+	# que quien llama pueda decir QUE falta (ver game.gd, _locked_notice()). Es la
+	# regla mas facil de romper sin querer: basta con dejar de mirarla en
+	# set_auto_open().
+	Game.items = [0, 0, 0, 0, 0, 0, 0, 0]
+	_check("sin piezas no se enciende la apertura automatica",
+		not Game.set_auto_open(true) and not Game.auto_open)
+	_check("ni la compra automatica",
+		not Game.set_auto_buy(true) and not Game.auto_buy)
+	# LOS PINCHOS son la pieza de la APERTURA: con ellos se enciende la apertura, y
+	# solo la apertura. Antes hacian falta los Pinchos Y el PC para CUALQUIERA de
+	# las dos, asi que comprar el PC no servia de nada hasta tener tambien los
+	# Pinchos: eso es exactamente lo que se ha quitado.
+	Game.buy_item(LootDB.item_index("pinchos"))
+	_check("con los Pinchos la apertura automatica ya se puede encender",
+		Game.set_auto_open(true) and Game.auto_open)
+	Game.set_auto_open(false)
+	_check("y sin el PC la compra automatica sigue cerrada: esa es la otra pieza",
+		not Game.auto_buy_unlocked() and not Game.set_auto_buy(true))
+	# EL PC es la pieza de la COMPRA, y va por su cuenta: se comprueba con los
+	# Pinchos quitados, que es la unica forma de saber que el PC no necesita nada
+	# mas que a si mismo.
+	Game.items[LootDB.item_index("pinchos")] = 0
+	_check("sin los Pinchos la apertura automatica vuelve a cerrarse",
+		not Game.auto_open_unlocked() and not Game.set_auto_open(true))
+	Game.buy_item(LootDB.item_index("pc"))
+	_check("y con el PC la compra automatica ya se puede encender",
+		Game.set_auto_buy(true) and Game.auto_buy)
+	Game.set_auto_buy(false)
+	Game.items[LootDB.item_index("pinchos")] = 1
+
+	# Y su mini menu: la compra automatica no es solo SI o NO, tambien es QUE se
+	# compra. Se comprueba que abre, que trae los sobres de PAGO (el gratuito no
+	# entra: la compra automatica lo salta siempre, asi que una casilla suya no
+	# haria nada) y que no se sale del panel, como la tienda.
+	g._open_auto_buy()
+	await get_tree().process_frame
+	var panel = g._auto_buy_panel
+	_check("el boton de la compra automatica abre su mini menu", panel != null)
+	if panel != null:
+		_check("y trae los once sobres de pago, sin el gratuito",
+			panel._cells.size() == LootDB.pack_count() - 1)
+		_check_cabe("el mini menu no saca texto del panel", panel, PANEL)
+		_check_sin_encimarse("el mini menu no pone texto encima de una chapa", panel)
+		for i in panel._cells.size():
+			_check_dentro_de("el precio del sobre %d cabe en su chapa" % (i + 1),
+				panel._cells[i]["num"], panel._cells[i]["tag_node"])
+		g._close_auto_buy()
+		await get_tree().process_frame
+	_check("y se cierra", g._auto_buy_panel == null)
+
+	# Los Pinchos NO golpean con la apertura apagada: el item es la pieza que
+	# permite encender la automatizacion, y encenderla es lo que los pone a
+	# trabajar. Apagada, la mesa se abre a clics como siempre.
+	await _empty_table(g)
+	var quieto: TableElement = g._spawn_pack("electronics3")
+	await _wait(1.0)
+	_check("con la apertura apagada los Pinchos no tocan la mesa",
+		quieto.is_waiting_pack() and is_equal_approx(quieto.hp, quieto.max_hp))
+	_check("y ahora la apertura si se enciende", Game.set_auto_open(true))
+	await _wait(1.0)
+	_check("encendida, los Pinchos golpean solos",
+		is_instance_valid(quieto) and quieto.hp < quieto.max_hp)
+	Game.set_auto_open(false)
+
+	# Y con la apertura encendida la mesa se abre sola. Un sobre basico tiene 45 de
+	# vida y los Pinchos pegan 24 por segundo, asi que los tres se abren en poco
+	# menos de dos segundos. Se deja la autoventa puesta para que no salte la
+	# tarjeta de revelado, que para el reloj.
+	await _empty_table(g)
+	for k in 3:
+		g._spawn_pack("cards")
 	var opened_before: int = Game.packs_opened
-	Game.set_auto_buy(true)
+	Game.set_auto_sell(true)
 	Game.set_auto_open(true)
 	await _wait(3.0)
-	_check("la automatizacion abre paquetes sola", Game.packs_opened > opened_before)
-	Game.set_auto_buy(false)
+	_check("la apertura automatica abre la mesa sola",
+		Game.packs_opened > opened_before)
 	Game.set_auto_open(false)
-	# Y una pasada mas con calma: puede quedar un paquete a medio abrir que saque
-	# su tarjeta justo despues de apagar la automatizacion.
-	await _wait(1.6)
-	while g._reveal != null:
-		g._reveal._dismiss()
-		await get_tree().process_frame
-		await _wait(0.3)
-	g._sell_all_table()
-	await _wait(0.5)
-	_check("vender todo vacia la mesa", g.table_count() == 0)
+	Game.set_auto_sell(false)
+	await _wait(0.4)
+	await _empty_table(g)
+
+	# --- sin Guantes la mesa lleva UN paquete a la vez ---
+	Game.items[LootDB.item_index("guantes")] = 0
+	var uno: TableElement = g._spawn_pack("electronics3")
+	var dos: TableElement = g._spawn_pack("electronics3")
+	g._on_open_requested(uno)
+	_check("el paquete pulsado empieza a abrirse", uno.is_opening())
+	_check("sin Guantes solo cabe uno a la vez", Game.open_count() == 1)
+	g._on_open_requested(dos)
+	_check("sin Guantes el segundo no arranca: de uno en uno", not dos.is_opening())
+	_check("y el turno sigue siendo del primero", g._worked.has(uno))
+	_check("el que ya estaba abriendose sigue", uno.is_opening())
+
+	# --- con Guantes caben VARIOS A LA VEZ, pero un clic arranca UNO ---
+	# Es la diferencia con lo que habia antes: un clic NO abria varios de golpe.
+	# Los Guantes suben cuantos paquetes caben cargando al mismo tiempo, y el
+	# jugador tiene que ir pulsando uno y otro para que avancen todos; machacar el
+	# mismo no adelanta mas que el suyo. Ver _on_open_requested().
+	Game.items[LootDB.item_index("guantes")] = 1
+	await _empty_table(g)
+	var lote: Array = []
+	for k in 4:
+		lote.append(g._spawn_pack("electronics3"))
+	_check("con los Guantes caben tres a la vez", Game.open_count() == 3)
+	g._on_open_requested(lote[0])
+	_check("y un clic arranca UN paquete, no varios",
+		_cuantos_abriendo(g) == 1)
+	_check("y el que NO se ha pulsado sigue quieto",
+		not (lote[1] as TableElement).is_opening())
+	for k in [1, 2]:
+		g._on_open_requested(lote[k])
+	_check("pulsando cada uno, los tres cargan a la vez",
+		_cuantos_abriendo(g) == 3)
+	g._on_open_requested(lote[3])
+	_check("pero el cuarto ya no entra: el cupo son tres",
+		not (lote[3] as TableElement).is_opening() and g._worked.size() == 3)
+	# Y al soltar uno, su hueco queda libre para el que esperaba.
+	g._remove_from_table(lote[0])
+	await get_tree().process_frame
+	g._on_open_requested(lote[3])
+	_check("y al soltar uno, el que esperaba entra",
+		(lote[3] as TableElement).is_opening())
+	Game.items[LootDB.item_index("guantes")] = 0
+
+	# --- la compra automatica compra lo que diga su mini menu ---
+	# Con la lista vacia no compra nada, que es una forma de apagarla sin apagar
+	# el boton. Marcando solo los de arriba se apunta a lo caro; con los doce
+	# marcados va subiendo de escalon sola.
+	await _empty_table(g)
+	for i in LootDB.pack_count():
+		Game.set_auto_buy_wanted(str(LootDB.pack_at(i)["id"]), false)
+	_check("una lista vacia deja la compra automatica sin nada que comprar",
+		Game.auto_buy_packs.is_empty())
+	Game.money = 100000000
+	Game.set_auto_buy(true)
+	await _wait(1.4)
+	_check("sin nada marcado no compra ni un sobre", g.table_count() == 0)
+	# Dos marcados muy distintos de precio: coge el barato.
+	Game.set_auto_buy_wanted("vinyls", true)
+	Game.set_auto_buy_wanted("vinyls3", true)
+	await _wait(2.0)
+	_check("con dos marcados coge el mas barato",
+		g.table_count() > 0 and str(g._elements[0].pack["id"]) == "vinyls")
+	var todos_marcados := true
+	for puesto in g._elements:
+		if str((puesto as TableElement).pack["id"]) != "vinyls":
+			todos_marcados = false
+	_check("y no compra ninguno que no este marcado", todos_marcados)
+	Game.set_auto_buy(false)
+	Game.set_auto_buy_wanted("vinyls", false)
+	Game.set_auto_buy_wanted("vinyls3", false)
+	await _empty_table(g)
 
 	# --- tienda con dinero de sobra: compra y herramientas ---
 	Game.money = 100000000
 	g._open_shop()
 	await get_tree().process_frame
 	var shop2 = g._shop
-	shop2._on_tool(0)
-	_check("comprar herramienta sube el nivel", Game.tool_level(0) == 1)
-	_check("la velocidad sube", Game.speed_multiplier() > 1.0)
-	shop2._on_pack("electronics")
+	shop2._on_item(0)
+	_check("comprar item sube el nivel", Game.item_level(0) == 1)
+	_check("el dano sube", Game.damage_per_hit() > LootDB.BASE_DAMAGE)
+	# Y el siguiente nivel cuesta mas y se cobra: los seis de estadisticas siguen
+	# siendo una escalera. Lo que no se repite es la compra de las piezas de las
+	# automatizaciones, que va en su propio check mas abajo.
+	var money_item: int = Game.money
+	var cost2 := Game.item_cost(0)
+	_check("el segundo nivel cuesta mas que el primero",
+		cost2 > int(LootDB.item_by_id("guantes")["base_cost"]))
+	shop2._on_item(0)
+	_check("y se cobra", Game.item_level(0) == 2 and Game.money == money_item - cost2)
+	var money_paid: int = Game.money
+	g._buy_pack("electronics")
 	await _wait(1.0)
 	_check("se puede comprar un paquete caro", g.table_count() == 1)
+	_check("un sobre de pago si cobra",
+		Game.money == money_paid - int(LootDB.pack_by_id("electronics")["price"]))
 	shop2._close()
 	await get_tree().process_frame
 	_check("la tienda se cierra", g._shop == null)
 
 	# --- numeros extremos ---
 	# Todo lo anterior se mide con la partida recien empezada: dinero de tres
-	# cifras y herramientas de nivel 1. El sitio donde algo se desborda de verdad
-	# es aqui, con nueve digitos y las chapitas de "MAX".
+	# cifras y items sin comprar. El sitio donde algo se desborda de verdad es
+	# aqui, con nueve digitos y la tienda casi entera comprada.
 	Game.money = 99999999
 	g._open_shop()
 	await get_tree().process_frame
 	var shop3 = g._shop
-	for i in LootDB.tool_count():
-		for _nivel in LootDB.TOOL_MAX_LEVEL:
-			shop3._on_tool(i)
+	# Se compran siete de los ocho y se deja el ultimo (EL ARMARIO) sin comprar a
+	# proposito: es el item con el precio mas largo de la tienda, y con todos
+	# comprados no quedaria ni una chapa de precio que medir.
+	# El ULTIMO item (EL ARMARIO) se queda un nivel por debajo de su tope: es el
+	# que enseña el precio mas largo de la tienda, y con todas las chapas
+	# escondidas no quedaria ni una que medir.
+	var ultimo := LootDB.item_count() - 1
+	for i in LootDB.item_count():
+		while Game.item_level(i) < _nivel_buscado(i, ultimo):
+			shop3._on_item(i)
 	shop3.refresh()
 	await get_tree().process_frame
-	for i in shop3._tool_cells.size():
-		_check("la herramienta %d llega al tope" % (i + 1),
-				Game.tool_level(i) == LootDB.TOOL_MAX_LEVEL)
-		_check_dentro_de("el precio de la herramienta %d cabe en la chapa" % (i + 1),
-				shop3._tool_cells[i]["cost"], shop3._tool_cells[i]["tag_node"])
-	for i in shop3._pack_cells.size():
+	for i in shop3._item_cells.size():
+		var tope := Game.item_max_level(i)
+		var cerrado: bool = Game.item_level(i) >= tope
+		var rotulo: Label = shop3._item_cells[i]["owned"]
+		_check("el item %d llega al nivel buscado" % (i + 1),
+				Game.item_level(i) == _nivel_buscado(i, ultimo))
+		_check("el item %d ya no se puede pagar solo si esta al tope" % (i + 1),
+				(Game.item_cost(i) < 0) == cerrado)
+		_check("la tienda escribe %s en el item %d" % [
+				"COMPRADO" if tope <= 1 else "AL TOPE", i + 1],
+				rotulo.visible == cerrado
+				and (not cerrado or rotulo.text == ("COMPRADO" if tope <= 1 else "AL TOPE")))
+		_check("el item %d lleva chapa de precio solo si le queda algo" % (i + 1),
+				(shop3._item_cells[i]["tag_node"] as TextureRect).visible == not cerrado)
+		# Los puntos de nivel: ninguno en el PC ni en los Pinchos (no hay niveles
+		# que marcar) y los ocho en los de estadisticas.
+		_check("el item %d lleva puntos de nivel solo si sube de nivel" % (i + 1),
+				(shop3._item_cells[i]["pips"] as Array).size() == (0 if tope <= 1 else tope))
+		# Y donde irian esos puntos, en el PC y en los Pinchos va el rotulo que
+		# DICE que se compran una sola vez: sin el, la fila solo se distinguia por
+		# lo que no tenia, y eso no se lee.
+		_check("el item %d dice COMPRA UNICA solo si es de una sola compra" % (i + 1),
+				(shop3._item_cells[i]["once"] != null) == (tope <= 1))
+		_check_dentro_de("el precio del item %d cabe en la chapa" % (i + 1),
+				shop3._item_cells[i]["cost"], shop3._item_cells[i]["tag_node"])
+	for i in g._pack_cells.size():
 		_check_dentro_de("el precio del sobre %d cabe en la chapa" % (i + 1),
-				shop3._pack_cells[i]["price"], shop3._pack_cells[i]["tag_node"])
+				g._pack_cells[i]["price"], g._pack_cells[i]["tag_node"])
+	# Y cabe en la BANDA BLANCA, que es otra cosa que caber en el hueco del sprite:
+	# la cinta solo pinta una franja en medio (ver PACK_TAG_INK) y con la chapa
+	# baja el precio se salia por arriba y por abajo, o sea que el numero se leia
+	# ENCIMA de la cinta en vez de dentro. Se le deja 4 px de aire, que es lo que
+	# ocupa de mas el contorno del numero por debajo.
+	var banda_alto: float = g.PACK_TAG_SIZE.y * g.PACK_TAG_INK
+	for i in g._pack_cells.size():
+		var precio: Control = g._pack_cells[i]["price"]
+		if not is_instance_valid(precio) or not precio.visible:
+			continue
+		var chapa: TextureRect = g._pack_cells[i]["tag_node"]
+		var banda := Rect2(
+				chapa.position + Vector2(0.0, (g.PACK_TAG_SIZE.y - banda_alto) * 0.5),
+				Vector2(g.PACK_TAG_SIZE.x, banda_alto))
+		_check("y el precio del sobre %d cabe en la BANDA blanca, no solo en el hueco" % (i + 1),
+				banda.grow(-4.0).encloses(precio.get_rect()))
+	# La fila del item comprado tiene que caber igual que las demas: cambia el
+	# precio por el rotulo de COMPRADO, y el rotulo es mas ancho que la chapa.
 	_check_cabe("la tienda con 99.999.999 no saca texto del panel", shop3, PANEL)
 	_check_sin_encimarse("la tienda llena no pone texto encima de una chapa", shop3)
 	# El contador de arriba es lo primero que se llena: son nueve digitos y el

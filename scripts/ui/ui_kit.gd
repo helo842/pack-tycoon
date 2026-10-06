@@ -39,6 +39,12 @@ const FONT_STEP := 7
 ## interfaz si se pide por nombre corto (ver Sprites.tex).
 const FONT_PATH := "res://Sprites/font/font_pack.fnt"
 
+## La fuente del TITULO de la pantalla de inicio: la misma, pero sin el contorno
+## oscuro que trae pintado font_pack. El borde negro se veia como una sombra
+## gorda sobre el fondo de la trastienda, y el titulo se lee mejor en plano.
+## La genera tools/make_font.py --name font_title --outline "#10102000".
+const TITLE_FONT_PATH := "res://Sprites/font/font_title.fnt"
+
 ## Margen del CUERPO OSCURO de las chapas de boton, en fraccion del sprite.
 ## El cuerpo no ocupa el sprite entero (alrededor hay un marco dorado y un
 ## margen transparente), asi que un texto que cabe "en el boton" se sale de la
@@ -47,12 +53,20 @@ const PLATE_BODY := Vector2(0.094, 0.1875)
 const SMALL_BODY := Vector2(0.15, 0.33)
 
 static var _font: Font = null
+static var _title_font: Font = null
 
 
 static func font() -> Font:
 	if _font == null:
 		_font = load(FONT_PATH) as Font
 	return _font
+
+
+## La fuente sin contorno. Solo la usa el titulo de la pantalla de inicio.
+static func title_font() -> Font:
+	if _title_font == null:
+		_title_font = load(TITLE_FONT_PATH) as Font
+	return _title_font
 
 
 ## Ajusta un tamano pedido al multiplo de FONT_STEP mas cercano. Nunca baja de
@@ -91,8 +105,8 @@ static func fit_size(text: String, box_width: float, max_size: int = 96) -> int:
 
 ## El tamano que hace caber TODA una lista de textos en la misma caja.
 ##
-## Es lo que hay que usar cuando los nombres van en fila (los cinco sobres de la
-## tienda, las cuatro herramientas). Encoger cada uno por su cuenta hace que
+## Es lo que hay que usar cuando los nombres van en fila o en columna (los sobres
+## de la zona de compra, los items de la tienda). Encoger cada uno por su cuenta hace que
 ## "SOBRES" salga a 28 px y "ELECTRONICA" a 14, y una fila con tres tamanos
 ## distintos se lee como un fallo, no como un diseno.
 static func row_size(texts: Array, box_width: float, max_size: int = 96) -> int:
@@ -167,6 +181,22 @@ static func label_at(text: String, center: Vector2, box: Vector2,
 	return l
 
 
+## Igual que label_at() pero con la fuente SIN contorno, para el titulo. Las dos
+## fuentes comparten rejilla, asi que miden igual y todo lo de label_at vale.
+static func title_label_at(text: String, center: Vector2, box: Vector2,
+		font_size: int = 40, color: Color = Palette.CREAM,
+		align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_CENTER) -> Label:
+	var l := label(text, font_size, color, align, 0)
+	if title_font() != null:
+		l.add_theme_font_override("font", title_font())
+	l.clip_text = false
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	var needed := Vector2(text_width(text, font_size), text_height(font_size))
+	l.size = Vector2(maxf(box.x, needed.x), maxf(box.y, needed.y))
+	l.position = center - l.size * 0.5
+	return l
+
+
 ## Alto en pixeles que ocupa una linea de texto, con la fuente del juego.
 ##
 ## Se usa text_height() y no l.get_theme_font("font").get_height() porque en
@@ -223,6 +253,34 @@ static func art(sprite_name: String, center: Vector2, scale_factor: float,
 	if tex != null:
 		lado = float(maxi(tex.get_width(), tex.get_height()))
 	return image(sprite_name, center, Vector2(lado, lado) * scale_factor, modulate)
+
+
+## Sprite escalado por su DIBUJO (ver Sprites.used_rect) hasta que entra entero
+## en una caja, y centrado en ella.
+##
+## square() y art() escalan por el lienzo, que es lo correcto para un objeto
+## suelto, pero deja los dibujos que no llenan su lienzo pequenos y de tamanos
+## distintos entre si. Aqui manda el dibujo: el de cartas (estrecho y alto) y el
+## de zapatillas (ancho y bajo) llenan la caja cada uno por su lado, asi que en
+## pantalla se ven del mismo tamano en vez de uno flaco y otro diminuto.
+##
+## Mantiene la proporcion: nunca deforma. Si el lienzo esta vacio (un sprite que
+## no carga) cae en image() con la caja entera, para no reventar.
+static func fit_art(sprite_name: String, center: Vector2, box: Vector2,
+		modulate: Color = Color.WHITE) -> TextureRect:
+	var t := Sprites.tex(sprite_name)
+	if t == null:
+		return image(sprite_name, center, box, modulate)
+	var lienzo := Vector2(t.get_size())
+	var usado := Sprites.used_rect(sprite_name)
+	if usado.size.x <= 0.0 or usado.size.y <= 0.0:
+		usado = Rect2(Vector2.ZERO, lienzo)
+	var s := minf(box.x / usado.size.x, box.y / usado.size.y)
+	var node := image(sprite_name, Vector2.ZERO, lienzo * s, modulate)
+	# image() coloca por el centro del LIENZO; aqui hay que colocar por el centro
+	# del dibujo, que esta desplazado dentro del lienzo.
+	node.position = center - (usado.position + usado.size * 0.5) * s
+	return node
 
 
 ## Panel de 9-slice. Los paneles son 1600x960 y caben enteros en 1920x1080, asi
@@ -383,10 +441,32 @@ static func set_icon_button_lit(button: Button, lit: bool) -> void:
 	_paint_icon_button(button, lit)
 
 
+## Marca un icon_button() como BLOQUEADO: se sigue viendo y se sigue pulsando,
+## pero apagado, para que se lea "esto todavia no se puede usar".
+##
+## No se deshabilita a proposito. Un boton deshabilitado no recibe el clic, y el
+## clic es justo lo que hace falta para poder decir QUE falta comprar (ver
+## game.gd, _locked_notice()): un boton muerto y callado no explica nada.
+static func dim_icon_button(button: Button, dim: bool) -> void:
+	button.set_meta("dim", dim)
+	_paint_icon_button(button, bool(button.get_meta("lit", false)))
+
+
 static func _paint_icon_button(b: Button, lit: bool) -> void:
+	# El bloqueado se pinta a la mitad. El factor se aplica a los colores y NO al
+	# alfa: Color * numero multiplica tambien el alfa, y el fondo de la ranura se
+	# volveria translucido en vez de oscuro.
+	var k := 0.5 if bool(b.get_meta("dim", false)) else 1.0
 	var off := b.get_node_or_null("Off")
 	if off != null:
-		off.modulate = Color.WHITE if lit else Color(0.72, 0.72, 0.8, 1.0)
+		off.modulate = _scaled(Color.WHITE if lit else Color(0.72, 0.72, 0.8, 1.0), k)
+	var back := b.get_node_or_null("Back")
+	if back != null:
+		back.modulate = _scaled(Color(0.8, 0.8, 0.8), k)
+
+
+static func _scaled(c: Color, k: float) -> Color:
+	return Color(c.r * k, c.g * k, c.b * k, c.a)
 
 
 ## El boton de cerrar, que es el sprite entero (ui_button_close, 256x256).
