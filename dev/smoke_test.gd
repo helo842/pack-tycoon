@@ -1817,6 +1817,22 @@ func _run() -> void:
 	# dinero que se tenga: guardar para el final no cambia nada. Y las monedas que
 	# da salen del MISMO calculo que enseña el panel, que es lo unico que impide
 	# que la pantalla prometa una cosa y pase otra.
+	#
+	# Y LO PRIMERO ES QUE NO SE VEA TODAVIA. Una partida nueva no ha ganado nada y
+	# no tiene monedas, asi que en la pantalla de inicio no hay esquina de la
+	# hucha: ni el dibujo, ni el contador, ni la chapa apagada, ni el "TE FALTAN
+	# ..." en rojo. Es la primera pantalla del juego y ahi el jugador todavia no
+	# sabe que es un rebirth.
+	Game.rebirth_coins = 0
+	Game.lifetime_earned = 0
+	_main.show_menu()
+	await get_tree().process_frame
+	var menu_inicio = _main._screen_host.get_child(0)
+	_check("con la partida recien empezada el menu no enseña la hucha",
+		menu_inicio != null and not menu_inicio._piggy.visible
+		and not menu_inicio._coins.visible and not menu_inicio._rebirth_btn.visible
+		and not menu_inicio._note.visible)
+
 	Game.inventory.clear()
 	Game.locker.clear()
 	for i in Game.items.size():

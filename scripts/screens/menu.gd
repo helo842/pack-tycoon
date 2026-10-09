@@ -37,6 +37,9 @@ var _rebirth: RebirthPanel = null
 ## El boton del rebirth, para poder apagarlo cuando la partida no da para
 ## reiniciarla (y para que las pruebas lo encuentren sin buscarlo por el texto).
 var _rebirth_btn: Button = null
+## La hucha (el dibujo de la esquina). Se guarda para poder esconder la esquina
+## ENTERA mientras no haya nada que contar: ver _refresh_rebirth().
+var _piggy: Control = null
 ## Las monedas que llevas acumuladas.
 var _coins: PixelNumber = null
 var _note: Label = null
@@ -96,7 +99,8 @@ func _build_buttons() -> void:
 
 ## La hucha: lo que llevas de rebirth y el boton que reinicia la partida.
 func _build_rebirth() -> void:
-	add_child(UIKit.square("currency_piggy", PIGGY_CENTER, PIGGY_SCALE))
+	_piggy = UIKit.square("currency_piggy", PIGGY_CENTER, PIGGY_SCALE)
+	add_child(_piggy)
 	_coins = PixelNumber.new()
 	# El color va ANTES del texto: PixelNumber solo lo aplica al construir los
 	# glifos (ver pixel_number.gd, _rebuild).
@@ -138,6 +142,20 @@ func _on_rebirth_closed() -> void:
 ## explicar QUE falta (misma regla que la barra de las automatizaciones).
 func _refresh_rebirth() -> void:
 	if not is_node_ready():
+		return
+	# LA ESQUINA NO SE ENSEÑA EN UNA PARTIDA NUEVA. Con las monedas a cero y sin
+	# llegar al requisito, lo que habia aqui era una hucha con un cero, una chapa
+	# apagada y un "TE FALTAN 1.000.000" en rojo: tres cosas que no dicen nada en
+	# la primera pantalla del juego, y encima el jugador todavia no sabe que es un
+	# rebirth. Aparece en cuanto hay algo que contar: ya se puede reiniciar, o ya
+	# llevas monedas de un rebirth anterior (que es una partida que sigue, y ahi el
+	# contador es lo unico que recuerda lo que llevas).
+	var se_ve := Game.can_rebirth() or Game.rebirth_coins > 0
+	_piggy.visible = se_ve
+	_coins.visible = se_ve
+	_rebirth_btn.visible = se_ve
+	_note.visible = se_ve
+	if not se_ve:
 		return
 	_coins.set_number(Game.rebirth_coins)
 	_coins.position = Vector2(COINS_X, PIGGY_CENTER.y - _coins.size.y * 0.5)

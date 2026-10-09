@@ -211,6 +211,13 @@ y por eso vive en el menú y detrás de un panel que explica el trato antes de
 aceptarlo (lo que se pierde, lo que te llevas y cuánto multiplica la Electrónica
 del armario).
 
+En una **partida nueva no se enseña**: hasta que no puedes reiniciar (o no llevas
+monedas de un rebirth anterior) en el menú no hay hucha, ni contador, ni chapa
+apagada, ni un «TE FALTAN 1.000.000» en rojo. La primera pantalla del juego solo
+tiene JUGAR y AJUSTES, que es lo que el jugador sabe usar en el primer minuto;
+una hucha vacía con un cero no explica nada y encima anuncia un sistema que
+todavía no ha visto.
+
 El requisito se mide en **lo ganado en la partida** (un millón), no en el dinero
 que tengas en el bolsillo: guardarlo para el final no cambia nada. Las monedas
 son una por cada millón ganado y **la Electrónica del armario las multiplica**,

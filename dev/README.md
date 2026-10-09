@@ -303,6 +303,11 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   multiplicador de la Electronica del armario entra en el premio (que es lo unico
   que hace que exponer electronica signifique algo). Se comprueba contra el
   numero que da de verdad, no contra una copia de la formula escrita al lado.
+- Que la esquina de la hucha **no se vea en una partida nueva**: con las monedas
+  a cero y sin llegar al requisito, en el menu no hay dibujo, ni contador, ni
+  chapa apagada, ni el "TE FALTAN ..." en rojo (la primera pantalla se queda con
+  JUGAR y AJUSTES). Aparece en cuanto hay algo que contar, y se comprueba en el
+  estado en el que arranca de verdad una partida: cero y cero.
 - Que el requisito del rebirth se mida en **lo ganado en la partida**
   (`lifetime_earned`) y no en el dinero que se tenga: guardar el dinero para el
   final no cambia nada. Y que despues de reiniciar la partida vuelva todo a cero

@@ -325,8 +325,23 @@ func _run() -> void:
 	# La hucha: el requisito se mide en lo GANADO en la partida y una partida de
 	# prueba no llega al millon jugando, asi que se pone a mano. Es una variable
 	# del estado, no un atajo del panel: el panel lee lo mismo que lee el boton.
-	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
+	#
+	# Y lo primero es que NO este: con la partida recien empezada (nada ganado,
+	# ninguna moneda) la esquina del rebirth no se enseña en el menu. El estado se
+	# pone a mano porque este test acaba de jugar y ha ganado cosas, y el refresco
+	# se pide tambien a mano: asignar la variable no emite nada (en el juego la
+	# enciende el dinero que entra, que si emite money_changed).
+	var menu := _main._screen_host.get_child(0)
+	Game.lifetime_earned = 0
+	Game.rebirth_coins = 0
+	menu._refresh_rebirth()
 	await _frames(2)
+	_check(not menu._rebirth_btn.visible,
+		"con la partida recien empezada el menu no enseña la hucha")
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
+	menu._refresh_rebirth()
+	await _frames(2)
+	_check(menu._rebirth_btn.visible, "y con el requisito ganado la hucha aparece")
 	var rebirth_btn := _find_button(_main._screen_host, "REBIRTH")
 	_check(rebirth_btn != null, "el menu trae el boton de REBIRTH")
 	_check(_click(rebirth_btn), "el clic en REBIRTH llega al boton")
