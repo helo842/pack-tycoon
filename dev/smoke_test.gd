@@ -679,8 +679,11 @@ func _run() -> void:
 	var menu := _main._screen_host.get_child(0)
 	_check_cabe("el menu no saca texto de la pantalla", menu, PANTALLA)
 	_check_sin_encimarse("el menu no pone texto encima de una chapa", menu)
-	_check("el menu trae la moneda del pie", _usa_sprite(menu, "currency_coin"))
-	_check("y a tamano normal", not _sprite_gigante(menu, "currency_coin", 96.0))
+	# El menu es el titulo, el subtitulo y dos chapas, y NADA MAS: la moneda que
+	# hacia de adorno en el pie (abajo a la izquierda) se quito, porque en el
+	# arranque no hay dinero que contar. Aqui solo se puede comprobar que no
+	# vuelve, que es lo unico que le queda por decir a este check.
+	_check("el menu no lleva ninguna moneda", not _usa_sprite(menu, "currency_coin"))
 
 	# --- ajustes ---
 	menu._on_settings()
@@ -1761,6 +1764,49 @@ func _run() -> void:
 		await get_tree().process_frame
 		_check("pulsar un objeto expuesto lo devuelve al inventario",
 			Game.locker.size() == 1 and Game.inventory.size() == 2)
+
+		# --- VENDER UNO: el clic derecho ---
+		# VENDER TODO es todo o nada. El inventario es donde se guarda lo que
+		# todavia no se ha decidido (se vende el barato y se expone el bueno), asi
+		# que el clic derecho vende el objeto de ESE hueco y solo ese. Se monta un
+		# inventario de dos objetos CONOCIDOS y distintos, para poder decir cual de
+		# los dos se ha ido.
+		Game.inventory.clear()
+		var rico := LootDB.roll_item(rng_arm, "cards")
+		rico["grade"] = LootDB.GRADE_MAX
+		rico["value"] = LootDB.final_value(rico, LootDB.GRADE_MAX)
+		var barato := LootDB.roll_item(rng_arm, "vinyls")
+		barato["grade"] = LootDB.PSA_MIN
+		barato["value"] = LootDB.final_value(barato, LootDB.PSA_MIN)
+		Game.store(rico)
+		Game.store(barato)
+		await get_tree().process_frame
+		_check("la rejilla del inventario trae los dos objetos",
+			Game.inventory.size() == 2)
+		var plata_uno: int = Game.money
+		arm._sell_one(0)
+		await get_tree().process_frame
+		_check("vender uno saca UN objeto del inventario", Game.inventory.size() == 1)
+		_check("y se lleva el de ese hueco, no otro",
+			str(Game.inventory[0].get("name", "")) == str(barato.get("name", "")))
+		# Paga el MISMO valor que el hueco estaba enseñando: la casilla no puede
+		# decir una cifra y cobrar otra.
+		_check("y paga el valor que enseñaba el hueco",
+			Game.money == plata_uno + int(rico["value"]))
+		_check("sin tocar lo expuesto en el armario", Game.locker.size() == 1)
+		# Un hueco vacio no cobra: vender fuera de la rejilla no hace nada.
+		var plata_dos: int = Game.money
+		arm._sell_one(Game.inventory.size())
+		_check("vender un hueco vacio no cobra nada", Game.money == plata_dos)
+		# Y el gesto hay que PODER DESCUBRIRLO: en la casilla no se ve, asi que
+		# esta en la leyenda de la columna y en el tooltip de cada hueco.
+		_check("la columna trae la leyenda de los dos gestos",
+			_dice(arm, "CLIC: EXPONER - CLIC DERECHO: VENDER UNO"))
+		_check("y el tooltip del hueco dice por cuanto se vende",
+			arm._inv_cells[0]["button"].tooltip_text.contains("clic derecho: vender por "))
+		Game.inventory.clear()
+		await get_tree().process_frame
+
 		_check_cabe("el panel del armario no saca texto del panel", arm, PANEL)
 		_check_sin_encimarse("el panel del armario no pone texto encima de una chapa", arm)
 		_check_sin_pisar_dibujos("el panel del armario no dibuja el texto encima de un objeto", arm)
@@ -1859,6 +1905,24 @@ func _run() -> void:
 	var hucha = g._rebirth
 	_check("el clic abre el panel aunque no se pueda reiniciar", hucha != null)
 	if hucha != null:
+		# ESTA ES LA CARA QUE SE VE CASI SIEMPRE: el panel SIN poder reiniciar
+		# todavia, con la linea de lo que falta. Y es el estado en el que hay que
+		# medirlo, porque en el otro esa linea esta VACIA.
+		#
+		# El check de encuadre de mas abajo se hacia solo con el requisito
+		# cumplido, o sea con `_missing.text == ""`: una etiqueta sin texto mide 0
+		# de ancho, asi que _check_cabe() la saltaba sin decir nada. Y esa es justo
+		# la linea mas larga de la pantalla (47 caracteres) y la unica que cruza el
+		# panel de lado a lado: abierta de verdad se dibujaba 114 px FUERA del marco
+		# por la derecha, centrada en la columna de los numeros en vez de con el
+		# panel. Un check de encuadre tiene que correr en el estado que el jugador
+		# va a ver, no en el que le deja el test.
+		_check("el panel dice lo que falta cuando no se puede reiniciar",
+			hucha._missing.text.begins_with("TE FALTAN"))
+		_check("y esa linea cabe en el marco del panel",
+			PANEL.encloses(_visible(hucha._missing, true)))
+		_check_cabe("el panel del rebirth no saca texto del panel ni sin el requisito",
+			hucha, PANEL)
 		hucha._close()
 		await get_tree().process_frame
 	_check("y el cerrar quita el panel", g._rebirth == null)

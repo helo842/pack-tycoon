@@ -146,6 +146,25 @@ func _run() -> void:
 	if hucha != null:
 		hucha._close()
 	await _frames(3)
+
+	# Y LA CARA CONTRARIA, que es como se abre el panel casi siempre: SIN poder
+	# reiniciar todavia. Es la que hay que mirar cuando se toque este panel, porque
+	# la linea de "TE FALTAN ..." solo existe en este estado (con el requisito
+	# cumplido esta vacia) y es la mas larga de la pantalla: se dibujaba 128 px
+	# fuera del marco. El requisito se baja a mano y se pide el refresco: asignar
+	# lifetime_earned no emite ninguna senal.
+	Game.lifetime_earned = 0
+	g._refresh_rebirth()
+	g._open_rebirth()
+	await _frames(4)
+	await _shot("03d_panel_rebirth_falta")
+	hucha = null
+	for c in _main._veil_host.get_children():
+		if c is RebirthPanel:
+			hucha = c
+	if hucha != null:
+		hucha._close()
+	await _frames(3)
 	# Y el estado de vuelta a cero: las capturas que vienen detras son de una
 	# partida que empieza y no tienen que llevar el saldo de un rebirth encima.
 	Game.rebirth_coins = 0

@@ -302,8 +302,31 @@ func _run() -> void:
 		await _frames(3)
 		_check(Game.locker.is_empty() and Game.inventory.size() == guardado,
 			"y devolverlo lo saca del armario y lo devuelve al inventario")
-		# VENDER TODO es la unica forma de vaciar el inventario desde que vive
-		# aqui y no en la pantalla de partida.
+		# VENDER UNO: el clic DERECHO sobre un hueco. Es el gesto que no se ve y
+		# por eso el que mas falta hace probar con el raton de verdad: el Button
+		# solo emite `pressed` con el boton izquierdo, asi que un
+		# `pressed.emit()` de los de smoke_test no habria pasado nunca por aqui.
+		var uno_antes: int = Game.inventory.size()
+		var dinero_uno: int = Game.money
+		_right_click(armario._inv_cells[0]["button"])
+		await _frames(3)
+		_check(Game.inventory.size() == uno_antes - 1,
+			"el clic derecho en un hueco del inventario vende ese objeto")
+		_check(Game.money > dinero_uno, "y lo paga")
+		# Y el izquierdo sigue siendo exponer, que es lo de antes: se vuelve a
+		# comprobar despues del derecho, que es cuando se puede haber quedado
+		# cambiado el gesto.
+		Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "vinyls"))
+		await _frames(2)
+		_check(_click(armario._inv_cells[0]["button"]),
+			"y el clic izquierdo sigue exponiendo")
+		await _frames(3)
+		_check(Game.locker.size() == 1, "que lo deja en el armario")
+		_check(_click(armario._locker_cells[0]["button"]),
+			"y devolverlo desde la vitrina sigue llegando")
+		await _frames(3)
+		# VENDER TODO es la unica forma de vaciar el inventario de golpe desde
+		# que vive aqui y no en la pantalla de partida.
 		var money_inv: int = Game.money
 		var vender_todo := _find_button(armario, "VENDER TODO")
 		_check(vender_todo != null, "el panel del armario trae VENDER TODO")
@@ -421,6 +444,31 @@ func _wheel(at: Vector2, button: int) -> void:
 		e.button_index = button
 		e.pressed = pulsar
 		e.factor = 1.0
+		e.position = at
+		e.global_position = at
+		get_viewport().push_input(e, true)
+
+
+## Un clic DERECHO completo sobre el centro de un boton.
+##
+## Va aparte de _click() por dos motivos. Uno: no persigue el `pressed`, porque
+## con el boton derecho no hay `pressed` que perseguir (el juego mira el evento a
+## mano: ver LockerPanel._on_inv_input). El otro: hay que mandar las DOS mitades,
+## pulsar y soltar, por lo mismo que documenta _wheel() -sin el suelte, el
+## Viewport se queda con el control en mouse_focus y a partir de ahi se come los
+## clics de los botones de despues-.
+func _right_click(b: Button) -> void:
+	if b == null:
+		return
+	var at: Vector2 = b.get_global_rect().get_center()
+	var m := InputEventMouseMotion.new()
+	m.position = at
+	m.global_position = at
+	get_viewport().push_input(m, true)
+	for pulsar in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_RIGHT
+		e.pressed = pulsar
 		e.position = at
 		e.global_position = at
 		get_viewport().push_input(e, true)

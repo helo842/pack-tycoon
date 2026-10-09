@@ -13,7 +13,8 @@ input_test.gd    el test del RATON. Manda clics y arrastres sinteticos y
                  dos botones de la tarjeta, el arrastre de un objeto, la rueda
                  de la columna de sobres, el mini menu de la compra automatica
                  (que con los Pinchos, y no con el PC, no se abre), el armario
-                 (su boton, exponer, devolver y VENDER TODO) y la chapa REBIRTH
+                 (su boton, exponer, devolver, el clic derecho que vende un
+                 objeto del inventario y VENDER TODO) y la chapa REBIRTH
                  de la barra de la partida, que abre la hucha y reinicia la
                  partida desde el boton de su panel
 screenshots.gd   guarda un PNG de cada pantalla en user://shots/
@@ -87,9 +88,18 @@ rectangulo sale de `UIKit.text_width()`. Cuando `text_width()` se queda corto, e
 texto se dibuja mas ancho de lo que la caja cree y la fuga pasa el check: la
 linea "YA TIENES ... MONEDAS" del panel del rebirth midio x 656..1718 de tinta
 en un interior que acaba en 1696 (el `%` cortado por el marco), y el check la
-daba por buena. Antes de fiarse de un verde en los paneles, la captura. La
-diferencia medida esta en un 6 % para esa linea, asi que el margen que hay que
+daba por buena. Antes de fiarse de un verde en los paneles, la captura.La diferencia medida esta en un 6 % para esa linea, asi que el margen que hay que
 dejar en un rotulo centrado no es 0: son los `text_width()` de sobra.
+
+Y hay una segunda forma de dar por bueno lo que no cabe, que no tiene nada que
+ver con `text_width()`: **medir en el estado equivocado**. El panel del rebirth
+se medía abriendolo con el requisito ya cumplido, y en ese estado la linea de lo
+que falta esta **vacia**, asi que la unica linea que cruza el panel de lado a lado
+no la estaba midiendo nadie. Abierto como se abre casi siempre -sin requisito-
+se dibujaba **128 px fuera del marco** por la derecha, porque estaba centrada en
+la columna de los numeros (x 1152) y no con el panel (medido: tinta de x 480 a
+1824 en un interior que acaba en 1696). Un check de encuadre tiene
+que correr en el estado que el jugador va a ver.
 
 ## Cómo se ejecuta
 
@@ -290,6 +300,15 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   partida**: la tira de abajo es la vitrina y el inventario vive en el panel del
   armario. Se mira por el metodo que ya no existe y por el tamano, para que
   volver a meterlo en la pantalla se note.
+- Que un objeto del inventario se pueda vender **de uno en uno**, con el clic
+  derecho en su hueco, y que se venda ese y **solo ese**: sale del inventario,
+  paga exactamente el valor que enseñaba el hueco y los demas objetos se quedan
+  donde estaban. Es lo que faltaba desde que el inventario vive en el panel del
+  armario, que solo sabia vaciarlo entero con VENDER TODO (todo o nada). El gesto
+  no se ve, asi que el check mira tambien las dos cosas que lo explican: el
+  tooltip de cada hueco y la leyenda de la columna, entre su rotulo y la rejilla
+  (debajo de la rejilla no cabe: las 50 casillas siguen ahi, recortadas por la
+  ventana del scroll pero en el arbol, y el check de los dibujos lo caza).
 - Que la **vitrina de la partida** enseñe los objetos expuestos y que su rotulo
   cuente los huecos. Sin esto el armario seria un numero dentro de un panel y no
   algo que se ve mientras se juega.
@@ -304,8 +323,19 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   multiplicador de la Electronica del armario entra en el premio (que es lo unico
   que hace que exponer electronica signifique algo). Se comprueba contra el
   numero que da de verdad, no contra una copia de la formula escrita al lado.
+- Que el panel del rebirth **quepa tambien cuando la partida no llega al
+  requisito**. La linea de lo que falta ("TE FALTAN 1.000.000 DE LO GANADO EN
+  ESTA PARTIDA") es la mas larga del juego -48 caracteres- y la unica que cruza el
+  panel de lado a lado: estaba centrada en la columna de los numeros (x 1152) y
+  se dibujaba **128 px fuera del marco** por el lado derecho (tinta de x 480 a
+  1824 en un interior que acaba en 1696). El check viejo no la
+  veia porque medía el panel con el requisito CUMPLIDO, y ahi esa linea esta
+  vacia (texto ""), asi que no medía nada; ahora se mide en los dos estados. La
+  linea se centra con el panel (x 960) en la misma caja que el texto del trato, y
+  encoge a paso de fuente entero si el numero se hace largo.
 - Que el **menu no tenga rebirth ninguno**: ni hucha, ni contador, ni chapa, ni
-  siquiera el metodo que lo abre. La primera pantalla es para empezar, y el
+  siquiera el metodo que lo abre, ni la moneda que hacia de adorno en su pie. La
+  primera pantalla es para empezar, y el
   rebirth se hace jugando. Estuvo ahi y lo que se veia en una partida nueva era
   una hucha con un cero y un "TE FALTAN 1.000.000" en rojo, o sea un sistema
   anunciado antes de que el jugador supiera que existe; el que se deja ahi de

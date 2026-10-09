@@ -45,12 +45,23 @@ const COINS_Y := 408.0
 const COINS_SCALE := 0.45
 const COINS_MAX_W := 560.0
 const HEADLINE_CENTER := Vector2(1152, 320)
-## Con cuantas monedas te quedas y lo que falta para poder reiniciar. Las dos van
-## en esta columna y no al pie: son datos del MISMO premio que el numero de
-## arriba, y el pie es de los botones (un rotulo por debajo de la chapa de
-## REBIRTH es un rotulo que se lee pegado a un borde).
+## Con cuantas monedas te quedas: va en la columna de los numeros, con el premio
+## del que forma parte. En el pie no cabe: ahi estan los botones, y un rotulo por
+## debajo de la chapa de REBIRTH se lee pegado a un borde.
 const OWNED_CENTER := Vector2(1152, 548)
-const MISSING_CENTER := Vector2(1152, 604)
+
+## Lo que falta para poder reiniciar, y el CENTRO DEL PANEL, no el de la columna
+## de los numeros.
+##
+## Es la linea mas larga del juego ("TE FALTAN 1.000.000 DE LO GANADO EN ESTA
+## PARTIDA", 48 caracteres) y la unica que cruza el panel de lado a lado: medida
+## sobre la captura se dibujaba de x 480 a 1824 en un interior que acaba en 1696,
+## o sea 128 px FUERA del marco, con "PARTIDA" cruzando el borde. Centrada en
+## x 1152 (el centro de su columna) tenia que salirse por uno de los dos lados; en
+## el centro del panel, con la misma caja que el texto del trato (DEAL_W) y el
+## encogido de letra que trae label_at(), cabe entera y queda a 64 px de cada
+## borde. El y sigue siendo el de la columna, que es donde vive el dato.
+const MISSING_CENTER := Vector2(960, 604)
 ## El texto del trato, una linea por frase, partido con UIKit.wrap. Va centrado y
 ## a lo ancho del panel, por debajo de la hucha, y cada frase CABE EN UNA LINEA a
 ## 21 px (66 caracteres): el panel tiene el alto justo para esto, los numeros y
@@ -160,7 +171,7 @@ func _build_deal() -> void:
 		DEAL_SIZE, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	add_child(_electronics)
 
-	_missing = UIKit.label_at("", MISSING_CENTER, Vector2(1400, 40), 26, Palette.CREAM_D,
+	_missing = UIKit.label_at("", MISSING_CENTER, Vector2(DEAL_W, 40), 26, Palette.CREAM_D,
 		HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	add_child(_missing)
 

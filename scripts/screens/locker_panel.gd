@@ -12,6 +12,13 @@
 # VINILOS dinero y la ELECTRONICA puntos de rebirth. Los cuatro totales se leen
 # aqui abajo, que es el unico sitio donde se ve lo que se gana por exponer algo.
 #
+# DOS GESTOS EN LA REJILLA DEL INVENTARIO, porque son dos decisiones distintas:
+# clic IZQUIERDO expone el objeto (lo que hace el panel) y clic DERECHO lo VENDE,
+# ese y solo ese. Con el izquierdo a secas, vender era todo o nada (VENDER TODO al
+# pie), y el inventario es justo donde se guarda lo que todavia no se ha decidido:
+# se vende el barato y se expone el bueno. El gesto no se ve en la casilla, asi
+# que lo dicen la leyenda de la columna y el tooltip de cada hueco.
+#
 # LOS HUECOS LOS PONE EL NIVEL DEL ARMARIO, no este panel: empieza con uno y
 # llega a ocho (LootDB.locker_slots()). Los ocho marcos se dibujan SIEMPRE, y los
 # que no tienes salen apagados: asi se ve que subir el armario sirve para algo
@@ -39,6 +46,15 @@ const INV_STEP := 104.0
 ## La ventana del scroll del inventario. Empieza debajo del rotulo (que acaba en
 ## 336) y le deja sitio al boton de vender, que baja hasta 920.
 const INV_VIEW := Rect2(240, 360, 668, 400)
+## La leyenda de los dos gestos (clic izquierdo expone, derecho vende), ENTRE los
+## rotulos de las columnas y la rejilla.
+##
+## No cabe debajo de la ventana del scroll, que es su sitio natural: las 50
+## casillas siguen ahi debajo, recortadas por la ventana pero en el arbol, asi que
+## cualquier rotulo por debajo de y 760 aterriza encima de los marcos de la fila
+## siguiente (medido: la leyenda a 788 pisaba la fila que empieza en 776, y el
+## check lo caza). Aqui arriba esta el unico hueco libre de la columna.
+const LEGEND_Y := 348.0
 ## La rejilla del armario: cuatro columnas de 128 (536 px), que es lo que piden
 ## ocho huecos en dos filas.
 const LOCK_SIDE := 128.0
@@ -126,7 +142,18 @@ func _build_inventory() -> void:
 		var b := UIKit.hit_area(list, Rect2(centre - Vector2(INV_SIDE, INV_SIDE) * 0.5,
 				Vector2(INV_SIDE, INV_SIDE)), "")
 		b.pressed.connect(_expose.bind(i))
+		# El clic DERECHO vende ESE objeto y solo ese. Godot no emite `pressed` con
+		# el boton derecho (el Button solo escucha el izquierdo), asi que el evento
+		# se mira a mano.
+		b.gui_input.connect(_on_inv_input.bind(i))
 		_inv_cells.append({"holder": holder, "button": b})
+
+	# LOS DOS GESTOS, ESCRITOS. El clic derecho no tiene nada que lo anuncie
+	# dentro de la casilla, y un gesto que no se ve es un gesto que no existe:
+	# esta linea y el tooltip de cada hueco son lo unico que lo explican.
+	add_child(UIKit.label_at("CLIC: EXPONER - CLIC DERECHO: VENDER UNO",
+		Vector2(LEFT_MID, LEGEND_Y), Vector2(660, 20), 16, HINT_COLOR,
+		HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 	# VENDER TODO vive aqui porque el inventario ya no esta en la pantalla de
 	# partida: si el boton se hubiera quedado alli, no habria forma de vaciar el
@@ -233,9 +260,12 @@ func _paint_inventory() -> void:
 				Vector2(INV_SIDE * 0.6, INV_SIDE * 0.6)))
 		_add_value(holder, int(item.get("value", 0)), INV_SIDE)
 		# El tooltip dice QUE pasa al pulsarlo, con lo que va a aportar: es lo
-		# unico que explica el intercambio (el objeto deja de poder venderse).
-		b.tooltip_text = "Exponer %s (%s)" % [str(item.get("name", "")),
-				_kind_bonus_text(LootDB.kind_of(item), LootDB.bonus_for(item))]
+		# unico que explica el intercambio (el objeto deja de poder venderse). Y
+		# dice tambien el otro gesto, con SU precio: el clic derecho no se ve.
+		b.tooltip_text = "Exponer %s (%s) - clic derecho: vender por %s" % [
+				str(item.get("name", "")),
+				_kind_bonus_text(LootDB.kind_of(item), LootDB.bonus_for(item)),
+				PixelNumber.format(int(item.get("value", 0)))]
 
 
 func _paint_locker() -> void:
@@ -334,6 +364,38 @@ func _take(index: int) -> void:
 	if not Game.locker_take(index):
 		Sound.play("sfx_error")
 		Game.notice.emit("INVENTARIO LLENO", Palette.RUST_L)
+
+
+## Vender UN objeto del inventario: el clic derecho sobre su hueco.
+##
+## Hace falta porque VENDER TODO es todo o nada, y el inventario es donde se
+## guarda lo que todavia no se ha decidido. El objeto que se vende es el de ESE
+## hueco y ninguno mas, y paga Game.sell_at(index): el MISMO valor que el hueco
+## esta enseñando, asi que la casilla no puede decir una cifra y pagar otra.
+##
+## Lo expuesto en el armario NO se vende desde aqui: eso se devuelve al inventario
+## y luego se vende, que es el trato de exponer (mientras esta en la vitrina no
+## vale para vender).
+func _sell_one(index: int) -> void:
+	if index < 0 or index >= Game.inventory.size():
+		return
+	var value := Game.sell_at(index)
+	if value <= 0:
+		Sound.play("sfx_error")
+		return
+	Sound.play("sfx_sell")
+	Game.notice.emit("VENDIDO: +" + PixelNumber.format(value), Palette.GOLD_XL)
+
+
+## El evento del clic derecho sobre un hueco del inventario. Godot solo emite
+## `pressed` con el boton izquierdo, asi que el derecho hay que mirarlo aqui. El
+## evento se consume para que no siga subiendo y lo reciba otra cosa.
+func _on_inv_input(event: InputEvent, index: int) -> void:
+	var mb := event as InputEventMouseButton
+	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	_sell_one(index)
+	accept_event()
 
 
 func _sell_all() -> void:

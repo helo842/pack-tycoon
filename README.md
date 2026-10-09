@@ -111,9 +111,9 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
    la mesa, que es la tercera salida.
 4. El objeto se queda en la mesa. **Clic en él** y se vende; **arrastrarlo** lo
    aparta y hace sitio, como en los juegos de cachivaches. Al inventario solo va
-   si se pulsa GUARDAR, y de ahí se vende de golpe con **VENDER TODO**, en el
-   panel del armario, que es donde vive el inventario desde que la tira de abajo
-   de la pantalla es la vitrina.
+   si se pulsa GUARDAR, y de ahí se vende **de uno en uno** (clic derecho en el
+   objeto) o de golpe con **VENDER TODO**, en el panel del armario, que es donde
+   vive el inventario desde que la tira de abajo de la pantalla es la vitrina.
 
 La mesa es una superficie de verdad, no una rejilla de huecos: el sprite
 `bg_table` la dibuja entera (1344×752, que es lo que le deja la columna de
@@ -197,8 +197,16 @@ chapa **ARMARIO** de la barra de arriba va pegada a las dos automatizaciones, qu
 son las tres cosas que se encienden y se miran de reojo mientras la mesa trabaja.
 Dentro del panel está lo que hace falta para decidir: **el inventario a la
 izquierda** (50 huecos, con scroll) y **las vitrinas a la derecha**, con la suma
-de cada bonus debajo y **VENDER TODO** al pie, que es la única forma de vaciar el
-inventario desde que vive aquí.
+de cada bonus debajo y **VENDER TODO** al pie, que vacía el inventario de una vez.
+
+En el inventario **el clic izquierdo expone y el clic derecho vende ese objeto**,
+y solo ese: es lo que hacía falta para deshacerse de lo barato sin tocar lo bueno,
+que con VENDER TODO era todo o nada. El gesto no se ve, así que lo dicen dos
+sitios: el tooltip de cada hueco («Exponer NOMBRE (+8 % DAÑO) - clic derecho:
+vender por 1.234») y la leyenda **CLIC: EXPONER - CLIC DERECHO: VENDER UNO**, en
+la columna del inventario entre su rótulo y los huecos. El objeto vendido sale del inventario y paga su valor, el mismo número
+que enseña su hueco. Las vitrinas no se venden así: lo expuesto vuelve antes al
+inventario, que es la regla que ya tenía.
 
 La **barra de arriba** lleva, de izquierda a derecha: el dinero, el contador de la
 mesa, los tres iconos (apertura automática, compra automática y armario), el
@@ -404,7 +412,7 @@ importar antes (`$G --headless --path . --import`) o los dos tests se caen con
 `Could not find type "LockerPanel"` y parece un fallo del juego cuando el que
 falta es el paso de la importación.
 
-`smoke_test` toca las 442 cosas que se pueden romper sin que se note
+`smoke_test` toca las 452 cosas que se pueden romper sin que se note
 mirando capturas: que la escalera de los doce sobres suba en precio, en botín, en
 resistencia y **en dibujo** (los tres escalones de un tipo ya no comparten
 sprite, y el arte de cada uno tiene que traer sus tres tramos de daño), que el
@@ -440,11 +448,16 @@ inventario sea de **50 huecos** y ya no esté en la pantalla de partida, que la
 vitrina de la partida enseñe lo expuesto, que **el texto no se dibuje encima de
 un objeto** (el check que cazó un solape de verdad en el panel del armario), que
 el panel del rebirth prometa **las mismas monedas que da** el rebirth y que el
-multiplicador de la Electrónica entre en el premio, que la chapa del rebirth esté
-en la barra de la partida **junto a la tienda** y que el menú ya no sepa abrirlo
-(el rebirth se hace jugando, no en la pantalla de empezar), que la tienda cierre, que se
-guarde el fichero, que ningún sprite ni ningún sonido se quede fuera de su
-índice…
+multiplicador de la Electrónica entre en el premio, que ese panel se mida
+**también con el requisito sin cumplir** (la línea de lo que falta es la más
+larga del juego y la única que cruza el panel de lado a lado, y con el requisito
+cumplido está vacía: medirla entonces no medía nada), que la chapa del rebirth
+esté en la barra de la partida **junto a la tienda** y que el menú ya no sepa
+abrirlo (el rebirth se hace jugando, no en la pantalla de empezar) **ni lleve
+moneda en el pie**, que un objeto del inventario se pueda vender **de uno en uno**
+con el clic derecho (ese y solo ese, con el resto del inventario quieto), que la
+tienda cierre, que se guarde el fichero, que ningún sprite ni ningún sonido se
+quede fuera de su índice…
 
 `input_test` manda clics y arrastres de verdad, que es lo que `smoke_test` no
 puede hacer: pasa por el sistema de interfaz para pulsar GUARDAR y VENDER en la
@@ -452,9 +465,10 @@ tarjeta, para comprar un sobre en la columna de la izquierda, para pulsar una
 caja de la tienda y comprar desde la ficha que abre, para agarrar un objeto de la
 mesa y moverlo, para abrir el mini menú de la compra automática y marcar y
 desmarcar un sobre en su lista, para abrir el armario desde su botón de la barra
-y exponer un objeto y devolverlo a su sitio, y para abrir la hucha desde la chapa
-REBIRTH de la barra (que está junto a la tienda) y reiniciar la partida desde el
-botón de su panel.
+exponer un objeto y devolverlo a su sitio y vender otro con el **clic derecho**
+(el gesto que no se ve y que por eso hay que probar con el ratón de verdad), y
+para abrir la hucha desde la chapa REBIRTH de la barra (que está junto a la
+tienda) y reiniciar la partida desde el botón de su panel.
 
 ### Cambiar el equilibrio
 

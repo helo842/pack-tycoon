@@ -62,12 +62,11 @@ func _build_buttons() -> void:
 
 
 func _build_footer() -> void:
-	# La moneda va al rincon, no en linea con el texto: el sprite son 72 px y la
-	# chapa de AJUSTES baja hasta y 1028, asi que entre la chapa y el borde solo
-	# quedan 52 px, y en cualquier x debajo de la chapa la moneda le cae encima.
-	# A la izquierda del pie no hay nada.
-	var money := UIKit.square("currency_coin", Vector2(200, 1000), 0.14)
-	add_child(money)
+	# SIN MONEDA. Hubo una (currency_coin, en la esquina de abajo a la izquierda)
+	# y el usuario la quito: en el arranque no hay dinero que contar -la partida no
+	# ha empezado-, asi que el unico adorno del menu era un cero que no significa
+	# nada todavia. El dinero aparece donde se gana, en la barra de la partida.
+	#
 	# El texto a y 1045, no a 1030: la chapa de AJUSTES llega a 1028 y a 1030 el
 	# rotulo le pasaba por debajo al marco de la chapa.
 	# label_at y no label + size a mano: el texto son 36 caracteres (756 px a
