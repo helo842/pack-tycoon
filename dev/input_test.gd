@@ -318,33 +318,21 @@ func _run() -> void:
 			await _frames(3)
 			_check(not _main.has_veil(), "y el cerrar cierra el panel del armario")
 
-	print("Menu otra vez:")
-	_main.show_menu()
-	await _frames(3)
-
-	# La hucha: el requisito se mide en lo GANADO en la partida y una partida de
-	# prueba no llega al millon jugando, asi que se pone a mano. Es una variable
-	# del estado, no un atajo del panel: el panel lee lo mismo que lee el boton.
-	#
-	# Y lo primero es que NO este: con la partida recien empezada (nada ganado,
-	# ninguna moneda) la esquina del rebirth no se enseña en el menu. El estado se
-	# pone a mano porque este test acaba de jugar y ha ganado cosas, y el refresco
-	# se pide tambien a mano: asignar la variable no emite nada (en el juego la
-	# enciende el dinero que entra, que si emite money_changed).
-	var menu := _main._screen_host.get_child(0)
-	Game.lifetime_earned = 0
-	Game.rebirth_coins = 0
-	menu._refresh_rebirth()
-	await _frames(2)
-	_check(not menu._rebirth_btn.visible,
-		"con la partida recien empezada el menu no enseña la hucha")
+	print("Hucha (rebirth):")
+	# La chapa vive en la BARRA DE LA PARTIDA, al lado de la tienda, y el menu ya no
+	# sabe nada de ella: el rebirth se hace jugando. El requisito se mide en lo
+	# GANADO, y una partida de prueba no llega al millon, asi que el estado se pone
+	# a mano: es una variable del estado y no un atajo del panel (el panel lee lo
+	# mismo que lee la chapa). El refresco tambien se pide a mano: asignar la
+	# variable no emite nada (en el juego la enciende el dinero que entra, que si
+	# emite money_changed).
 	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
-	menu._refresh_rebirth()
+	Game.rebirth_coins = 0
+	game._refresh_rebirth()
 	await _frames(2)
-	_check(menu._rebirth_btn.visible, "y con el requisito ganado la hucha aparece")
-	var rebirth_btn := _find_button(_main._screen_host, "REBIRTH")
-	_check(rebirth_btn != null, "el menu trae el boton de REBIRTH")
-	_check(_click(rebirth_btn), "el clic en REBIRTH llega al boton")
+	var rebirth_btn := _find_button(game, "REBIRTH")
+	_check(rebirth_btn != null, "la barra de la partida trae la chapa de REBIRTH")
+	_check(_click(rebirth_btn), "el clic en la chapa de REBIRTH llega al boton")
 	await _frames(3)
 	var hucha: Node = null
 	for c in _main._veil_host.get_children():
@@ -365,6 +353,14 @@ func _run() -> void:
 		_check(Game.lifetime_earned == 0 and not Game.can_rebirth(),
 			"la partida vuelve a cero: el requisito hay que ganarselo otra vez")
 		_check(not _main.has_veil(), "y el panel se cierra solo al reiniciar")
+
+	print("Menu otra vez:")
+	_main.show_menu()
+	await _frames(3)
+	var menu := _main._screen_host.get_child(0)
+	_check(not menu.has_method("_on_rebirth")
+		and not menu.has_method("_refresh_rebirth"),
+		"el menu ya no sabe abrir el rebirth")
 
 	var settings := _find_button(_main._screen_host, "AJUSTES")
 	_check(_click(settings), "el clic en AJUSTES llega al boton")

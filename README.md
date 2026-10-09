@@ -200,23 +200,37 @@ izquierda** (50 huecos, con scroll) y **las vitrinas a la derecha**, con la suma
 de cada bonus debajo y **VENDER TODO** al pie, que es la única forma de vaciar el
 inventario desde que vive aquí.
 
+La **barra de arriba** lleva, de izquierda a derecha: el dinero, el contador de la
+mesa, los tres iconos (apertura automática, compra automática y armario), el
+**VENDER**, la **TIENDA** y el **REBIRTH**, con los ajustes en el extremo. El
+grupo de la derecha tuvo que correrse a la izquierda para que el rebirth cupiera
+en la barra: los tres iconos están a 832/932/1032 (antes 1050/1145/1240), el
+VENDER a 1192, la TIENDA a 1440 y el REBIRTH a 1688, y el contador de la mesa pasó
+a una caja de 240 px a x 660 para no tocarlos.
+
 ### El rebirth (la hucha)
 
-En el **menú**, arriba a la derecha, está la hucha: las monedas que llevas y el
-botón de REBIRTH, que abre su panel. El rebirth **reinicia la partida entera**
-(dinero, items, inventario y armario) y a cambio te llevas **monedas**, que ya no
-se pierden nunca más: **cada moneda sube un 5 % el valor de todo lo que vendas**,
-para siempre. Es la única cosa del juego que pasa de una partida a la siguiente,
-y por eso vive en el menú y detrás de un panel que explica el trato antes de
-aceptarlo (lo que se pierde, lo que te llevas y cuánto multiplica la Electrónica
-del armario).
+La hucha está en la **barra de la partida, pegada a la TIENDA**, y no en el menú:
+es la otra cosa que se hace «cuando se para» (vender, entrar en la tienda y
+reiniciar la partida), y además es algo que se hace jugando, porque el requisito
+se gana dentro de la partida. El **menú no tiene nada de esto** —es la pantalla de
+empezar—: estuvo ahí con su hucha, su contador y su chapa, y en una partida nueva
+lo que se veía era una hucha con un cero y un «TE FALTAN 1.000.000» en rojo, o sea
+un sistema anunciado antes de que el jugador supiera que existe.
 
-En una **partida nueva no se enseña**: hasta que no puedes reiniciar (o no llevas
-monedas de un rebirth anterior) en el menú no hay hucha, ni contador, ni chapa
-apagada, ni un «TE FALTAN 1.000.000» en rojo. La primera pantalla del juego solo
-tiene JUGAR y AJUSTES, que es lo que el jugador sabe usar en el primer minuto;
-una hucha vacía con un cero no explica nada y encima anuncia un sistema que
-todavía no ha visto.
+La chapa **REBIRTH** se puede pulsar siempre, también cuando la partida todavía no
+llega: abre el panel, que es el que explica el trato y dice cuánto falta. Sale
+**apagada** mientras no haya nada que decidir, como los dos iconos de las
+automatizaciones. Y las monedas **no tienen contador en la barra** (no cabía): se
+ven en el panel y en el tooltip de la chapa, que es donde se mira un número que
+cambia una vez cada muchas partidas.
+
+El rebirth **reinicia la partida entera** (dinero, items, inventario y armario) y
+a cambio te llevas **monedas**, que ya no se pierden nunca más: **cada moneda sube
+un 5 % el valor de todo lo que vendas**, para siempre. Es la única cosa del juego
+que pasa de una partida a la siguiente, y por eso va detrás de un panel que
+explica el trato antes de aceptarlo (lo que se pierde, lo que te llevas y cuánto
+multiplica la Electrónica del armario).
 
 El requisito se mide en **lo ganado en la partida** (un millón), no en el dinero
 que tengas en el bolsillo: guardarlo para el final no cambia nada. Las monedas
@@ -224,7 +238,7 @@ son una por cada millón ganado y **la Electrónica del armario las multiplica**
 que es la razón de que el armario dé puntos de rebirth. Lo que no se pierde son
 las estadísticas de la cuenta —paquetes abiertos, objetos encontrados, mejor
 nota—, que son de la cuenta y no de la partida. Y mientras el requisito no llega,
-el botón y su panel **dicen cuánto falta**: un botón muerto y callado no explica
+la chapa y su panel **dicen cuánto falta**: un botón muerto y callado no explica
 nada.
 
 **Un clic abre UN paquete, siempre: el pulsado.** Nada de arrancar varios de
@@ -390,7 +404,7 @@ importar antes (`$G --headless --path . --import`) o los dos tests se caen con
 `Could not find type "LockerPanel"` y parece un fallo del juego cuando el que
 falta es el paso de la importación.
 
-`smoke_test` toca las 437 cosas que se pueden romper sin que se note
+`smoke_test` toca las 442 cosas que se pueden romper sin que se note
 mirando capturas: que la escalera de los doce sobres suba en precio, en botín, en
 resistencia y **en dibujo** (los tres escalones de un tipo ya no comparten
 sprite, y el arte de cada uno tiene que traer sus tres tramos de daño), que el
@@ -426,7 +440,9 @@ inventario sea de **50 huecos** y ya no esté en la pantalla de partida, que la
 vitrina de la partida enseñe lo expuesto, que **el texto no se dibuje encima de
 un objeto** (el check que cazó un solape de verdad en el panel del armario), que
 el panel del rebirth prometa **las mismas monedas que da** el rebirth y que el
-multiplicador de la Electrónica entre en el premio, que la tienda cierre, que se
+multiplicador de la Electrónica entre en el premio, que la chapa del rebirth esté
+en la barra de la partida **junto a la tienda** y que el menú ya no sepa abrirlo
+(el rebirth se hace jugando, no en la pantalla de empezar), que la tienda cierre, que se
 guarde el fichero, que ningún sprite ni ningún sonido se quede fuera de su
 índice…
 
@@ -436,8 +452,9 @@ tarjeta, para comprar un sobre en la columna de la izquierda, para pulsar una
 caja de la tienda y comprar desde la ficha que abre, para agarrar un objeto de la
 mesa y moverlo, para abrir el mini menú de la compra automática y marcar y
 desmarcar un sobre en su lista, para abrir el armario desde su botón de la barra
-y exponer un objeto y devolverlo a su sitio, y para reiniciar la partida desde la
-hucha del menú.
+y exponer un objeto y devolverlo a su sitio, y para abrir la hucha desde la chapa
+REBIRTH de la barra (que está junto a la tienda) y reiniciar la partida desde el
+botón de su panel.
 
 ### Cambiar el equilibrio
 
@@ -478,9 +495,9 @@ es qué pasa con la fuente de los **números**, que aún se componen con sprites
 **El armario, la vitrina y el rebirth** — ya están. El armario deja de ser un
 adorno: expone objetos (uno por hueco de su nivel, de 1 a 8), cada uno da el
 bonus de su tipo según su nota PSA, y su panel lleva el inventario al lado (50
-huecos) con la vitrina a la vista en la pantalla de partida. Y la hucha del menú
-ya reinicia la partida a cambio de monedas, que suben para siempre el valor de lo
-que vendes.
+huecos) con la vitrina a la vista en la pantalla de partida. Y la chapa REBIRTH
+de la barra ya reinicia la partida a cambio de monedas, que suben para siempre el
+valor de lo que vendes.
 
 **Sistemas del documento que no están** — árbol de habilidades (4 ramas × 2
 opciones), logros, eventos de mercado.

@@ -17,9 +17,10 @@
 # mismo): exponer electronica es la unica forma de subir el premio del rebirth, y
 # eso solo se ve si se enseña cuanto esta dando.
 #
-# SOLO SE ABRE CUANDO SE PUEDE. El boton del menu esta apagado hasta llegar al
-# requisito (ver menu.gd), pero el panel se dibuja igual y dice lo que FALTA, que
-# es lo unico util de una pantalla que no se puede usar todavia.
+# LA CHAPA QUE LO ABRE ESTA EN LA BARRA DE LA PARTIDA, al lado de la tienda (ver
+# game.gd, _open_rebirth), y vive apagada hasta llegar al requisito. El panel se
+# abre igualmente cuando no se puede: lo que FALTA es lo unico util de una
+# pantalla que todavia no se puede usar, y una chapa que no hace nada no lo dice.
 class_name RebirthPanel
 extends Control
 

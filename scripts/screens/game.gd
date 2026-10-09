@@ -19,6 +19,7 @@ const REVEAL_SCENE := preload("res://scenes/RevealCard.tscn")
 const SETTINGS_SCENE := preload("res://scenes/SettingsPanel.tscn")
 const AUTO_BUY_SCENE := preload("res://scenes/AutoBuyPanel.tscn")
 const LOCKER_SCENE := preload("res://scenes/LockerPanel.tscn")
+const REBIRTH_SCENE := preload("res://scenes/RebirthPanel.tscn")
 
 ## La tira de abajo, debajo de la mesa: LA VITRINA. Antes eran los diez huecos
 ## del inventario, que ahora vive en su panel (ver LockerPanel) junto al armario.
@@ -43,6 +44,24 @@ const LOCK_SIDE := 128.0
 ## la pantalla.
 const LOCK_BTN_CENTER := Vector2(210, 1000)
 const LOCK_BTN_W := 300.0
+
+## La chapa del REBIRTH, en la barra de arriba y PEGADA A LA TIENDA.
+##
+## ESTUVO EN EL MENU Y AHI NO VA, y no es una manía de colocacion: el rebirth se
+## hace JUGANDO (el requisito es lo ganado en la partida), asi que su sitio es
+## donde se juega, al lado de las otras dos cosas que se hacen "cuando se para"
+## (vender y entrar en la tienda). En el menu solo estorbaba: aparecia antes de
+## que el jugador supiera que era, con un cero y un "TE FALTAN 1.000.000" en rojo
+## en la primera pantalla del juego.
+##
+## POR ESO LA BARRA SE HA APRETADO. No habia sitio -entre el rotulo de la mesa y
+## el icono de ajustes ya no cabia nada-, asi que el grupo de la derecha se movio
+## a la izquierda: los tres iconos van a 832/932/1032 (antes 1050/1145/1240),
+## VENDER a 1192 y TIENDA a 1440, y el rotulo de la mesa a la caja de 240 a 660
+## (el dinero, que es el que manda a la izquierda, sigue anclado a 128). Los
+## huecos de la fila son de 20 px, el mismo aire que se dejan los iconos.
+const REBIRTH_CENTER := Vector2(1688, 58)
+const REBIRTH_W := 200.0
 
 ## La mesa: donde caen los objetos. Es el rectangulo ENTERO de la superficie
 ## (el mismo que ocupa el sprite bg_table), y de ahi para dentro se recorta
@@ -149,10 +168,12 @@ var _shop: ShopPanel = null
 var _settings: SettingsPanel = null
 var _auto_buy_panel: AutoBuyPanel = null
 var _locker: LockerPanel = null
+var _rebirth: RebirthPanel = null
 var _reveal: RevealCard = null
 var _auto_open_btn: Button = null
 var _auto_buy_btn: Button = null
 var _locker_btn: Button = null
+var _rebirth_btn: Button = null
 var _sell_btn: Button = null
 var _rng := RandomNumberGenerator.new()
 
@@ -445,7 +466,11 @@ func _build_top_bar() -> void:
 	_money.position = Vector2(128, 58 - _money.size.y * 0.5)	# Las cajas van anchas a proposito: label_at agranda la caja si el texto no
 	# cabe y la centra, asi que una caja corta ("MESA 3/8" son 224 px en una de
 	# 190) deslocaba el texto a la izquierda y lo pegaba al contador.
-	_table_label = UIKit.label_at("", Vector2(690, 58), Vector2(250, 50), 28,
+	# A 660 y con la caja de 240 (antes 690 y 250): es lo que le deja el grupo de
+	# la derecha, que ha crecido con la chapa del rebirth. La caja sigue cabiendo
+	# justa para "MESA 8/8" (8 caracteres a 28 son 224) y el numero del dinero, que
+	# va anclado a 128 por su izquierda, no llega hasta aqui ni con doce cifras.
+	_table_label = UIKit.label_at("", Vector2(660, 58), Vector2(240, 50), 28,
 			Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT, 0)
 	add_child(_table_label)
 	# El rotulo del dano por golpe que habia aqui ("DANO 12") se ha quitado: es
@@ -455,34 +480,42 @@ func _build_top_bar() -> void:
 	# El tooltip dice CON QUE PIEZA se enciende cada uno: son las dos unicas cosas
 	# de la barra que no se pueden usar sin comprar algo antes, y el que mira el
 	# boton apagado es justo el que necesita saber cual de las dos le falta.
-	_auto_open_btn = UIKit.icon_button("ui_icon_auto_open", Vector2(1050, 58), 80.0,
+	# LA FILA VA DE IZQUIERDA A DERECHA POR USO: primero las tres cosas que se
+	# encienden y se miran de reojo mientras la mesa trabaja (apertura, compra y
+	# armario) y despues las tres que se hacen cuando se PARA (vender, tienda y
+	# reiniciar la partida). El armario va pegado a las automatizaciones por eso, y
+	# el rebirth pegado a la tienda por lo mismo.
+	_auto_open_btn = UIKit.icon_button("ui_icon_auto_open", Vector2(832, 58), 80.0,
 			"Apertura automatica (con los Pinchos): abre sola los paquetes de la mesa")
 	_auto_open_btn.pressed.connect(_toggle_auto_open)
 	add_child(_auto_open_btn)
 
-	_auto_buy_btn = UIKit.icon_button("ui_icon_auto_buy", Vector2(1145, 58), 80.0,
+	_auto_buy_btn = UIKit.icon_button("ui_icon_auto_buy", Vector2(932, 58), 80.0,
 			"Compra automatica (con el PC): elige que sobres se compran solos")
 	_auto_buy_btn.pressed.connect(_open_auto_buy)
 	add_child(_auto_buy_btn)
 
-	# EL ARMARIO VA PEGADO A LAS AUTOMATIZACIONES, y no es capricho: son las tres
-	# cosas que se encienden y se miran de vez en cuando mientras la mesa trabaja,
-	# y las tres viven en el mismo tramo de la barra (a la derecha estan VENDER y
-	# TIENDA, que es donde se va cuando se PARA). Por eso VENDER y TIENDA se
-	# estrechan un poco: habia que meter una chapa de 80 px donde no sobraba sitio.
-	_locker_btn = UIKit.icon_button("ui_icon_vitrine", Vector2(1240, 58), 80.0,
+	_locker_btn = UIKit.icon_button("ui_icon_vitrine", Vector2(1032, 58), 80.0,
 			"Armario: expone objetos y da sus bonus (con la pieza comprada)")
 	_locker_btn.pressed.connect(_open_locker)
 	add_child(_locker_btn)
 
-	_sell_btn = UIKit.small_button("VENDER", "", Vector2(1400, 58), 200, 21,
+	_sell_btn = UIKit.small_button("VENDER", "", Vector2(1192, 58), 200, 21,
 			"ui_button_sell", "ui_button_sell")
 	_sell_btn.pressed.connect(_sell_all_table)
 	add_child(_sell_btn)
 
-	var shop := UIKit.small_button("TIENDA", "ui_icon_shop", Vector2(1660, 58), 256, 32)
+	var shop := UIKit.small_button("TIENDA", "ui_icon_shop", Vector2(1440, 58), 256, 32)
 	shop.pressed.connect(_open_shop)
 	add_child(shop)
+
+	# LA HUCHA, AL LADO DE LA TIENDA. Misma chapa pequena que VENDER (200 de ancho
+	# y fuente 21) y sin icono: el dibujo de la hucha se come 40 px del cuerpo y el
+	# rotulo se quedaria en 12 px de letra -medido-, y la palabra REBIRTH dice mas
+	# que un dibujo de una hucha en una barra que ya tiene cinco iconos.
+	_rebirth_btn = UIKit.small_button("REBIRTH", "", REBIRTH_CENTER, REBIRTH_W, 21)
+	_rebirth_btn.pressed.connect(_open_rebirth)
+	add_child(_rebirth_btn)
 
 	var settings := UIKit.icon_button("ui_icon_settings", Vector2(1856, 58), 80.0,
 			"Ajustes")
@@ -643,6 +676,26 @@ func _close_locker() -> void:
 		_main().pop_veil(_locker)
 		_locker = null
 	_refresh_top()
+
+
+## La hucha: el panel del rebirth (ver RebirthPanel). Se abre SIEMPRE, tambien
+## cuando la partida no da para reiniciarla: el panel es justo el que dice que
+## falta, y una chapa que no hace nada no explica nada (misma regla que las dos
+## automatizaciones y que la vitrina).
+func _open_rebirth() -> void:
+	if _rebirth != null:
+		return
+	Sound.click()
+	_rebirth = REBIRTH_SCENE.instantiate() as RebirthPanel
+	_rebirth.closed.connect(_close_rebirth)
+	_main().push_veil(_rebirth)
+
+
+func _close_rebirth() -> void:
+	if _rebirth != null:
+		_main().pop_veil(_rebirth)
+		_rebirth = null
+	_refresh_rebirth()
 
 
 func _open_shop() -> void:
@@ -982,6 +1035,9 @@ func _on_money_changed(value: int) -> void:
 	# Los sobres de la izquierda se apagan cuando no te llega su precio, asi que
 	# cualquier cambio de dinero los tiene que repintar.
 	_refresh_packs()
+	# Y la chapa de la hucha se enciende con lo GANADO en la partida: el dinero que
+	# entra es justo lo que mueve el requisito del rebirth, asi que se repinta aqui.
+	_refresh_rebirth()
 
 
 ## El estado de las celdas de sobres: apagadas si no te llega el precio y
@@ -1027,6 +1083,27 @@ func _refresh_top() -> void:
 		UIKit.dim_icon_button(_locker_btn, Game.locker_slots() <= 0)
 	if is_instance_valid(_sell_btn):
 		_sell_btn.disabled = _count_table_loot() == 0
+	_refresh_rebirth()
+
+
+## La chapa del rebirth: apagada mientras la partida no de para reiniciarla.
+##
+## El tooltip dice QUE falta, que es lo unico util de una chapa apagada, y lleva
+## tambien las monedas que llevas: el contador vivia en su propia fila cuando la
+## hucha estaba en el menu, y aqui no cabe -la barra se apretó al maximo para
+## meter la chapa-, asi que las monedas se leen en el tooltip y en el panel.
+##
+## Depende de lifetime_earned, que cambia con el dinero que ENTRA (ver
+## _on_money_changed) y no solo con los items: por eso no basta con _refresh_top.
+func _refresh_rebirth() -> void:
+	if not is_instance_valid(_rebirth_btn):
+		return
+	var puede := Game.can_rebirth()
+	_rebirth_btn.modulate = Color.WHITE if puede else Color(0.55, 0.55, 0.62, 1.0)
+	if puede:
+		_rebirth_btn.tooltip_text = "REBIRTH: la hucha (%d monedas): reinicia la partida a cambio de monedas" % Game.rebirth_coins
+	else:
+		_rebirth_btn.tooltip_text = "REBIRTH: te faltan %s de lo ganado en esta partida" % PixelNumber.format(Game.rebirth_missing())
 
 
 ## La tira de la vitrina: el rotulo y los ocho huecos.

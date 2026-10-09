@@ -112,24 +112,33 @@ func _run() -> void:
 		_main.pop_veil(c)
 	await _frames(2)
 
-	# El MENU con la hucha. 01_menu sale con una partida nueva, o sea con el
-	# contador a cero y el REBIRTH apagado (que tambien hay que verlo), asi que
-	# aqui se le pone un saldo y el requisito cubierto: es la cara util, la del
-	# boton encendido. El refresco se pide a mano porque son dos variables del
+	# Partida
+	_main.show_game()
+	await _frames(5)
+	await _wait(0.4)
+	var g = _screen()
+	await _shot("03_game")
+
+	# LA HUCHA, EN LA BARRA Y AL LADO DE LA TIENDA. Ya no esta en el menu: su chapa
+	# vive en la barra de la partida (a la derecha del todo, pegada a TIENDA) y el
+	# panel se abre desde ahi. 03_game sale con una partida nueva, o sea con la
+	# chapa APAGADA (que tambien hay que verlo), asi que aqui se le da un saldo y
+	# el requisito cubierto para la cara util: la chapa encendida y el panel con
+	# numeros de verdad. El refresco se pide a mano porque son dos variables del
 	# estado y asignarlas no emite ninguna senal.
 	Game.rebirth_coins = 12
-	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
-	menu._refresh_rebirth()
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE * 3
+	g._refresh_rebirth()
 	await _frames(4)
-	await _shot("01b_menu_hucha")
+	await _shot("03b_barra_rebirth")
 
-	# Y el panel de la hucha entera: lo que te llevas, cuanto sube cada moneda y
-	# cuanto multiplica la electronica del armario. Es el unico panel del juego
-	# que se puede permitir el lujo de explicarse, porque solo se abre a
-	# proposito y detras de su boton.
-	menu._on_rebirth()
+	# Y el panel entero: lo que te llevas, cuanto sube cada moneda y cuanto
+	# multiplica la electronica del armario. Es el unico panel del juego que se
+	# puede permitir el lujo de explicarse, porque solo se abre a proposito y
+	# detras de su chapa.
+	g._open_rebirth()
 	await _frames(4)
-	await _shot("24_rebirth")
+	await _shot("03c_panel_rebirth")
 	var hucha: Node = null
 	for c in _main._veil_host.get_children():
 		if c is RebirthPanel:
@@ -137,13 +146,12 @@ func _run() -> void:
 	if hucha != null:
 		hucha._close()
 	await _frames(3)
-
-	# Partida
-	_main.show_game()
-	await _frames(5)
-	await _wait(0.4)
-	var g = _screen()
-	await _shot("03_game")
+	# Y el estado de vuelta a cero: las capturas que vienen detras son de una
+	# partida que empieza y no tienen que llevar el saldo de un rebirth encima.
+	Game.rebirth_coins = 0
+	Game.lifetime_earned = 0
+	g._refresh_rebirth()
+	await _frames(2)
 
 	# La columna de la izquierda tiene scroll y en pantalla solo caben cuatro
 	# sobres: los de arriba son los cuatro BASICOS. Aqui se baja para ver los

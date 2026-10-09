@@ -13,8 +13,9 @@ input_test.gd    el test del RATON. Manda clics y arrastres sinteticos y
                  dos botones de la tarjeta, el arrastre de un objeto, la rueda
                  de la columna de sobres, el mini menu de la compra automatica
                  (que con los Pinchos, y no con el PC, no se abre), el armario
-                 (su boton, exponer, devolver y VENDER TODO) y el REBIRTH del
-                 menu con su panel
+                 (su boton, exponer, devolver y VENDER TODO) y la chapa REBIRTH
+                 de la barra de la partida, que abre la hucha y reinicia la
+                 partida desde el boton de su panel
 screenshots.gd   guarda un PNG de cada pantalla en user://shots/
 probe_font.gd    mide de verdad cuanto ocupa cada rotulo con la fuente
 probe_pop.gd     pinta un numero de dano normal y uno critico sobre el fondo y
@@ -303,11 +304,18 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   multiplicador de la Electronica del armario entra en el premio (que es lo unico
   que hace que exponer electronica signifique algo). Se comprueba contra el
   numero que da de verdad, no contra una copia de la formula escrita al lado.
-- Que la esquina de la hucha **no se vea en una partida nueva**: con las monedas
-  a cero y sin llegar al requisito, en el menu no hay dibujo, ni contador, ni
-  chapa apagada, ni el "TE FALTAN ..." en rojo (la primera pantalla se queda con
-  JUGAR y AJUSTES). Aparece en cuanto hay algo que contar, y se comprueba en el
-  estado en el que arranca de verdad una partida: cero y cero.
+- Que el **menu no tenga rebirth ninguno**: ni hucha, ni contador, ni chapa, ni
+  siquiera el metodo que lo abre. La primera pantalla es para empezar, y el
+  rebirth se hace jugando. Estuvo ahi y lo que se veia en una partida nueva era
+  una hucha con un cero y un "TE FALTAN 1.000.000" en rojo, o sea un sistema
+  anunciado antes de que el jugador supiera que existe; el que se deja ahi de
+  nuevo se cae en este check.
+- Que la chapa del rebirth este **en la barra de la partida, junto a la tienda**,
+  y que sea la unica puerta a la hucha desde que el menu la perdio. Se comprueba
+  por el lado que importa: la chapa se puede pulsar **aunque la partida no llegue
+  al requisito** y abre su panel igual, porque el panel es el que dice cuanto
+  falta (misma regla que los dos iconos de las automatizaciones: dim apagado, el
+  clic sigue llegando).
 - Que el requisito del rebirth se mida en **lo ganado en la partida**
   (`lifetime_earned`) y no en el dinero que se tenga: guardar el dinero para el
   final no cambia nada. Y que despues de reiniciar la partida vuelva todo a cero

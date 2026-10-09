@@ -1818,21 +1818,9 @@ func _run() -> void:
 	# da salen del MISMO calculo que enseña el panel, que es lo unico que impide
 	# que la pantalla prometa una cosa y pase otra.
 	#
-	# Y LO PRIMERO ES QUE NO SE VEA TODAVIA. Una partida nueva no ha ganado nada y
-	# no tiene monedas, asi que en la pantalla de inicio no hay esquina de la
-	# hucha: ni el dibujo, ni el contador, ni la chapa apagada, ni el "TE FALTAN
-	# ..." en rojo. Es la primera pantalla del juego y ahi el jugador todavia no
-	# sabe que es un rebirth.
-	Game.rebirth_coins = 0
-	Game.lifetime_earned = 0
-	_main.show_menu()
-	await get_tree().process_frame
-	var menu_inicio = _main._screen_host.get_child(0)
-	_check("con la partida recien empezada el menu no enseña la hucha",
-		menu_inicio != null and not menu_inicio._piggy.visible
-		and not menu_inicio._coins.visible and not menu_inicio._rebirth_btn.visible
-		and not menu_inicio._note.visible)
-
+	# LA CHAPA VIVE EN LA BARRA DE LA PARTIDA, al lado de la tienda, y el menu ya no
+	# sabe nada de ella: el rebirth se hace JUGANDO (el requisito es lo ganado en la
+	# partida), no se mira antes de empezar. Se comprueba por los dos lados.
 	Game.inventory.clear()
 	Game.locker.clear()
 	for i in Game.items.size():
@@ -1854,20 +1842,35 @@ func _run() -> void:
 		Game.pending_rebirth_coins() > 10
 		and Game.pending_rebirth_coins()
 			== LootDB.rebirth_coins_for(Game.lifetime_earned, Game.rebirth_multiplier()))
-	# El panel del menu: la hucha, lo que te llevarias y reiniciar de verdad. Se
-	# cambia de pantalla y YA NO se puede usar la partida: por eso este es el
-	# ultimo trozo del test (todo lo de arriba se mide con la pantalla de juego).
-	_main.show_menu()
+	# La chapa de la barra: abre el panel de la hucha, y lo abre TAMBIEN cuando la
+	# partida todavia no da para reiniciarla (entonces el panel es el que dice
+	# cuanto falta, que es lo unico util). El estado se pone a mano porque asignar
+	# lifetime_earned no emite nada: en el juego lo mueve el dinero que entra.
+	Game.rebirth_coins = 0
+	Game.lifetime_earned = 0
+	g._refresh_rebirth()
 	await get_tree().process_frame
-	var inicio = _main._screen_host.get_child(0)
-	_check("el menu trae el boton del rebirth",
-		inicio != null and inicio._rebirth_btn != null)
-	var hucha = null
-	if inicio != null and inicio._rebirth_btn != null:
-		inicio._rebirth_btn.pressed.emit()
+	_check("la chapa del rebirth esta en la barra de la partida",
+		g._rebirth_btn != null)
+	_check("y sale apagada cuando la partida no da para reiniciarla",
+		g._rebirth_btn.modulate != Color.WHITE and not Game.can_rebirth())
+	g._rebirth_btn.pressed.emit()
+	await get_tree().process_frame
+	var hucha = g._rebirth
+	_check("el clic abre el panel aunque no se pueda reiniciar", hucha != null)
+	if hucha != null:
+		hucha._close()
 		await get_tree().process_frame
-		hucha = inicio._rebirth
-		_check("y abre el panel de la hucha", hucha != null)
+	_check("y el cerrar quita el panel", g._rebirth == null)
+
+	# Y con lo ganado, la chapa se enciende y el panel enseña lo que te llevarias.
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE * 10
+	g._refresh_rebirth()
+	_check("con lo ganado la chapa se enciende", g._rebirth_btn.modulate == Color.WHITE)
+	g._rebirth_btn.pressed.emit()
+	await get_tree().process_frame
+	hucha = g._rebirth
+	_check("y vuelve a abrir el panel de la hucha", hucha != null)
 	if hucha != null:
 		var premio: int = Game.pending_rebirth_coins()
 		_check("el panel enseña las monedas que va a dar",
@@ -1884,13 +1887,24 @@ func _run() -> void:
 		_check("y la partida vuelve a empezar de cero",
 			Game.money == Game.START_MONEY and Game.locker.is_empty()
 			and Game.inventory.is_empty() and Game.item_level(0) == 0)
-		_check("y el panel se cierra solo", inicio._rebirth == null)
+		_check("y el panel se cierra solo", g._rebirth == null)
 	# Las monedas de rebirth son la paga permanente: TODO lo que se venda vale mas
 	# con ellas, y por eso el multiplicador del valor las lleva dentro.
 	_check("y las monedas suben el valor de lo que se vende",
 		is_equal_approx(Game.rebirth_value_mult(),
 			1.0 + LootDB.REBIRTH_VALUE_PER_COIN * float(Game.rebirth_coins))
 		and Game.value_multiplier() > 1.0)
+
+	# Y EL MENU NO SABE NADA DE ESTO. El menu que se ve al arrancar (y al salir de
+	# la partida) no tiene hucha ni forma de abrirla: el rebirth se hace jugando, y
+	# ahi se queda. Se mira al final porque cambiar de pantalla deja la partida sin
+	# usar, y esto es lo ultimo que queda por comprobar.
+	_main.show_menu()
+	await get_tree().process_frame
+	var inicio = _main._screen_host.get_child(0)
+	_check("el menu ya no trae la hucha: no sabe abrir el rebirth",
+		inicio != null and not inicio.has_method("_on_rebirth")
+		and not inicio.has_method("_refresh_rebirth"))
 
 	print("")
 	if _fails.is_empty():
