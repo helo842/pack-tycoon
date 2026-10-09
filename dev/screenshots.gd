@@ -39,6 +39,13 @@ func _frames(n: int = 3) -> void:
 
 func _shot(name: String) -> void:
 	await _frames(3)
+	# La textura del SubViewport trae el frame NUEVO solo despues del dibujo: leida
+	# en mitad de un frame devuelve el anterior, y entonces todas las capturas de
+	# una misma tanda salen iguales sin que nada falle (medido: 31 PNG de 31
+	# pantallas distintas con el MISMO md5, o sea la primera imagen repetida
+	# treinta y una veces). Esperar al post-draw es lo que hace que el PNG lleve lo
+	# que se acaba de pedir.
+	await RenderingServer.frame_post_draw
 	var img := _vp.get_texture().get_image()
 	img.save_png(OUT + name + ".png")
 	print("captura: ", name, " ", img.get_width(), "x", img.get_height())
@@ -105,6 +112,32 @@ func _run() -> void:
 		_main.pop_veil(c)
 	await _frames(2)
 
+	# El MENU con la hucha. 01_menu sale con una partida nueva, o sea con el
+	# contador a cero y el REBIRTH apagado (que tambien hay que verlo), asi que
+	# aqui se le pone un saldo y el requisito cubierto: es la cara util, la del
+	# boton encendido. El refresco se pide a mano porque son dos variables del
+	# estado y asignarlas no emite ninguna senal.
+	Game.rebirth_coins = 12
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
+	menu._refresh_rebirth()
+	await _frames(4)
+	await _shot("01b_menu_hucha")
+
+	# Y el panel de la hucha entera: lo que te llevas, cuanto sube cada moneda y
+	# cuanto multiplica la electronica del armario. Es el unico panel del juego
+	# que se puede permitir el lujo de explicarse, porque solo se abre a
+	# proposito y detras de su boton.
+	menu._on_rebirth()
+	await _frames(4)
+	await _shot("24_rebirth")
+	var hucha: Node = null
+	for c in _main._veil_host.get_children():
+		if c is RebirthPanel:
+			hucha = c
+	if hucha != null:
+		hucha._close()
+	await _frames(3)
+
 	# Partida
 	_main.show_game()
 	await _frames(5)
@@ -132,6 +165,22 @@ func _run() -> void:
 	g._open_shop()
 	await _frames(4)
 	await _shot("04_shop")
+
+	# LA FICHA DE UN ITEM: la descripcion larga y -lo que de verdad decide- los dos
+	# numeros, el de ahora y el del nivel siguiente. Los guantes se suben a mano a
+	# tres niveles para que la captura enseñe que los numeros SE MUEVEN con el
+	# nivel (a 5 y a 7 paquetes a la vez), que es lo que hay que mirar aqui.
+	var items_antes: Array = Game.items.duplicate()
+	Game.items[0] = 3
+	# La ficha la abre la tienda (una caja), no la pantalla de partida: el clic en
+	# la caja es lo que la abre, y su boton de cerrar lo que la quita.
+
+	g._shop._open_card(0)
+	await _frames(4)
+	await _shot("04b_ficha_item")
+	g._shop._close_card()
+	Game.items = items_antes
+	await _frames(3)
 
 	# Comprar y ver el paquete en la mesa. La compra se hace desde la columna de
 	# la izquierda, que es ahora la unica puerta de entrada de sobres.
@@ -190,6 +239,45 @@ func _run() -> void:
 	await _wait(0.5)
 	await _shot("06_opening")
 
+	# LOS NUMEROS DEL GOLPE: naranja el normal y AMARILLO el critico. El Ojo verde
+	# va AL TOPE (un 5 % de critico por nivel, o sea el 40 %) y no al nivel 1: con
+	# el 5 % hace falta suerte para que salga un amarillo, y una captura que sale
+	# distinta cada vez no sirve para mirarla. Los golpes van espaciados para que
+	# cada numero salga a una altura distinta y se vean los dos colores a la vez, y
+	# sobre un paquete con la resistencia puesta por las nubes, que asi no se rompe
+	# por el camino.
+	Game.items[LootDB.item_index("ojo_verde")] = 8
+	var el_dano: TableElement = g._elements[0]
+	el_dano.hp = 1000000.0
+	el_dano.max_hp = 1000000.0
+	for i in 40:
+		el_dano._strike()
+		var hay_crit := false
+		for p in g._fx.get_children():
+			var n := p as PixelNumber
+			if n != null and n.has_meta(DamagePopup.MARK) \
+					and n.color == DamagePopup.CRIT:
+				hay_crit = true
+		# Se para en el PRIMER critico, que deja el amarillo como el ultimo numero
+		# dibujado (encima de los naranjas) y con los de antes ya separados 0,35 s
+		# de subida: un numero de dano mide 33 px de alto y sube 103 px por segundo,
+		# asi que a menos separacion se tapan unos a otros y la captura no dice nada.
+		if hay_crit:
+			break
+		await _wait(0.35)
+	# Donde ha salido cada numero, para poder recortar la captura por ese punto
+	# (los numeros suben, asi que en el PNG estan unos pixeles mas arriba).
+	for p in g._fx.get_children():
+		var n := p as PixelNumber
+		if n != null and n.has_meta(DamagePopup.MARK):
+			print("  numero de dano: ", n.get_text(), " en ", str(n.get_global_rect()),
+				" color ", str(n.color))
+	await _shot("06b_dano")
+	Game.items[LootDB.item_index("ojo_verde")] = 0
+	el_dano.max_hp = float(LootDB.pack_hp("cards"))
+	el_dano.hp = el_dano.max_hp
+	await _frames(2)
+
 	# Tarjeta de revelado
 	await _wait(3.5)
 	await _shot("07_reveal")
@@ -198,7 +286,8 @@ func _run() -> void:
 	await _frames(4)
 	await _wait(1.0)
 
-	# Mesa con botin + inventario
+	# Mesa con botin guardado. El inventario YA NO vive aqui: la tira de abajo es
+	# la vitrina, y lo que hay en el inventario se ve en el panel del armario.
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "electronics"))
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "sneakers"))
@@ -207,7 +296,27 @@ func _run() -> void:
 	# se compran una sola vez: ver LootDB.item_max_level()).
 	Game.items = [3, 2, 0, 0, 0, 0, 0, 0]
 	await _frames(4)
-	await _shot("08_inventario")
+
+	# EL ARMARIO. Primero el panel, que es donde se decide: el inventario a la
+	# izquierda (con scroll: son 50 huecos) y las vitrinas a la derecha, con los
+	# ocho marcos del tope y los que no son tuyos apagados. Se sube el armario a 4
+	# y se exponen dos objetos para que la captura enseñe lo que de verdad hay que
+	# mirar: las cuatro lineas de bonus con numeros y los huecos encendidos y
+	# apagados. Despues se cierra y se ve la vitrina de la pantalla de partida,
+	# que es lo que queda a la vista mientras se juega.
+	Game.items[LootDB.item_index("armario")] = 4
+	await _frames(3)
+	g._open_locker()
+	await _frames(4)
+	var armario = g._locker
+	if armario != null:
+		armario._inv_cells[0]["button"].pressed.emit()
+		armario._inv_cells[0]["button"].pressed.emit()
+	await _frames(4)
+	await _shot("23_armario")
+	g._close_locker()
+	await _frames(4)
+	await _shot("08_vitrina")
 
 	# El MISMO objeto con nota 1 y con nota 10, para comparar de un vistazo que
 	# el sprite lleva el desgaste. Esto es lo que hay que mirar cuando se toque

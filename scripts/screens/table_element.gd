@@ -14,6 +14,10 @@ extends Control
 signal opened(pack_id: String)
 ## Se vendio este botin por esta cantidad, en este punto de la pantalla.
 signal sold(value: int, at: Vector2)
+## Ha terminado una redonda de la carga: este golpe ha quitado esto, y era
+## critico o no. Lo pinta quien tiene la capa de los avisos (ver game.gd,
+## _on_element_damaged()), que es el mismo que pinta los avisos de venta.
+signal damaged(amount: float, crit: bool)
 
 enum State { CLOSED, OPENING, OPENED, LOOT }
 
@@ -341,6 +345,14 @@ func _strike() -> void:
 		dmg *= Game.crit_mult()
 	hp = maxf(0.0, hp - dmg)
 	_tap(crit)
+	# El numero sale AQUI, antes de mirar si la caja se ha roto: el golpe que la
+	# rompe tambien hace su dano y tambien se tiene que leer.
+	#
+	# Y sale solo en la redonda del boton, no en take_damage(): los Pinchos pegan
+	# cada cuarto de segundo a TODOS los paquetes de la mesa, y un numero por
+	# paquete cada cuarto de segundo no se lee, se ve como basura encima de la
+	# mesa. La redonda es del jugador; el goteo de los Pinchos ya lo dice la barra.
+	damaged.emit(dmg, crit)
 	if hp <= 0.0:
 		if _art != null:
 			_art.texture = Sprites.tex(str(pack.get("art_open", "pack_cards_open")))

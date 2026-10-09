@@ -11,10 +11,17 @@ smoke_test.gd    el test automatico. Arranca el juego de verdad y comprueba
 input_test.gd    el test del RATON. Manda clics y arrastres sinteticos y
                  comprueba que los reciben: menu, tienda, cerrar, la mesa, los
                  dos botones de la tarjeta, el arrastre de un objeto, la rueda
-                 de la columna de sobres y el mini menu de la compra automatica
-                 (que con los Pinchos, y no con el PC, no se abre)
+                 de la columna de sobres, el mini menu de la compra automatica
+                 (que con los Pinchos, y no con el PC, no se abre), el armario
+                 (su boton, exponer, devolver y VENDER TODO) y el REBIRTH del
+                 menu con su panel
 screenshots.gd   guarda un PNG de cada pantalla en user://shots/
 probe_font.gd    mide de verdad cuanto ocupa cada rotulo con la fuente
+probe_pop.gd     pinta un numero de dano normal y uno critico sobre el fondo y
+                 guarda el PNG, para poder medir en el pixel que color sale:
+                 los digitos ya vienen pintados de oro y el color del numero es
+                 un tinte que los MULTIPLICA, asi que el color que se pide no es
+                 el que se ve (ver damage_popup.gd)
 ```
 
 ## Por que hay DOS tests y no uno
@@ -60,6 +67,29 @@ lo inventaba era la prueba. Costo una tarde encontrarlo, y por eso esta escrito
 aqui: si alguien vuelve a mandar el giro suelto, van a fallar los botones de
 despues y va a parecer que el fallo esta en el juego.
 
+### Las capturas necesitan el POST-DRAW
+
+`_shot()` espera a `RenderingServer.frame_post_draw` antes de leer la textura del
+`SubViewport`, y sin eso las capturas salen **iguales sin fallar nada**: leer la
+textura en mitad de un frame devuelve el frame ANTERIOR, asi que las treinta y
+una pantallas de la tanda se guardan con la primera imagen repetida treinta y una
+veces (medido: mismo md5 en 31 PNG de nombres distintos, y el `print("captura:")
+diciendo 1920x1080 en todos). Es el peor fallo posible en una herramienta de
+capturas, porque el PNG existe, pesa lo suyo y se abre: lo unico que no hace es
+enseñar lo que se le pidio. Se detecta contando md5 distintos, que es lo que hay
+que hacer antes de mirarse una tanda entera.
+
+### El check de "cabe" mide la caja, no la tinta
+
+`_check_cabe()` compara el rectangulo del nodo contra el recuadro, y ese
+rectangulo sale de `UIKit.text_width()`. Cuando `text_width()` se queda corto, el
+texto se dibuja mas ancho de lo que la caja cree y la fuga pasa el check: la
+linea "YA TIENES ... MONEDAS" del panel del rebirth midio x 656..1718 de tinta
+en un interior que acaba en 1696 (el `%` cortado por el marco), y el check la
+daba por buena. Antes de fiarse de un verde en los paneles, la captura. La
+diferencia medida esta en un 6 % para esa linea, asi que el margen que hay que
+dejar en un rotulo centrado no es 0: son los `text_width()` de sobra.
+
 ## Cómo se ejecuta
 
 ```bash
@@ -89,7 +119,23 @@ DISPLAY=:1 $G --path . --display-driver x11 --rendering-driver opengl3 \
 
 # la sonda de la fuente
 $G --headless --path . res://dev/ProbeFont.tscn
+
+# la sonda del color de los numeros de dano, CON ventana: necesita renderizar de
+# verdad (en headless la textura del viewport no existe)
+$G --path . --rendering-driver opengl3 res://dev/ProbePop.tscn
+# deja el PNG en ~/.local/share/godot/app_userdata/Pack Tycoon/shots/_probe_pop.png
 ```
+
+Y si se acaba de anadir una escena o un `class_name` nuevo, antes hay que dejar
+que Godot importe:
+
+```bash
+$G --headless --path . --import
+```
+
+Sin ese paso los dos tests se caen con `Could not find type "LockerPanel"` (el
+proyecto no tiene la escena en su cache todavia) y parece que el fallo esta en el
+codigo nuevo. Costo una vuelta entera de tests creerlo.
 
 ## Que comprueba smoke_test.gd y por que
 
@@ -180,6 +226,77 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   nombre de 17 caracteres encoge los doce a 21 y el de arriba se queda enano: es
   lo que pasa si alguien bautiza un escalon "DE DIAMANTE" en vez de "LUJO".
   Comprobado al reves: con "SOBRES DE DIAMANTE" el check falla y sale con 1.
-- Que las dos casillas de los ajustes (pantalla completa y venta automatica)
-  enciendan y apaguen el ajuste de verdad y cambien de dibujo, y que esten a 96
-  px o mas de distancia, que es lo que mide su zona de clic.
+- Que **cada redonda del boton saque su numero de dano**: el texto es el dano
+  del golpe, sale ENCIMA del paquete (no debajo) y el color distingue el golpe
+  normal del critico. El critico se prueba sin depender de la suerte: se compra
+  el Ojo verde AL TOPE (la probabilidad es de un 5 % POR NIVEL, o sea el 40 % a
+  los ocho: con el nivel 1 y treinta tiradas esto fallaba una vez de cada cinco,
+  que es lo peor que puede hacer un test) y se golpea un paquete aparte -con la
+  resistencia puesta por las nubes, y puesto que el de al lado hay que romperlo
+  para seguir con el
+  revelado- hasta que sale uno, y se pide que su numero sea el del critico (dano
+  x multiplicador) y que sea mas grande que el del golpe normal. Los dos colores
+  estan MEDIDOS sobre el pixel que sale en pantalla (`dev/probe_pop.gd`), porque
+  los sprites de los digitos ya vienen pintados de oro y `PixelNumber` los
+  multiplica por el color: pidiendo `Palette.GOLD` el numero sale marron oscuro,
+  asi que el tinte mueve el verde (a la baja el naranja, por encima de 1 el
+  amarillo). Ojo al buscarlos: **Godot renombra a los hermanos que se llaman
+  igual** (DamagePop, DamagePop2...), asi que se buscan por marca
+  (`DamagePopup.MARK`) y no por nombre.
+- Que la tienda dibuje **una caja por item** y que las ocho quepan en la rejilla
+  del panel sin pisarse. Es lo que no se ve mirando: un ancho de rejilla mal
+  calculado se sale por el borde de abajo del panel y el marco no recorta nada,
+  asi que la ultima fila desaparece sin un solo error. Se miden los ocho
+  rectangulos contra el recuadro interior y entre si.
+- Que el clic en una caja abra **la ficha del item**: el nombre, la descripcion
+  larga ENTERA (el texto va partido en lineas con `UIKit.wrap()`, asi que se
+  comprueban todas las lineas, no la primera), el numero del efecto de AHORA y el
+  del nivel siguiente -los dos sacados de `LootDB.item_effect()`, que aplica la
+  formula de verdad-, y que los dos numeros sean distintos (si no, el nivel no
+  cambia nada y la ficha no esta diciendo la verdad).
+- Que **se compre desde la ficha**: el boton COMPRAR de la ficha sube el nivel,
+  cuesta lo mismo que comprando desde la caja, y los numeros de la ficha se
+  repintan solos con el nivel nuevo (y siguen coincidiendo con `item_effect()`).
+  Y las tres esquinas: sin dinero no compra, un item al tope dice AL TOPE y no
+  trae ni boton ni chapa, y el PC y los Pinchos -de compra unica- dicen COMPRA
+  UNICA antes y COMPRADO despues, con "AL COMPRARLO" en vez de un "NIVEL 1".
+- Que **cada tipo de botin de su bonus, y no todos el mismo**: las cartas suben el
+  dano, las zapatillas la velocidad de carga, los vinilos el dinero y la
+  electronica los puntos de rebirth. Se comprueba por los cuatro lados, porque un
+  `stat` mal puesto en la tabla de tipos (`LOOT_KINDS`) hace que dos tipos den lo
+  mismo y eso no se ve en ninguna captura: las cuatro lineas del panel del
+  armario salen iguales y todo parece correcto.
+- Que el bonus de un objeto expuesto vaya **de la nota 1 a la nota 10**, o sea de
+  un 2 % a un 15 %, y que el tipo lo diga la fila del botin (el campo `kind`) y
+  no el dibujo ni el id: deducirlo del nombre es una regla escondida que se rompe
+  sola en cuanto se anade un objeto con otro nombre.
+- Que el armario tenga **exactamente los huecos de su nivel**: con el armario a 2
+  caben dos objetos y el tercero NO entra, y el que se queda fuera sigue en el
+  inventario (no se pierde por pulsar). Era la unica razon de subir el armario de
+  nivel, asi que es justo lo que hay que fijar.
+- Que **exponer saque el objeto del inventario** (deja de poder venderse) y que
+  devolverlo lo meta otra vez. Exponer es un trato con vuelta atras, y sin la
+  vuelta el jugador tomaria una decision irreversible sin que nadie le avise.
+- Que el inventario sea de **50 huecos** y que **ya no este en la pantalla de
+  partida**: la tira de abajo es la vitrina y el inventario vive en el panel del
+  armario. Se mira por el metodo que ya no existe y por el tamano, para que
+  volver a meterlo en la pantalla se note.
+- Que la **vitrina de la partida** enseñe los objetos expuestos y que su rotulo
+  cuente los huecos. Sin esto el armario seria un numero dentro de un panel y no
+  algo que se ve mientras se juega.
+- Que **el texto no se dibuje encima de un objeto** (`_check_sin_pisar_dibujos`,
+  el check que habla de DIBUJOS y no de chapas). Los otros dos de encuadre solo
+  miraban texto contra chapas, y este es el que cazo el solape de verdad: el
+  rotulo de VENDER TODO comiendose 7 px del marco de la ultima fila del
+  inventario. Los objetos son dibujos, y una chapa no es lo unico con lo que se
+  puede chocar un rotulo.
+- Que el rebirth **prometa lo que da**: las monedas que enseña el panel salen de
+  `Game.pending_rebirth_coins()`, el MISMO calculo que usa `do_rebirth()`, y el
+  multiplicador de la Electronica del armario entra en el premio (que es lo unico
+  que hace que exponer electronica signifique algo). Se comprueba contra el
+  numero que da de verdad, no contra una copia de la formula escrita al lado.
+- Que el requisito del rebirth se mida en **lo ganado en la partida**
+  (`lifetime_earned`) y no en el dinero que se tenga: guardar el dinero para el
+  final no cambia nada. Y que despues de reiniciar la partida vuelva todo a cero
+  (dinero, items, inventario, armario y las automatizaciones, que se caen con sus
+  piezas) mientras las monedas y las estadisticas de la cuenta se quedan.

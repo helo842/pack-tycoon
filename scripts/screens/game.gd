@@ -18,12 +18,31 @@ const SHOP_SCENE := preload("res://scenes/ShopPanel.tscn")
 const REVEAL_SCENE := preload("res://scenes/RevealCard.tscn")
 const SETTINGS_SCENE := preload("res://scenes/SettingsPanel.tscn")
 const AUTO_BUY_SCENE := preload("res://scenes/AutoBuyPanel.tscn")
+const LOCKER_SCENE := preload("res://scenes/LockerPanel.tscn")
 
-## Huecos de mesa de base. Los amplia el Cajon (ver Game.table_slots()).
-const INV_X0 := 660.0
-const INV_STEP := 132.0
-const INV_Y := 1000.0
-const INV_SIDE := 128.0
+## La tira de abajo, debajo de la mesa: LA VITRINA. Antes eran los diez huecos
+## del inventario, que ahora vive en su panel (ver LockerPanel) junto al armario.
+##
+## Lo que se enseña aqui es lo que hay EXPUESTO, que es la informacion que hacia
+## falta tener a la vista mientras se juega: los cuatro bonus del armario
+## (dano, velocidad, dinero y rebirth) estan puestos justo por esto, asi que
+## saber que hay dentro sin abrir nada es parte de la partida. Del inventario, en
+## cambio, no hay nada que mirar mientras se abre: se vacia en su panel.
+##
+## Los huecos van en la MISMA rejilla que tenia el inventario (misma x, mismo
+## paso y mismo lado) porque el armario son ocho como mucho y el hueco del
+## noveno y el decimo se quedan sin usar: mover los que hay para ponerlos en el
+## centro seria cambiar la pantalla entera para no ganar nada.
+const LOCK_X0 := 660.0
+const LOCK_STEP := 132.0
+const LOCK_Y := 1000.0
+const LOCK_SIDE := 128.0
+## La chapa que abre el armario, donde estaba el VENDER TODO del inventario. Mas
+## estrecha que aquella (300 en vez de 384) para que la chapa no llegue tan
+## abajo: mide 0,45 del ancho de alto, y con 384 se le comian 6 px por debajo de
+## la pantalla.
+const LOCK_BTN_CENTER := Vector2(210, 1000)
+const LOCK_BTN_W := 300.0
 
 ## La mesa: donde caen los objetos. Es el rectangulo ENTERO de la superficie
 ## (el mismo que ocupa el sprite bg_table), y de ahi para dentro se recorta
@@ -117,8 +136,8 @@ var _table: Control
 var _fx: Control
 var _money: PixelNumber
 var _table_label: Label
-var _inv_label: Label
-var _inv_slots: Array = []
+var _locker_label: Label
+var _locker_slots: Array = []
 var _elements: Array = []
 ## Las celdas de la columna de sobres, para poder repintarlas (precio,
 ## apagado si no te llega y GRATIS en el gratuito).
@@ -129,9 +148,11 @@ var _pack_scroll: ScrollContainer = null
 var _shop: ShopPanel = null
 var _settings: SettingsPanel = null
 var _auto_buy_panel: AutoBuyPanel = null
+var _locker: LockerPanel = null
 var _reveal: RevealCard = null
 var _auto_open_btn: Button = null
 var _auto_buy_btn: Button = null
+var _locker_btn: Button = null
 var _sell_btn: Button = null
 var _rng := RandomNumberGenerator.new()
 
@@ -165,14 +186,19 @@ func _ready() -> void:
 	add_child(_fx)
 
 	_build_top_bar()
-	_build_inventory()
+	_build_locker()
 
 	Game.money_changed.connect(_on_money_changed)
-	Game.inventory_changed.connect(_refresh_inventory)
+	# La tira de abajo se repinta con las DOS senales: con los objetos expuestos
+	# (locker_changed) y con los niveles comprados (items_changed), porque un
+	# nivel mas de armario son huecos nuevos que dejan de estar apagados. Sin la
+	# segunda, comprar el armario no se notaba hasta el siguiente objeto expuesto.
+	Game.locker_changed.connect(_refresh_locker)
+	Game.items_changed.connect(_refresh_locker)
 	Game.items_changed.connect(_refresh_top)
 	Game.open_requested.connect(_on_open_requested)
 	Game.settings_changed.connect(_refresh_top)
-	_refresh_inventory()
+	_refresh_locker()
 	_refresh_top()
 	_on_money_changed(Game.money)
 
@@ -439,12 +465,22 @@ func _build_top_bar() -> void:
 	_auto_buy_btn.pressed.connect(_open_auto_buy)
 	add_child(_auto_buy_btn)
 
-	_sell_btn = UIKit.small_button("VENDER", "", Vector2(1350, 58), 240, 21,
+	# EL ARMARIO VA PEGADO A LAS AUTOMATIZACIONES, y no es capricho: son las tres
+	# cosas que se encienden y se miran de vez en cuando mientras la mesa trabaja,
+	# y las tres viven en el mismo tramo de la barra (a la derecha estan VENDER y
+	# TIENDA, que es donde se va cuando se PARA). Por eso VENDER y TIENDA se
+	# estrechan un poco: habia que meter una chapa de 80 px donde no sobraba sitio.
+	_locker_btn = UIKit.icon_button("ui_icon_vitrine", Vector2(1240, 58), 80.0,
+			"Armario: expone objetos y da sus bonus (con la pieza comprada)")
+	_locker_btn.pressed.connect(_open_locker)
+	add_child(_locker_btn)
+
+	_sell_btn = UIKit.small_button("VENDER", "", Vector2(1400, 58), 200, 21,
 			"ui_button_sell", "ui_button_sell")
 	_sell_btn.pressed.connect(_sell_all_table)
 	add_child(_sell_btn)
 
-	var shop := UIKit.small_button("TIENDA", "ui_icon_shop", Vector2(1630, 58), 288, 32)
+	var shop := UIKit.small_button("TIENDA", "ui_icon_shop", Vector2(1660, 58), 256, 32)
 	shop.pressed.connect(_open_shop)
 	add_child(shop)
 
@@ -454,26 +490,41 @@ func _build_top_bar() -> void:
 	add_child(settings)
 
 
-func _build_inventory() -> void:
-	var sell_all := UIKit.small_button("VENDER TODO", "", Vector2(210, INV_Y), 384, 28,
-		"ui_button_sell", "ui_button_sell")
-	sell_all.pressed.connect(_sell_inventory)
-	add_child(sell_all)
+## La vitrina que hay al lado de la mesa: los objetos EXPUESTOS en el armario,
+## de un vistazo y sin abrir nada.
+##
+## La chapa de la izquierda abre el panel del armario (donde estan el inventario
+## y las vitrinas), y cada hueco tambien: lo que se mira es el hueco, y obligar a
+## apuntar a la chapa para ver lo que hay dentro de un objeto seria un paso de
+## mas para lo unico que se puede hacer con el, que es abrirlo.
+func _build_locker() -> void:
+	var open := UIKit.small_button("ARMARIO", "ui_icon_vitrine", LOCK_BTN_CENTER,
+			LOCK_BTN_W, 21, "ui_button_sell", "ui_button_sell")
+	open.tooltip_text = "Armario: expone objetos y da sus bonus"
+	open.pressed.connect(_open_locker)
+	add_child(open)
 
-	# El rotulo va sobre su fila de huecos, no encima de la chapa de VENDER TODO.
-	# Con el centro en (470, 928) la caja empezaba en x 270 y la chapa llega a
-	# x 402: el texto se leia a la mitad, cortado por el marco de la chapa.
-	# Y a y 918, no a 912: la linea de las baldas pasa por y 900..903 y a 912 la
-	# cruzaba por arriba de las letras. Entre la linea (903) y los huecos (936)
-	# quedan 33 px, y el rotulo mide 24.
-	_inv_label = UIKit.label_at("", Vector2(800, 918), Vector2(400, 44), 26,
+	# El rotulo va sobre su fila de huecos, no encima de la chapa. Y a y 918, no a
+	# 912: la linea de las baldas pasa por y 900..903 y a 912 la cruzaba por arriba
+	# de las letras. Entre la linea (903) y los huecos (936) quedan 33 px, y el
+	# rotulo mide 24.
+	_locker_label = UIKit.label_at("", Vector2(800, 918), Vector2(400, 44), 26,
 			Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT, 0)
-	add_child(_inv_label)
+	add_child(_locker_label)
 
-	for i in Game.INVENTORY_SLOTS:
-		var holder := UIKit.slot(Vector2(INV_X0 + float(i) * INV_STEP, INV_Y), INV_SIDE)
+	# Los ocho huecos del TOPE del armario, no los que se tienen: los que todavia
+	# no son tuyos se dibujan apagados y asi se ve lo que da subirlo de nivel (un
+	# hueco mas), que es justo lo que no se veia cuando el armario exponia solo.
+	for i in LootDB.LOCKER_SLOTS_MAX:
+		var holder := UIKit.slot(Vector2(LOCK_X0 + float(i) * LOCK_STEP, LOCK_Y),
+				LOCK_SIDE)
 		add_child(holder)
-		_inv_slots.append(holder)
+		var b := UIKit.hit_area(self, Rect2(
+				Vector2(LOCK_X0 + float(i) * LOCK_STEP, LOCK_Y)
+					- Vector2(LOCK_SIDE, LOCK_SIDE) * 0.5,
+				Vector2(LOCK_SIDE, LOCK_SIDE)), "Armario: ver los objetos expuestos")
+		b.pressed.connect(_open_locker)
+		_locker_slots.append({"holder": holder, "button": b})
 
 
 # --------------------------------------------------------------------------- #
@@ -537,6 +588,7 @@ func _add_element(el: TableElement) -> void:
 	el.bounds = TABLE_RECT
 	el.opened.connect(_on_element_opened.bind(el))
 	el.sold.connect(_on_element_sold.bind(el))
+	el.damaged.connect(_on_element_damaged.bind(el))
 	_table.add_child(el)
 	# La caida la lleva el elemento: asi se puede cortar si el jugador lo agarra
 	# antes de que aterrice. Ver TableElement.play_drop().
@@ -572,6 +624,26 @@ func _spawn_loot(item: Dictionary) -> TableElement:
 # --------------------------------------------------------------------------- #
 # Bucle: compra, apertura, revelado, venta
 # --------------------------------------------------------------------------- #
+
+## El armario: el inventario a la izquierda y las vitrinas a la derecha (ver
+## LockerPanel). Se abre SIEMPRE, tenga o no la pieza el jugador: dentro esta
+## tambien el inventario, y vender lo guardado no depende del armario.
+func _open_locker() -> void:
+	if _locker != null:
+		return
+	Sound.click()
+	_locker = LOCKER_SCENE.instantiate() as LockerPanel
+	_locker.closed.connect(_close_locker)
+	_main().push_veil(_locker)
+
+
+func _close_locker() -> void:
+	Sound.click()
+	if _locker != null:
+		_main().pop_veil(_locker)
+		_locker = null
+	_refresh_top()
+
 
 func _open_shop() -> void:
 	if _shop != null:
@@ -710,6 +782,24 @@ func _on_element_sold(value: int, at: Vector2, el: TableElement) -> void:
 	_float_text("+" + PixelNumber.format(value), at, Palette.GOLD_XL)
 
 
+## Ha terminado una redonda de la carga de ese paquete: el numero del dano sale
+## encima de su dibujo, en naranja o en amarillo si el golpe ha sido critico.
+##
+## Lo pinta esta capa (_fx) y no el elemento por el mismo motivo que los avisos
+## de venta: el elemento que rompe la caja se va con un tween de escala y alfa
+## (ver TableElement._finish()), y un numero colgado de el se iria con la caja
+## justo en el golpe que mas interesa leer.
+func _on_element_damaged(amount: float, crit: bool, el: TableElement) -> void:
+	if _fx == null or not is_instance_valid(el):
+		return
+	# La capa de los avisos y la mesa son las dos hijos de esta pantalla puestos
+	# en el origen, asi que las coordenadas de una valen en la otra: es lo mismo
+	# que hace la venta, que pasa el global_position del elemento a _float_text().
+	var at: Vector2 = el.global_position \
+			+ Vector2(TableElement.BOX.x * 0.5, TableElement.ART_CENTER.y - 36.0)
+	DamagePopup.pop(_fx, at, amount, crit)
+
+
 func _sell_all_table() -> void:
 	var total := 0
 	# Se suelta uno a uno con _drop_element() en vez de vaciar la lista de golpe:
@@ -724,17 +814,6 @@ func _sell_all_table() -> void:
 		Sound.play("sfx_sell_all")
 		_float_text("+" + PixelNumber.format(total), Vector2(960, 500), Palette.GOLD_XL)
 	_refresh_top()
-
-
-func _sell_inventory() -> void:
-	var total := Game.inventory_value()
-	if total <= 0:
-		Sound.play("sfx_error")
-		Game.notice.emit("NO HAY NADA QUE VENDER", Palette.CREAM_D)
-		return
-	Game.sell_all()
-	Sound.play("sfx_sell_all")
-	_float_text("+" + PixelNumber.format(total), Vector2(960, 960), Palette.GOLD_XL)
 
 
 # --------------------------------------------------------------------------- #
@@ -819,7 +898,8 @@ func _on_open_requested(el: Object) -> void:
 ## los doce marcados va subiendo de escalon sola segun se enriquece, y marcando
 ## solo los de arriba se apunta a lo caro.
 func _auto_buy_step() -> void:
-	if not table_free() or _shop != null or _auto_buy_panel != null or _reveal != null:
+	if not table_free() or _shop != null or _auto_buy_panel != null or _locker != null \
+			or _reveal != null:
 		return
 	var best := ""
 	var best_price := 1 << 60
@@ -939,40 +1019,47 @@ func _refresh_top() -> void:
 	if is_instance_valid(_auto_buy_btn):
 		UIKit.set_icon_button_lit(_auto_buy_btn, Game.auto_buy)
 		UIKit.dim_icon_button(_auto_buy_btn, not Game.auto_buy_unlocked())
+	# El armario se marca apagado mientras no se tenga la pieza, como las dos
+	# automatizaciones: NO se bloquea el boton (dentro esta el inventario, que se
+	# usa desde el primer minuto), pero de un vistazo se ve que todavia no hay
+	# vitrina donde exponer nada.
+	if is_instance_valid(_locker_btn):
+		UIKit.dim_icon_button(_locker_btn, Game.locker_slots() <= 0)
 	if is_instance_valid(_sell_btn):
 		_sell_btn.disabled = _count_table_loot() == 0
 
 
-func _refresh_inventory() -> void:
-	if is_instance_valid(_inv_label):
-		_inv_label.text = "INVENTARIO %d/%d" % [Game.inventory.size(), Game.INVENTORY_SLOTS]
-	for i in _inv_slots.size():
-		var holder: Control = _inv_slots[i]
+## La tira de la vitrina: el rotulo y los ocho huecos.
+func _refresh_locker() -> void:
+	if is_instance_valid(_locker_label):
+		_locker_label.text = "ARMARIO %d/%d EXPUESTOS" % [Game.locker_size(),
+				Game.locker_slots()]
+	var slots := Game.locker_slots()
+	for i in _locker_slots.size():
+		var holder: Control = _locker_slots[i]["holder"]
+		var b: Button = _locker_slots[i]["button"]
 		for c in holder.get_children():
 			if c.name != "Back":
+				holder.remove_child(c)
 				c.queue_free()
-		if i >= Game.inventory.size():
+		var back := holder.get_node_or_null("Back") as TextureRect
+		if back != null:
+			back.modulate = Color.WHITE if i < slots else Color(0.35, 0.35, 0.4, 1.0)
+		if i >= Game.locker.size():
 			continue
-		var item: Dictionary = Game.inventory[i]
-		holder.add_child(UIKit.square(str(item.get("art", "loot_vinyl")),
-				Vector2(INV_SIDE * 0.5, INV_SIDE * 0.5 - 8.0), 0.16))
+		var item: Dictionary = Game.locker[i]
+		# fit_art y no square: los objetos no llenan igual su lienzo y escalados
+		# por el lienzo se verian de tres tamanos distintos en la misma fila.
+		holder.add_child(UIKit.fit_art(str(item.get("art", "loot_vinyl")),
+				Vector2(LOCK_SIDE * 0.5, LOCK_SIDE * 0.5 - 8.0),
+				Vector2(LOCK_SIDE * 0.62, LOCK_SIDE * 0.62)))
 		var num := PixelNumber.new()
 		num.scale_factor = 0.15
-		num.max_width = INV_SIDE - 12.0
+		num.max_width = LOCK_SIDE - 12.0
 		holder.add_child(num)
 		num.set_number(int(item.get("value", 0)))
-		num.position = Vector2(INV_SIDE * 0.5, INV_SIDE - 26.0) - num.size * 0.5
-		var value := int(item.get("value", 0))
-		UIKit.hit_area(holder, Rect2(Vector2.ZERO, Vector2(INV_SIDE, INV_SIDE)),
-				"Vender por " + PixelNumber.format(value)).pressed.connect(
-				_sell_inventory_slot.bind(i))
-
-
-func _sell_inventory_slot(index: int) -> void:
-	var got := Game.sell_at(index)
-	if got > 0:
-		Sound.play("sfx_sell")
-		_float_text("+" + PixelNumber.format(got), Vector2(960, 960), Palette.GOLD_XL)
+		num.position = Vector2(LOCK_SIDE * 0.5, LOCK_SIDE - 26.0) - num.size * 0.5
+		b.tooltip_text = "Armario: %s expuesto" % str(item.get("name", ""))
 
 
 func _count_table_loot() -> int:
@@ -1037,6 +1124,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _settings != null:
 		_main().pop_veil(_settings)
 		_settings = null
+	elif _locker != null:
+		_close_locker()
 	elif _auto_buy_panel != null:
 		_close_auto_buy()
 	elif _shop != null:

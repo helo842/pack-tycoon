@@ -8,6 +8,9 @@ extends Node
 
 signal money_changed(value: int)
 signal inventory_changed()
+## El armario ha cambiado: algo ha entrado o ha salido de una vitrina, o se ha
+## comprado/subido el propio armario (un nivel mas son huecos nuevos).
+signal locker_changed()
 signal items_changed()
 ## Un paquete ha pedido abrirse (el jugador le ha hecho clic). Lo escucha game.gd,
 ## que es quien sabe cuantos paquetes se pueden llevar a la vez (los Guantes).
@@ -19,7 +22,11 @@ signal notice(text: String, color: Color)
 const SAVE_PATH := "user://packtycoon.json"
 const AUTOSAVE_EVERY := 30.0
 const START_MONEY := 500
-const INVENTORY_SLOTS := 10
+## Huecos del inventario. 50 y no 10 porque el inventario ya no es una tira de
+## diez ranuras debajo de la mesa: es la columna de la IZQUIERDA del armario (ver
+## LockerPanel), y ahi cabe una rejilla larga con scroll. Ampliarlo de verdad
+## (con mejoras) es otra cosa y sigue pendiente.
+const INVENTORY_SLOTS := 50
 
 var money: int = START_MONEY
 var rebirth_coins: int = 0
@@ -27,6 +34,14 @@ var rebirth_coins: int = 0
 # Inventario y estadisticas. "items_found" y "packs_opened" son para logros,
 # que todavia no estan.
 var inventory: Array = []
+## El armario: los objetos EXPUESTOS, uno por hueco (ver LootDB.locker_slots()).
+##
+## Un objeto expuesto sale del inventario y deja de poder venderse: esta en la
+## vitrina. Por eso el armario es un array de objetos y no una lista de indices
+## del inventario, que se rompe sola en cuanto se vende algo de en medio. Y por
+## eso tambien el armario no guarda nada "automaticamente": lo pone el jugador
+## desde su panel (ver LockerPanel), que es lo que le da sentido a los huecos.
+var locker: Array = []
 ## Nivel comprado de cada item de la tienda (ITEMS SHOP del PDF). El indice del
 ## array es el de LootDB.ITEMS. Los seis de estadisticas suben hasta ocho; el PC
 ## y los Pinchos son de compra unica (nivel 1 y ya). Ver LootDB.item_max_level().
@@ -197,7 +212,8 @@ func inventory_free() -> bool:
 
 
 ## Mete un objeto del revelado. Si no cabe, se vende al instante y se avisa:
-## en esta version el inventario son 10 huecos y no hay forma de ampliarlos.
+## en esta version el inventario son INVENTORY_SLOTS huecos y no hay forma de
+## ampliarlos (el armario tiene sus propios huecos y no son del inventario).
 func store(item: Dictionary) -> bool:
 	if not inventory_free():
 		add_money(int(item["value"]))
@@ -254,6 +270,169 @@ func inventory_value() -> int:
 
 
 # --------------------------------------------------------------------------- #
+# El armario
+# --------------------------------------------------------------------------- #
+#
+# El armario es la vitrina: los objetos que el jugador saca del inventario para
+# exponerlos. Un objeto expuesto ya no esta en el inventario (no se puede vender)
+# y a cambio da el bonus de SU tipo segun su nota PSA (ver LootDB.LOOT_KINDS).
+#
+# Poner y quitar objetos es MANUAL a proposito. La version anterior exponia sola
+# "los mejores" y eso convertia el armario en un adorno: como no habia nada que
+# decidir, subirlo de nivel solo servia para exponer mas objetos que ya estaban
+# expuestos. Con huecos y manos, cada nivel del armario es un hueco mas que hay
+# que LLENAR, y elegir que se expone (dano, velocidad, dinero o rebirth) es la
+# decision.
+
+## Huecos del armario. Cero sin la pieza comprada.
+func locker_slots() -> int:
+	return LootDB.locker_slots(items)
+
+
+func locker_size() -> int:
+	return locker.size()
+
+
+func locker_free() -> bool:
+	return locker.size() < locker_slots()
+
+
+## Exponer el objeto `index` del inventario. Devuelve false si no hay hueco (ni
+## armario comprado, o ya lleno), que es lo unico que puede fallar: el indice lo
+## pone la interfaz, que es quien esta mirando la lista.
+func locker_put(index: int) -> bool:
+	if index < 0 or index >= inventory.size() or not locker_free():
+		return false
+	locker.append(inventory[index])
+	inventory.remove_at(index)
+	_dirty = true
+	inventory_changed.emit()
+	locker_changed.emit()
+	return true
+
+
+## Sacar de la vitrina el objeto `index` del armario: vuelve al inventario. Si el
+## inventario esta lleno no se toca nada (no se puede tener el objeto en el aire).
+func locker_take(index: int) -> bool:
+	if index < 0 or index >= locker.size() or not inventory_free():
+		return false
+	inventory.append(locker[index])
+	locker.remove_at(index)
+	_dirty = true
+	inventory_changed.emit()
+	locker_changed.emit()
+	return true
+
+
+## Lo que aporta el armario a UN tipo de botin: la suma de sus objetos expuestos
+## (ver LootDB.bonus_for, que es lo que da un objeto segun su nota).
+func kind_bonus(kind_id: String) -> float:
+	var total := 0.0
+	for item in locker:
+		if LootDB.kind_of(item) == kind_id:
+			total += LootDB.bonus_for(item)
+	return total
+
+
+## Las cuatro sumas a la vez, para leerlas de una vez en el panel.
+func kind_totals() -> Dictionary:
+	var totals := {}
+	for kind_id in LootDB.kind_ids():
+		totals[kind_id] = 0.0
+	for item in locker:
+		totals[LootDB.kind_of(item)] = float(totals[LootDB.kind_of(item)]) \
+				+ LootDB.bonus_for(item)
+	return totals
+
+
+## Cuanto sube el DANO del golpe (Cartas expuestas).
+func damage_multiplier() -> float:
+	return 1.0 + kind_bonus("cards")
+
+
+## Cuanto se acelera la CARGA del boton (Zapatillas expuestas). El tiempo por
+## ciclo se divide por esto: 1.0 es "igual que sin armario".
+func charge_multiplier() -> float:
+	return 1.0 + kind_bonus("sneakers")
+
+
+## Cuanto sube el DINERO que se saca de cada objeto encontrado: lo que dan los
+## Vinilos expuestos mas la paga permanente del rebirth. Es el multiplicador que
+## se le pasa a LootDB.roll_pack(), asi que lo que se ve en la tarjeta de
+## revelado ya lo lleva.
+func value_multiplier() -> float:
+	return (1.0 + kind_bonus("vinyls")) * rebirth_value_mult()
+
+
+## Cuanto se multiplican las monedas de rebirth que da reiniciar (Electronica
+## expuesta). No toca el dinero: toca el PREMIO del rebirth, que es lo que le da
+## sentido a exponer electronica.
+func rebirth_multiplier() -> float:
+	return 1.0 + kind_bonus("electronics")
+
+
+## La paga permanente del rebirth, al valor de lo que se vende.
+func rebirth_value_mult() -> float:
+	return LootDB.rebirth_value_mult(rebirth_coins)
+
+
+# --------------------------------------------------------------------------- #
+# Rebirth (la hucha)
+# --------------------------------------------------------------------------- #
+
+## ¿Le llega para reiniciar? El requisito se mide en lo GANADO en esta partida
+## (lifetime_earned), no en el dinero que tenga ahora: es una meta de la partida
+## entera, y guardar el dinero para el final no cambia nada.
+func can_rebirth() -> bool:
+	return lifetime_earned >= LootDB.REBIRTH_REQUIRE
+
+
+## Las monedas que daria reiniciar AHORA, con la Electronica del armario dentro.
+## Es el mismo calculo que hace do_rebirth(), y lo enseña el panel: si los dos
+## numeros no salieran de aqui, el panel podria prometer una cosa y dar otra.
+func pending_rebirth_coins() -> int:
+	return LootDB.rebirth_coins_for(lifetime_earned, rebirth_multiplier())
+
+
+## Lo que falta para poder reiniciar (0 si ya se puede).
+func rebirth_missing() -> int:
+	return maxi(0, LootDB.REBIRTH_REQUIRE - lifetime_earned)
+
+
+## Reiniciar la partida: se pierde TODO lo de la partida (dinero, items, armario
+## e inventario) y se gana la hucha, que es lo unico que pasa de una partida a la
+## siguiente. Devuelve las monedas ganadas.
+##
+## Las estadisticas de logros (paquetes abiertos, objetos encontrados, mejor
+## nota) NO se pierden: son de la cuenta, no de la partida.
+func do_rebirth() -> int:
+	if not can_rebirth():
+		return 0
+	var coins := pending_rebirth_coins()
+	rebirth_coins += coins
+	money = START_MONEY
+	items = []
+	while items.size() < LootDB.item_count():
+		items.append(0)
+	inventory = []
+	locker = []
+	lifetime_earned = 0
+	# Las automatizaciones se caen con las piezas, que se han ido: si no, la
+	# partida nueva empezaria con la mesa abriendose sola y sin Pinchos.
+	auto_open = false
+	auto_buy = false
+	auto_buy_packs = _all_pack_ids()
+	_dirty = true
+	money_changed.emit(money)
+	inventory_changed.emit()
+	locker_changed.emit()
+	items_changed.emit()
+	settings_changed.emit()
+	save_game()
+	return coins
+
+
+# --------------------------------------------------------------------------- #
 # Items de la tienda
 # --------------------------------------------------------------------------- #
 
@@ -290,14 +469,15 @@ func buy_item(index: int) -> bool:
 # Apertura de paquetes: vida, dano y estadisticas de los items
 # --------------------------------------------------------------------------- #
 
-## Dano de cada golpe al cargar el boton.
+## Dano de cada golpe al cargar el boton. Las Cartas expuestas en el armario
+## suben este numero por encima de lo que dan los items de la tienda.
 func damage_per_hit() -> float:
-	return LootDB.damage_per_hit(items)
+	return LootDB.damage_per_hit(items) * damage_multiplier()
 
 
-## Segundos que tarda un ciclo de carga.
+## Segundos que tarda un ciclo de carga. Las Zapatillas expuestas lo acortan.
 func charge_time() -> float:
-	return LootDB.charge_time(items)
+	return LootDB.charge_time(items) / charge_multiplier()
 
 
 func crit_chance() -> float:
@@ -326,30 +506,6 @@ func auto_buy_interval() -> float:
 
 func spike_dps() -> float:
 	return LootDB.spike_dps(items)
-
-
-## Armario: expone automaticamente los mejores objetos del inventario (hasta
-## locker_slots) y cada uno aporta un extra de valor segun su rareza. Se cogen
-## los mejores solos para no meter un panel nuevo: el efecto es el mismo (hasta
-## tres objetos dando stats por su calidad).
-func locker_bonus() -> float:
-	var slots := LootDB.locker_slots(items)
-	if slots <= 0:
-		return 0.0
-	var bonuses: Array = []
-	for item in inventory:
-		bonuses.append(LootDB.locker_item_bonus(str(item.get("rarity", "common"))))
-	bonuses.sort()
-	bonuses.reverse()
-	var total := 0.0
-	for i in mini(slots, bonuses.size()):
-		total += float(bonuses[i])
-	return total
-
-
-## Multiplicador de valor de los objetos nuevos (Armario).
-func value_multiplier() -> float:
-	return 1.0 + locker_bonus()
 
 
 ## Un paquete pide abrirse. game.gd decide cuantos mas arranca a la vez.
@@ -426,6 +582,7 @@ func hard_reset() -> void:
 	money = START_MONEY
 	rebirth_coins = 0
 	inventory = []
+	locker = []
 	items = []
 	while items.size() < LootDB.item_count():
 		items.append(0)
@@ -455,6 +612,7 @@ func to_dict() -> Dictionary:
 		"money": money,
 		"rebirth_coins": rebirth_coins,
 		"inventory": inventory,
+		"locker": locker,
 		"items": items,
 		"auto_open": auto_open,
 		"auto_buy": auto_buy,
@@ -501,6 +659,12 @@ func _apply(d: Dictionary) -> void:
 	inventory = d.get("inventory", [])
 	if typeof(inventory) != TYPE_ARRAY:
 		inventory = []
+	# El armario: los objetos expuestos. Un guardado de antes de que existiera no
+	# trae la clave y el armario sale vacio, que es lo correcto (los objetos
+	# siguen donde estaban, en el inventario).
+	locker = d.get("locker", [])
+	if typeof(locker) != TYPE_ARRAY:
+		locker = []
 	# Acepta el guardado viejo, que llamaba "tools" a lo mismo.
 	items = d.get("items", d.get("tools", []))
 	if typeof(items) != TYPE_ARRAY:
@@ -541,4 +705,10 @@ func _apply(d: Dictionary) -> void:
 		auto_open = false
 	if not auto_buy_unlocked():
 		auto_buy = false
+	# Y el armario se recorta a sus huecos: con el armario al nivel 2 caben 2
+	# objetos expuestos. Un guardado que traiga mas (de una partida en la que el
+	# armario estaba mas alto, o tocado a mano) devuelve el resto al inventario en
+	# vez de tirarlo, que es lo unico que no pierde nada.
+	while locker.size() > locker_slots():
+		inventory.append(locker.pop_back())
 	_dirty = false

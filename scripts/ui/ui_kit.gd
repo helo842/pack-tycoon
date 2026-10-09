@@ -120,6 +120,36 @@ static func snap(v: float) -> float:
 	return snappedf(v, GRID)
 
 
+## Parte un texto en lineas que caben en `box_width`, a un tamano dado.
+##
+## Se puede calcular sin medir nada porque la fuente es de ancho FIJO: cada
+## caracter ocupa exactamente font_step(size) px (ver text_width), asi que en una
+## caja de 860 px caben 860 / 21 = 40 caracteres a tamano 21 y ni uno mas. Se
+## parte por espacios y se llena la linea hasta el tope; una palabra sola mas
+## larga que la caja se queda entera en su linea, que se lee mejor que una
+## palabra cortada por la mitad.
+##
+## Existe para la ficha de la tienda, que es el unico sitio del juego con un
+## texto largo de verdad (la descripcion detallada de un item). Todo lo demas son
+## rotulos cortos, y ahi seguir partiendo el texto a mano seria peor.
+static func wrap(text: String, box_width: float, font_size: int) -> PackedStringArray:
+	var por_linea := maxi(1, int(box_width / float(font_step(font_size))))
+	var lineas := PackedStringArray()
+	var actual := ""
+	for palabra in text.split(" ", false):
+		var p := str(palabra)
+		if actual == "":
+			actual = p
+		elif actual.length() + 1 + p.length() <= por_linea:
+			actual += " " + p
+		else:
+			lineas.append(actual)
+			actual = p
+	if actual != "":
+		lineas.append(actual)
+	return lineas
+
+
 # --------------------------------------------------------------------------- #
 # Etiquetas
 # --------------------------------------------------------------------------- #

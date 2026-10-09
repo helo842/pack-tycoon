@@ -7,15 +7,18 @@ asi que mover uno aqui no obliga a tocar a los demas.
 ```
 core/       lo que esta siempre vivo
   main.gd         MainRoot: la raiz que va cambiando de pantalla
-  game_state.gd   el autoload "Game": dinero, inventario, ajustes, guardado
+  game_state.gd   el autoload "Game": dinero, inventario (50 huecos), el armario
+                  con sus bonus, las monedas de rebirth, los ajustes y el guardado
   audio.gd        el autoload "Sound": efectos, musica y los tres buses
   palette.gd      los tokens de color que Tambien usa el generador
 
 data/       lo que se toca para reequilibrar el juego
   loot_db.gd      precios, tiempos, que cae en cada paquete, cuanto vale, los
                   items de la tienda (seis con ocho niveles y dos piezas de
-                  compra unica: ver item_max_level) y con que pieza se enciende
-                  cada automatizacion
+                  compra unica: ver item_max_level), con que pieza se enciende
+                  cada automatizacion, los cuatro tipos de botin con el stat que
+                  sube cada uno (LOOT_KINDS), los huecos del armario y lo que
+                  da el rebirth
 
 ui/         las piezas de interfaz, reutilizables
   ui_kit.gd       fabrica de controles: etiquetas, botones, paneles, sprites
@@ -24,6 +27,9 @@ ui/         las piezas de interfaz, reutilizables
                   mide la tinta de cada sprite (used_rect) para poder escalar
                   por el dibujo y no por el lienzo
   pixel_number.gd numeros grandes con los sprites num_*
+  damage_popup.gd el numero de dano de un golpe: naranja el normal y amarillo el
+                  critico (los digitos ya vienen pintados de oro, asi que el
+                  color es un TINTE que los multiplica: ver la nota del fichero)
   pixel_slider.gd deslizador con los sprites ui_slider_*
   timer_ring.gd   el anillo de la espera
 
@@ -31,8 +37,16 @@ screens/    una clase por pantalla
   menu.gd           el menu de inicio
   game.gd           la partida: la mesa, la columna de sobres (con scroll y sus
                     constantes PACK_*), el bucle y las automatizaciones
-  shop_panel.gd     la tienda
+  shop_panel.gd     la tienda: los ocho items como CAJAS en rejilla, y el clic
+                    en una abre su ficha
+  item_card.gd      la ficha de un item: la descripcion larga, los numeros del
+                    efecto de ahora y del nivel siguiente, y el boton de
+                    comprar (que PIDE la compra a la tienda, no la hace)
   auto_buy_panel.gd el mini menu de la compra automatica (que sobres se compran)
+  locker_panel.gd   el armario: el inventario a la IZQUIERDA y las vitrinas a la
+                    DERECHA, con la suma de los cuatro bonus y VENDER TODO
+  rebirth_panel.gd  la hucha: lo que te llevas al reiniciar la partida y cuanto
+                    multiplica la electronica del armario
   reveal_card.gd    la tarjeta de revelado
   settings_panel.gd los ajustes
   table_element.gd  un objeto de la mesa: el paquete que se abre, el botin que

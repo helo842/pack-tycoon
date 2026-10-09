@@ -31,7 +31,10 @@ Main.tscn          la escena principal: el punto de entrada del juego
 Game.tscn          la partida
 Menu.tscn          el menu de inicio
 ShopPanel.tscn     la tienda
+ItemCard.tscn      la ficha de un item de la tienda
 AutoBuyPanel.tscn  el mini menu de la compra automatica
+LockerPanel.tscn   el armario: el inventario y las vitrinas
+RebirthPanel.tscn  la hucha: reiniciar la partida a cambio de monedas
 RevealCard.tscn    la tarjeta de revelado
 SettingsPanel.tscn los ajustes
 ui/

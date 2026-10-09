@@ -273,6 +273,43 @@ func _cuantos_abriendo(g: Node) -> int:
 	return n
 
 
+## Los numeros de dano que hay AHORA MISMO colgando de una capa.
+##
+## Se reconocen por su MARCA y no por su color: el color es justo lo que se
+## quiere comprobar, y filtrar por lo que estas midiendo convierte la
+## comprobacion en una pregunta al aire. La capa de los avisos tambien lleva los
+## "+" de las ventas, y esos no son golpes.
+##
+## Y tampoco por el NOMBRE, aunque el nodo lo lleve: Godot renombra a los
+## hermanos repetidos (DamagePop, DamagePop2...), asi que por nombre exacto solo
+## se encuentra el primero. Ver DamagePopup.MARK.
+func _popups(de: Node) -> Array:
+	var salida: Array = []
+	if de == null:
+		return salida
+	for c in de.get_children():
+		var n := c as PixelNumber
+		if n != null and n.has_meta(DamagePopup.MARK):
+			salida.append(n)
+	return salida
+
+
+## El texto de la primera etiqueta de un arbol que EMPIECE por esto.
+##
+## Hace falta para leer un rotulo del que no se sabe el numero: _dice() pregunta
+## por un texto exacto, y "AHORA: 7 A LA VEZ" cambia con el nivel. Devuelve "" si
+## no hay ninguna, que es lo que distingue "no esta" de "esta y dice esto".
+func _etiqueta(de: Node, empieza: String) -> String:
+	var pila: Array = [de]
+	while not pila.is_empty():
+		var n: Node = pila.pop_back()
+		var l := n as Label
+		if l != null and l.text.begins_with(empieza):
+			return l.text
+		pila.append_array(n.get_children())
+	return ""
+
+
 # --------------------------------------------------------------------------- #
 # Que no se salga nada del marco
 # --------------------------------------------------------------------------- #
@@ -369,6 +406,80 @@ func _visible(n: Control, solo_glifo: bool = false) -> Rect2:
 			r = r.intersection(c.get_global_rect())
 		p = p.get_parent()
 	return r
+
+
+## El rectangulo DIBUJADO de un sprite: su TINTA, no su lienzo.
+##
+## El lienzo de estos sprites es de 512x512 con el dibujo en medio, asi que
+## comparar la caja del TextureRect contra un texto dice que se pisan siempre.
+## Con el alfa del sprite (get_used_rect) se sabe donde empieza la tinta de
+## verdad, sin inventar margenes a ojo.
+func _dibujo(t: TextureRect) -> Rect2:
+	if t.texture == null:
+		return Rect2()
+	var r := t.get_global_rect()
+	var img := t.texture.get_image()
+	if img == null:
+		return r
+	if img.is_compressed() and img.decompress() != OK:
+		return r
+	var caja: Rect2i = img.get_used_rect()
+	var esc := Vector2(r.size.x / float(img.get_width()),
+			r.size.y / float(img.get_height()))
+	return Rect2(r.position + Vector2(caja.position) * esc, Vector2(caja.size) * esc)
+
+
+## Textos cuya tinta se mete debajo de un DIBUJO, sin que el dibujo lo contenga
+## (un numero dentro de su chapa SI lo contiene, y eso no es un fallo).
+##
+## Es la fuga que no ve ninguno de los otros checks: el texto no se sale de la
+## pantalla ni pisa una chapa, se mete debajo del DIBUJO que tiene al lado. Paso
+## en la ficha de la tienda, con las lineas de la descripcion dibujadas encima
+## del dibujo del objeto (la columna de texto se colocaba por su BORDE y
+## label_at() coloca por su CENTRO: ver item_card.gd, COL_X y COL_MID). En una
+## captura eso se ve, pero no se mide, y el fallo volvio dos veces.
+func _pisados(de: Node) -> Array:
+	var textos: Array = []
+	var dibujos: Array = []
+	var pila: Array = [de]
+	while not pila.is_empty():
+		var n: Node = pila.pop_back()
+		var c := n as Control
+		if c != null and c.visible:
+			if c is Label or c is PixelNumber:
+				var r := _visible(c, true)
+				if r.size.x > 0.0 and r.size.y > 0.0:
+					textos.append([c, r])
+			elif c is TextureRect and (c as TextureRect).texture != null:
+				var b := _dibujo(c as TextureRect)
+				if b.size.x > 0.0 and b.size.y > 0.0:
+					dibujos.append([c, b])
+		pila.append_array(n.get_children())
+	var malas: Array = []
+	for t in textos:
+		for d in dibujos:
+			var a: Rect2 = t[1]
+			var b: Rect2 = d[1]
+			# Los glifos de un numero son hijos SUYOS: no cuentan.
+			if _uno_dentro_de(d[0], t[0]):
+				continue
+			if b.encloses(a) or a.encloses(b):
+				continue
+			if a.intersects(b):
+				malas.append("\"%s\" %s pisa %s %s" % [_texto_de(t[0]), str(a),
+						str((d[0] as TextureRect).texture.resource_path).get_file(), str(b)])
+	return malas
+
+
+## Check de que una pantalla no dibuje texto encima de un objeto. Cada fuga
+## imprime lo que pisa y donde, que es lo que hace falta para saber que mover.
+func _check_sin_pisar_dibujos(what: String, de: Node) -> void:
+	if de == null:
+		return
+	var malas := _pisados(de)
+	_check(what, malas.is_empty())
+	for m in malas:
+		print("         encima del dibujo: ", m)
 
 
 func _texto_de(n: Control) -> String:
@@ -807,6 +918,100 @@ func _run() -> void:
 	_check_cabe("la tienda no saca texto del panel", shop, PANEL)
 	_check_sin_encimarse("la tienda no pone texto encima de una chapa", shop)
 
+	# LAS CAJAS. Cada item se dibuja como una caja de 320x264 en rejilla de cuatro
+	# por dos. Es una medida que se sale por abajo sin que nada mas lo note (el
+	# marco del panel no recorta), asi que se mide: las ocho dentro del recuadro
+	# interior y ninguna pisando a otra.
+	var cajas: Array = []
+	var sin_filete: Array = []
+	for i in shop._item_cells.size():
+		var celda: Dictionary = shop._item_cells[i]
+		var caja_fondo: ColorRect = celda["back"]
+		cajas.append(Rect2(caja_fondo.position, caja_fondo.size))
+		if (celda["frame"] as Array).size() != 4:
+			sin_filete.append(str(i + 1))
+	_check("cada item de la tienda se dibuja como una caja", sin_filete.is_empty())
+	var fuera_caja: Array = []
+	var pisadas: Array = []
+	for i in cajas.size():
+		if not PANEL.encloses(cajas[i]):
+			fuera_caja.append("%d: %s" % [i + 1, str(cajas[i])])
+		for j in range(i + 1, cajas.size()):
+			if (cajas[i] as Rect2).intersects(cajas[j]):
+				pisadas.append("%d-%d" % [i + 1, j + 1])
+	_check("y las ocho cajas caben en la rejilla del panel", fuera_caja.is_empty())
+	_check("sin pisarse ninguna con otra", pisadas.is_empty())
+	for f in fuera_caja:
+		print("         caja fuera: ", f)
+	for p in pisadas:
+		print("         cajas pisadas: ", p)
+	_check("la caja lleva dentro el dibujo del item",
+		_usa_sprite(shop._item_cells[0]["art"], "item_guantes"))
+
+	# LA FICHA. La caja no compra: abre la ficha del item (ver ItemCard), que es
+	# donde estan la descripcion larga y los numeros que cambian con el nivel.
+	var guantes := LootDB.item_index("guantes")
+	var capas_antes: int = _main._overlay_host.get_child_count()
+	shop._open_card(guantes)
+	await get_tree().process_frame
+	var ficha = shop._card
+	_check("el clic en una caja abre la ficha del item", ficha != null)
+	_check("y la ficha se cuelga de la capa de encima, no dentro del panel",
+		ficha != null and ficha.get_parent() == _main._overlay_host)
+	if ficha != null:
+		_check("la ficha dice de que item es", _dice(ficha, "GUANTES"))
+		# La descripcion larga NO cabe en una linea (por eso UIKit.wrap()): se
+		# comprueba que estan TODAS sus lineas, no solo la primera.
+		var faltan: Array = []
+		for linea in UIKit.wrap(str(LootDB.item_at(guantes)["detail"]),
+				ItemCard.COL_W, 21):
+			if not _dice(ficha, str(linea)):
+				faltan.append(str(linea))
+		_check("la ficha trae la descripcion larga entera", faltan.is_empty())
+		for f in faltan:
+			print("         falta la linea: ", f)
+		# LOS NUMEROS. El de AHORA y el que tendra al subir, los dos sacados de la
+		# formula de verdad (LootDB.item_effect): la ficha no puede decir una cosa y
+		# el juego hacer otra.
+		_check("la ficha ense\u00f1a el efecto que tiene AHORA",
+			_etiqueta(ficha, "AHORA:") == "AHORA: " + LootDB.item_effect(guantes, 0))
+		_check("y el que tendra en el nivel siguiente",
+			_etiqueta(ficha, "NIVEL 1:") == "NIVEL 1: " + LootDB.item_effect(guantes, 1))
+		_check("los dos numeros son distintos: el efecto sube con el nivel",
+			LootDB.item_effect(guantes, 0) != LootDB.item_effect(guantes, 1))
+		_check_dentro_de("el precio de la ficha cabe en su chapa",
+			ficha.find_child("Cost", true, false), ficha.find_child("Tag", true, false))
+		_check_cabe("la ficha no saca texto del panel", ficha, PANEL)
+		_check_sin_encimarse("la ficha no pone texto encima de una chapa", ficha)
+		var comprar := _boton_de(ficha, "COMPRAR")
+		_check("la ficha trae el boton de comprar", comprar != null)
+		# Y con el dinero de una partida nueva (500) no llega para los guantes
+		# (900): la ficha pide la compra a la tienda, que es la que cobra, y por eso
+		# el nivel no sube ni se gasta nada.
+		_check("y el item no esta comprado todavia", Game.item_level(guantes) == 0)
+		if comprar != null:
+			comprar.pressed.emit()
+		await get_tree().process_frame
+		_check("sin dinero la ficha no compra", Game.item_level(guantes) == 0)
+	shop._close_card()
+	await get_tree().process_frame
+	_check("cerrar la ficha deja la tienda abierta y sin nada encima",
+		g._shop == shop and shop._card == null
+		and _main._overlay_host.get_child_count() == capas_antes)
+
+	# La ficha de una pieza de compra unica: donde iria el nivel siguiente dice lo
+	# que pasa AL COMPRARLA, que es lo unico que se puede decidir con ella.
+	shop._open_card(LootDB.item_index("pc"))
+	await get_tree().process_frame
+	var ficha_pc = shop._card
+	_check("la ficha del PC dice que es de una sola compra",
+		ficha_pc != null and _dice(ficha_pc, "PC") and _dice(ficha_pc, "COMPRA UNICA"))
+	_check("y anuncia lo que pasa al comprarlo, no un nivel siguiente",
+		ficha_pc != null and _etiqueta(ficha_pc, "AL COMPRARLO:") != ""
+		and _etiqueta(ficha_pc, "NIVEL 1:") == "")
+	shop._close_card()
+	await get_tree().process_frame
+
 	# El sobre inicial se compra DESDE LA COLUMNA de la izquierda, no desde el
 	# panel, y no cuesta nada NUNCA (no es "el primero gratis").
 	g._buy_pack("cards")
@@ -840,6 +1045,64 @@ func _run() -> void:
 	await _wait(0.4)
 	_check("un clic no abre la caja del todo", not el.is_opening())
 	_check("la resistencia ha bajado", el.hp < el.max_hp)
+
+	# --- el numero del dano ---
+	# Al cerrarse el aro sale el numero del golpe ENCIMA del paquete, con la misma
+	# pieza que los avisos de venta. Sin el Ojo verde la probabilidad de critico es
+	# CERO, asi que este es un golpe normal y su numero tiene que salir en naranja.
+	var pops := _popups(g._fx)
+	_check("el golpe saca su numero de dano en la mesa", pops.size() >= 1)
+	if not pops.is_empty():
+		var num: PixelNumber = pops[pops.size() - 1]
+		_check("y dice el dano que ha hecho el golpe",
+			num.get_text() == PixelNumber.format(roundi(Game.damage_per_hit())))
+		_check("un golpe normal sale en naranja",
+			num.color == DamagePopup.NORMAL and num.color != DamagePopup.CRIT)
+		_check("y el numero sale encima del paquete, no debajo de el",
+			num.get_global_rect().get_center().y < el.get_global_rect().get_center().y)
+
+	# Y UN CRITICO SALE EN AMARILLO, y mas grande. Para no depender de la suerte se
+	# pone el Ojo verde AL TOPE y se le dan sesenta tiradas. El tope y el numero de
+	# tiradas son parte del arreglo, no adorno: la probabilidad es de un 5 % POR
+	# NIVEL (LootDB.CRIT_CHANCE_PER_LEVEL), asi que con el nivel 1 y treinta tiradas
+	# esto fallaba una vez de cada cinco por pura mala suerte, que es la peor clase
+	# de test (dice que el juego esta roto cuando el que tiene mala suerte es el que
+	# lo mira). Al 8 son el 40 % y no fallar sale gratis: la probabilidad de que no
+	# salga ninguno son 0,6^60. Y se golpea un paquete APARTE -el de arriba hay que
+	# romperlo para seguir con el revelado- con la resistencia puesta por las nubes,
+	# que asi aguanta las tiradas sin romperse.
+	var crit_pop: PixelNumber = null
+	var normal_pop: PixelNumber = null
+	var crudo: TableElement = g._spawn_pack("cards")
+	await get_tree().process_frame
+	Game.items[LootDB.item_index("ojo_verde")] = 8
+	_check("el Ojo verde enciende el critico", Game.crit_chance() > 0.0)
+	var hp_guardada := crudo.hp
+	crudo.hp = 1000000.0
+	crudo.max_hp = 1000000.0
+	for i in 60:
+		crudo._strike()
+		for p in _popups(g._fx):
+			var n: PixelNumber = p
+			if n.color == DamagePopup.CRIT and crit_pop == null:
+				crit_pop = n
+			elif n.color == DamagePopup.NORMAL and normal_pop == null:
+				normal_pop = n
+		if crit_pop != null and normal_pop != null:
+			break
+	_check("un golpe critico saca su numero en amarillo", crit_pop != null)
+	_check("y su numero es el del critico, el doble que el del golpe normal",
+		crit_pop != null and crit_pop.get_text() == PixelNumber.format(
+				roundi(Game.damage_per_hit() * Game.crit_mult())))
+	_check("el numero del critico es mas grande que el del golpe normal",
+		crit_pop != null and normal_pop != null
+		and crit_pop.scale_factor > normal_pop.scale_factor)
+	Game.items[LootDB.item_index("ojo_verde")] = 0
+	crudo.hp = hp_guardada
+	crudo.max_hp = float(LootDB.pack_hp("cards"))
+	g._drop_element(crudo)
+	crudo.queue_free()
+	await get_tree().process_frame
 
 	# --- los items suben el dano y aceleran la carga ---
 	var cero := [0, 0, 0, 0, 0, 0, 0, 0]
@@ -941,12 +1204,24 @@ func _run() -> void:
 	_check("guardar mete el objeto en el inventario", Game.inventory.size() == 1)
 	_check("guardar lo quita de la mesa", g.table_count() == 0)
 
-	# --- vender desde el inventario ---
+	# --- vender desde el panel del armario ---
+	# El inventario YA NO esta en la pantalla de partida: vive en el panel del
+	# armario (ver LockerPanel), que es el unico sitio desde el que se vende. Se
+	# abre con el mismo metodo que llama su boton y se vende todo lo guardado.
+	g._open_locker()
+	await get_tree().process_frame
+	var armario = g._locker
+	_check("el boton del armario abre su panel", armario != null)
 	var money_inv: int = Game.money
-	g._sell_inventory_slot(0)
+	if armario != null:
+		armario._sell_all()
 	await _wait(0.3)
 	_check("lo guardado se puede vender", Game.inventory.is_empty())
 	_check("vender del inventario suma el valor", Game.money > money_inv)
+	if armario != null:
+		g._close_locker()
+		await get_tree().process_frame
+	_check("y el panel del armario se cierra", g._locker == null)
 
 	# --- el otro boton: vender desde la tarjeta ---
 	var el_sell: TableElement = g._spawn_pack("cards")
@@ -1228,6 +1503,85 @@ func _run() -> void:
 	_check("se puede comprar un paquete caro", g.table_count() == 1)
 	_check("un sobre de pago si cobra",
 		Game.money == money_paid - int(LootDB.pack_by_id("electronics")["price"]))
+
+	# Y se compra DESDE LA PROPIA FICHA, que es para lo que esta: con los numeros
+	# delante (lo que tienes y lo que tendras) y a un clic. Lo que hace la ficha es
+	# PEDIR la compra; el que cobra es la tienda, asi que tiene que costar y avisar
+	# igual que comprando desde la caja.
+	var capas2: int = _main._overlay_host.get_child_count()
+	shop2._open_card(0)
+	await get_tree().process_frame
+	var ficha2 = shop2._card
+	_check("la ficha se abre tambien con dinero de sobra", ficha2 != null)
+	if ficha2 != null:
+		var nivel_antes: int = Game.item_level(0)
+		var antes := _etiqueta(ficha2, "AHORA:")
+		var money_ficha: int = Game.money
+		var coste_ficha := Game.item_cost(0)
+		var boton := _boton_de(ficha2, "COMPRAR")
+		if boton != null:
+			boton.pressed.emit()
+		await get_tree().process_frame
+		_check("comprar desde la ficha sube el nivel",
+			Game.item_level(0) == nivel_antes + 1)
+		_check("y cuesta lo mismo que comprar desde la caja",
+			Game.money == money_ficha - coste_ficha)
+		# Los numeros se repintan solos al subir el nivel (la ficha escucha
+		# Game.items_changed): es lo que se le pide a una ficha de mejoras.
+		var despues := _etiqueta(ficha2, "AHORA:")
+		_check("y los numeros de la ficha cambian con el nivel",
+			despues != "" and despues != antes
+			and despues == "AHORA: " + LootDB.item_effect(0, Game.item_level(0)))
+		_check("y sigue enseñando el del nivel siguiente",
+			_etiqueta(ficha2, "NIVEL %d:" % (Game.item_level(0) + 1))
+			== "NIVEL %d: " % (Game.item_level(0) + 1)
+			+ LootDB.item_effect(0, Game.item_level(0) + 1))
+	# Y NO SOLO LA DEL GUANTE: la ficha de los OCHO items, una por una. La captura
+	# 04b solo puede enseñar una, y el fallo que se escapa con una sola es justo el
+	# que no se ve: una ficha que enseña el nombre o el numero de OTRO item (los
+	# cuatro sitios donde se lee el indice se cruzan con facilidad), o una
+	# descripcion larga que se sale de la columna de texto.
+	var malas_fichas: Array = []
+	for i in LootDB.item_count():
+		shop2._open_card(i)
+		await get_tree().process_frame
+		var ficha_i = shop2._card
+		if ficha_i == null:
+			malas_fichas.append("item %d: no abre" % (i + 1))
+			continue
+		var item_i: Dictionary = LootDB.item_at(i)
+		if not _dice(ficha_i, str(item_i["name"])):
+			malas_fichas.append("item %d: no lleva su nombre (%s)"
+					% [i + 1, str(item_i["name"])])
+		var suyo := "AHORA: " + LootDB.item_effect(i, Game.item_level(i))
+		if _etiqueta(ficha_i, "AHORA:") != suyo:
+			malas_fichas.append("item %d: el numero de AHORA no es el suyo (dice \"%s\" y son \"%s\")"
+					% [i + 1, _etiqueta(ficha_i, "AHORA:"), suyo])
+		for linea in UIKit.wrap(str(item_i["detail"]), ItemCard.COL_W, 21):
+			if not _dice(ficha_i, str(linea)):
+				malas_fichas.append("item %d: le falta la linea \"%s\""
+						% [i + 1, str(linea)])
+		for f in _fuera(ficha_i, PANEL):
+			malas_fichas.append("item %d: se sale del panel %s" % [i + 1, str(f)])
+		# Y el texto no encima del DIBUJO, que es el fallo que se colo aqui: la
+		# descripcion larga se dibujaba sobre el objeto.
+		_check_sin_pisar_dibujos("la ficha del item %d no dibuja el texto encima del objeto"
+				% (i + 1), ficha_i)
+		shop2._close_card()
+		await get_tree().process_frame
+	_check("las ocho fichas son de su item, con su nombre, su descripcion y su numero",
+		malas_fichas.is_empty())
+	for f in malas_fichas:
+		print("         ficha: ", f)
+
+	# Y la ficha NO deja rastro al cerrarse: la capa de encima vuelve a tener
+	# exactamente los mismos hijos que antes de abrirla.
+	shop2._open_card(0)
+	await get_tree().process_frame
+	shop2._close_card()
+	await get_tree().process_frame
+	_check("y al cerrarla no se queda colgada encima de la mesa",
+		_main._overlay_host.get_child_count() == capas2)
 	shop2._close()
 	await get_tree().process_frame
 	_check("la tienda se cierra", g._shop == null)
@@ -1305,12 +1659,188 @@ func _run() -> void:
 	_check("el dinero no pisa el rotulo de la mesa",
 			g._money.get_global_rect().end.x
 			< g._table_label.get_global_rect().position.x - 8.0)
+
+	# La ficha de un item que ya no se puede subir mas: donde estaria el boton dice
+	# AL TOPE, y no hay ni chapa de precio ni nada que pulsar. Y el numero de AHORA
+	# sigue estando, que es lo que se ha comprado.
+	shop3._open_card(0)
+	await get_tree().process_frame
+	var ficha3 = shop3._card
+	_check("la ficha de un item al tope lo dice y no trae boton",
+		ficha3 != null and _dice(ficha3, "AL TOPE")
+		and _boton_de(ficha3, "COMPRAR") == null
+		and ficha3.find_child("Tag", true, false) == null)
+	_check("y sigue enseñando el numero que tiene",
+		ficha3 != null and _etiqueta(ficha3, "AHORA:")
+		== "AHORA: " + LootDB.item_effect(0, Game.item_level(0)))
+	_check_cabe("la ficha al tope no saca texto del panel", ficha3, PANEL)
+	shop3._close_card()
+	await get_tree().process_frame
+	shop3._open_card(LootDB.item_index("pc"))
+	await get_tree().process_frame
+	_check("la ficha del PC comprado dice COMPRADO",
+		shop3._card != null and _dice(shop3._card, "COMPRADO"))
+	shop3._close_card()
+	await get_tree().process_frame
 	shop3._close()
 	await get_tree().process_frame
+
+	# --- el armario: exponer, huecos y bonus ---
+	# El armario es un TRATO con vuelta atras: el objeto sale del inventario (deja
+	# de poder venderse), entra en una vitrina y da el bonus de SU tipo. Aqui se
+	# comprueba el trato entero, que es lo que no se ve en una captura: lo que
+	# sale de un sitio, lo que entra en el otro, lo que sube el stat y que los
+	# huecos son los del nivel comprado.
+	Game.money = 100000000
+	Game.inventory.clear()
+	Game.locker.clear()
+	Game.items[LootDB.item_index("armario")] = 2
+	var rng_arm := RandomNumberGenerator.new()
+	var carta10 := LootDB.roll_item(rng_arm, "cards")
+	carta10["grade"] = LootDB.GRADE_MAX
+	carta10["value"] = LootDB.final_value(carta10, LootDB.GRADE_MAX)
+	Game.store(carta10)
+	# DOS objetos mas, para poder llenar los dos huecos y comprobar que el tercero
+	# NO entra: los huecos son la unica razon de subir el armario de nivel.
+	for i in 2:
+		var extra := LootDB.roll_item(rng_arm, "vinyls")
+		extra["grade"] = LootDB.PSA_MIN
+		extra["value"] = LootDB.final_value(extra, LootDB.PSA_MIN)
+		Game.store(extra)
+	_check("el armario empieza con los huecos que dice su nivel", Game.locker_slots() == 2)
+	g._open_locker()
+	await get_tree().process_frame
+	var arm = g._locker
+	_check("el boton del armario abre su panel", arm != null)
+	if arm != null:
+		_check("y trae los %d huecos del inventario" % Game.INVENTORY_SLOTS,
+			arm._inv_cells.size() == Game.INVENTORY_SLOTS)
+		_check("y los ocho marcos del tope del armario",
+			arm._locker_cells.size() == LootDB.LOCKER_SLOTS_MAX)
+		var dano_antes: float = Game.damage_per_hit()
+		var inv_antes: int = Game.inventory.size()
+		# Exponer es pulsar el objeto en la rejilla de la izquierda.
+		arm._inv_cells[0]["button"].pressed.emit()
+		await get_tree().process_frame
+		_check("exponer saca el objeto del inventario",
+			Game.inventory.size() == inv_antes - 1)
+		_check("y lo mete en el armario", Game.locker.size() == 1)
+		# La nota PSA manda en el bonus: la 10 da el tope de LootDB y la 1 el minimo.
+		_check("una carta de nota 10 da el tope del bonus",
+			is_equal_approx(Game.kind_bonus("cards"), LootDB.KIND_BONUS_MAX))
+		_check("y la misma carta con nota 1 daria el minimo",
+			is_equal_approx(LootDB.bonus_for({"kind": "cards", "grade": 1}),
+				LootDB.KIND_BONUS_MIN))
+		_check("y el dano del golpe sube con ella",
+			is_equal_approx(Game.damage_per_hit(),
+				dano_antes * (1.0 + LootDB.KIND_BONUS_MAX)))
+		# Cada tipo va a lo suyo y no todo al dano: son cuatro stats distintos.
+		_check("las zapatillas dan velocidad",
+			str(LootDB.kind_row("sneakers")["stat"]) == "VELOCIDAD")
+		_check("los vinilos dan dinero",
+			str(LootDB.kind_row("vinyls")["stat"]) == "DINERO")
+		_check("la electronica da rebirth",
+			str(LootDB.kind_row("electronics")["stat"]) == "REBIRTH")
+		# Los huecos son los del nivel: con dos, el tercero no entra y el objeto se
+		# queda donde estaba (no se pierde por pulsar).
+		arm._inv_cells[0]["button"].pressed.emit()
+		await get_tree().process_frame
+		_check("con los dos huecos llenos cabe un segundo objeto", Game.locker.size() == 2)
+		arm._inv_cells[0]["button"].pressed.emit()
+		await get_tree().process_frame
+		_check("y el tercero ya no entra",
+			Game.locker.size() == 2 and Game.inventory.size() == 1)
+		# La vitrina de la pantalla de partida enseña lo que hay expuesto.
+		_check("la vitrina de la partida enseña el objeto expuesto",
+			g._locker_slots[0]["holder"].get_child_count() > 1)
+		_check("y su rotulo cuenta los huecos",
+			g._locker_label.text == "ARMARIO %d/%d EXPUESTOS" % [Game.locker_size(),
+				Game.locker_slots()])
+		# Devolverlo lo saca de la vitrina: exponer no puede ser sin vuelta atras.
+		arm._locker_cells[0]["button"].pressed.emit()
+		await get_tree().process_frame
+		_check("pulsar un objeto expuesto lo devuelve al inventario",
+			Game.locker.size() == 1 and Game.inventory.size() == 2)
+		_check_cabe("el panel del armario no saca texto del panel", arm, PANEL)
+		_check_sin_encimarse("el panel del armario no pone texto encima de una chapa", arm)
+		_check_sin_pisar_dibujos("el panel del armario no dibuja el texto encima de un objeto", arm)
+		g._close_locker()
+		await get_tree().process_frame
+	_check("y el panel del armario se cierra", g._locker == null)
+	_check("la tira de la vitrina trae los ocho huecos del tope",
+		g._locker_slots.size() == LootDB.LOCKER_SLOTS_MAX)
+	# El inventario de la pantalla de partida se ha quitado a proposito: vive en el
+	# panel del armario, que es donde se decide que se expone y que se vende.
+	_check("el inventario ya no vive en la pantalla de partida",
+		not g.has_method("_refresh_inventory") and Game.INVENTORY_SLOTS == 50)
 
 	# --- guardado ---
 	Game.save_game()
 	_check("el fichero de guardado existe", FileAccess.file_exists(Game.SAVE_PATH))
+
+	# --- rebirth: la hucha ---
+	# El requisito se mide en lo GANADO en la partida (lifetime_earned) y no en el
+	# dinero que se tenga: guardar para el final no cambia nada. Y las monedas que
+	# da salen del MISMO calculo que enseña el panel, que es lo unico que impide
+	# que la pantalla prometa una cosa y pase otra.
+	Game.inventory.clear()
+	Game.locker.clear()
+	for i in Game.items.size():
+		Game.items[i] = 0
+	Game.rebirth_coins = 0
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
+	_check("con lo justo el rebirth da una moneda", Game.pending_rebirth_coins() == 1)
+	_check("y sin armario el multiplicador del rebirth es 1",
+		is_equal_approx(Game.rebirth_multiplier(), 1.0))
+	# La ELECTRONICA expuesta es lo unico que sube el premio del rebirth: por eso
+	# el tipo de cada objeto importa y no todos dan lo mismo.
+	var chip := LootDB.roll_item(RandomNumberGenerator.new(), "electronics")
+	chip["grade"] = LootDB.GRADE_MAX
+	Game.locker.append(chip)
+	_check("la electronica expuesta sube el multiplicador del rebirth",
+		is_equal_approx(Game.rebirth_multiplier(), 1.0 + LootDB.KIND_BONUS_MAX))
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE * 10
+	_check("y con diez millones da mas monedas que sin ella",
+		Game.pending_rebirth_coins() > 10
+		and Game.pending_rebirth_coins()
+			== LootDB.rebirth_coins_for(Game.lifetime_earned, Game.rebirth_multiplier()))
+	# El panel del menu: la hucha, lo que te llevarias y reiniciar de verdad. Se
+	# cambia de pantalla y YA NO se puede usar la partida: por eso este es el
+	# ultimo trozo del test (todo lo de arriba se mide con la pantalla de juego).
+	_main.show_menu()
+	await get_tree().process_frame
+	var inicio = _main._screen_host.get_child(0)
+	_check("el menu trae el boton del rebirth",
+		inicio != null and inicio._rebirth_btn != null)
+	var hucha = null
+	if inicio != null and inicio._rebirth_btn != null:
+		inicio._rebirth_btn.pressed.emit()
+		await get_tree().process_frame
+		hucha = inicio._rebirth
+		_check("y abre el panel de la hucha", hucha != null)
+	if hucha != null:
+		var premio: int = Game.pending_rebirth_coins()
+		_check("el panel enseña las monedas que va a dar",
+			hucha._coins.get_text() == PixelNumber.format(premio))
+		_check_cabe("el panel del rebirth no saca texto del panel", hucha, PANEL)
+		_check_sin_encimarse("el panel del rebirth no pone texto encima de una chapa", hucha)
+		_check_sin_pisar_dibujos("el panel del rebirth no dibuja el texto encima de la hucha",
+			hucha)
+		var coins_antes: int = Game.rebirth_coins
+		hucha._go.pressed.emit()
+		await get_tree().process_frame
+		_check("el rebirth da las monedas que prometia",
+			Game.rebirth_coins == coins_antes + premio)
+		_check("y la partida vuelve a empezar de cero",
+			Game.money == Game.START_MONEY and Game.locker.is_empty()
+			and Game.inventory.is_empty() and Game.item_level(0) == 0)
+		_check("y el panel se cierra solo", inicio._rebirth == null)
+	# Las monedas de rebirth son la paga permanente: TODO lo que se venda vale mas
+	# con ellas, y por eso el multiplicador del valor las lleva dentro.
+	_check("y las monedas suben el valor de lo que se vende",
+		is_equal_approx(Game.rebirth_value_mult(),
+			1.0 + LootDB.REBIRTH_VALUE_PER_COIN * float(Game.rebirth_coins))
+		and Game.value_multiplier() > 1.0)
 
 	print("")
 	if _fails.is_empty():

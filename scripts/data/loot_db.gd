@@ -67,13 +67,13 @@ const PACKS: Array = [
 		"art": "pack_cards", "art_open": "pack_cards_open",
 		"loot": [
 			{"id": "card_c", "name": "CARTA COMUN", "art": "loot_card_common", "graded": true,
-				"rarity": "common", "value": 55, "w": 55},
+				"kind": "cards", "rarity": "common", "value": 55, "w": 55},
 			{"id": "card_r", "name": "CARTA EDICION LIMITADA", "art": "loot_card_edited", "graded": true,
-				"rarity": "rare", "value": 260, "w": 30},
+				"kind": "cards", "rarity": "rare", "value": 260, "w": 30},
 			{"id": "card_e", "name": "CARTA VIEJA", "art": "loot_card_vintage", "graded": true,
-				"rarity": "epic", "value": 1150, "w": 12},
+				"kind": "cards", "rarity": "epic", "value": 1150, "w": 12},
 			{"id": "card_l", "name": "CARTA HOLOGRAFICA", "art": "loot_card_foil", "graded": true,
-				"rarity": "legendary", "value": 5400, "w": 3},
+				"kind": "cards", "rarity": "legendary", "value": 5400, "w": 3},
 		],
 	},
 	{
@@ -81,13 +81,13 @@ const PACKS: Array = [
 		"art": "pack_vinyls", "art_open": "pack_vinyls_open",
 		"loot": [
 			{"id": "vinyl_c", "name": "VINILO", "art": "loot_vinyl", "graded": true,
-				"rarity": "common", "value": 380, "w": 52},
+				"kind": "vinyls", "rarity": "common", "value": 380, "w": 52},
 			{"id": "vinyl_d", "name": "DOBLE LP", "art": "loot_vinyl_double", "graded": true,
-				"rarity": "rare", "value": 1450, "w": 31},
+				"kind": "vinyls", "rarity": "rare", "value": 1450, "w": 31},
 			{"id": "vinyl_n", "name": "EDICION NUMERADA", "art": "loot_vinyl_numbered",
-				"graded": true, "rarity": "epic", "value": 5200, "w": 14},
+				"graded": true, "kind": "vinyls", "rarity": "epic", "value": 5200, "w": 14},
 			{"id": "vinyl_x", "name": "PRENSADO EN COLOR", "art": "loot_vinyl_color",
-				"graded": true, "rarity": "legendary", "value": 24000, "w": 3},
+				"graded": true, "kind": "vinyls", "rarity": "legendary", "value": 24000, "w": 3},
 		],
 	},
 	{
@@ -95,14 +95,14 @@ const PACKS: Array = [
 		"art": "pack_sneakers", "art_open": "pack_sneakers_open",
 		"loot": [
 			{"id": "shoe_c", "name": "ZAPATILLA BLANCA", "art": "loot_sneaker", "graded": true,
-				"rarity": "common", "value": 1800, "w": 48},
+				"kind": "sneakers", "rarity": "common", "value": 1800, "w": 48},
 			{"id": "shoe_l", "name": "ZAPATILLA DE PIEL", "art": "loot_sneaker_leather",
-				"graded": true, "rarity": "rare", "value": 7200, "w": 32},
+				"graded": true, "kind": "sneakers", "rarity": "rare", "value": 7200, "w": 32},
 			{"id": "shoe_r", "name": "ZAPATILLA A RESTAURAR", "art": "loot_sneaker_restore",
-				"graded": true, "rarity": "epic", "value": 28000, "w": 16},
+				"graded": true, "kind": "sneakers", "rarity": "epic", "value": 28000, "w": 16},
 			{"id": "shoe_x", "name": "ZAPATILLA LIMITADA",
 				"art": "loot_sneaker_limited", "graded": true,
-				"rarity": "legendary", "value": 130000, "w": 4},
+				"kind": "sneakers", "rarity": "legendary", "value": 130000, "w": 4},
 		],
 	},
 	{
@@ -110,57 +110,57 @@ const PACKS: Array = [
 		"art": "pack_electronics", "art_open": "pack_electronics_open",
 		"loot": [
 			{"id": "cons_c", "name": "CONSOLA", "art": "loot_console", "graded": true,
-				"rarity": "common", "value": 6000, "w": 30},
+				"kind": "electronics", "rarity": "common", "value": 6000, "w": 30},
 			{"id": "head_c", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
-				"rarity": "common", "value": 4200, "w": 20},
+				"kind": "electronics", "rarity": "common", "value": 4200, "w": 20},
 			{"id": "cam_c", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"rarity": "common", "value": 9000, "w": 18},
+				"kind": "electronics", "rarity": "common", "value": 9000, "w": 18},
 			{"id": "cart_c", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
-				"rarity": "common", "value": 1800, "w": 14},
+				"kind": "electronics", "rarity": "common", "value": 1800, "w": 14},
 			{"id": "hand_c", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
-				"rarity": "common", "value": 9000, "w": 7},
+				"kind": "electronics", "rarity": "common", "value": 9000, "w": 7},
 			{"id": "cons_r", "name": "CONSOLA", "art": "loot_console", "graded": true,
-				"rarity": "rare", "value": 20400, "w": 12},
+				"kind": "electronics", "rarity": "rare", "value": 20400, "w": 12},
 			{"id": "head_r", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
-				"rarity": "rare", "value": 14300, "w": 10},
+				"kind": "electronics", "rarity": "rare", "value": 14300, "w": 10},
 			{"id": "cam_r", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"rarity": "rare", "value": 30600, "w": 10},
+				"kind": "electronics", "rarity": "rare", "value": 30600, "w": 10},
 			{"id": "cart_r", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
-				"rarity": "rare", "value": 6120, "w": 5},
+				"kind": "electronics", "rarity": "rare", "value": 6120, "w": 5},
 			{"id": "hand_r", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
-				"rarity": "rare", "value": 30600, "w": 5},
+				"kind": "electronics", "rarity": "rare", "value": 30600, "w": 5},
 			{"id": "cons_e", "name": "CONSOLA", "art": "loot_console", "graded": true,
-				"rarity": "epic", "value": 90000, "w": 8},
+				"kind": "electronics", "rarity": "epic", "value": 90000, "w": 8},
 			{"id": "head_e", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
-				"rarity": "epic", "value": 63000, "w": 7},
+				"kind": "electronics", "rarity": "epic", "value": 63000, "w": 7},
 			{"id": "cam_e", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"rarity": "epic", "value": 135000, "w": 7},
+				"kind": "electronics", "rarity": "epic", "value": 135000, "w": 7},
 			{"id": "cart_e", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
-				"rarity": "epic", "value": 27000, "w": 2},
+				"kind": "electronics", "rarity": "epic", "value": 27000, "w": 2},
 			{"id": "hand_e", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
-				"rarity": "epic", "value": 135000, "w": 4},
+				"kind": "electronics", "rarity": "epic", "value": 135000, "w": 4},
 			{"id": "cons_l", "name": "CONSOLA", "art": "loot_console", "graded": true,
-				"rarity": "legendary", "value": 330000, "w": 5},
+				"kind": "electronics", "rarity": "legendary", "value": 330000, "w": 5},
 			{"id": "head_l", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
-				"rarity": "legendary", "value": 231000, "w": 2},
+				"kind": "electronics", "rarity": "legendary", "value": 231000, "w": 2},
 			{"id": "cam_l", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"rarity": "legendary", "value": 495000, "w": 3},
+				"kind": "electronics", "rarity": "legendary", "value": 495000, "w": 3},
 			{"id": "cart_l", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
-				"rarity": "legendary", "value": 99000, "w": 1},
+				"kind": "electronics", "rarity": "legendary", "value": 99000, "w": 1},
 			{"id": "hand_l", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
-				"rarity": "legendary", "value": 495000, "w": 2},
+				"kind": "electronics", "rarity": "legendary", "value": 495000, "w": 2},
 			# Los cuatro objetos que tenian sobre propio entran aqui: son los que le
 			# faltaban a esta tabla para ser "lo caro" del juego, y sin un sitio se
 			# quedaban sin salir nunca (y sus cuarenta sprites con ellos). Los
 			# valores van puestos al nivel de esta tabla, no al que tenian.
 			{"id": "cab_c", "name": "CABLE", "art": "loot_cable", "graded": true,
-				"rarity": "common", "value": 2200, "w": 6},
+				"kind": "electronics", "rarity": "common", "value": 2200, "w": 6},
 			{"id": "wat_r", "name": "RELOJ", "art": "loot_watch", "graded": true,
-				"rarity": "rare", "value": 15300, "w": 6},
+				"kind": "electronics", "rarity": "rare", "value": 15300, "w": 6},
 			{"id": "ing_e", "name": "LINGOTE DE ORO", "art": "loot_ingot", "graded": true,
-				"rarity": "epic", "value": 90000, "w": 3},
+				"kind": "electronics", "rarity": "epic", "value": 90000, "w": 3},
 			{"id": "pwt_l", "name": "RELOJ DE BOLSILLO", "art": "loot_pocket_watch", "graded": true,
-				"rarity": "legendary", "value": 495000, "w": 2},
+				"kind": "electronics", "rarity": "legendary", "value": 495000, "w": 2},
 		],
 	},
 	# --- los otros ocho sobres ------------------------------------------- #
@@ -241,21 +241,29 @@ const ITEM_SINGLE_LEVEL := 1
 
 const ITEMS: Array = [
 	{"id": "guantes", "name": "GUANTES", "art": "item_guantes", "base_cost": 900,
-		"desc": "VARIOS PAQUETES A LA VEZ"},
+		"desc": "VARIOS PAQUETES A LA VEZ",
+		"detail": "PUEDES TENER VARIOS PAQUETES CARGANDO A LA VEZ Y TE AGUANTAN EL TURNO. UN CLIC SIGUE EMPEZANDO SOLO EL PAQUETE QUE PULSAS."},
 	{"id": "trebol", "name": "TREBOL", "art": "item_trebol", "base_cost": 1400,
-		"desc": "MAS BOTIN RARO"},
+		"desc": "MAS BOTIN RARO",
+		"detail": "SUBE LAS PROBABILIDADES DE QUE SALGA BOTIN RARO, EPICO O LEGENDARIO. VALE PARA TODOS LOS SOBRES."},
 	{"id": "cajon", "name": "CAJON", "art": "item_cajon", "base_cost": 2600,
-		"desc": "MAS ESPACIO EN LA MESA"},
+		"desc": "MAS ESPACIO EN LA MESA",
+		"detail": "MAS HUECOS EN LA MESA PARA DEJAR PAQUETES Y OBJETOS A LA VEZ. A PARTIR DEL NIVEL 5 CADA NIVEL DA TRES HUECOS EN VEZ DE DOS."},
 	{"id": "ojo_verde", "name": "OJO VERDE", "art": "item_ojo_verde", "base_cost": 4200,
-		"desc": "PROBABILIDAD DE CRITICO"},
+		"desc": "PROBABILIDAD DE CRITICO",
+		"detail": "CADA GOLPE TIENE ESTA PROBABILIDAD DE SER CRITICO, Y UN CRITICO HACE EL DOBLE DE DANO Y SALE EN AMARILLO."},
 	{"id": "laser", "name": "LASER", "art": "item_laser", "base_cost": 6000,
-		"desc": "MAS DANO CRITICO"},
+		"desc": "MAS DANO CRITICO",
+		"detail": "SUBE EL DANO QUE HACE CADA GOLPE CRITICO. SIN CRITICOS NO HACE NADA, ASI QUE VA DETRAS DEL OJO VERDE."},
 	{"id": "pc", "name": "PC", "art": "item_pc", "base_cost": 12000,
-		"desc": "COMPRA LOS SOBRES SOLO"},
+		"desc": "COMPRA LOS SOBRES SOLO",
+		"detail": "COMPRA SOLO, AL RITMO QUE DICE AQUI, EL SOBRE MAS BARATO DE LOS QUE TENGAS MARCADOS EN SU MENU. SE PAGA UNA SOLA VEZ."},
 	{"id": "pinchos", "name": "PINCHOS", "art": "item_pinchos", "base_cost": 20000,
-		"desc": "ABRE LOS PAQUETES SOLO"},
+		"desc": "ABRE LOS PAQUETES SOLO",
+		"detail": "CON LA APERTURA AUTOMATICA ENCENDIDA GOLPEAN TODOS LOS PAQUETES DE LA MESA A LA VEZ, SIN QUE LES HAGAS CLIC. SE PAGAN UNA SOLA VEZ."},
 	{"id": "armario", "name": "ARMARIO", "art": "item_armario", "base_cost": 35000,
-		"desc": "SUBE EL VALOR DEL BOTIN"},
+		"desc": "EXPONE BOTIN Y DA SUS BONUS",
+		"detail": "CADA OBJETO QUE EXPONGAS DA EL BONUS DE SU TIPO SEGUN SU NOTA PSA, DE UN 2 % EN LA NOTA 1 A UN 15 % EN LA 10: CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO Y ELECTRONICA REBIRTH. EMPIEZAS CON UN HUECO Y LLEGAS A OCHO."},
 ]
 
 ## CADA AUTOMATIZACION VA CON SU PIEZA. Los Pinchos son la fuerza (golpean la
@@ -283,8 +291,15 @@ const CHARGE_TIME := 0.55
 const CYCLE_SPEED_PER_LEVEL := 0.05
 
 # --- el critico (Ojo verde + Laser) --------------------------------------- #
-## Probabilidad de critico con el Ojo verde comprado ("base stat 50%" del PDF).
-const CRIT_CHANCE_BASE := 0.50
+## Probabilidad de critico POR NIVEL del Ojo verde: un 5 % por nivel, o sea un
+## 40 % con los ocho.
+##
+## Antes era un 50 % fijo en cuanto comprabas el Ojo verde, y eso lo convertia en
+## un interruptor: comprarlo una vez y ya no habia nada mas que subir. Con el 5 %
+## por nivel el Ojo verde es una escalera como los demas items (cada nivel se
+## paga y se nota) y los ocho niveles juntos no llegan ni a la mitad de los
+## golpes, que es lo que se quiere: los criticos siguen siendo un premio.
+const CRIT_CHANCE_PER_LEVEL := 0.05
 ## El critico multiplica el dano; el Laser sube ese multiplicador por nivel.
 const CRIT_MULT_BASE := 2.0
 const CRIT_MULT_PER_LEVEL := 0.05
@@ -315,14 +330,53 @@ const SPIKE_DPS := 24.0
 ## porque la compra automatica no se enciende sin el).
 const AUTO_BUY_INTERVAL := 0.75
 const AUTO_BUY_BASE := 1.2
-## Armario: objetos que se pueden exponer (uno por nivel, hasta 3).
-const LOCKER_MAX := 3
+## Armario: objetos que se pueden exponer. UNO POR NIVEL, de 1 a 8.
+##
+## Hoy son 8 y no 3 porque el armario ya no es un adorno: cada objeto expuesto da
+## el bonus de su tipo (ver LOOT_KINDS) y subirlo de nivel es la forma de poner
+## mas piezas a la vez. Con 3 huecos el armario se llenaba en la primera partida y
+## dejar de subirlo era lo optimo.
+const LOCKER_SLOTS_MAX := 8
 
-# Valor extra que aporta cada objeto expuesto, por rareza.
-const LOCKER_BONUS: Dictionary = {
-	"common": 0.03, "rare": 0.06, "epic": 0.10, "legendary": 0.18,
-}
+# --- lo que da cada tipo de botin expuesto -------------------------------- #
+## LAS CUATRO CATEGORIAS NO DAN LO MISMO. Cada tipo de botin, expuesto en el
+## armario, aporta su bonus: las cartas suben el dano del golpe, las zapatillas
+## aceleran la carga del boton, los vinilos suben el valor de lo que vendes y la
+## electronica da mas puntos de rebirth.
+##
+## El tipo va escrito en cada fila de botin, en "kind" (ver kind_of()), y NO se
+## deduce del id ni del dibujo: deducirlo seria una regla escondida que se rompe
+## sola en cuanto se anade un objeto con un nombre que no empiece por lo que
+## toca. Aqui vive tambien como se llama el bonus para leerlo en la interfaz.
+const LOOT_KINDS: Array = [
+	{"id": "cards", "name": "CARTAS", "stat": "DANO", "art": "pack_cards"},
+	{"id": "vinyls", "name": "VINILOS", "stat": "DINERO", "art": "pack_vinyls"},
+	{"id": "sneakers", "name": "ZAPATILLAS", "stat": "VELOCIDAD", "art": "pack_sneakers"},
+	{"id": "electronics", "name": "ELECTRONICA", "stat": "REBIRTH", "art": "pack_electronics"},
+]
+## Lo que aporta UN objeto expuesto segun su nota PSA: de un 2 % en la nota 1 a un
+## 15 % en la nota 10, repartido a partes iguales (ver kind_bonus).
+##
+## Son porcentajes bajos a proposito: un armario lleno de piezas de nota 10 son
+## ocho objetos y cada categoria cuenta los suyos, asi que con cuatro categorias
+## llenas se llega a un +120 % repartido entre dano, velocidad, dinero y rebirth,
+## que ya es una barbaridad sin romper el juego por el camino.
+const KIND_BONUS_MIN := 0.02
+const KIND_BONUS_MAX := 0.15
 
+# --- el rebirth (la hucha) ------------------------------------------------ #
+## Lo que hay que haberse ganado EN LA PARTIDA para poder reiniciarla. Es una
+## meta redonda y a la vista (un millon) y no una cifra fina a proposito: el
+## jugador tiene que poder leer el requisito y saber donde esta.
+const REBIRTH_REQUIRE := 1000000
+## Cada cuanto ganado sale UNA moneda de rebirth. Con el requisito de arriba, el
+## primer rebirth son 1 moneda, y a partir de ahi la cuenta sube sola: ganar diez
+## millones en una partida son diez monedas.
+const REBIRTH_EARN_AT := 1000000
+## Lo que suma CADA moneda de rebirth al valor de todo lo que vendes, para
+## siempre (no se pierde en el siguiente rebirth). 5 % por moneda: con diez
+## monedas todo vale la mitad mas, y hacen falta diez rebirths para llegar.
+const REBIRTH_VALUE_PER_COIN := 0.05
 
 # --------------------------------------------------------------------------- #
 # Consultas
@@ -439,6 +493,60 @@ static func item_cost(index: int, current_level: int) -> int:
 	return int(round(base * pow(ITEM_COST_GROWTH, current_level)))
 
 
+## Una tabla de niveles con UN item puesto al nivel pedido y los demas a cero.
+##
+## Es lo que deja preguntar "y si este estuviera en el nivel 4" sin tocar la
+## partida: las funciones de efecto de abajo solo miran el nivel de SU item
+## (crit_chance solo mira el Ojo verde, table_slots solo el Cajon...), asi que
+## con los demas a cero se lee el efecto de ese item y nada mas. Lo usa la ficha
+## de la tienda para enseñar los numeros de AHORA y los del nivel siguiente.
+static func levels_with(index: int, level: int) -> Array:
+	var levels: Array = []
+	for i in ITEMS.size():
+		levels.append(level if i == clampi(index, 0, ITEMS.size() - 1) else 0)
+	return levels
+
+
+## El efecto de un item a un nivel concreto, ya escrito para leerlo.
+##
+## Devuelve TEXTO y no un numero porque cada efecto se mide en lo suyo (paquetes,
+## por ciento, segundos, dano por segundo) y decidir como se escribe eso es parte
+## del dato, no del dibujo: asi la ficha de la tienda y cualquier otro sitio que
+## lo enseñe dicen exactamente lo mismo.
+static func item_effect(index: int, level: int) -> String:
+	var levels := levels_with(index, level)
+	match str(item_at(index)["id"]):
+		"guantes":
+			return "AGUANTAS %d A LA VEZ" % open_count(levels)
+		"trebol":
+			return "+%d%% DE BOTIN RARO" % roundi(LUCK_PER_LEVEL * float(level) * 100.0)
+		"cajon":
+			return "%d HUECOS EN LA MESA" % table_slots(levels)
+		"ojo_verde":
+			return "%d%% DE GOLPES CRITICOS" % roundi(crit_chance(levels) * 100.0)
+		"laser":
+			return "X%s DE DANO EN UN CRITICO" % short_number(crit_mult(levels))
+		"pc":
+			return "UN SOBRE CADA %s S" % short_number(auto_buy_interval(levels))
+		"pinchos":
+			return "%d DE DANO POR SEGUNDO" % roundi(spike_dps(levels))
+		"armario":
+			return "%d OBJETOS EXPUESTOS" % locker_slots(levels)
+	return ""
+
+
+## "2.10" -> "2.1". Para los numeros con decimales de los efectos (el
+## multiplicador del critico y los segundos del PC), que son los unicos que no se
+## escriben con un entero.
+static func short_number(v: float) -> String:
+	var s := "%.2f" % v
+	while s.ends_with("0"):
+		s = s.substr(0, s.length() - 1)
+	if s.ends_with("."):
+		s = s.substr(0, s.length() - 1)
+	return s
+
+
 ## Suma de niveles de todos los items. Es la medida de "cuanto llevo mejorado" y
 ## lo que multiplica el dano base y acelera la carga.
 static func total_levels(levels: Array) -> int:
@@ -458,11 +566,9 @@ static func charge_time(levels: Array) -> float:
 	return CHARGE_TIME / (1.0 + CYCLE_SPEED_PER_LEVEL * float(total_levels(levels)))
 
 
-## Probabilidad de critico. Cero sin Ojo verde; con el, la base del PDF.
+## Probabilidad de critico: un 5 % por nivel del Ojo verde, y cero sin el.
 static func crit_chance(levels: Array) -> float:
-	if item_level(levels, "ojo_verde") <= 0:
-		return 0.0
-	return CRIT_CHANCE_BASE
+	return CRIT_CHANCE_PER_LEVEL * float(item_level(levels, "ojo_verde"))
 
 
 ## Multiplicador del critico. El Laser suma un 5% por nivel.
@@ -520,14 +626,68 @@ static func auto_buy_unlocked(levels: Array) -> bool:
 	return item_level(levels, AUTO_ITEM_BUY) > 0
 
 
-## Objetos que se pueden exponer en el Armario (uno por nivel, hasta 3).
+## Huecos del Armario: uno por nivel comprado (de 1 a 8). Sin el armario, cero:
+## sin la pieza no hay vitrina donde poner nada.
 static func locker_slots(levels: Array) -> int:
-	return mini(LOCKER_MAX, item_level(levels, "armario"))
+	return clampi(item_level(levels, "armario"), 0, LOCKER_SLOTS_MAX)
 
 
-## Valor extra que da exponer un objeto, segun su rareza.
-static func locker_item_bonus(rarity_id: String) -> float:
-	return float(LOCKER_BONUS.get(rarity_id, 0.0))
+## Los ids de los tipos de botin, en el orden en que se enseñan.
+static func kind_ids() -> Array:
+	var ids: Array = []
+	for k in LOOT_KINDS:
+		ids.append(str(k["id"]))
+	return ids
+
+
+## La fila de un tipo de botin (su nombre y el del bonus que da).
+static func kind_row(kind_id: String) -> Dictionary:
+	for k in LOOT_KINDS:
+		if str(k["id"]) == kind_id:
+			return k
+	return LOOT_KINDS[0]
+
+
+## El tipo de un objeto del botin. "cards" si la fila no lo trae, para que un
+## objeto nuevo sin el campo no reviente el armario (dara el bonus de las cartas,
+## que es el mas facil de ver y por tanto el que antes se detecta).
+static func kind_of(item: Dictionary) -> String:
+	var k := str(item.get("kind", ""))
+	for row in LOOT_KINDS:
+		if str(row["id"]) == k:
+			return k
+	return "cards"
+
+
+## Lo que aporta un objeto expuesto al bonus de su tipo, segun su nota PSA: del
+## 2 % de la nota 1 al 15 % de la nota 10.
+static func kind_bonus(kind_id: String, grade: int) -> float:
+	var t := clampf(float(grade - PSA_MIN) / float(GRADE_MAX - PSA_MIN), 0.0, 1.0)
+	return lerpf(KIND_BONUS_MIN, KIND_BONUS_MAX, t)
+
+
+## Lo que aporta ESTE objeto expuesto, ya con su tipo y su nota.
+static func bonus_for(item: Dictionary) -> float:
+	return kind_bonus(kind_of(item), int(item.get("grade", PSA_MIN)))
+
+
+## Lo que suma cada moneda de rebirth al valor de lo que vendes: la paga
+## permanente que se lleva de una partida a la siguiente.
+static func rebirth_value_mult(coins: int) -> float:
+	return 1.0 + REBIRTH_VALUE_PER_COIN * float(maxi(0, coins))
+
+
+## Las monedas que da reiniciar una partida con lo ganado en ella, ya con el
+## bonus de la Electronica del armario dentro (ver Game.rebirth_multiplier()).
+##
+## Se calcula con SUELO y no redondeando a la mitad: las monedas de rebirth son
+## un premio gordo y decir "te llevas 2" para luego dar 1 es la clase de mentira
+## que se nota. Con el multiplicador del armario en 1.0 la cuenta es exacta.
+static func rebirth_coins_for(earned: int, mult: float = 1.0) -> int:
+	var base := int(earned / REBIRTH_EARN_AT)
+	if base <= 0:
+		return 1
+	return maxi(1, int(floor(float(base) * maxf(mult, 1.0))))
 
 
 # --------------------------------------------------------------------------- #

@@ -111,8 +111,9 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
    la mesa, que es la tercera salida.
 4. El objeto se queda en la mesa. **Clic en él** y se vende; **arrastrarlo** lo
    aparta y hace sitio, como en los juegos de cachivaches. Al inventario solo va
-   si se pulsa GUARDAR, y de ahí también se puede vender (un clic por hueco, o
-   VENDER TODO de una vez).
+   si se pulsa GUARDAR, y de ahí se vende de golpe con **VENDER TODO**, en el
+   panel del armario, que es donde vive el inventario desde que la tira de abajo
+   de la pantalla es la vitrina.
 
 La mesa es una superficie de verdad, no una rejilla de huecos: el sprite
 `bg_table` la dibuja entera (1344×752, que es lo que le deja la columna de
@@ -159,11 +160,65 @@ contesta `LootDB.item_max_level()`.
 | **Guantes** | Suben cuántos paquetes caben **a la vez** cargando (+2 por nivel): un clic sigue arrancando uno |
 | **Trébol** | +2 % de peso a los objetos que no son comunes por nivel |
 | **Cajón** | +2 huecos de mesa por nivel, y +5 por nivel a partir del 5 |
-| **Ojo verde** | Da probabilidad de crítico (50 % de base) |
+| **Ojo verde** | +5 % de probabilidad de crítico por nivel (el 40 % a los ocho) |
 | **Láser** | +5 % de daño en cada crítico por nivel |
 | **PC** | **Compra única**: enciende la compra automática (y solo eso: no necesita los Pinchos) |
 | **Pinchos** | **Compra única**: encienden la apertura automática, golpean la mesa solos |
-| **Armario** | Expone los mejores objetos del inventario (uno por nivel, hasta 3) |
+| **Armario** | Abre el panel del armario: expone objetos del inventario, **un hueco por nivel (de 1 a 8)** |
+
+### El armario: exponer objetos
+
+El armario es un **trato con vuelta atrás**: un objeto expuesto sale del
+inventario (ya no se puede vender) y a cambio da el bonus de su tipo, que es la
+única forma de subir los cuatro stats del juego. Se pulsa el objeto en el
+inventario y entra en la vitrina; se pulsa en la vitrina y vuelve. Sin la pieza
+comprada no hay huecos donde ponerlo, y por eso el armario sube de nivel como
+los demás items: **un hueco por nivel, de 1 a 8**, y los ocho marcos se dibujan
+siempre —los que no son tuyos, apagados— para que se vea que subirlo sirve para
+algo.
+
+**Los cuatro tipos de botín no dan lo mismo**, y cada uno va a su stat:
+
+| Tipo de botín | Qué sube |
+|---|---|
+| **CARTAS** | el daño del golpe |
+| **VINILOS** | el dinero que dan las ventas |
+| **ZAPATILLAS** | la velocidad de carga del clic |
+| **ELECTRÓNICA** | las monedas de rebirth |
+
+Cuánto aporta cada objeto lo decide **su nota PSA**: de un **2 % en la nota 1 a
+un 15 % en la 10**, repartido a partes iguales. Son porcentajes bajos a
+propósito: ocho vitrinas llenas de piezas de nota 10 son +120 % repartido entre
+los cuatro stats, y con el armario lleno el jugador ya nota que trabaja.
+
+En la pantalla de partida **no hay inventario**: la tira de abajo es **la
+vitrina** (los objetos expuestos de un vistazo, y cada hueco abre el panel), y la
+chapa **ARMARIO** de la barra de arriba va pegada a las dos automatizaciones, que
+son las tres cosas que se encienden y se miran de reojo mientras la mesa trabaja.
+Dentro del panel está lo que hace falta para decidir: **el inventario a la
+izquierda** (50 huecos, con scroll) y **las vitrinas a la derecha**, con la suma
+de cada bonus debajo y **VENDER TODO** al pie, que es la única forma de vaciar el
+inventario desde que vive aquí.
+
+### El rebirth (la hucha)
+
+En el **menú**, arriba a la derecha, está la hucha: las monedas que llevas y el
+botón de REBIRTH, que abre su panel. El rebirth **reinicia la partida entera**
+(dinero, items, inventario y armario) y a cambio te llevas **monedas**, que ya no
+se pierden nunca más: **cada moneda sube un 5 % el valor de todo lo que vendas**,
+para siempre. Es la única cosa del juego que pasa de una partida a la siguiente,
+y por eso vive en el menú y detrás de un panel que explica el trato antes de
+aceptarlo (lo que se pierde, lo que te llevas y cuánto multiplica la Electrónica
+del armario).
+
+El requisito se mide en **lo ganado en la partida** (un millón), no en el dinero
+que tengas en el bolsillo: guardarlo para el final no cambia nada. Las monedas
+son una por cada millón ganado y **la Electrónica del armario las multiplica**,
+que es la razón de que el armario dé puntos de rebirth. Lo que no se pierde son
+las estadísticas de la cuenta —paquetes abiertos, objetos encontrados, mejor
+nota—, que son de la cuenta y no de la partida. Y mientras el requisito no llega,
+el botón y su panel **dicen cuánto falta**: un botón muerto y callado no explica
+nada.
 
 **Un clic abre UN paquete, siempre: el pulsado.** Nada de arrancar varios de
 golpe, porque eso convertía el bucle en machacar siempre el mismo sobre. Lo que
@@ -260,8 +315,9 @@ scripts/               el código, por capas (ver scripts/README.md)
   screens/             una clase por pantalla
 
 scenes/                un nodo raíz por pantalla (ver scenes/README.md)
-  Main.tscn Game.tscn Menu.tscn ShopPanel.tscn
-  RevealCard.tscn SettingsPanel.tscn
+  Main.tscn Game.tscn Menu.tscn ShopPanel.tscn AutoBuyPanel.tscn
+  LockerPanel.tscn RebirthPanel.tscn ItemCard.tscn RevealCard.tscn
+  SettingsPanel.tscn
   ui/game_theme.tres   el tema: la fuente y los colores de la interfaz
 
 tools/                 los generadores de Python (ver tools/README.md)
@@ -322,14 +378,25 @@ $G --headless --path . res://dev/InputTest.tscn     # sale con 0 si todo pasa
 $G --rendering-driver opengl3 --path . res://dev/Screenshots.tscn
 ```
 
-`smoke_test` toca las 343 cosas que se pueden romper sin que se note
+Si se acaba de añadir una escena o un `class_name` nuevo, Godot tiene que
+importar antes (`$G --headless --path . --import`) o los dos tests se caen con
+`Could not find type "LockerPanel"` y parece un fallo del juego cuando el que
+falta es el paso de la importación.
+
+`smoke_test` toca las 429 cosas que se pueden romper sin que se note
 mirando capturas: que la escalera de los doce sobres suba en precio, en botín, en
 resistencia y **en dibujo** (los tres escalones de un tipo ya no comparten
 sprite, y el arte de cada uno tiene que traer sus tres tramos de daño), que el
 sobre inicial no cobre nunca y los demás sí, que las doce filas de la columna
 caben sin pisarse, que la columna tenga su **fondo opaco** y que vaya **detrás**
 de los sobres, que el anillo avance y que se dibuje
-**detrás** del paquete, que los items suban el daño y aceleren la carga, que el
+**detrás** del paquete, que cada redonda del botón saque su **número de daño**
+(naranja el golpe normal y amarillo el crítico, encima del paquete y con el daño
+que toca), que los items de la tienda sean **ocho cajas** en rejilla que no se
+pisen, que al pulsar una se abra su **ficha** con la descripción larga y los
+números del efecto de ahora y del nivel siguiente (y que esos números se
+repinten al comprar), que se compre desde esa misma ficha, que los items suban
+el daño y aceleren la carga, que el
 precio de un item suba con cada nivel y desaparezca en el tope, que el PC y los
 Pinchos no se puedan pagar dos veces (y que la tienda los marque con COMPRADO y
 con el rótulo COMPRA ÚNICA, con puntos de nivel solo en los seis que los tienen),
@@ -342,14 +409,28 @@ suelta un hueco), que la apertura automática se encienda solo con los
 Pinchos y la compra automática solo con el PC, que los Pinchos no toquen la mesa con la
 apertura apagada, que la compra automática compre solo lo marcado en su mini
 menú y coja el más barato de lo marcado, que arrastrar no venda el botín y que
-no se pueda sacar de la mesa, que la tienda cierre, que se guarde el fichero,
-que ningún sprite ni ningún sonido se quede fuera de su índice…
+no se pueda sacar de la mesa, que **cada tipo de botín dé su bonus** (cartas el
+daño, vinilos el dinero, zapatillas la velocidad y electrónica el rebirth) y que
+ese bonus vaya de un **2 % en la nota 1 a un 15 % en la 10**, que la probabilidad
+de crítico sea de un **5 % por nivel** del Ojo verde, que el armario tenga
+**exactamente los huecos de su nivel** (con dos, el tercer objeto no entra) y que
+exponer **saque el objeto del inventario** y devolverlo lo devuelva, que el
+inventario sea de **50 huecos** y ya no esté en la pantalla de partida, que la
+vitrina de la partida enseñe lo expuesto, que **el texto no se dibuje encima de
+un objeto** (el check que cazó un solape de verdad en el panel del armario), que
+el panel del rebirth prometa **las mismas monedas que da** el rebirth y que el
+multiplicador de la Electrónica entre en el premio, que la tienda cierre, que se
+guarde el fichero, que ningún sprite ni ningún sonido se quede fuera de su
+índice…
 
 `input_test` manda clics y arrastres de verdad, que es lo que `smoke_test` no
 puede hacer: pasa por el sistema de interfaz para pulsar GUARDAR y VENDER en la
-tarjeta, para comprar un sobre en la columna de la izquierda, para agarrar un
-objeto de la mesa y moverlo, y para abrir el mini menú de la compra automática y
-marcar y desmarcar un sobre en su lista.
+tarjeta, para comprar un sobre en la columna de la izquierda, para pulsar una
+caja de la tienda y comprar desde la ficha que abre, para agarrar un objeto de la
+mesa y moverlo, para abrir el mini menú de la compra automática y marcar y
+desmarcar un sobre en su lista, para abrir el armario desde su botón de la barra
+y exponer un objeto y devolverlo a su sitio, y para reiniciar la partida desde la
+hucha del menú.
 
 ### Cambiar el equilibrio
 
@@ -387,12 +468,15 @@ justo lo que pedía el documento.
 es qué pasa con la fuente de los **números**, que aún se componen con sprites
 (`PixelNumber`) en vez de usarse como fuente.
 
-**Sistemas del documento que no están** — árbol de habilidades (4 ramas × 2
-opciones), inventario expandible, vitrina/armario, logros, rebirth con la hucha
-de oro, eventos de mercado.
+**El armario, la vitrina y el rebirth** — ya están. El armario deja de ser un
+adorno: expone objetos (uno por hueco de su nivel, de 1 a 8), cada uno da el
+bonus de su tipo según su nota PSA, y su panel lleva el inventario al lado (50
+huecos) con la vitrina a la vista en la pantalla de partida. Y la hucha del menú
+ya reinicia la partida a cambio de monedas, que suben para siempre el valor de lo
+que vendes.
 
-**Inventario fijo en 10 huecos** — si se llena, el botín se vende solo y sale un
-aviso. Ampliarlo es parte del sistema de inventario que falta.
+**Sistemas del documento que no están** — árbol de habilidades (4 ramas × 2
+opciones), logros, eventos de mercado.
 
 **Extras de la interfaz** — los deslizadores de volumen de los ajustes ya mueven
 sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta el

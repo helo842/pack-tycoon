@@ -75,6 +75,31 @@ func _run() -> void:
 	await _frames(3)
 	_check(_main.has_veil(), "TIENDA abre su panel")
 
+	# La tienda en cajas y su ficha. Es el camino entero con el raton: el clic en
+	# la caja abre la ficha del item, y desde la ficha se compra. El dinero se pone
+	# a mano porque una partida nueva no llega a los guantes (900).
+	Game.money = 100000
+	var caja := _find_tooltip(_main._veil_host, "Ver ficha de GUANTES")
+	_check(caja != null, "cada item de la tienda se dibuja como una caja")
+	_check(_click(caja), "el clic en la caja llega al boton")
+	await _frames(3)
+	var ficha := _main._overlay_host.get_child(0)
+	_check(ficha != null, "y abre la ficha del item encima de la tienda")
+	if ficha != null:
+		var nivel_antes: int = Game.item_level(0)
+		var comprar := _find_button(ficha, "COMPRAR")
+		_check(comprar != null, "la ficha trae el boton de comprar")
+		_check(_click(comprar), "el clic en COMPRAR llega al boton")
+		await _frames(3)
+		_check(Game.item_level(0) == nivel_antes + 1, "y compra la mejora desde la ficha")
+		var cerrar_ficha := _find_tooltip(_main._overlay_host, "Cerrar")
+		_check(cerrar_ficha != null, "la ficha trae boton de cerrar")
+		if cerrar_ficha != null:
+			_check(_click(cerrar_ficha), "el clic en cerrar de la ficha llega al boton")
+			await _frames(3)
+		_check(_main._overlay_host.get_child_count() == 0, "y la ficha se quita de encima")
+		_check(_main.has_veil(), "sin cerrar la tienda que hay detras")
+
 	# El boton de cerrar no tiene texto: se busca por su tooltip.
 	var close := _find_tooltip(_main._veil_host, "Cerrar")
 	_check(close != null, "el panel trae boton de cerrar")
@@ -99,6 +124,16 @@ func _run() -> void:
 	_check(_click(hit), "el clic en el paquete llega a la mesa")
 	await _frames(3)
 	_check(el.state == TableElement.State.OPENING, "el paquete empieza a abrirse")
+	# Y al cerrarse el aro sale el numero del golpe. Es la comprobacion del numero
+	# de dano que pasa por un clic de verdad: el aro tarda lo suyo en dar la vuelta,
+	# asi que hay que esperar a que termine la redonda.
+	await _wait(0.7)
+	var pops := 0
+	for c in game._fx.get_children():
+		var n := c as PixelNumber
+		if n != null and n.has_meta(DamagePopup.MARK):
+			pops += 1
+	_check(pops > 0, "y el golpe saca su numero de dano en la mesa")
 
 	print("Tarjeta de revelado:")
 	# La caja necesita varios golpes y cada uno es un clic. Lo que prueba ESTE
@@ -228,9 +263,94 @@ func _run() -> void:
 		await _frames(3)
 		_check(not _main.has_veil(), "y el cerrar cierra el mini menu")
 
+	print("Armario:")
+	# Hacen falta las dos cosas: la pieza (sin armario no hay vitrina donde
+	# exponer) y algo guardado. El objeto se mete con Game.store y no jugando,
+	# porque lo que prueba esta seccion es el panel, no la tirada.
+	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
+	Game.buy_item(LootDB.item_index("armario"))
+	await _frames(3)
+	_check(Game.locker_slots() == 1, "el armario comprado da su primer hueco")
+
+	# El boton de la barra de arriba. Va buscado por su tooltip y no por el
+	# texto: la tira de la vitrina tiene otra chapa que tambien dice ARMARIO, y
+	# con el texto a secas el test podria estar pulsando la otra.
+	var locker_btn := _find_tooltip(game,
+			"Armario: expone objetos y da sus bonus (con la pieza comprada)")
+	_check(locker_btn != null, "el boton del armario esta en la barra")
+	_check(_click(locker_btn), "el clic en el boton del armario llega")
+	await _frames(3)
+	_check(_main.has_veil(), "y abre el panel del armario")
+	var armario: Node = null
+	for c in _main._veil_host.get_children():
+		if c is LockerPanel:
+			armario = c
+	_check(armario != null, "el panel abierto es el del armario")
+	if armario != null:
+		# Exponer es un clic en un hueco del inventario: el objeto sale de la
+		# rejilla de la izquierda y aparece en la vitrina de la derecha.
+		var guardado: int = Game.inventory.size()
+		_check(guardado > 0, "hay algo guardado que exponer")
+		_check(_click(armario._inv_cells[0]["button"]),
+			"el clic en un hueco del inventario llega")
+		await _frames(3)
+		_check(Game.locker.size() == 1 and Game.inventory.size() == guardado - 1,
+			"y expone el objeto: sale del inventario y entra en el armario")
+		# Y la vuelta: exponer no puede ser una decision sin deshacer.
+		_check(_click(armario._locker_cells[0]["button"]),
+			"el clic en la vitrina llega")
+		await _frames(3)
+		_check(Game.locker.is_empty() and Game.inventory.size() == guardado,
+			"y devolverlo lo saca del armario y lo devuelve al inventario")
+		# VENDER TODO es la unica forma de vaciar el inventario desde que vive
+		# aqui y no en la pantalla de partida.
+		var money_inv: int = Game.money
+		var vender_todo := _find_button(armario, "VENDER TODO")
+		_check(vender_todo != null, "el panel del armario trae VENDER TODO")
+		_check(_click(vender_todo), "el clic en VENDER TODO llega al boton")
+		await _frames(3)
+		_check(Game.inventory.is_empty(), "y vende de golpe lo que hay en el inventario")
+		_check(Game.money > money_inv, "pagando su valor")
+		var cerrar_arm := _find_tooltip(_main._veil_host, "Cerrar")
+		_check(cerrar_arm != null, "el panel del armario trae boton de cerrar")
+		if cerrar_arm != null:
+			_check(_click(cerrar_arm), "el clic en cerrar del armario llega al boton")
+			await _frames(3)
+			_check(not _main.has_veil(), "y el cerrar cierra el panel del armario")
+
 	print("Menu otra vez:")
 	_main.show_menu()
 	await _frames(3)
+
+	# La hucha: el requisito se mide en lo GANADO en la partida y una partida de
+	# prueba no llega al millon jugando, asi que se pone a mano. Es una variable
+	# del estado, no un atajo del panel: el panel lee lo mismo que lee el boton.
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
+	await _frames(2)
+	var rebirth_btn := _find_button(_main._screen_host, "REBIRTH")
+	_check(rebirth_btn != null, "el menu trae el boton de REBIRTH")
+	_check(_click(rebirth_btn), "el clic en REBIRTH llega al boton")
+	await _frames(3)
+	var hucha: Node = null
+	for c in _main._veil_host.get_children():
+		if c is RebirthPanel:
+			hucha = c
+	_check(hucha != null, "y abre el panel de la hucha")
+	if hucha != null:
+		# El premio que ENSEÑA el panel y el que DA el rebirth tienen que ser el
+		# mismo numero: sale del mismo calculo, y aqui se comprueba de verdad
+		# pulsando el boton.
+		var premio: int = Game.pending_rebirth_coins()
+		_check(premio >= 1, "el panel promete al menos una moneda")
+		var monedas_antes: int = Game.rebirth_coins
+		_check(_click(hucha._go), "el clic en REBIRTH del panel llega al boton")
+		await _frames(3)
+		_check(Game.rebirth_coins == monedas_antes + premio,
+			"y reinicia la partida dando las monedas que prometia el panel")
+		_check(Game.lifetime_earned == 0 and not Game.can_rebirth(),
+			"la partida vuelve a cero: el requisito hay que ganarselo otra vez")
+		_check(not _main.has_veil(), "y el panel se cierra solo al reiniciar")
+
 	var settings := _find_button(_main._screen_host, "AJUSTES")
 	_check(_click(settings), "el clic en AJUSTES llega al boton")
 	await _frames(3)
