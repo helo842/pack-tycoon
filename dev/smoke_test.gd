@@ -1774,6 +1774,40 @@ func _run() -> void:
 	_check("el inventario ya no vive en la pantalla de partida",
 		not g.has_method("_refresh_inventory") and Game.INVENTORY_SLOTS == 50)
 
+	# --- el armario con objetos de la TIRADA DE VERDAD ---
+	# Lo de arriba expone objetos armados a mano (roll_item + nota forzada), que es
+	# como se comprueban las formulas. Pero lo que le llega al jugador sale de
+	# roll_pack(), que arma un diccionario NUEVO con los campos que usa la
+	# interfaz: ahi se quedo fuera "kind", kind_of() cayo en su valor por defecto
+	# ("cards") y todos los objetos expuestos subian el DANO. Ningun check lo
+	# cazaba porque todos miraban la formula, no la tirada que la alimenta.
+	var rng_tipo := RandomNumberGenerator.new()
+	for paquete in LootDB.kind_ids():
+		_check("la tirada de %s viaja con su tipo" % paquete,
+			LootDB.kind_of(LootDB.roll_pack(rng_tipo, str(paquete))) == str(paquete))
+
+	# Y CADA TIPO MUEVE SU STAT Y SOLO EL SUYO. Es lo que el jugador ve al exponer
+	# una zapatilla y luego un vinilo: si los dos suben el dano, el armario no
+	# tiene nada que decidir.
+	Game.inventory.clear()
+	Game.locker.clear()
+	var dano_base: float = Game.damage_per_hit()
+	Game.store(LootDB.roll_pack(rng_tipo, "sneakers"))
+	var carga_base: float = Game.charge_time()
+	Game.locker_put(0)
+	_check("una zapatilla expuesta acelera la carga", Game.charge_time() < carga_base)
+	_check("y no toca el dano", is_equal_approx(Game.damage_per_hit(), dano_base))
+	Game.inventory.clear()
+	Game.locker.clear()
+	Game.store(LootDB.roll_pack(rng_tipo, "vinyls"))
+	var valor_base: float = Game.value_multiplier()
+	Game.locker_put(0)
+	_check("un vinilo expuesto sube el valor de lo que se vende",
+		Game.value_multiplier() > valor_base)
+	_check("y tampoco toca el dano", is_equal_approx(Game.damage_per_hit(), dano_base))
+	Game.inventory.clear()
+	Game.locker.clear()
+
 	# --- guardado ---
 	Game.save_game()
 	_check("el fichero de guardado existe", FileAccess.file_exists(Game.SAVE_PATH))

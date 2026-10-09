@@ -383,7 +383,7 @@ importar antes (`$G --headless --path . --import`) o los dos tests se caen con
 `Could not find type "LockerPanel"` y parece un fallo del juego cuando el que
 falta es el paso de la importación.
 
-`smoke_test` toca las 429 cosas que se pueden romper sin que se note
+`smoke_test` toca las 437 cosas que se pueden romper sin que se note
 mirando capturas: que la escalera de los doce sobres suba en precio, en botín, en
 resistencia y **en dibujo** (los tres escalones de un tipo ya no comparten
 sprite, y el arte de cada uno tiene que traer sus tres tramos de daño), que el

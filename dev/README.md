@@ -274,9 +274,17 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   caben dos objetos y el tercero NO entra, y el que se queda fuera sigue en el
   inventario (no se pierde por pulsar). Era la unica razon de subir el armario de
   nivel, asi que es justo lo que hay que fijar.
-- Que **exponer saque el objeto del inventario** (deja de poder venderse) y que
-  devolverlo lo meta otra vez. Exponer es un trato con vuelta atras, y sin la
-  vuelta el jugador tomaria una decision irreversible sin que nadie le avise.
+- Que **el tipo de un objeto sobreviva a la tirada** y que cada uno mueva su stat
+  y solo el suyo. `roll_pack()` arma un diccionario NUEVO con los campos que usa la
+  interfaz, y ahi se quedo fuera `kind`: `kind_of()` cae en su valor por defecto
+  ("cards") y **todos los objetos expuestos subian el dano** (un vinilo y unas
+  zapatillas dando mas dano, o sea el armario sin nada que decidir). Todos los
+  checks de arriba miraban la FORMULA con objetos armados a mano, asi que la
+  tirada que la alimenta nadie la miraba; el de las cartas pasaba incluso con el
+  fallo dentro, porque su valor por defecto es justo "cards". Se comprueba el
+  tipo que sale de cada paquete y el efecto con objetos de verdad: una zapatilla
+  expuesta acelera la carga y NO toca el dano, un vinilo sube el valor y tampoco
+  lo toca. Comprobado al reves: quitando la linea del `kind`, fallan siete.
 - Que el inventario sea de **50 huecos** y que **ya no este en la pantalla de
   partida**: la tira de abajo es la vitrina y el inventario vive en el panel del
   armario. Se mira por el metodo que ya no existe y por el tamano, para que

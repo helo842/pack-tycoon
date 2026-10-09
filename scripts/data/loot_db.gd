@@ -793,6 +793,16 @@ static func roll_pack(rng: RandomNumberGenerator, pack_id: String,
 		"rarity": item["rarity"], "base_value": item["value"],
 		"condition": condition_for_grade(grade), "grade": grade,
 		"value": value,
+		# EL TIPO VIAJA CON EL OBJETO. Esta linea parece de relleno y es la que
+		# decide que hace el armario: sin "kind", kind_of() cae en su valor por
+		# defecto ("cards") y TODOS los objetos expuestos suben el dano, que es
+		# justo lo que pasaba (un vinilo y una zapatilla dando mas dano). No da
+		# ningun error, no rompe ningun check de encuadre y en el panel se ve como
+		# cuatro lineas que suman donde no toca. El diccionario de aqui es NUEVO
+		# (roll_item devuelve una copia de la fila del paquete y este la recorta a
+		# los campos que usa la interfaz), asi que lo que no se copie aqui se
+		# pierde por el camino.
+		"kind": kind_of(item),
 	}
 
 
