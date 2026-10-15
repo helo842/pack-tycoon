@@ -12,6 +12,10 @@ signal inventory_changed()
 ## comprado/subido el propio armario (un nivel mas son huecos nuevos).
 signal locker_changed()
 signal items_changed()
+## El arbol de habilidades ha cambiado: se ha comprado un nivel (o se ha empezado
+## de cero). Lo escuchan el panel del arbol y el de la hucha, que son los dos que
+## enseñan numeros que dependen de las monedas y de los niveles.
+signal skills_changed()
 ## Un paquete ha pedido abrirse (el jugador le ha hecho clic). Lo escucha game.gd,
 ## que es quien sabe cuantos paquetes se pueden llevar a la vez (los Guantes).
 signal open_requested(element: Object)
@@ -46,6 +50,18 @@ var locker: Array = []
 ## array es el de LootDB.ITEMS. Los seis de estadisticas suben hasta ocho; el PC
 ## y los Pinchos son de compra unica (nivel 1 y ya). Ver LootDB.item_max_level().
 var items: Array = [0, 0, 0, 0, 0, 0, 0, 0]
+
+## El ARBOL DE HABILIDADES: nivel comprado de cada opcion, por su id (ver
+## LootDB.SKILL_BRANCHES). Es un diccionario y no un array por el mismo motivo
+## que el armario guarda objetos y no indices: las opciones son un catalogo que
+## se puede ampliar, y con un array de posiciones anadir una rama en medio
+## moveria todo lo comprado por el jugador.
+##
+## Lo que NO se gasta aqui: el dinero. El arbol se paga con monedas de rebirth
+## (rebirth_coins), que son lo unico que pasa de una partida a la siguiente. Y a
+## diferencia de la partida, esto NO se pierde nunca: ni el rebirth ni el
+## reinicio lo tocan (ver do_rebirth() y hard_reset()).
+var skills: Dictionary = {}
 
 var auto_open: bool = false
 var auto_buy: bool = false
@@ -151,9 +167,20 @@ func spend(amount: int) -> bool:
 # compra automatica contesten lo mismo y para que un dia se pueda poner un
 # descuento o una oferta en un solo sitio.
 
-## Lo que cuesta un sobre.
+## Lo que cuesta un sobre, ya con el descuento del arbol de habilidades dentro.
+##
+## El descuento vive AQUI y no en los sitios que cobran a proposito: la columna
+## de sobres, la compra automatica y el aviso de la mesa preguntan todos por el
+## precio, y con la cuenta repartida el dia que se toque el descuento habria tres
+## precios distintos en la misma partida sin que nada avisara.
 func pack_price(pack_id: String) -> int:
-	return int(LootDB.pack_by_id(pack_id)["price"])
+	var base := int(LootDB.pack_by_id(pack_id)["price"])
+	# El precio 0 del sobre gratuito tiene que seguir siendo 0 (y multiplicarlo
+	# por 0.85 daria 0 igual, pero redondear un 0 es una trampa esperando a que
+	# alguien cambie la formula): el gratuito es la red de seguridad del juego.
+	if base <= 0:
+		return 0
+	return maxi(1, int(round(float(base) * LootDB.skill_price_mult(skill_level("barato")))))
 
 
 ## ¿El sobre es gratuito? Los gratuitos se anuncian con GRATIS en la columna en
@@ -174,6 +201,106 @@ func _all_pack_ids() -> Array:
 ## ¿Tiene el jugador esta pieza comprada?
 func has_item(item_id: String) -> bool:
 	return LootDB.item_level(items, item_id) > 0
+
+
+# --------------------------------------------------------------------------- #
+# El arbol de habilidades
+# --------------------------------------------------------------------------- #
+#
+# El estado son ocho contadores (uno por opcion) y el dinero que se gasta son
+# las monedas de rebirth. Todo lo que suma el arbol sale de LootDB (que es quien
+# tiene las formulas y lo que dice el panel), asi que aqui solo se pregunta por
+# el nivel y se aplican los multiplicadores donde toca.
+
+## Nivel comprado de una opcion del arbol. 0 si no existe esa opcion, para que
+## un id viejo de un guardado no pueda mejorar nada.
+func skill_level(option_id: String) -> int:
+	if not LootDB.has_skill(option_id):
+		return 0
+	return clampi(int(skills.get(option_id, 0)), 0, LootDB.skill_max(option_id))
+
+
+## Niveles que puede tener una opcion (1 en las de compra unica).
+func skill_max_level(option_id: String) -> int:
+	return LootDB.skill_max(option_id)
+
+
+## ¿La opcion esta al tope? Es lo que apaga su casilla en el panel.
+func skill_maxed(option_id: String) -> bool:
+	var tope := skill_max_level(option_id)
+	return tope > 0 and skill_level(option_id) >= tope
+
+
+## Lo que cuesta el SIGUIENTE nivel de una opcion, en monedas de rebirth. -1
+## cuando no hay nada que comprar (ya esta al tope), como item_cost().
+func skill_cost(option_id: String) -> int:
+	return LootDB.skill_cost(option_id, skill_level(option_id))
+
+
+## El efecto de una opcion al nivel que se le pida, ya escrito para leerlo.
+## El panel enseña el del nivel SIGUIENTE (lo que se compra) y, al tope, el de
+## ahora: quien llama decide cual de los dos pide.
+func skill_effect(option_id: String, level: int) -> String:
+	return LootDB.skill_effect(option_id, level)
+
+
+## Suma de niveles comprados del arbol entero. Es la medida de "cuanto llevo
+## mejorado" y lo que enseña la chapa que abre el panel.
+func skill_total() -> int:
+	var total := 0
+	for option in LootDB.skill_options():
+		total += skill_level(str(option["id"]))
+	return total
+
+
+## Comprar el siguiente nivel de una opcion con monedas de rebirth. Devuelve
+## false si no hay nada que comprar (al tope) o si no llegan las monedas.
+##
+## El pago va por las monedas y NO por el dinero de la partida: es la unica
+## moneda que el rebirth no borra, y por eso el arbol es progresion de cuenta.
+func buy_skill(option_id: String) -> bool:
+	var cost := skill_cost(option_id)
+	if cost < 0 or rebirth_coins < cost:
+		return false
+	rebirth_coins -= cost
+	skills[option_id] = skill_level(option_id) + 1
+	_dirty = true
+	skills_changed.emit()
+	return true
+
+
+# --- los efectos, ya aplicados --------------------------------------------- #
+
+## Segundos que tarda un objeto en caer a la mesa ("Caida rapida").
+func drop_time() -> float:
+	return LootDB.skill_drop_time(skill_level("caida"))
+
+
+## ¿Los objetos nuevos se colocan solos en rejilla? ("Mesa ordenada").
+func tidy_table() -> bool:
+	return skill_level("orden") > 0
+
+
+## Probabilidad de que un golpe suelte dinero extra ("Dinero al rasgar").
+func rip_chance() -> float:
+	return LootDB.skill_rip_chance(skill_level("rasgar"))
+
+
+## Cuanto dinero suelta ese golpe, segun lo que costo el sobre.
+func rip_cash_for(pack_id: String) -> int:
+	return LootDB.skill_rip_cash(pack_price(pack_id))
+
+
+## Probabilidad de que un golpe haga el doble de dano ("Golpe doble").
+func double_chance() -> float:
+	return LootDB.skill_double_chance(skill_level("doble"))
+
+
+## El dinero con el que empieza una partida nueva, con la herencia del arbol
+## dentro. Lo usa do_rebirth(): empezar de cero con la mejora comprada es
+## exactamente lo que promete "Dinero heredado".
+func start_money() -> int:
+	return START_MONEY + LootDB.skill_heir_money(skill_level("hereda"))
 
 
 ## ¿Se puede encender la apertura automatica? Su pieza son los Pinchos.
@@ -361,7 +488,8 @@ func charge_multiplier() -> float:
 ## se le pasa a LootDB.roll_pack(), asi que lo que se ve en la tarjeta de
 ## revelado ya lo lleva.
 func value_multiplier() -> float:
-	return (1.0 + kind_bonus("vinyls")) * rebirth_value_mult()
+	return (1.0 + kind_bonus("vinyls")) * rebirth_value_mult() \
+			* LootDB.skill_sale_mult(skill_level("ventas"))
 
 
 ## Cuanto se multiplican las monedas de rebirth que da reiniciar (Electronica
@@ -410,7 +538,12 @@ func do_rebirth() -> int:
 		return 0
 	var coins := pending_rebirth_coins()
 	rebirth_coins += coins
-	money = START_MONEY
+	# El dinero inicial es el de siempre MAS la herencia del arbol: es la mejora
+	# que se nota justo aqui, en la primera compra de la partida nueva.
+	money = start_money()
+	# Y EL ARBOL NO SE TOCA. Ni los niveles ni las monedas que quedan sin gastar:
+	# las dos cosas son de la cuenta y no de la partida, que es toda la razon de
+	# que el arbol se pague con monedas de rebirth.
 	items = []
 	while items.size() < LootDB.item_count():
 		items.append(0)
@@ -472,7 +605,8 @@ func buy_item(index: int) -> bool:
 ## Dano de cada golpe al cargar el boton. Las Cartas expuestas en el armario
 ## suben este numero por encima de lo que dan los items de la tienda.
 func damage_per_hit() -> float:
-	return LootDB.damage_per_hit(items) * damage_multiplier()
+	return LootDB.damage_per_hit(items) * damage_multiplier() \
+			* LootDB.skill_damage_mult(skill_level("golpe"))
 
 
 ## Segundos que tarda un ciclo de carga. Las Zapatillas expuestas lo acortan.
@@ -590,6 +724,7 @@ func hard_reset() -> void:
 	auto_buy = false
 	auto_buy_packs = _all_pack_ids()
 	auto_sell = false
+	skills = {}
 	music_volume = 0.7
 	sfx_volume = 0.45
 	fullscreen = false
@@ -603,6 +738,7 @@ func hard_reset() -> void:
 	money_changed.emit(money)
 	inventory_changed.emit()
 	items_changed.emit()
+	skills_changed.emit()
 	settings_changed.emit()
 
 
@@ -614,6 +750,7 @@ func to_dict() -> Dictionary:
 		"inventory": inventory,
 		"locker": locker,
 		"items": items,
+		"skills": skills,
 		"auto_open": auto_open,
 		"auto_buy": auto_buy,
 		"auto_buy_packs": auto_buy_packs,
@@ -690,6 +827,22 @@ func _apply(d: Dictionary) -> void:
 				auto_buy_packs.append(pack_id)
 	else:
 		auto_buy_packs = _all_pack_ids()
+	# El arbol de habilidades: un guardado de antes de que existiera no trae la
+	# clave y el arbol sale vacio, que es lo correcto. Los niveles se limpian
+	# contra el catalogo de VERDAD (ni ids que ya no existen, ni niveles por
+	# encima del tope de su opcion): un guardado tocado a mano no puede dejar una
+	# mejora al nivel 40 ni una opcion fantasma en el panel.
+	skills = {}
+	var skills_guardadas = d.get("skills", null)
+	if typeof(skills_guardadas) == TYPE_DICTIONARY:
+		for option in LootDB.skill_options():
+			var option_id := str(option["id"])
+			if not (skills_guardadas as Dictionary).has(option_id):
+				continue
+			var lvl := clampi(int((skills_guardadas as Dictionary)[option_id]), 0,
+					LootDB.skill_max(option_id))
+			if lvl > 0:
+				skills[option_id] = lvl
 	auto_sell = bool(d.get("auto_sell", false))
 	music_volume = float(d.get("music_volume", 0.7))
 	sfx_volume = float(d.get("sfx_volume", 0.45))

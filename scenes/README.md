@@ -35,6 +35,7 @@ ItemCard.tscn      la ficha de un item de la tienda
 AutoBuyPanel.tscn  el mini menu de la compra automatica
 LockerPanel.tscn   el armario: el inventario y las vitrinas
 RebirthPanel.tscn  la hucha: reiniciar la partida a cambio de monedas
+SkillTreePanel.tscn el arbol de habilidades: 4 ramas x 2 opciones, en monedas
 RevealCard.tscn    la tarjeta de revelado
 SettingsPanel.tscn los ajustes
 ui/

@@ -652,6 +652,26 @@ func _nivel_buscado(index: int, ultimo: int) -> int:
 ## Las chapas de UIKit son un Button pelado con un Label dentro (el texto va en un
 ## hijo, no en button.text), asi que para pulsar GUARDAR o VENDER desde una prueba
 ## hay que buscar: primero el rotulo, y de ahi para arriba hasta el boton.
+## El indice de una opcion del arbol en LootDB.skill_options(), que es el orden
+## en el que el panel monta sus casillas. Los tests van de la casilla al dato por
+## ese indice, igual que hace el panel.
+func _indice_de_opcion(option_id: String) -> int:
+	var opciones: Array = LootDB.skill_options()
+	for i in opciones.size():
+		if str(opciones[i]["id"]) == option_id:
+			return i
+	return -1
+
+
+## Una lista sin repetidos, para comprobar que no hay dos ids iguales.
+func _unicos(valores: Array) -> Array:
+	var out: Array = []
+	for v in valores:
+		if not out.has(v):
+			out.append(v)
+	return out
+
+
 func _boton_de(de: Node, texto: String) -> BaseButton:
 	var pila: Array = [de]
 	while not pila.is_empty():
@@ -1958,6 +1978,275 @@ func _run() -> void:
 		is_equal_approx(Game.rebirth_value_mult(),
 			1.0 + LootDB.REBIRTH_VALUE_PER_COIN * float(Game.rebirth_coins))
 		and Game.value_multiplier() > 1.0)
+
+	# --- el arbol de habilidades ---
+	#
+	# El arbol del Idea.pdf: cuatro ramas de dos opciones, pagadas con MONEDAS de
+	# rebirth. Se comprueba que sale ENTERO de LootDB (ramas, opciones, dibujos y
+	# precios), que cada mejora mueve SU numero, que no se compra lo que no se
+	# puede pagar, que el arbol NO se pierde al reiniciar -es progresion de
+	# cuenta, como las monedas- y que su panel no se sale del marco ni pisa nada.
+	#
+	# Las monedas se ponen a mano porque llegar a veinte son veinte partidas, y lo
+	# que se esta probando es el arbol, no la economia del rebirth (que ya tiene
+	# su trozo arriba).
+	Game.skills.clear()
+	Game.rebirth_coins = 0
+	Game.money = 0
+	Game.skills_changed.emit()
+	var arbol_ramas: Array = LootDB.skill_branches()
+	var arbol_opciones: Array = LootDB.skill_options()
+	_check("el arbol tiene cuatro ramas", arbol_ramas.size() == 4)
+	var arbol_dos_por_rama := true
+	for branch in arbol_ramas:
+		arbol_dos_por_rama = arbol_dos_por_rama and (branch["options"] as Array).size() == 2
+	_check("y dos opciones en cada una", arbol_dos_por_rama)
+	_check("o sea ocho opciones", arbol_opciones.size() == 8)
+	var arbol_ids: Array = []
+	var arbol_con_dibujo := true
+	for option in arbol_opciones:
+		arbol_ids.append(str(option["id"]))
+		if Sprites.tex(str(option["art"])) == null:
+			arbol_con_dibujo = false
+	_check("cada opcion trae su dibujo del kit", arbol_con_dibujo)
+	_check("y su id, su nombre y su explicacion",
+		arbol_ids.size() == 8 and not str(arbol_opciones[0]["name"]).is_empty()
+		and not str(arbol_opciones[0]["desc"]).is_empty())
+	_check("y no hay dos ids repetidos", arbol_ids.size() == _unicos(arbol_ids).size())
+
+	# El precio es una escalera que sube (1, 2, 3, 5 y 8) y al tope no hay precio
+	# que pagar, igual que en la tienda: es el mismo contrato de item_cost().
+	_check("el primer nivel cuesta lo que dice la tabla",
+		LootDB.skill_cost("golpe", 0) == int(LootDB.SKILL_COSTS[0]))
+	var arbol_escalera := true
+	for i in range(1, LootDB.SKILL_COSTS.size()):
+		arbol_escalera = arbol_escalera and int(LootDB.SKILL_COSTS[i]) > int(LootDB.SKILL_COSTS[i - 1])
+	_check("y cada nivel cuesta mas que el anterior", arbol_escalera)
+	_check("al tope ya no hay precio",
+		LootDB.skill_cost("golpe", LootDB.SKILL_MAX_LEVEL) == -1)
+	_check("las escaleras son de cinco niveles y las de una sola compra de uno",
+		LootDB.skill_max("golpe") == 5 and LootDB.skill_max("orden") == 1)
+	_check("y el arbol entero son 36 niveles", LootDB.skill_step_count() == 36)
+	# Los nombres de las ocho opciones tienen que caber en su casilla a 21 px: con
+	# uno de 15 caracteres el panel los encogeria TODOS a 14 (ver loot_db.gd).
+	var arbol_nombres: Array = []
+	for option in arbol_opciones:
+		arbol_nombres.append(str(option["name"]))
+	_check("los ocho nombres caben a 21 en su casilla",
+		UIKit.row_size(arbol_nombres, 320.0 - 24.0, 21) == 21)
+
+	# SIN MONEDAS NO SE COMPRA, y el dinero de la partida no tiene nada que ver:
+	# el arbol se paga con monedas de rebirth y con nada mas.
+	var arbol_nivel_golpe: int = Game.skill_level("golpe")
+	_check("sin monedas no se compra una mejora", not Game.buy_skill("golpe"))
+	_check("y no sube nada", Game.skill_level("golpe") == arbol_nivel_golpe)
+	Game.rebirth_coins = 20
+	_check("con monedas si se compra", Game.buy_skill("golpe"))
+	_check("y el nivel sube", Game.skill_level("golpe") == arbol_nivel_golpe + 1)
+	_check("y se cobra en monedas, no en dinero",
+		Game.rebirth_coins == 20 - int(LootDB.SKILL_COSTS[0]) and Game.money == 0)
+
+	# CADA MEJORA MUEVE SU NUMERO Y SOLO EL SUYO. Es lo que se esta pagando: un
+	# arbol en el que dos ramas suben lo mismo no tiene nada que elegir.
+	Game.skills.clear()
+	var arbol_dano_base: float = Game.damage_per_hit()
+	var arbol_valor_base: float = Game.value_multiplier()
+	var arbol_precio_base: int = Game.pack_price("electronics")
+	Game.skills["golpe"] = 5
+	_check("Golpe duro sube el dano de cada golpe",
+		is_equal_approx(Game.damage_per_hit(), arbol_dano_base * LootDB.skill_damage_mult(5)))
+	_check("y no toca el valor de lo que se vende",
+		is_equal_approx(Game.value_multiplier(), arbol_valor_base))
+	Game.skills.clear()
+	Game.skills["ventas"] = 5
+	_check("Mejores ventas sube el valor de lo que se vende",
+		is_equal_approx(Game.value_multiplier(), arbol_valor_base * LootDB.skill_sale_mult(5)))
+	_check("y no toca el dano", is_equal_approx(Game.damage_per_hit(), arbol_dano_base))
+	Game.skills.clear()
+	Game.skills["barato"] = 5
+	_check("Sobres baratos baja el precio de los sobres",
+		Game.pack_price("electronics") < arbol_precio_base)
+	_check("y el del sobre gratuito sigue siendo 0", Game.pack_price("cards") == 0)
+	_check("y el descuento vale para todos los sobres",
+		Game.pack_price("vinyls") < int(LootDB.pack_by_id("vinyls")["price"]))
+	Game.skills.clear()
+	Game.skills["caida"] = 5
+	_check("Caida rapida acorta la caida de los objetos",
+		Game.drop_time() < LootDB.DROP_TIME
+		and is_equal_approx(Game.drop_time(), LootDB.skill_drop_time(5)))
+	Game.skills.clear()
+	Game.skills["rasgar"] = 5
+	_check("Dinero extra da un 2 % de golpes por nivel",
+		is_equal_approx(Game.rip_chance(), LootDB.SKILL_RIP_CHANCE_PER_LEVEL * 5.0))
+	_check("y suelta un 10 % de lo que costo el sobre",
+		Game.rip_cash_for("electronics")
+		== int(round(float(LootDB.pack_by_id("electronics")["price"]) * LootDB.RIP_CASH_RATE)))
+	Game.skills.clear()
+	Game.skills["doble"] = 5
+	_check("Golpe doble da un 2 % de golpes por nivel",
+		is_equal_approx(Game.double_chance(), LootDB.SKILL_DOUBLE_CHANCE_PER_LEVEL * 5.0))
+	Game.skills.clear()
+	Game.skills["hereda"] = 5
+	_check("Dinero inicial suma dinero al empezar la partida",
+		Game.start_money() == Game.START_MONEY + LootDB.SKILL_HEIR_PER_LEVEL * 5)
+	Game.skills.clear()
+
+	# MESA ORDENADA: con la mejora comprada los objetos se colocan en una rejilla
+	# de 4x2 y no al azar. Se mira con la mesa vacia y dos objetos, que tienen que
+	# caer en la misma fila y sin pisarse (al azar caen donde quieren).
+	await _empty_table(g)
+	Game.skills["orden"] = 1
+	_check("Mesa ordenada se enciende con un solo nivel", Game.tidy_table())
+	var arbol_caja_a: TableElement = g._spawn_pack("cards")
+	var arbol_caja_b: TableElement = g._spawn_pack("cards")
+	# Hay que dejarles ATERRIZAR: la caida es un tween y hasta que acaba estan 260
+	# px por encima de su sitio (ver TableElement.play_drop).
+	await _wait(0.7)
+	_check("y coloca los dos objetos alineados en la rejilla",
+		is_equal_approx(arbol_caja_a.position.y, arbol_caja_b.position.y))
+	_check("y sin pisarse",
+		not Rect2(arbol_caja_a.position, TableElement.BOX).intersects(
+			Rect2(arbol_caja_b.position, TableElement.BOX)))
+	Game.skills.clear()
+	await _empty_table(g)
+
+	# CAIDA RAPIDA, medida de verdad: con la mejora al tope el objeto ya ha
+	# aterrizado en 0,30 s y sin ella todavia va por el aire (la caida base son
+	# 0,42 s). Es la comprobacion de que play_drop() recibe el tiempo de Game y no
+	# el numero que tenia escrito.
+	Game.skills["caida"] = 5
+	var arbol_caja_c: TableElement = g._spawn_pack("cards")
+	await _wait(0.3)
+	_check("y con la mejora la caja ya esta en la mesa a los 0,3 s",
+		arbol_caja_c.position.y >= g.TABLE_RECT.position.y)
+	Game.skills.clear()
+	await _empty_table(g)
+
+	# EL GUARDADO LLEVA EL ARBOL, y lo lee LIMPIO: un guardado con un id que ya no
+	# existe o con un nivel por encima del tope no puede dejar mejoras fantasma.
+	Game.skills.clear()
+	Game.skills["golpe"] = 3
+	Game.save_game()
+	var arbol_guardado: Dictionary = Game.to_dict()
+	_check("el guardado lleva el arbol",
+		arbol_guardado.has("skills") and int((arbol_guardado["skills"] as Dictionary)["golpe"]) == 3)
+	Game.skills.clear()
+	Game._apply({"money": 100, "skills": {"golpe": 99, "inventada": 4}})
+	_check("un nivel por encima del tope se recorta al leerlo",
+		Game.skill_level("golpe") == LootDB.SKILL_MAX_LEVEL)
+	_check("y una opcion que ya no existe se ignora",
+		not Game.skills.has("inventada") and Game.skill_level("inventada") == 0)
+
+	# EL PANEL SE ABRE DESDE LA HUCHA, que es donde estan las monedas, y tiene que
+	# traer las ocho casillas sin salirse del marco: es una rejilla de cuatro por
+	# dos dentro del mismo panel que la tienda, con el mismo limite.
+	Game.skills.clear()
+	Game.skills["golpe"] = 2
+	Game.rebirth_coins = 20
+	g._open_rebirth()
+	await get_tree().process_frame
+	var hucha_arbol = g._rebirth
+	_check("la hucha trae la chapa del arbol",
+		hucha_arbol != null and hucha_arbol._tree_btn != null)
+	if hucha_arbol != null:
+		hucha_arbol._tree_btn.pressed.emit()
+		await get_tree().process_frame
+		var arbol = g._tree
+		_check("y su chapa abre el arbol encima de ella", arbol != null)
+		_check("sin cerrar la hucha que hay detras", g._rebirth != null)
+		if arbol != null:
+			_check("el arbol trae las ocho casillas", arbol._cells.size() == 8)
+			_check("y el contador de monedas",
+				arbol._coins.get_text() == PixelNumber.format(Game.rebirth_coins))
+			_check_cabe("el arbol no saca texto del panel", arbol, PANEL)
+			_check_sin_encimarse("el arbol no pone texto encima de una chapa", arbol)
+			_check_sin_pisar_dibujos("el arbol no dibuja el texto encima de un icono",
+				arbol)
+			# Y LA REJILLA: las ocho casillas dentro del recuadro y sin pisarse. El
+			# check de "cabe" solo mira rotulos y numeros (ver _fuera), asi que las
+			# cajas se miden aqui, que es donde se ve si un paso de rejilla se ha
+				# quedado corto o largo.
+			var arbol_fuera: Array = []
+			var arbol_pisan := 0
+			for arbol_i in arbol._cells.size():
+				var arbol_r: Rect2 = (arbol._cells[arbol_i]["button"] as Button).get_global_rect()
+				if not PANEL.encloses(arbol_r):
+					arbol_fuera.append(arbol_i)
+				for arbol_j in range(arbol_i + 1, arbol._cells.size()):
+					if arbol_r.intersects((arbol._cells[arbol_j]["button"] as Button).get_global_rect()):
+						arbol_pisan += 1
+			_check("las ocho casillas caben en el marco del panel", arbol_fuera.is_empty())
+			_check("y no se pisan entre si", arbol_pisan == 0)
+
+			# Comprar desde el panel: la casilla compra directamente, sin ficha de
+			# por medio. El indice es el de LootDB.skill_options(), que es como el
+			# panel recorre el catalogo.
+			var i_golpe := _indice_de_opcion("golpe")
+			var nivel_panel: int = Game.skill_level("golpe")
+			arbol._cells[i_golpe]["button"].pressed.emit()
+			await get_tree().process_frame
+			_check("la casilla del arbol compra el nivel",
+				Game.skill_level("golpe") == nivel_panel + 1)
+			_check("y le cobra las monedas", Game.rebirth_coins < 20)
+			_check("y el panel repinta el contador",
+				arbol._coins.get_text() == PixelNumber.format(Game.rebirth_coins))
+
+			# Al tope la casilla deja de enseñar precio, como la tienda.
+			Game.skills["golpe"] = LootDB.SKILL_MAX_LEVEL
+			arbol.refresh()
+			_check("al tope la casilla no enseña precio y lo dice",
+				arbol._cells[i_golpe]["owned"].visible
+				and not arbol._cells[i_golpe]["cost"].visible
+				and arbol._cells[i_golpe]["owned"].text == "AL TOPE")
+			_check("y sus puntos de nivel estan todos llenos",
+				(arbol._cells[i_golpe]["pips"] as Array).size() == LootDB.SKILL_MAX_LEVEL)
+			# Y la de un solo nivel se anuncia como lo que es.
+			var i_orden := _indice_de_opcion("orden")
+			_check("la de un solo nivel dice COMPRA UNICA",
+				arbol._cells[i_orden]["once"] != null
+				and arbol._cells[i_orden]["once"].visible)
+			_check("y las escaleras no", arbol._cells[i_golpe]["once"] == null)
+			# SIN MONEDAS EL PRECIO SALE EN ROJO, que es lo que convierte una
+			# casilla apagada en un objetivo: es el mismo codigo de color que la
+			# columna de sobres y la tienda.
+			Game.rebirth_coins = 0
+			arbol.refresh()
+			_check("sin monedas el precio de una casilla sale en rojo",
+				arbol._cells[_indice_de_opcion("ventas")]["cost"].color == Palette.RUST_L)
+			_check("y el contador de monedas lo dice", arbol._coins.get_text() == "0")
+
+			arbol._close()
+			await get_tree().process_frame
+			_check("y al cerrar el arbol se vuelve a la hucha",
+				g._tree == null and g._rebirth != null)
+		g._rebirth._close()
+		await get_tree().process_frame
+
+	# EL ARBOL NO SE PIERDE AL REINICIAR, y el dinero heredado se nota justo en la
+	# partida nueva: es lo que promete la rama de Herencia.
+	Game.skills.clear()
+	Game.skills["golpe"] = 2
+	Game.skills["hereda"] = 3
+	Game.rebirth_coins = 8
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
+	var monedas_antes: int = Game.rebirth_coins
+	var otro_premio: int = Game.pending_rebirth_coins()
+	Game.do_rebirth()
+	_check("el rebirth no borra el arbol",
+		Game.skill_level("golpe") == 2 and Game.skill_level("hereda") == 3)
+	_check("ni las monedas que quedaban sin gastar",
+		Game.rebirth_coins == monedas_antes + otro_premio)
+	_check("y la partida nueva empieza con el dinero heredado",
+		Game.money == Game.start_money() and Game.money > Game.START_MONEY)
+	_check("y sin la mejora se empezaria con el dinero de siempre",
+		LootDB.skill_heir_money(0) == 0)
+
+	# Y EMPEZAR DE CERO SI borra el arbol: es la unica puerta que se lleva por
+	# delante la progresion de la cuenta (la usan las pruebas y las capturas).
+	Game.hard_reset()
+	_check("empezar de cero borra el arbol",
+		Game.skills.is_empty() and Game.skill_level("golpe") == 0
+		and Game.rebirth_coins == 0)
 
 	# Y EL MENU NO SABE NADA DE ESTO. El menu que se ve al arrancar (y al salir de
 	# la partida) no tiene hucha ni forma de abrirla: el rebirth se hace jugando, y

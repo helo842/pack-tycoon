@@ -377,6 +377,73 @@ func _run() -> void:
 			"la partida vuelve a cero: el requisito hay que ganarselo otra vez")
 		_check(not _main.has_veil(), "y el panel se cierra solo al reiniciar")
 
+	print("Arbol de habilidades:")
+	# Se entra por la HUCHA, que es donde estan las monedas (el rebirth de arriba
+	# acaba de darlas) y donde esta la chapa que abre el arbol. Todo con el raton:
+	# el clic en REBIRTH, el clic en ARBOL y el clic en una casilla del arbol.
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
+	game._refresh_rebirth()
+	await _frames(2)
+	_check(_click(_find_button(game, "REBIRTH")), "el clic en REBIRTH llega otra vez")
+	await _frames(3)
+	var hucha_arbol: Node = null
+	for c in _main._veil_host.get_children():
+		if c is RebirthPanel:
+			hucha_arbol = c
+	_check(hucha_arbol != null, "y abre la hucha, que es la puerta del arbol")
+	if hucha_arbol != null:
+		var chapa_arbol := _find_button(hucha_arbol, "ARBOL")
+		_check(chapa_arbol != null, "la hucha trae la chapa del ARBOL")
+		_check(_click(chapa_arbol), "el clic en ARBOL llega al boton")
+		await _frames(3)
+		var arbol: Node = null
+		for c in _main._overlay_host.get_children():
+			if c is SkillTreePanel:
+				arbol = c
+		_check(arbol != null, "y abre el arbol de habilidades ENCIMA de la hucha")
+		_check(_main.has_veil(), "sin cerrar la hucha que hay detras")
+		if arbol != null:
+			# El indice de la casilla es el de LootDB.skill_options(), que es el
+			# orden en el que el panel las monta.
+			var i_golpe := _indice_de_opcion("golpe")
+			var i_ventas := _indice_de_opcion("ventas")
+			Game.rebirth_coins = 10
+			arbol.refresh()
+			await _frames(2)
+			var nivel_antes: int = Game.skill_level("golpe")
+			var monedas_antes: int = Game.rebirth_coins
+			_check(_click(arbol._cells[i_golpe]["button"]),
+				"el clic en una casilla del arbol llega al boton")
+			await _frames(3)
+			_check(Game.skill_level("golpe") == nivel_antes + 1, "y compra ese nivel")
+			_check(Game.rebirth_coins < monedas_antes, "pagando con monedas de rebirth")
+			# Sin monedas la casilla se pulsa IGUAL (es lo unico que permite decir
+			# cuanto falta) y no compra nada.
+			Game.rebirth_coins = 0
+			arbol.refresh()
+			await _frames(2)
+			var nivel_pobre: int = Game.skill_level("ventas")
+			_check(_click(arbol._cells[i_ventas]["button"]),
+				"el clic en una casilla sin monedas llega igual")
+			await _frames(2)
+			_check(Game.skill_level("ventas") == nivel_pobre, "y no compra nada")
+			# Y cerrar vuelve a la hucha: el arbol va ENCIMA, no en su lugar.
+			var cerrar_arbol := _find_tooltip(_main._overlay_host, "Cerrar")
+			_check(cerrar_arbol != null, "el arbol trae boton de cerrar")
+			if cerrar_arbol != null:
+				_check(_click(cerrar_arbol), "el clic en cerrar del arbol llega al boton")
+				await _frames(3)
+				_check(not _main.has_overlay() and _main.has_veil(),
+					"y al cerrarlo se vuelve a la hucha que hay debajo")
+				_check(game._tree == null, "el juego suelta el arbol al cerrarlo")
+		# La hucha se cierra con su propio boton, y el arbol NO se ha quedado
+		# pegado encima: es el fallo clasico de una capa que no se quita.
+		var cerrar_hucha := _find_tooltip(_main._veil_host, "Cerrar")
+		_check(cerrar_hucha != null and _click(cerrar_hucha), "la hucha se cierra")
+		await _frames(3)
+		_check(not _main.has_veil() and not _main.has_overlay(),
+			"y no queda ni hucha ni arbol por encima")
+
 	print("Menu otra vez:")
 	_main.show_menu()
 	await _frames(3)
@@ -389,6 +456,16 @@ func _run() -> void:
 	_check(_click(settings), "el clic en AJUSTES llega al boton")
 	await _frames(3)
 	_check(_main.has_veil(), "AJUSTES abre su panel")
+
+
+## El indice de una opcion del arbol en LootDB.skill_options(), que es el orden en
+## el que el panel monta sus casillas (el mismo truco que usa smoke_test).
+func _indice_de_opcion(option_id: String) -> int:
+	var opciones: Array = LootDB.skill_options()
+	for i in opciones.size():
+		if str(opciones[i]["id"]) == option_id:
+			return i
+	return -1
 
 
 func _frames(n: int) -> void:

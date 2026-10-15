@@ -419,17 +419,54 @@ blanco puro con contorno `#101020` de 1 px, y `size=7`.
 > ranuras), reduce el PNG a la mitad en Godot con filtro *nearest*: 64→32 px es
 > exacto, así que los píxeles siguen nítidos (2 px de arte en vez de 4).
 
-### Las 4 habilidades principales (`ui/indicators/skill_*`)
+### El árbol de habilidades (`ui/indicators/skill_*`)
 
-El juego **no** usa un árbol de habilidades: son 4 habilidades fijas a las que se
-les compran mejoras. Sus iconos, a 256×256:
+**El juego sí usa un árbol de habilidades**, y estos doce sprites son su arte:
+cuatro **ramas** y ocho **opciones** (dos por rama). Las ramas y las opciones no
+las decide este fichero sino `../scripts/data/loot_db.gd` (constante
+`SKILL_BRANCHES`, con el precio y el efecto de cada nivel), y quien las dibuja es
+`../scripts/screens/skill_tree_panel.gd`, que es también el que decide dónde va
+cada icono. Aquí está solo lo que significan los dibujos.
 
-| Archivo | Qué representa |
+Los cuatro primeros ya existían cuando el árbol era una idea: se hicieron como
+"las 4 habilidades" y hoy son el **emblema de cada rama**, que es lo que se ve
+encima de sus dos casillas.
+
+| Archivo | Qué representa | Rama del árbol |
+|---|---|---|
+| `skill_diamond.png` | Diamante (calidad del botín). Turquesa, como la gema de las cartas. | `CALIDAD DE VIDA` (caída y orden de la mesa) |
+| `skill_dollar.png` | Símbolo de dólar (ganancias). | `GANANCIAS` (ventas y dinero extra) |
+| `skill_lightning.png` | Rayo (velocidad de apertura). | `DANO` (golpe duro y golpe doble) |
+| `skill_cycle.png` | Flechas circulares mordiéndose la cola (reinicio / Rebirth). | `HERENCIA` (sobres baratos y dinero inicial) |
+
+Los ocho de abajo son **nuevos** y cada uno es el icono de UNA opción del árbol:
+
+| Archivo | Dibujo | Opción |
+|---|---|---|
+| `skill_drop.png` | Caja cayendo con dos rayas de velocidad encima (la larga arriba, la corta debajo). | `CAIDA RAPIDA`: las cajas tardan menos en llegar a la mesa |
+| `skill_grid.png` | Cuatro casillas de 5×5 en rejilla de 2×2, con 2 px de hueco entre ellas. | `MESA ORDENADA`: los objetos se colocan solos en su hueco |
+| `skill_sales.png` | Etiqueta de precio con una flecha hacia **arriba** al lado. | `MEJORES VENTAS`: todo lo que vendes vale más |
+| `skill_cheap.png` | La misma etiqueta con la flecha hacia **abajo**. | `SOBRES BARATOS`: los sobres cuestan menos |
+| `skill_rip_cash.png` | Caja con el canto de arriba rasgado (tres dientes) y una moneda saliendo por el roto, delante de la caja. | `DINERO EXTRA`: cada golpe puede soltar dinero |
+| `skill_hit.png` | Mazo con la cabeza de acero arriba a la izquierda y el mango grueso en diagonal. | `GOLPE DURO`: más daño por golpe |
+| `skill_double.png` | Dos mazos cruzados en aspa: el de delante con brillo, el de atrás en sombra. | `GOLPE DOBLE`: probabilidad de que un golpe cuente ×2 |
+| `skill_heir.png` | Bolsa de monedas atada, con una moneda dorada encima y en el centro. | `DINERO INICIAL`: empiezas cada partida con dinero de más |
+
+`skill_sales` y `skill_cheap` son **el mismo dibujo con la flecha del revés**:
+son las dos caras de una misma idea (un precio que sube y un precio que baja), y
+por eso comparten cuerpo y hasta el oro. Al revés —dos iconos distintos para
+cosas simétricas— se leerían como dos mejoras sin relación.
+
+| Dato | Valor |
 |---|---|
-| `skill_diamond.png` | Diamante (calidad del botín). Turquesa, como la gema de las cartas. |
-| `skill_lightning.png` | Rayo (velocidad de apertura). |
-| `skill_dollar.png` | Símbolo de dólar (ganancias). |
-| `skill_cycle.png` | Flechas circulares mordiéndose la cola (reinicio / Rebirth). |
+| Tamaño | **256×256** (16×16 de arte × 16), como sus cuatro hermanos |
+| Escala en pantalla | **96 px** dentro de la casilla del panel (`UIKit.fit_art`) |
+| Zona de arte | 2–14 px de los 16; el resto es margen para el contorno de 1 px |
+
+> **El motivo de la silueta gruesa:** a 96 px un remache o una grieta de 1 px
+desaparecen y dejan un borrón. Todas las opciones se dibujan como bloques con
+contorno —el mazo es un bloque, no un martillo detallado— porque lo que tiene que
+funcionar a ese tamaño es el **contorno**, no el detalle.
 
 ### Estado de conservación (`ui/indicators/condition_*`)
 
@@ -650,7 +687,7 @@ cambiarlo toca la tabla, el índice y el código que lo pide.
 | `rarity_` | `ui/indicators/` | Insignias, gemas y auras de rareza |
 | `shadow_` | `ui/indicators/` | Sombras difuminadas de la mesa |
 | `fx_` | `ui/indicators/` | Efectos sueltos (destellos, partículas) |
-| `skill_` | `ui/indicators/` | Iconos de las 4 habilidades principales |
+| `skill_` | `ui/indicators/` | Árbol de habilidades: 4 emblemas de rama y 8 iconos de opción |
 | `currency_` | `ui/indicators/` | Monedas y recursos (moneda suelta, pila, hucha) |
 | `num_` `font_` | `font/` | Glifos de los números y la fuente del juego |
 | `bg_` | `backgrounds/` | Fondos de pantalla completa |

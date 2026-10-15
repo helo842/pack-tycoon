@@ -8,7 +8,11 @@ asi que mover uno aqui no obliga a tocar a los demas.
 core/       lo que esta siempre vivo
   main.gd         MainRoot: la raiz que va cambiando de pantalla
   game_state.gd   el autoload "Game": dinero, inventario (50 huecos), el armario
-                  con sus bonus, las monedas de rebirth, los ajustes y el guardado
+                  con sus bonus, las monedas de rebirth y los niveles del arbol
+                  de habilidades, los ajustes y el guardado. Los efectos del
+                  arbol se aplican AQUI (drop_time, tidy_table, double_chance,
+                  pack_price con descuento, start_money...), sobre las formulas
+                  de loot_db: quien dibuja solo pregunta por el numero ya hecho
   audio.gd        el autoload "Sound": efectos, musica y los tres buses
   palette.gd      los tokens de color que Tambien usa el generador
 
@@ -17,8 +21,9 @@ data/       lo que se toca para reequilibrar el juego
                   items de la tienda (seis con ocho niveles y dos piezas de
                   compra unica: ver item_max_level), con que pieza se enciende
                   cada automatizacion, los cuatro tipos de botin con el stat que
-                  sube cada uno (LOOT_KINDS), los huecos del armario y lo que
-                  da el rebirth
+                  sube cada uno (LOOT_KINDS), los huecos del armario, lo que
+                  da el rebirth y el ARBOL DE HABILIDADES (SKILL_BRANCHES: 4
+                  ramas x 2 opciones, con sus precios en escalera y su efecto)
 
 ui/         las piezas de interfaz, reutilizables
   ui_kit.gd       fabrica de controles: etiquetas, botones, paneles, sprites
@@ -46,7 +51,11 @@ screens/    una clase por pantalla
   locker_panel.gd   el armario: el inventario a la IZQUIERDA y las vitrinas a la
                     DERECHA, con la suma de los cuatro bonus y VENDER TODO
   rebirth_panel.gd  la hucha: lo que te llevas al reiniciar la partida y cuanto
-                    multiplica la electronica del armario
+                    multiplica la electronica del armario, mas la chapa que
+                    abre el ARBOL (que es donde se gastan esas monedas)
+  skill_tree_panel.gd el arbol de habilidades: las cuatro ramas en columna, con
+                    sus dos opciones y su precio en monedas de rebirth. La
+                    casilla compra directamente y enseña el nivel que compra
   reveal_card.gd    la tarjeta de revelado
   settings_panel.gd los ajustes
   table_element.gd  un objeto de la mesa: el paquete que se abre, el botin que

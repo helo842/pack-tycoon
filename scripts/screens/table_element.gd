@@ -18,6 +18,10 @@ signal sold(value: int, at: Vector2)
 ## critico o no. Lo pinta quien tiene la capa de los avisos (ver game.gd,
 ## _on_element_damaged()), que es el mismo que pinta los avisos de venta.
 signal damaged(amount: float, crit: bool)
+## Este golpe ha soltado dinero (la habilidad "Dinero extra" del arbol). Quien
+## lo cobra es game.gd: el elemento no toca el dinero de la partida, igual que no
+## lo toca al vender (solo dice que se ha vendido y por cuanto).
+signal cash_found(amount: float)
 
 enum State { CLOSED, OPENING, OPENED, LOOT }
 
@@ -283,7 +287,13 @@ func start_opening() -> bool:
 ## poder cortarla: si el jugador agarra el objeto mientras todavia esta cayendo,
 ## el tween seguiria moviendolo por su cuenta por debajo del raton y el arrastre
 ## no responderia. Ver _stop_drop().
-func play_drop(rest: Vector2) -> void:
+##
+## `fall` NO tiene valor por defecto y lo pone quien llama, que es game.gd con
+## Game.drop_time(): la duracion de la caida es una mejora del arbol de
+## habilidades ("Caida rapida"), asi que el numero no puede estar escrito aqui
+## dentro. El resto de la entrada (el alfa y el rebote) si es fijo: es el "game
+## feel" de que el objeto cae, y el arbol lo acorta sin cambiarle la forma.
+func play_drop(rest: Vector2, fall: float) -> void:
 	position = rest + Vector2(0, -260)
 	scale = Vector2(0.7, 0.7)
 	modulate.a = 0.0
@@ -292,9 +302,12 @@ func play_drop(rest: Vector2) -> void:
 	_drop_tween.set_ease(Tween.EASE_OUT)
 	_drop_tween.set_parallel(true)
 	_drop_tween.tween_property(self, "modulate:a", 1.0, 0.18)
-	_drop_tween.tween_property(self, "scale", Vector2.ONE, 0.24)
+	# El crecimiento tambien se acorta, pero no mas de lo que dura la caida: si no,
+	# con la mejora al maximo el objeto aterrizaria a medio crecer y se veria un
+	# salto de tamano justo al llegar (que es cuando mas se mira).
+	_drop_tween.tween_property(self, "scale", Vector2.ONE, minf(0.24, fall))
 	_drop_tween.chain()
-	_drop_tween.tween_property(self, "position", rest, 0.42)
+	_drop_tween.tween_property(self, "position", rest, fall)
 
 
 ## Se agarra el objeto: se corta la caida y se deja puesto y entero, no a medio
@@ -337,14 +350,35 @@ func _process(delta: float) -> void:
 
 ## Un golpe: resta a la resistencia el dano del jugador (con critico si toca) y,
 ## si llega a cero, la caja se rompe y sale el botin.
+##
+## DOS SUERTES INDEPENDIENTES, y a proposito: el critico (Ojo verde + Laser) y el
+## GOLPE DOBLE del arbol de habilidades. Son cosas distintas -una sube el golpe y
+## la otra lo duplica- y pueden caer en el mismo golpe, que es el momento en el
+## que salta un x4. Las dos se tiran AQUI y no en Game porque quien tiene el
+## generador de numeros al azar de verdad es el elemento, y porque asi el golpe
+## se decide en un solo sitio (ver Game.crit_chance / Game.double_chance).
 func _strike() -> void:
 	var dmg := Game.damage_per_hit()
 	var crit := false
 	if Game.crit_chance() > 0.0 and _rng.randf() < Game.crit_chance():
 		crit = true
 		dmg *= Game.crit_mult()
+	if Game.double_chance() > 0.0 and _rng.randf() < Game.double_chance():
+		# El golpe doble NO es un critico (no lleva el multiplicador del Laser),
+		# pero para el jugador los dos son "un golpe gordo": sale en amarillo con
+		# su numero de verdad y sin una etiqueta que haya que aprender.
+		crit = true
+		dmg *= 2.0
 	hp = maxf(0.0, hp - dmg)
 	_tap(crit)
+	# El dinero extra del arbol ("Dinero extra") se tira tambien por redonda y
+	# SOLO por redonda del boton, como el numero del dano: los Pinchos pegan a
+	# todos los paquetes cada cuarto de segundo y con ellos tambien caerian
+	# monedas de cuatro en cuatro, que convertiria la mejora en un chorro de
+	# avisos encima de la mesa. La probabilidad es la misma; el momento es del
+	# jugador.
+	if Game.rip_chance() > 0.0 and _rng.randf() < Game.rip_chance():
+		cash_found.emit(float(Game.rip_cash_for(str(pack.get("id", "cards")))))
 	# El numero sale AQUI, antes de mirar si la caja se ha roto: el golpe que la
 	# rompe tambien hace su dano y tambien se tiene que leer.
 	#

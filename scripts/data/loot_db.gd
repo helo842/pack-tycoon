@@ -379,6 +379,135 @@ const REBIRTH_EARN_AT := 1000000
 const REBIRTH_VALUE_PER_COIN := 0.05
 
 # --------------------------------------------------------------------------- #
+# EL ARBOL DE HABILIDADES (4 ramas x 2 opciones)
+# --------------------------------------------------------------------------- #
+#
+# QUE ES. El Idea.pdf promete un arbol de cuatro ramas que se mejora con las
+# monedas del rebirth:
+#
+#   1. Calidad de vida: que los paquetes caigan mas rapido o se apilen solos.
+#   2. Ganancias: ganar mas por venta o que caiga dinero extra al rasgar.
+#   3. Dano: pegar mas fuerte o tener probabilidad de dano doble.
+#   4. Las ventajas permanentes del rebirth: sobres mas baratos y empezar las
+#      partidas siguientes con dinero heredado (lo dice el propio documento al
+#      explicar la hucha).
+#
+# SE PAGA CON MONEDAS DE REBIRTH, y de ahi que el arbol sea "el" arbol del
+# rebirth: son la unica moneda que pasa de una partida a la siguiente (ver
+# REBIRTH_VALUE_PER_COIN). Gastarlas tiene un coste de oportunidad de verdad
+# -cada moneda que no se gasta sube un 5 % todo lo que vendes-, que es lo que
+# hace que elegir rama importe.
+#
+# LO QUE SE COMPRA NO SE PIERDE. Ni el rebirth ni el reinicio de la partida
+# tocan `skills`: es progresion de la CUENTA, como las monedas. Por eso el arbol
+# es lo unico del juego que no se puede perder de ninguna manera (ver
+# game_state.gd, do_rebirth()).
+#
+# DOS CLASES DE OPCION, igual que en la tienda: SIETE escaleras de cinco niveles
+# (los numeros suben con cada nivel) y UNA de un solo nivel, que es la que no
+# tiene numero que subir -"se colocan solos" es un si o un no-. En el panel la de
+# un nivel se marca con COMPRA UNICA, el mismo rotulo que usan el PC y los
+# Pinchos, para no inventar otro idioma en la misma pantalla.
+#
+# LOS PRECIOS SON CORTOS A PROPOSITO (1, 2, 3, 5 y 8 por nivel): una partida
+# normal da entre una y diez monedas (ver REBIRTH_EARN_AT), asi que la primera
+# mejora del arbol tiene que caber en la PRIMERA partida. Subir un arbol entero
+# son 19 monedas y el arbol completo 114, que es una meta de muchas partidas y
+# deja sitio para el resto del juego.
+#
+# LOS NOMBRES DE LAS OCHO OPCIONES MIDEN 14 CARACTERES O MENOS, y no es
+# casualidad: en una casilla de 320 px con 24 de margen caben 296, y a 21 px por
+# caracter -que es el tamano al que se leen los nombres- son exactamente 14. El
+# panel los pinta TODOS al mismo tamano (ver skill_tree_panel.gd), asi que un
+# nombre de 15 encogeria los ocho a 14 px y la pantalla entera se leeria mas
+# pequeia. Es el mismo limite que el de la columna de sobres (16 caracteres a
+# 28) y por eso los nombres se eligen mirando la cuenta.
+const SKILL_MAX_LEVEL := 5
+## Lo que cuesta el nivel 1, 2, 3, 4 y 5 de cualquier opcion con niveles.
+const SKILL_COSTS: Array = [1, 2, 3, 5, 8]
+
+const SKILL_BRANCHES: Array = [
+	{
+		"id": "vida", "name": "CALIDAD DE VIDA", "art": "skill_diamond",
+		"options": [
+			{"id": "caida", "name": "CAIDA RAPIDA", "art": "skill_drop", "max": 5,
+				"desc": "LAS CAJAS TARDAN MENOS EN CAER A LA MESA."},
+			{"id": "orden", "name": "MESA ORDENADA", "art": "skill_grid", "max": 1,
+				"desc": "LOS PAQUETES Y LOS OBJETOS SE COLOCAN SOLOS EN UNA REJILLA ORDENADA, SIN PISARSE."},
+		],
+	},
+	{
+		"id": "ganancias", "name": "GANANCIAS", "art": "skill_dollar",
+		"options": [
+			{"id": "ventas", "name": "MEJORES VENTAS", "art": "skill_sales", "max": 5,
+				"desc": "TODO LO QUE VENDES VALE MAS. SE SUMA AL ARMARIO Y A LAS MONEDAS."},
+			{"id": "rasgar", "name": "DINERO EXTRA", "art": "skill_rip_cash", "max": 5,
+				"desc": "CADA GOLPE TIENE ESTA PROBABILIDAD DE SOLTAR DINERO EXTRA, SEGUN LO QUE COSTE EL SOBRE."},
+		],
+	},
+	{
+		"id": "dano", "name": "DANO", "art": "skill_lightning",
+		"options": [
+			{"id": "golpe", "name": "GOLPE DURO", "art": "skill_hit", "max": 5,
+				"desc": "SUBE EL DANO DE CADA GOLPE, ENCIMA DE LO QUE DAN LOS ITEMS Y LAS CARTAS DEL ARMARIO."},
+			{"id": "doble", "name": "GOLPE DOBLE", "art": "skill_double", "max": 5,
+				"desc": "CADA GOLPE TIENE ESTA PROBABILIDAD DE HACER EL DOBLE DE DANO. NO ES UN CRITICO: SE PUEDE SUMAR A UNO."},
+		],
+	},
+	{
+		"id": "herencia", "name": "HERENCIA", "art": "skill_cycle",
+		"options": [
+			{"id": "barato", "name": "SOBRES BARATOS", "art": "skill_cheap", "max": 5,
+				"desc": "TODOS LOS SOBRES CUESTAN MENOS. VALE PARA LA COMPRA A MANO Y PARA LA AUTOMATICA."},
+			{"id": "hereda", "name": "DINERO INICIAL", "art": "skill_heir", "max": 5,
+				"desc": "CADA PARTIDA NUEVA EMPIEZA CON ESTE DINERO DE MAS, SUMADO AL DE SIEMPRE."},
+		],
+	},
+]
+
+# --- cuanto hace cada opcion ---------------------------------------------- #
+## Caida rapida: segundos que se acortan de la caida (en fraccion) por nivel.
+## La caida base son DROP_TIME segundos y se DIVIDE entre (1 + esto x nivel),
+## como el tiempo de carga de las Zapatillas: asi el nivel 5 se queda en 0,24 s
+## (un 43 % menos) y nunca llega a cero por muchos niveles que se compren.
+const SKILL_DROP_PER_LEVEL := 0.15
+## Segundos que tarda un objeto en caer a la mesa sin ninguna mejora.
+##
+## Vive aqui y no en la mesa por el mismo motivo que CHARGE_TIME: es un numero
+## de equilibrio, y el arbol tiene que poder leerlo para acortarlo.
+const DROP_TIME := 0.42
+## Mejores ventas: +4 % al valor de todo lo que se vende por nivel (un +20 % a
+## los cinco, que es la mitad de lo que da una moneda de rebirth).
+const SKILL_SALES_PER_LEVEL := 0.04
+## Dinero al rasgar: probabilidad por nivel (2 % por nivel, un 10 % a los cinco)
+## de que un golpe suelte dinero.
+const SKILL_RIP_CHANCE_PER_LEVEL := 0.02
+## Lo que suelta ese golpe: un 10 % de lo que costo el sobre.##
+## Es un porcentaje del PRECIO y no una cifra fija porque asi la mejora sigue
+## valiendo lo mismo cuando la partida cambia de escalon de sobres (un sobre de
+## diez milones devuelve un millon, que es mucho en valor absoluto y poco al
+## lado de lo que hay dentro de ese sobre).
+const RIP_CASH_RATE := 0.10
+## Suelo del dinero al rasgar. El sobre gratuito cuesta 0, y sin suelo la mejora
+## no haria absolutamente nada en el primer sobre de la partida, que es el que
+## se abre cientos de veces al empezar.
+const RIP_CASH_FLOOR := 20
+## Golpe duro: +8 % de dano por nivel.
+const SKILL_HIT_PER_LEVEL := 0.08
+## Golpe doble: 2 % por nivel de que un golpe haga dano doble.
+const SKILL_DOUBLE_CHANCE_PER_LEVEL := 0.02
+## Sobres baratos: -3 % al precio de los sobres por nivel.
+const SKILL_CHEAP_PER_LEVEL := 0.03
+## Dinero heredado: lo que suma cada nivel al dinero con el que empieza una
+## partida nueva.
+##
+## 2.500 por nivel y no un porcentaje: el dinero inicial (500) es una cifra que
+## deja de significar nada en cuanto se abre el segundo escalon de sobres, y lo
+## que hace falta al volver a empezar es poder comprar los primeros sobres sin
+## volver a dar cien clics al gratuito.
+const SKILL_HEIR_PER_LEVEL := 2500
+
+# --------------------------------------------------------------------------- #
 # Consultas
 # --------------------------------------------------------------------------- #
 
@@ -688,6 +817,164 @@ static func rebirth_coins_for(earned: int, mult: float = 1.0) -> int:
 	if base <= 0:
 		return 1
 	return maxi(1, int(floor(float(base) * maxf(mult, 1.0))))
+
+
+# --------------------------------------------------------------------------- #
+# El arbol de habilidades: consultas
+# --------------------------------------------------------------------------- #
+
+## Las cuatro ramas con sus dos opciones cada una, en el orden en que se
+## ensehan. El panel las recorre de aqui: no hay ninguna lista de ramas escrita
+## en la interfaz, que es lo que hace que anadir una rama sea anadir datos.
+static func skill_branches() -> Array:
+	return SKILL_BRANCHES
+
+
+## Las ocho opciones EN UNA LISTA PLANA, en el orden del panel (las dos de la
+## primera rama, luego las dos de la segunda...). Los tests la usan para
+## recorrer el arbol entero sin saber de ramas.
+static func skill_options() -> Array:
+	var out: Array = []
+	for branch in SKILL_BRANCHES:
+		for option in branch["options"]:
+			out.append(option)
+	return out
+
+
+## La fila de una opcion por su id. Devuelve {} si no existe, y quien pregunta
+## tiene que poder distinguirlo: un id que no esta (un guardado viejo, una
+## errata) no puede contestar los datos de otra opcion, que es como se acaba
+## mejorando lo que no es.
+static func skill_option(option_id: String) -> Dictionary:
+	for branch in SKILL_BRANCHES:
+		for option in branch["options"]:
+			if str(option["id"]) == option_id:
+				return option
+	return {}
+
+
+## ¿Existe esa opcion del arbol?
+static func has_skill(option_id: String) -> bool:
+	return not skill_option(option_id).is_empty()
+
+
+## La rama a la que pertenece una opcion (su fila de SKILL_BRANCHES), o {}.
+static func skill_branch_of(option_id: String) -> Dictionary:
+	for branch in SKILL_BRANCHES:
+		for option in branch["options"]:
+			if str(option["id"]) == option_id:
+				return branch
+	return {}
+
+
+## Niveles que puede llegar a tener una opcion (5 en las seis escaleras y 1 en
+## las dos de compra unica). 0 si el id no existe.
+static func skill_max(option_id: String) -> int:
+	var option := skill_option(option_id)
+	if option.is_empty():
+		return 0
+	return int(option["max"])
+
+
+## Lo que cuesta el SIGUIENTE nivel de una opcion. -1 cuando no hay nada que
+## comprar: porque ya esta al tope. Es "no hay precio", el mismo contrato que
+## item_cost(), y por eso el panel puede usar el mismo rotulo AL TOPE.
+static func skill_cost(option_id: String, current_level: int) -> int:
+	var tope := skill_max(option_id)
+	if tope <= 0 or current_level >= tope:
+		return -1
+	return int(SKILL_COSTS[clampi(current_level, 0, SKILL_COSTS.size() - 1)])
+
+
+## Cuantas mejoras tiene el arbol entero. Es el tope de compras de una partida
+## eterna (siete escaleras de 5 niveles mas 1 opcion de un nivel: 36).
+static func skill_step_count() -> int:
+	var total := 0
+	for option in skill_options():
+		total += int(option["max"])
+	return total
+
+
+## El efecto de una opcion a un nivel concreto, YA ESCRITO para leerlo.
+##
+## Devuelve TEXTO y no un numero por lo mismo que item_effect(): cada efecto se
+## mide en lo suyo (por ciento, golpes, monedas) y decidir como se escribe eso es
+## parte del dato. Asi el panel del arbol no puede mentir, y el dia que cambie
+## una formula hay un solo sitio que tocar.
+##
+## El texto es CORTO a proposito (a 14 px caben 21 caracteres en el ancho de una
+## casilla): el numero solo, con la unidad, y el nombre de la casilla diciendo de
+## que va. "+8 % DE DANO" se lee; "EL DANO DE CADA GOLPE SUBE UN 8 POR CIENTO"
+## no cabe en ningun sitio del panel.
+static func skill_effect(option_id: String, level: int) -> String:
+	var lvl := maxi(0, level)
+	match option_id:
+		"caida":
+			return "+%d%% MAS RAPIDO" % roundi((1.0 - DROP_TIME / skill_drop_time(lvl)) * 100.0)
+		"orden":
+			return "SE COLOCAN SOLOS"
+		"ventas":
+			return "+%d%% AL VENDER" % roundi(SKILL_SALES_PER_LEVEL * float(lvl) * 100.0)
+		"rasgar":
+			return "%d%% DE GOLPES" % roundi(SKILL_RIP_CHANCE_PER_LEVEL * float(lvl) * 100.0)
+		"golpe":
+			return "+%d%% DE DANO" % roundi(SKILL_HIT_PER_LEVEL * float(lvl) * 100.0)
+		"doble":
+			return "%d%% DANO X2" % roundi(SKILL_DOUBLE_CHANCE_PER_LEVEL * float(lvl) * 100.0)
+		"barato":
+			return "-%d%% DE PRECIO" % roundi(SKILL_CHEAP_PER_LEVEL * float(lvl) * 100.0)
+		"hereda":
+			# Sin separador de millares a proposito: el que separa es
+			# PixelNumber.format(), que vive en la capa de interfaz y aqui no se
+			# puede usar sin que data/ empiece a depender de ui/. A 2.500 por nivel
+			# el numero mas largo es 12500, que cabe de sobra en la casilla.
+			return "+%d AL EMPEZAR" % skill_heir_money(lvl)
+	return ""
+
+
+## Segundos que tarda un objeto en caer a la mesa con la mejora a este nivel.
+static func skill_drop_time(level: int) -> float:
+	return DROP_TIME / (1.0 + SKILL_DROP_PER_LEVEL * float(maxi(0, level)))
+
+
+## Lo que sube el valor de todo lo que se vende con la mejora "Mejores
+## ventas": se multiplica, como el armario, y no se suma.
+static func skill_sale_mult(level: int) -> float:
+	return 1.0 + SKILL_SALES_PER_LEVEL * float(maxi(0, level))
+
+
+## Probabilidad de que un golpe suelte dinero extra.
+static func skill_rip_chance(level: int) -> float:
+	return SKILL_RIP_CHANCE_PER_LEVEL * float(maxi(0, level))
+
+
+## El dinero que suelta ese golpe, segun lo que costo el sobre.
+static func skill_rip_cash(price: int) -> int:
+	if price <= 0:
+		return RIP_CASH_FLOOR
+	return maxi(RIP_CASH_FLOOR, int(round(float(price) * RIP_CASH_RATE)))
+
+
+## Lo que sube el dano de cada golpe: se multiplica sobre el dano que ya dan
+## los items y el armario.
+static func skill_damage_mult(level: int) -> float:
+	return 1.0 + SKILL_HIT_PER_LEVEL * float(maxi(0, level))
+
+
+## Probabilidad de que un golpe haga el DOBLE de dano (independiente del
+## critico del Ojo verde: los dos se pueden sumar en el mismo golpe).
+static func skill_double_chance(level: int) -> float:
+	return SKILL_DOUBLE_CHANCE_PER_LEVEL * float(maxi(0, level))
+
+
+## Lo que baja el precio de TODOS los sobres: se multiplica por (1 - esto).
+static func skill_price_mult(level: int) -> float:
+	return clampf(1.0 - SKILL_CHEAP_PER_LEVEL * float(maxi(0, level)), 0.1, 1.0)
+
+
+## El dinero de mas con el que empieza una partida nueva.
+static func skill_heir_money(level: int) -> int:
+	return SKILL_HEIR_PER_LEVEL * maxi(0, level)
 
 
 # --------------------------------------------------------------------------- #

@@ -2176,6 +2176,169 @@ def draw_skill_cycle(s: Sprite) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Las ocho opciones del arbol de habilidades
+#
+# Son los hijos de los cuatro iconos de arriba: cada rama del arbol lleva su
+# icono de rama (diamond, lightning, dollar, cycle) y sus dos opciones llevan uno
+# de estos ocho. Van a 16x16 como sus hermanos -salvo cycle, que necesita 32- y
+# con el mismo prefijo, asi que el archivo sale tambien de 256x256 y los nueve se
+# pueden poner en la misma fila sin que uno quede de otro tamano.
+#
+# TODOS SON UNA SILUETA GRUESA. En la pantalla del arbol cada uno se dibuja a 96
+# px (un tercio de su tamano): cualquier detalle de 1 px (un remache, una grieta
+# fina) desaparece y deja un borron, asi que el dibujo tiene que leerse por su
+# CONTORNO. Por eso el martillo es un bloque y no un martillo detallado, y la
+# moneda se distingue del fondo por el aro oscuro.
+# --------------------------------------------------------------------------- #
+
+def draw_skill_drop(s: Sprite) -> None:
+    """Caja cayendo, con dos rayas de velocidad encima: las cajas tardan menos en
+    llegar a la mesa.
+
+    Las rayas van ARRIBA a la derecha y separadas de la caja (y 1..5, caja desde
+    y 7): pegadas a la tapa se leerian como parte del dibujo de la caja. La de
+    arriba es la larga y la de abajo la corta, que es como se dibuja el
+    movimiento en un solo fotograma.
+    """
+    s.rect(9, 1, 13, 2, CREAM_D)                       # raya larga
+    s.rect(6, 4, 9, 5, CREAM_D)                        # raya corta
+    s.rect(3, 7, 12, 14, BROWN)                        # cuerpo de la caja
+    s.rect(3, 7, 12, 8, BROWN_L)                       # tapa iluminada
+    s.rect(3, 13, 12, 14, shade(BROWN, -0.35))         # sombra del canto de abajo
+    s.rect(5, 9, 5, 14, GOLD_D)                        # fleje izquierdo
+    s.rect(10, 9, 10, 14, GOLD_D)                      # fleje derecho
+    s.rect(3, 11, 12, 12, GOLD_D)                      # banda de la caja
+    s.rect(3, 11, 12, 11, GOLD)
+
+
+def draw_skill_grid(s: Sprite) -> None:
+    """Cuatro casillas de 5x5 en una rejilla de 2x2, alineadas: los objetos se
+    colocan solos en su sitio.
+
+    Los 2 px de hueco entre casillas son lo que hace que se lean cuatro y no un
+    bloque con rayas: juntas no habria forma de saber cuantas son.
+    """
+    for cx, cy in ((2, 2), (9, 2), (2, 9), (9, 9)):
+        s.rect(cx, cy, cx + 4, cy + 4, BROWN)
+        s.rect(cx, cy, cx + 4, cy + 1, BROWN_L)               # canto claro
+        s.rect(cx, cy + 3, cx + 4, cy + 4, shade(BROWN, -0.35))  # canto oscuro
+        s.px(cx + 1, cy + 1, GOLD_D)                          # esquina del fleje
+
+
+def _tag_with_arrow(s: Sprite, up: bool) -> None:
+    """Etiqueta de precio con la punta a la derecha y una flecha al lado.
+
+    Es el dibujo compartido de las dos opciones del precio (`sales` y `cheap`):
+    mismo cuerpo y flecha al reves, que es lo unico que las distingue y lo que
+    hace que se lean como los dos lados de una misma cosa.
+
+    La etiqueta ocupa x 1..9 y la flecha x 10..14, con 1 px de aire entre las
+    dos: pegadas se leerian como un solo garabato.
+    """
+    s.poly([(1, 3), (7, 3), (9, 7), (7, 11), (1, 11)], CREAM)        # silueta
+    s.poly([(2, 4), (7, 4), (8, 7), (7, 10), (2, 10)], CREAM_L)      # cara
+    s.rect(2, 5, 3, 6, CREAM_D)                                     # agujero
+    if up:
+        s.rect(12, 7, 13, 13, GOLD_XL)                              # asta
+        s.poly([(10, 7), (14, 7), (12, 4)], GOLD_XL)                # punta
+    else:
+        s.rect(12, 2, 13, 9, GOLD_XL)
+        s.poly([(10, 9), (14, 9), (12, 12)], GOLD_XL)
+
+
+def draw_skill_sales(s: Sprite) -> None:
+    """Etiqueta de precio con la flecha hacia ARRIBA: todo se vende mas caro."""
+    _tag_with_arrow(s, up=True)
+
+
+def draw_skill_cheap(s: Sprite) -> None:
+    """La misma etiqueta con la flecha hacia ABAJO: los sobres cuestan menos.
+
+    La flecha de abajo NO es "esto es malo": va junto a la etiqueta, y una
+    etiqueta con la flecha hacia abajo se lee en todas partes como un precio que
+    baja. Los dos colores son el mismo oro a proposito: son la misma idea.
+    """
+    _tag_with_arrow(s, up=False)
+
+
+def draw_skill_rip_cash(s: Sprite) -> None:
+    """Caja con el canto de arriba rasgado y una moneda saliendo por el roto: a
+    golpear la caja sale dinero.
+
+    El roto son tres dientes con los huecos de en medio transparentes, y la
+    moneda va DELANTE de la caja (se dibuja despues) y encima del hueco central:
+    detras del diente no se veria, y al lado pareceria una moneda suelta.
+    """
+    s.rect(2, 8, 13, 14, BROWN)                        # cuerpo de la caja
+    s.rect(2, 8, 13, 9, BROWN_L)                       # canto iluminado
+    s.rect(2, 11, 13, 12, GOLD_D)                      # banda de la caja
+    s.rect(2, 13, 13, 14, shade(BROWN, -0.35))         # sombra del canto de abajo
+    for x in (2, 6, 11):
+        s.rect(x, 5, x + 1, 9, BROWN)                  # dientes del rasgado
+        s.px(x, 5, BROWN_L)                            # punta iluminada
+    s.ellipse(5, 2, 11, 8, GOLD_D)                     # moneda: canto
+    s.ellipse(6, 3, 10, 7, GOLD_XL)
+    s.ellipse(7, 4, 9, 6, GOLD_L)
+    s.px(7, 4, WHITE)
+
+
+def draw_skill_hit(s: Sprite) -> None:
+    """Mazo con la cabeza arriba a la izquierda y el mango hacia abajo a la
+    derecha: cada golpe pega mas fuerte.
+
+    La cabeza es un bloque de acero de 8x5 y el mango una linea gruesa en
+    diagonal: con la cabeza redonda o el mango fino el dibujo se queda en nada a
+    96 px, que es como se ve en la pantalla del arbol.
+    """
+    s.rect(2, 2, 9, 6, STEEL)                          # cabeza
+    s.rect(2, 2, 9, 2, shade(STEEL, 0.20))             # canto de arriba
+    s.rect(2, 6, 9, 6, shade(STEEL, -0.35))            # canto de abajo
+    s.rect(3, 3, 3, 5, shade(STEEL, 0.35))             # brillo de la cara
+    s.line([(7, 6), (13, 13)], BROWN, width=2)         # mango
+    s.line([(7, 6), (12, 12)], BROWN_L, width=1)       # canto iluminado del mango
+
+
+def draw_skill_double(s: Sprite) -> None:
+    """Dos mazos cruzados en aspa: hay probabilidad de que el golpe cuente x2.
+
+    Son dos mazos y no un mazo con un destello porque el icono hermano (`hit`) ya
+    es un mazo: repetir la cabeza y anadir algo a su lado solo se leeria como el
+    mismo icono sucio. El de la izquierda va DELANTE (dibujado despues) y el de
+    la derecha en sombra, que es lo que hace que el cruce se entienda: los dos
+    iguales y encima uno del otro salen como una mancha.
+    """
+    # El de atras, entero en sombra: se dibuja primero para que el otro lo tape.
+    s.rect(9, 1, 14, 4, STEEL_D)
+    s.rect(9, 1, 14, 1, STEEL)
+    s.line([(10, 4), (3, 12)], shade(BROWN, -0.35), width=2)
+    # El de delante, con el brillo y el mango claros.
+    s.rect(1, 1, 6, 4, STEEL)
+    s.rect(1, 1, 6, 1, shade(STEEL, 0.20))
+    s.rect(1, 4, 6, 4, shade(STEEL, -0.35))
+    s.line([(5, 4), (13, 12)], BROWN, width=2)
+    s.line([(5, 4), (12, 11)], BROWN_L, width=1)
+
+
+def draw_skill_heir(s: Sprite) -> None:
+    """Bolsa de monedas con una moneda delante: cada partida empieza con dinero
+    heredado de la anterior.
+
+    La moneda va ENCIMA de la bolsa y en el centro, no al lado: al lado quedaban
+    dos cosas sueltas que habia que juntar con la cabeza, y encima se lee solo,
+    que es dinero guardado dentro.
+    """
+    s.poly([(5, 5), (10, 5), (12, 9), (10, 12), (5, 12), (2, 9)], BROWN)   # bolsa
+    s.poly([(6, 6), (9, 6), (10, 9), (9, 11), (6, 11), (4, 9)], BROWN_L)   # cara
+    s.rect(4, 4, 11, 5, BROWN_D)                       # boca de la bolsa
+    s.rect(5, 3, 10, 4, GOLD_D)                        # cordel que la ata
+    s.rect(5, 3, 10, 3, GOLD)
+    s.ellipse(5, 7, 11, 13, GOLD_D)                    # moneda: canto
+    s.ellipse(6, 8, 10, 12, GOLD)
+    s.ellipse(7, 9, 9, 11, GOLD_XL)
+    s.px(7, 9, GOLD_HI)
+
+
+# --------------------------------------------------------------------------- #
 # Insignias de estado de conservacion
 #
 # El documento aplica un multiplicador al valor final segun el estado del
@@ -3217,6 +3380,18 @@ UI_ITEMS: Dict[str, UiSpec] = {
     # cycle a 32x32 y scale 8: a 16x16 no caben las tres flechas (ver la
     # funcion); el PNG sale igual a 256 que sus hermanas.
     "cycle": UiSpec(32, 32, draw_skill_cycle, prefix="skill", scale=8),
+
+    # --- opciones del arbol de habilidades (4 ramas x 2) ---
+    # 16x16 y scale entero, como sus hermanas de arriba: el archivo sale de 256
+    # y los ocho caben en una fila de la pantalla del arbol sin deformarse.
+    "drop": UiSpec(16, 16, draw_skill_drop, prefix="skill"),
+    "grid": UiSpec(16, 16, draw_skill_grid, prefix="skill"),
+    "sales": UiSpec(16, 16, draw_skill_sales, prefix="skill"),
+    "rip_cash": UiSpec(16, 16, draw_skill_rip_cash, prefix="skill"),
+    "hit": UiSpec(16, 16, draw_skill_hit, prefix="skill"),
+    "double": UiSpec(16, 16, draw_skill_double, prefix="skill"),
+    "cheap": UiSpec(16, 16, draw_skill_cheap, prefix="skill"),
+    "heir": UiSpec(16, 16, draw_skill_heir, prefix="skill"),
 
     # --- kit de interfaz ---
     "panel_shop": UiSpec(100, 60, partial(draw_panel, body=BROWN_D)),

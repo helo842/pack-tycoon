@@ -5,18 +5,25 @@ roto nada, y hacen falta antes de dar cualquier cambio por bueno.
 
 ```
 smoke_test.gd    el test automatico. Arranca el juego de verdad y comprueba
-                 mas de 300 cosas: que se compra, que la mesa se llena, que el
+                 mas de 500 cosas: que se compra, que la mesa se llena, que el
                  sprite lleva la nota, que la fuente se escala entera, que los
-                 indices de sprites y de sonidos estan completos
+                 indices de sprites y de sonidos estan completos, que el armario
+                 y el rebirth dan lo que prometen y que el ARBOL DE HABILIDADES
+                 mueve los numeros que dice mover (dano, valor, precio, caida,
+                 dinero al rasgar, golpes dobles y dinero inicial) y sobrevive
+                 al rebirth
 input_test.gd    el test del RATON. Manda clics y arrastres sinteticos y
                  comprueba que los reciben: menu, tienda, cerrar, la mesa, los
                  dos botones de la tarjeta, el arrastre de un objeto, la rueda
                  de la columna de sobres, el mini menu de la compra automatica
                  (que con los Pinchos, y no con el PC, no se abre), el armario
                  (su boton, exponer, devolver, el clic derecho que vende un
-                 objeto del inventario y VENDER TODO) y la chapa REBIRTH
-                 de la barra de la partida, que abre la hucha y reinicia la
-                 partida desde el boton de su panel
+                 objeto del inventario y VENDER TODO), la chapa REBIRTH
+                 de la barra de la partida (que abre la hucha y reinicia la
+                 partida desde el boton de su panel) y el ARBOL DE HABILIDADES
+                 (la chapa de la hucha, el clic en una casilla que compra de
+                 verdad, la casilla sin monedas que se pulsa pero no compra y el
+                 cerrar que devuelve a la hucha)
 screenshots.gd   guarda un PNG de cada pantalla en user://shots/
 probe_font.gd    mide de verdad cuanto ocupa cada rotulo con la fuente
 probe_pop.gd     pinta un numero de dano normal y uno critico sobre el fondo y

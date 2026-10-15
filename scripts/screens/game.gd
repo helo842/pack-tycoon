@@ -20,6 +20,7 @@ const SETTINGS_SCENE := preload("res://scenes/SettingsPanel.tscn")
 const AUTO_BUY_SCENE := preload("res://scenes/AutoBuyPanel.tscn")
 const LOCKER_SCENE := preload("res://scenes/LockerPanel.tscn")
 const REBIRTH_SCENE := preload("res://scenes/RebirthPanel.tscn")
+const SKILL_TREE_SCENE := preload("res://scenes/SkillTreePanel.tscn")
 
 ## La tira de abajo, debajo de la mesa: LA VITRINA. Antes eran los diez huecos
 ## del inventario, que ahora vive en su panel (ver LockerPanel) junto al armario.
@@ -169,6 +170,10 @@ var _settings: SettingsPanel = null
 var _auto_buy_panel: AutoBuyPanel = null
 var _locker: LockerPanel = null
 var _rebirth: RebirthPanel = null
+## El arbol de habilidades, cuando esta abierto. Va en la capa de las TARJETAS y
+## no en la de los paneles porque se abre encima de la hucha, que ya es un panel:
+## desde ahi se vuelve a ella al cerrarlo, que es donde estan las monedas.
+var _tree: SkillTreePanel = null
 var _reveal: RevealCard = null
 var _auto_open_btn: Button = null
 var _auto_buy_btn: Button = null
@@ -217,6 +222,9 @@ func _ready() -> void:
 	Game.locker_changed.connect(_refresh_locker)
 	Game.items_changed.connect(_refresh_locker)
 	Game.items_changed.connect(_refresh_top)
+	# Comprar en el arbol gasta monedas, y las monedas estan en el tooltip de la
+	# chapa del rebirth: sin esto, el contador se quedaria con el numero viejo.
+	Game.skills_changed.connect(_refresh_rebirth)
 	Game.open_requested.connect(_on_open_requested)
 	Game.settings_changed.connect(_refresh_top)
 	_refresh_locker()
@@ -564,14 +572,60 @@ func _build_locker() -> void:
 # La mesa
 # --------------------------------------------------------------------------- #
 
-## Un sitio libre para un objeto nuevo, dentro de la mesa.
+## El sitio de un objeto nuevo, dentro de la mesa.
+##
+## Con "Mesa ordenada" comprada lo decide la rejilla y si no el sorteo, y eso es
+## todo lo que hay que saber aqui: el porque de cada uno esta en su funcion.
+func _free_spot() -> Vector2:
+	if Game.tidy_table():
+		return _tidy_spot()
+	return _random_spot()
+
+
+## El sitio de un objeto nuevo cuando la habilidad "Mesa ordenada" esta
+## comprada: el primer hueco libre de una rejilla de 4 x 2.
+##
+## La rejilla sale del propio tamano de la mesa y del de un objeto, y son los
+## maximos que caben sin pisarse (4 x 300 = 1200 en 1344, y 2 x 340 = 680 en
+## 752): por eso no tiene niveles que subir -el hueco no se puede hacer mas
+## grande- y es una habilidad de un solo nivel. Con la mesa ampliada (Cajon) la
+## rejilla se queda corta y los que no caben caen al azar de siempre, que es
+## mejor que apilarlos encima.
+func _tidy_spot() -> Vector2:
+	var cols := 4
+	var rows := 2
+	var step := Vector2(TABLE_RECT.size.x / float(cols),
+			TABLE_RECT.size.y / float(rows))
+	for r in rows:
+		for c in cols:
+			# El objeto se centra en su casilla: los 36 px que sobran de cada una
+			# repartidos a los lados son el aire que hace que se vean como una
+			# fila y no como un amontonamiento.
+			var p: Vector2 = TABLE_RECT.position \
+					+ Vector2(step.x * float(c), step.y * float(r)) \
+					+ (step - TableElement.BOX) * 0.5
+			var libre := true
+			for el in _elements:
+				if is_instance_valid(el) \
+						and _overlap(Rect2(p, TableElement.BOX),
+							Rect2(el.position, TableElement.BOX)) > 1.0:
+					libre = false
+					break
+			if libre:
+				return p
+	# La rejilla llena: se cae al sorteo de siempre. Se llama a _random_spot() y
+	# NO a _free_spot(), que volveria a entrar aqui y no saldria nunca.
+	return _random_spot()
+
+
+## Un sitio al azar para un objeto nuevo, dentro de la mesa.
 ##
 ## Se prueban SPOT_TRIES puntos al azar y se elige el que menos pisa a los que
 ## ya hay. Con eso salen repartidos solos y solo se solapan cuando de verdad no
 ## cabe otro, que es cuando el jugador los separa arrastrando: para eso se
 ## pueden mover. Sorteando a pelo, con ocho objetos de 300x340 en una mesa de
 ## 1344x752 la mitad caerian uno encima de otro desde el primer minuto.
-func _free_spot() -> Vector2:
+func _random_spot() -> Vector2:
 	var x0 := TABLE_RECT.position.x
 	var y0 := TABLE_RECT.position.y
 	var x1 := x0 + TABLE_RECT.size.x - TableElement.BOX.x
@@ -622,10 +676,12 @@ func _add_element(el: TableElement) -> void:
 	el.opened.connect(_on_element_opened.bind(el))
 	el.sold.connect(_on_element_sold.bind(el))
 	el.damaged.connect(_on_element_damaged.bind(el))
+	el.cash_found.connect(_on_element_cash.bind(el))
 	_table.add_child(el)
 	# La caida la lleva el elemento: asi se puede cortar si el jugador lo agarra
-	# antes de que aterrice. Ver TableElement.play_drop().
-	el.play_drop(rest)
+	# antes de que aterrice. Ver TableElement.play_drop(). El TIEMPO sale de Game
+	# porque la habilidad "Caida rapida" del arbol lo acorta.
+	el.play_drop(rest, Game.drop_time())
 	_refresh_top()
 
 
@@ -688,13 +744,43 @@ func _open_rebirth() -> void:
 	Sound.click()
 	_rebirth = REBIRTH_SCENE.instantiate() as RebirthPanel
 	_rebirth.closed.connect(_close_rebirth)
+	# La hucha es tambien la puerta del ARBOL, que es donde se gastan las monedas
+	# que da: el panel solo lo pide (tree_requested) y quien lo abre es esta
+	# pantalla, que es quien tiene la capa de encima (ver _open_skill_tree).
+	_rebirth.tree_requested.connect(_open_skill_tree)
 	_main().push_veil(_rebirth)
 
 
 func _close_rebirth() -> void:
+	# Si el arbol estaba abierto encima se va CON ella. Hoy no puede pasar (el
+	# arbol se cierra en ESC antes que la hucha y su velo tapa el boton de
+	# cerrar), pero dejarlo seria una capa que se queda sin el padre al que
+	# volver, y esta funcion es el unico sitio por el que la hucha se va.
+	_close_skill_tree()
 	if _rebirth != null:
 		_main().pop_veil(_rebirth)
 		_rebirth = null
+	_refresh_rebirth()
+
+
+## El arbol de habilidades, encima de la hucha (ver skill_tree_panel.gd). No se
+## cierra la hucha al abrirlo: al que acaba de reiniciar lo siguiente que le
+## apetece es mirar en que gastarse las monedas, y volver es cerrar una capa.
+func _open_skill_tree() -> void:
+	if _tree != null:
+		return
+	_tree = SKILL_TREE_SCENE.instantiate() as SkillTreePanel
+	_tree.closed.connect(_close_skill_tree)
+	_main().push_overlay(_tree)
+
+
+func _close_skill_tree() -> void:
+	if _tree == null:
+		return
+	_main().pop_overlay(_tree)
+	_tree = null
+	# Las monedas que quedan y los niveles comprados los enseñan la chapa del
+	# rebirth y la propia hucha, que siguen abiertas detras.
 	_refresh_rebirth()
 
 
@@ -853,6 +939,24 @@ func _on_element_damaged(amount: float, crit: bool, el: TableElement) -> void:
 	DamagePopup.pop(_fx, at, amount, crit)
 
 
+## Un golpe ha soltado dinero ("Dinero extra" del arbol). Aqui SI se cobra: el
+## elemento solo dice que ha pasado, como en la venta, y este es el mismo camino
+## que la venta (dinero, sonido y numero flotante encima del objeto).
+##
+## El aviso sale en el mismo sitio que el numero del dano, unos pixeles mas
+## arriba, para no taparse: son dos cosas que pasan en la misma redonda.
+func _on_element_cash(amount: float, el: TableElement) -> void:
+	if amount <= 0.0 or not is_instance_valid(el):
+		return
+	var value := int(round(amount))
+	Game.add_money(value)
+	Sound.play("sfx_sell")
+	var at: Vector2 = el.global_position \
+			+ Vector2(TableElement.BOX.x * 0.5, TableElement.ART_CENTER.y - 76.0)
+	_float_text("+" + PixelNumber.format(value), at, Palette.GOLD_XL)
+	_refresh_top()
+
+
 func _sell_all_table() -> void:
 	var total := 0
 	# Se suelta uno a uno con _drop_element() en vez de vaciar la lista de golpe:
@@ -952,7 +1056,7 @@ func _on_open_requested(el: Object) -> void:
 ## solo los de arriba se apunta a lo caro.
 func _auto_buy_step() -> void:
 	if not table_free() or _shop != null or _auto_buy_panel != null or _locker != null \
-			or _reveal != null:
+			or _reveal != null or _tree != null:
 		return
 	var best := ""
 	var best_price := 1 << 60
@@ -1101,7 +1205,12 @@ func _refresh_rebirth() -> void:
 	var puede := Game.can_rebirth()
 	_rebirth_btn.modulate = Color.WHITE if puede else Color(0.55, 0.55, 0.62, 1.0)
 	if puede:
-		_rebirth_btn.tooltip_text = "REBIRTH: la hucha (%d monedas): reinicia la partida a cambio de monedas" % Game.rebirth_coins
+		# El tooltip dice las dos mitades del rebirth: las monedas que tienes y
+		# que se GASTAN en el arbol. El contador de monedas no cabe en la barra
+		# (la chapa se apretó al maximo para meterla), asi que este es el unico
+		# sitio donde se leen sin abrir un panel.
+		var cuantas := "%d monedas de rebirth, para el ARBOL DE HABILIDADES" % Game.rebirth_coins
+		_rebirth_btn.tooltip_text = "REBIRTH: la hucha (%s): reinicia la partida a cambio de monedas" % cuantas
 	else:
 		_rebirth_btn.tooltip_text = "REBIRTH: te faltan %s de lo ganado en esta partida" % PixelNumber.format(Game.rebirth_missing())
 

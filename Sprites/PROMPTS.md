@@ -149,10 +149,20 @@ pedirlas a la IA**. Se quitaron de este catálogo.
 
 Ojo: las piezas de la **pantalla de inicio**, la **tienda** y la
 **configuración** las genera el script (`ui_panel_*`, `ui_button_*`,
-`ui_slot`, `ui_checkbox_*`, `ui_slider_*`, `ui_arrow_*`, `ui_icon_*`), igual que
-los **4 iconos de habilidades** (`skill_diamond`, `skill_lightning`,
-`skill_dollar`, `skill_cycle`) y los **números** (`num_*`). Además, los siete
-iconos de segunda generación que quedaban pendientes aquí
+`ui_slot`, `ui_checkbox_*`, `ui_slider_*`, `ui_arrow_*`, `ui_icon_*`), y los
+**números** (`num_*`).
+
+También los doce sprites del **árbol de habilidades** (`skill_*`), que son arte
+cerrado y no hay que pedir a la IA: los **4 emblemas de rama**
+(`skill_diamond` calidad de vida, `skill_dollar` ganancias, `skill_lightning`
+daño, `skill_cycle` herencia) y los **8 iconos de las opciones**
+(`skill_drop` caída rápida, `skill_grid` mesa ordenada, `skill_sales` mejores
+ventas, `skill_cheap` sobres baratos, `skill_rip_cash` dinero extra,
+`skill_hit` golpe duro, `skill_double` golpe doble, `skill_heir` dinero
+inicial). Qué dibuja cada uno y para qué opción es está en `README.md`, en
+*El árbol de habilidades*.
+
+Además, los siete iconos de segunda generación que quedaban pendientes aquí
 (`ui_icon_auto_open`, `ui_icon_auto_buy`, `ui_icon_achievement`,
 `ui_icon_market_event`, `ui_icon_inventory`, `ui_icon_display_case`,
 `ui_icon_vitrine`) ya están hechos por script. **La sección queda vacía.**

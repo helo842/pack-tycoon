@@ -21,10 +21,20 @@
 # game.gd, _open_rebirth), y vive apagada hasta llegar al requisito. El panel se
 # abre igualmente cuando no se puede: lo que FALTA es lo unico util de una
 # pantalla que todavia no se puede usar, y una chapa que no hace nada no lo dice.
+#
+# Y DE AQUI SE ENTRA AL ARBOL DE HABILIDADES, que es donde se GASTAN esas
+# monedas: esta pantalla es la que las da y la que explica el trato, asi que es
+# su sitio natural. El arbol se abre como capa de encima (ver game.gd,
+# _open_skill_tree) para poder volver a la hucha al cerrarlo: al que acaba de
+# reiniciar lo siguiente que le apetece es mirar en que gastarse lo que ha
+# ganado, y obligarle a cerrar y volver a abrir seria un paso de mas.
 class_name RebirthPanel
 extends Control
 
 signal closed()
+## El jugador ha pulsado ARBOL. Quien lo abre es game.gd, que es quien tiene la
+## capa de las tarjetas (aqui solo se pide, como hace la ficha de la tienda).
+signal tree_requested()
 
 ## Las mismas medidas que la tienda y el mini menu, que usan el mismo panel:
 ## ui_panel_shop.png es de 1600x960 y se dibuja tal cual, con el interior de
@@ -71,11 +81,18 @@ const DEAL_Y := 668.0
 const DEAL_W := 1400.0
 const DEAL_STEP := 32.0
 const DEAL_SIZE := 21
-## Los dos botones, al pie. La chapa mide 0,45 del ancho de alto, asi que con 320
-## son 144 px: con 352 serian 158 y se saldrian del panel por abajo (el interior
-## acaba en y 940).
+## Los TRES botones, al pie. La chapa mide 0,45 del ancho de alto, asi que con
+## 320 son 144 px: con 352 serian 158 y se saldrian del panel por abajo (el
+## interior acaba en y 940).
+##
+## Al arbol le toca el hueco del medio y con 300 de ancho (el texto mas corto de
+## los tres: 5 caracteres): el pie queda 600..920 / 940..1240 / 1270..1580, osea
+## 20 y 30 px de aire entre chapas, dentro del interior y sin bajar de tamano la
+## letra de las otras dos, que a 300 se habria quedado en 21 px.
 const GO_CENTER := Vector2(760, 856)
 const GO_W := 320.0
+const TREE_CENTER := Vector2(1090, 856)
+const TREE_W := 300.0
 const CANCEL_CENTER := Vector2(1420, 856)
 const CANCEL_W := 320.0
 
@@ -92,6 +109,11 @@ var _go: Button = null
 var _owned: Label = null
 ## La linea que dice cuanto esta multiplicando la Electronica del armario.
 var _electronics: Label = null
+## La chapa que abre el arbol de habilidades. Se guarda porque es la puerta del
+## arbol y la prueba de humo la pulsa: buscarla por el texto "ARBOL" tambien
+## valdria hoy, pero un rotulo que cambie de nombre no tendria que romper la
+## prueba.
+var _tree_btn: Button = null
 
 
 func _ready() -> void:
@@ -159,6 +181,11 @@ func _build_deal() -> void:
 		"REINICIA LA PARTIDA: SE PIERDE TODO LO DE ESTA PARTIDA.",
 		"LAS MONEDAS SE QUEDAN Y SUBEN UN +%d %% POR MONEDA LO QUE VENDES"
 			% roundi(LootDB.REBIRTH_VALUE_PER_COIN * 100.0),
+		# La tercera frase dice DONDE se gastan. Sin ella, el panel enseña un
+		# numero de monedas y no hay forma de saber para que sirven mas alla del
+		# +5 %: el arbol es la otra mitad del rebirth y se entra por el boton de
+		# abajo, pero eso hay que poder leerlo.
+		"Y SE GASTAN EN EL ARBOL DE HABILIDADES.",
 	]:
 		for linea in UIKit.wrap(str(p), DEAL_W, DEAL_SIZE):
 			add_child(UIKit.label_at(str(linea), Vector2(DEAL_CENTER_X, y),
@@ -180,6 +207,15 @@ func _build_buttons() -> void:
 	_go = UIKit.small_button("REBIRTH", "", GO_CENTER, GO_W, 34)
 	_go.pressed.connect(_on_rebirth)
 	add_child(_go)
+
+	# El arbol lleva la chapa normal (no la del cuerpo oscuro de VENDER, que es
+	# para lo que te quita dinero) y NO se apaga cuando no llega el requisito: ver
+	# el arbol es lo que enseña en que se van a gastar las monedas la proxima vez,
+	# y eso interesa justo antes de poder reiniciar, no despues.
+	_tree_btn = UIKit.small_button("ARBOL", "", TREE_CENTER, TREE_W, 34)
+	_tree_btn.tooltip_text = "Arbol de habilidades: gasta las monedas de rebirth"
+	_tree_btn.pressed.connect(_on_tree)
+	add_child(_tree_btn)
 
 	var cancel := UIKit.small_button("CANCELAR", "", CANCEL_CENTER, CANCEL_W, 34,
 		"ui_button_sell", "ui_button_sell")
@@ -245,6 +281,13 @@ func _on_rebirth() -> void:
 	Game.notice.emit("REBIRTH: +" + PixelNumber.format(coins) + " MONEDAS",
 		Palette.GOLD_XL)
 	_close()
+
+
+## Pedir el arbol. La hucha NO se cierra: el arbol se abre encima y al cerrarlo
+## se vuelve aqui, que es donde estan las monedas que se acaban de gastar.
+func _on_tree() -> void:
+	Sound.click()
+	tree_requested.emit()
 
 
 func _close() -> void:

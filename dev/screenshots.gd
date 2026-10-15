@@ -165,6 +165,35 @@ func _run() -> void:
 	if hucha != null:
 		hucha._close()
 	await _frames(3)
+	# EL ARBOL DE HABILIDADES, que se abre DESDE la hucha y encima de ella: es
+	# donde se gastan las monedas que da el rebirth. Necesita saldo para que sus
+	# precios no salgan todos en rojo, y se dejan un par de niveles comprados y una
+	# casilla al tope para que la captura enseñe los tres estados de una casilla a
+	# la vez (puntos de nivel llenos, precio de lo que falta y AL TOPE).
+	Game.rebirth_coins = 12
+	Game.skills.clear()
+	Game.skills["golpe"] = 2
+	Game.skills["orden"] = 1
+	Game.skills_changed.emit()
+	g._open_rebirth()
+	await _frames(4)
+	hucha = null
+	for c in _main._veil_host.get_children():
+		if c is RebirthPanel:
+			hucha = c
+	if hucha != null:
+		hucha._tree_btn.pressed.emit()
+		await _frames(5)
+		await _shot("03e_panel_arbol")
+		for c in _main._overlay_host.get_children():
+			if c is SkillTreePanel:
+				(c as SkillTreePanel)._close()
+				await _frames(3)
+		hucha._close()
+	await _frames(3)
+	Game.skills.clear()
+	Game.skills_changed.emit()
+
 	# Y el estado de vuelta a cero: las capturas que vienen detras son de una
 	# partida que empieza y no tienen que llevar el saldo de un rebirth encima.
 	Game.rebirth_coins = 0

@@ -259,6 +259,36 @@ tiene que ir pulsando uno y otro para que avancen todos: insistir en el mismo no
 adelanta más que el suyo. Es la diferencia entre jugar a mano y jugar con la mesa
 montada, y el motivo de que los Guantes sean el primer item del catálogo.
 
+### El árbol de habilidades (en qué se gastan las monedas)
+
+El documento de diseño lo pedía y es la otra mitad del rebirth: **cuatro ramas de
+dos opciones cada una**, que se compran con las **monedas de rebirth** y **no se
+pierden nunca** —ni al reiniciar la partida ni al hacer otro rebirth—: es
+progresión de la cuenta, exactamente como las monedas.
+
+| Rama | Sus dos opciones |
+|---|---|
+| **CALIDAD DE VIDA** | **Caída rápida** (las cajas tardan menos en caer a la mesa, un 15 % por nivel) y **Mesa ordenada** (los objetos se colocan solos en una rejilla de 4×2 en vez de caer al azar) |
+| **GANANCIAS** | **Mejores ventas** (+4 % al valor de todo lo que vendes por nivel) y **Dinero extra** (2 % de golpes por nivel que sueltan dinero: un 10 % de lo que costó el sobre) |
+| **DAÑO** | **Golpe duro** (+8 % de daño por nivel) y **Golpe doble** (2 % por nivel de que un golpe cuente ×2, sin ser un crítico) |
+| **HERENCIA** | **Sobres baratos** (−3 % al precio de todos los sobres por nivel) y **Dinero inicial** (+2.500 por nivel con los que empieza cada partida nueva) |
+
+Cada nivel cuesta **1, 2, 3, 5 y 8 monedas** (36 niveles en total), así que la
+primera mejora cabe en la primera partida, que da una moneda. **Mesa ordenada es
+de una sola compra** —la rejilla no se puede hacer más grande: 4×3 objetos de
+300×340 no caben en la mesa— y por eso se anuncia con el rótulo **COMPRA
+ÚNICA**, el mismo que usan el PC y los Pinchos.
+
+Se abre **desde la hucha**, que es la pantalla que da las monedas y la que
+explica el trato: el árbol se cuelga **encima** de ella y al cerrarlo se vuelve
+a la hucha, que es donde están las monedas que acabas de gastar. **El panel
+enseña lo que compras**: el precio de abajo es el del nivel siguiente y el efecto
+de arriba el que te llevas al pagarlo, con los puntos de nivel diciendo en qué
+punto estás (y al tope, deja de haber precio y pone **AL TOPE**).
+
+Gastar monedas tiene un coste de verdad, y por eso el árbol es una decisión: las
+que no se gastan suben un 5 % el valor de todo lo que vendes, para siempre.
+
 ### Las automatizaciones: cada botón con su pieza
 
 **Cada automatización va con SU item, y con ese solo.** El botón de la
@@ -339,14 +369,15 @@ Sounds/                11 WAV, en subcarpetas (ver Sounds/README.md)
 
 scripts/               el código, por capas (ver scripts/README.md)
   core/                main, game_state y audio (los dos autoloads) y palette
-  data/                loot_db: precios, botín, rarezas, PSA
+  data/                loot_db: precios, botín, rarezas, PSA y el árbol de
+                       habilidades (4 ramas × 2 opciones)
   ui/                  ui_kit, sprites, y los controles con sprite
   screens/             una clase por pantalla
 
 scenes/                un nodo raíz por pantalla (ver scenes/README.md)
   Main.tscn Game.tscn Menu.tscn ShopPanel.tscn AutoBuyPanel.tscn
-  LockerPanel.tscn RebirthPanel.tscn ItemCard.tscn RevealCard.tscn
-  SettingsPanel.tscn
+  LockerPanel.tscn RebirthPanel.tscn SkillTreePanel.tscn ItemCard.tscn
+  RevealCard.tscn SettingsPanel.tscn
   ui/game_theme.tres   el tema: la fuente y los colores de la interfaz
 
 tools/                 los generadores de Python (ver tools/README.md)
@@ -446,9 +477,21 @@ de crítico sea de un **5 % por nivel** del Ojo verde, que el armario tenga
 exponer **saque el objeto del inventario** y devolverlo lo devuelva, que el
 inventario sea de **50 huecos** y ya no esté en la pantalla de partida, que la
 vitrina de la partida enseñe lo expuesto, que **el texto no se dibuje encima de
-un objeto** (el check que cazó un solape de verdad en el panel del armario), que
-el panel del rebirth prometa **las mismas monedas que da** el rebirth y que el
-multiplicador de la Electrónica entre en el premio, que ese panel se mida
+un objeto** (el check que cazó un solape de verdad en el panel del armario),que el panel del rebirth prometa **las mismas monedas que da** el rebirth y que el
+multiplicador de la Electrónica entre en el premio, que el **árbol de
+habilidades** tenga sus cuatro ramas y sus ocho opciones (con sus dibujos, sus
+precios en escalera y sus 36 niveles, y con los ocho nombres cabiendo en su
+casilla a 21 px), que **cada opción mueva su número y solo el suyo** (el daño, el
+valor de lo que se vende, el precio de los sobres —también en la compra
+automática y dejando el gratuito en 0—, la caída de los objetos, el dinero de
+al rasgar, los golpes dobles y el dinero inicial), que **sin monedas no se compre
+nada y con ellas sí** y que se cobre en monedas y no en dinero, que **Mesa
+ordenada** coloque los objetos alineados y sin pisarse y que **Caída rápida** los
+tenga ya en la mesa a los 0,3 s, que el guardado lleve el árbol y lo lea limpio
+(recortando un nivel por encima del tope e ignorando una opción que ya no
+existe), que **el rebirth no borre el árbol** y que empezar de cero sí, y que su
+panel traiga las ocho casillas sin sacar texto del marco, sin poner texto encima
+de una chapa ni pisar un icono, que ese panel se mida
 **también con el requisito sin cumplir** (la línea de lo que falta es la más
 larga del juego y la única que cruza el panel de lado a lado, y con el requisito
 cumplido está vacía: medirla entonces no medía nada), que la chapa del rebirth
@@ -466,9 +509,11 @@ caja de la tienda y comprar desde la ficha que abre, para agarrar un objeto de l
 mesa y moverlo, para abrir el mini menú de la compra automática y marcar y
 desmarcar un sobre en su lista, para abrir el armario desde su botón de la barra
 exponer un objeto y devolverlo a su sitio y vender otro con el **clic derecho**
-(el gesto que no se ve y que por eso hay que probar con el ratón de verdad), y
-para abrir la hucha desde la chapa REBIRTH de la barra (que está junto a la
-tienda) y reiniciar la partida desde el botón de su panel.
+(el gesto que no se ve y que por eso hay que probar con el ratón de verdad),y para abrir la hucha desde la chapa REBIRTH de la barra (que está junto a la
+tienda) y reiniciar la partida desde el botón de su panel, y para abrir el
+**árbol de habilidades** desde la hucha y comprar una mejora con el ratón (con
+el clic en la casilla del árbol comprando de verdad, y con la casilla sin monedas
+pulsándose igual pero sin comprar nada).
 
 ### Cambiar el equilibrio
 
@@ -513,8 +558,13 @@ huecos) con la vitrina a la vista en la pantalla de partida. Y la chapa REBIRTH
 de la barra ya reinicia la partida a cambio de monedas, que suben para siempre el
 valor de lo que vendes.
 
-**Sistemas del documento que no están** — árbol de habilidades (4 ramas × 2
-opciones), logros, eventos de mercado.
+**El árbol de habilidades** — ya está: cuatro ramas de dos opciones (Calidad de
+vida, Ganancias, Daño y Herencia), pagadas con las monedas del rebirth, que es
+de donde salen y por eso se abre desde la hucha. Sus ocho iconos los genera
+`tools/make_sprites.py` como los otros cuatro de habilidad, que ahora son el
+emblema de cada rama (ver `Sprites/README.md`).
+
+**Sistemas del documento que no están** — logros y eventos de mercado.
 
 **Extras de la interfaz** — los deslizadores de volumen de los ajustes ya mueven
 sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta el
