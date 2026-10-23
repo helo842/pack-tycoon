@@ -36,13 +36,19 @@ extends RefCounted
 # damage_per_hit) y hacen faltan varios ciclos hasta romper la caja. La vida
 # sube con el nivel del paquete, que es su escalon de precio.
 #
-# LA VIDA SUBIO UN 50 % de golpe (los doce valores, de una vez). Los sobres se
-# abrian demasiado rapido: con los cuatro items de dano comprados la caja basica
-# caia en dos clics y no daba tiempo ni a ver la barra. Alargar la vida y no la
-# espera es a proposito: lo que se alarga es el rato que estas dandole al boton,
-# no el rato que esperas mirando. Los tres escalones mantienen la proporcion que
-# tenian entre si (el 2 es 1,5 veces el 1 y el 3 el doble del 1) para que un
-# ESCALON siga siendo mas duro que el anterior tipo, y no solo mas caro.
+# LA VIDA VA CON LA RAIZ DEL PRECIO, no con el precio: hp = 21,5 x raiz(precio)
+# (redondeado a numeros legibles). Un sobre que cuesta CUATRO veces mas no es
+# cuatro veces mas duro, es el doble. Eso deja el ritmo de la partida en manos
+# del DANO del jugador -los items-, que es la escalera que se sube comprando, y
+# hace que dos sobres seguidos duren un rato parecido aunque el precio se haya
+# multiplicado por tres. Los cuatro tipos de un escalon van de blando a duro en
+# el mismo orden que su precio (SOBRES, VINILOS, ZAPATILLAS, ELECTRONICA).
+#
+# ESTA CURVA ES LA QUE DECIDE CUANTO DURA LA PARTIDA, y por eso esta medida y no
+# elegida a ojo: subir la vida es alargar el rato que estas dandole al boton, y
+# bajar el exponente (vida mas cerca del precio) hace que los sobres caros paguen
+# mas por segundo y la partida se acorta. Cuanto se sube lo dice dev/balance.gd,
+# que simula la partida entera: hoy el primer rebirth cae sobre los 17 minutos.
 #
 # SON DOCE: CUATRO TIPOS x TRES ESCALONES. Primero van los cuatro de siempre
 # -SOBRES, VINILOS, ZAPATILLAS, ELECTRONICA- y luego se repiten dos veces mas,
@@ -63,134 +69,153 @@ extends RefCounted
 # repetido tres veces no habia forma de saber cual valia un millon.
 const PACKS: Array = [
 	{
-		"id": "cards", "name": "SOBRES", "price": 0, "hp": 45, "vmult": 1.0,
+		"id": "cards", "name": "SOBRES", "price": 0, "hp": 215, "vmult": 0.8,
 		"art": "pack_cards", "art_open": "pack_cards_open",
 		"loot": [
 			{"id": "card_c", "name": "CARTA COMUN", "art": "loot_card_common", "graded": true,
-				"kind": "cards", "rarity": "common", "value": 55, "w": 55},
+				"kind": "cards", "rarity": "common", "value": 60, "w": 55},
 			{"id": "card_r", "name": "CARTA EDICION LIMITADA", "art": "loot_card_edited", "graded": true,
-				"kind": "cards", "rarity": "rare", "value": 260, "w": 30},
+				"kind": "cards", "rarity": "rare", "value": 85, "w": 30},
 			{"id": "card_e", "name": "CARTA VIEJA", "art": "loot_card_vintage", "graded": true,
-				"kind": "cards", "rarity": "epic", "value": 1150, "w": 12},
+				"kind": "cards", "rarity": "epic", "value": 135, "w": 12},
 			{"id": "card_l", "name": "CARTA HOLOGRAFICA", "art": "loot_card_foil", "graded": true,
-				"kind": "cards", "rarity": "legendary", "value": 5400, "w": 3},
+				"kind": "cards", "rarity": "legendary", "value": 210, "w": 3},
 		],
 	},
 	{
-		"id": "vinyls", "name": "VINILOS", "price": 1000, "hp": 90, "vmult": 1.0,
+		"id": "vinyls", "name": "VINILOS", "price": 500, "hp": 480, "vmult": 1.2,
 		"art": "pack_vinyls", "art_open": "pack_vinyls_open",
 		"loot": [
 			{"id": "vinyl_c", "name": "VINILO", "art": "loot_vinyl", "graded": true,
-				"kind": "vinyls", "rarity": "common", "value": 380, "w": 52},
+				"kind": "vinyls", "rarity": "common", "value": 170, "w": 52},
 			{"id": "vinyl_d", "name": "DOBLE LP", "art": "loot_vinyl_double", "graded": true,
-				"kind": "vinyls", "rarity": "rare", "value": 1450, "w": 31},
+				"kind": "vinyls", "rarity": "rare", "value": 235, "w": 31},
 			{"id": "vinyl_n", "name": "EDICION NUMERADA", "art": "loot_vinyl_numbered",
-				"graded": true, "kind": "vinyls", "rarity": "epic", "value": 5200, "w": 14},
+				"graded": true, "kind": "vinyls", "rarity": "epic", "value": 380, "w": 14},
 			{"id": "vinyl_x", "name": "PRENSADO EN COLOR", "art": "loot_vinyl_color",
-				"graded": true, "kind": "vinyls", "rarity": "legendary", "value": 24000, "w": 3},
+				"graded": true, "kind": "vinyls", "rarity": "legendary", "value": 600, "w": 3},
 		],
 	},
 	{
-		"id": "sneakers", "name": "ZAPATILLAS", "price": 6000, "hp": 180, "vmult": 1.0,
+		"id": "sneakers", "name": "ZAPATILLAS", "price": 1900, "hp": 937, "vmult": 1.2,
 		"art": "pack_sneakers", "art_open": "pack_sneakers_open",
 		"loot": [
 			{"id": "shoe_c", "name": "ZAPATILLA BLANCA", "art": "loot_sneaker", "graded": true,
-				"kind": "sneakers", "rarity": "common", "value": 1800, "w": 48},
+				"kind": "sneakers", "rarity": "common", "value": 620, "w": 48},
 			{"id": "shoe_l", "name": "ZAPATILLA DE PIEL", "art": "loot_sneaker_leather",
-				"graded": true, "kind": "sneakers", "rarity": "rare", "value": 7200, "w": 32},
+				"graded": true, "kind": "sneakers", "rarity": "rare", "value": 860, "w": 32},
 			{"id": "shoe_r", "name": "ZAPATILLA A RESTAURAR", "art": "loot_sneaker_restore",
-				"graded": true, "kind": "sneakers", "rarity": "epic", "value": 28000, "w": 16},
+				"graded": true, "kind": "sneakers", "rarity": "epic", "value": 1400, "w": 16},
 			{"id": "shoe_x", "name": "ZAPATILLA LIMITADA",
 				"art": "loot_sneaker_limited", "graded": true,
-				"kind": "sneakers", "rarity": "legendary", "value": 130000, "w": 4},
+				"kind": "sneakers", "rarity": "legendary", "value": 2200, "w": 4},
 		],
 	},
 	{
-		"id": "electronics", "name": "ELECTRONICA", "price": 25000, "hp": 360, "vmult": 1.0,
+		"id": "electronics", "name": "ELECTRONICA", "price": 6000, "hp": 1665, "vmult": 1.2,
 		"art": "pack_electronics", "art_open": "pack_electronics_open",
 		"loot": [
 			{"id": "cons_c", "name": "CONSOLA", "art": "loot_console", "graded": true,
-				"kind": "electronics", "rarity": "common", "value": 6000, "w": 30},
+				"kind": "electronics", "rarity": "common", "value": 1900, "w": 30},
 			{"id": "head_c", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
-				"kind": "electronics", "rarity": "common", "value": 4200, "w": 20},
+				"kind": "electronics", "rarity": "common", "value": 1700, "w": 20},
 			{"id": "cam_c", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"kind": "electronics", "rarity": "common", "value": 9000, "w": 18},
+				"kind": "electronics", "rarity": "common", "value": 2300, "w": 18},
 			{"id": "cart_c", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
-				"kind": "electronics", "rarity": "common", "value": 1800, "w": 14},
+				"kind": "electronics", "rarity": "common", "value": 1200, "w": 14},
 			{"id": "hand_c", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
-				"kind": "electronics", "rarity": "common", "value": 9000, "w": 7},
+				"kind": "electronics", "rarity": "common", "value": 2100, "w": 7},
 			{"id": "cons_r", "name": "CONSOLA", "art": "loot_console", "graded": true,
-				"kind": "electronics", "rarity": "rare", "value": 20400, "w": 12},
+				"kind": "electronics", "rarity": "rare", "value": 2600, "w": 12},
 			{"id": "head_r", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
-				"kind": "electronics", "rarity": "rare", "value": 14300, "w": 10},
+				"kind": "electronics", "rarity": "rare", "value": 2200, "w": 10},
 			{"id": "cam_r", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"kind": "electronics", "rarity": "rare", "value": 30600, "w": 10},
+				"kind": "electronics", "rarity": "rare", "value": 2900, "w": 10},
 			{"id": "cart_r", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
-				"kind": "electronics", "rarity": "rare", "value": 6120, "w": 5},
+				"kind": "electronics", "rarity": "rare", "value": 1700, "w": 5},
 			{"id": "hand_r", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
-				"kind": "electronics", "rarity": "rare", "value": 30600, "w": 5},
+				"kind": "electronics", "rarity": "rare", "value": 2700, "w": 5},
 			{"id": "cons_e", "name": "CONSOLA", "art": "loot_console", "graded": true,
-				"kind": "electronics", "rarity": "epic", "value": 90000, "w": 8},
+				"kind": "electronics", "rarity": "epic", "value": 4400, "w": 8},
 			{"id": "head_e", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
-				"kind": "electronics", "rarity": "epic", "value": 63000, "w": 7},
+				"kind": "electronics", "rarity": "epic", "value": 3600, "w": 7},
 			{"id": "cam_e", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"kind": "electronics", "rarity": "epic", "value": 135000, "w": 7},
+				"kind": "electronics", "rarity": "epic", "value": 5100, "w": 7},
 			{"id": "cart_e", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
-				"kind": "electronics", "rarity": "epic", "value": 27000, "w": 2},
+				"kind": "electronics", "rarity": "epic", "value": 2900, "w": 2},
 			{"id": "hand_e", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
-				"kind": "electronics", "rarity": "epic", "value": 135000, "w": 4},
+				"kind": "electronics", "rarity": "epic", "value": 4500, "w": 4},
 			{"id": "cons_l", "name": "CONSOLA", "art": "loot_console", "graded": true,
-				"kind": "electronics", "rarity": "legendary", "value": 330000, "w": 5},
+				"kind": "electronics", "rarity": "legendary", "value": 6900, "w": 5},
 			{"id": "head_l", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
-				"kind": "electronics", "rarity": "legendary", "value": 231000, "w": 2},
+				"kind": "electronics", "rarity": "legendary", "value": 5800, "w": 2},
 			{"id": "cam_l", "name": "CAMARA", "art": "loot_camera", "graded": true,
-				"kind": "electronics", "rarity": "legendary", "value": 495000, "w": 3},
+				"kind": "electronics", "rarity": "legendary", "value": 8000, "w": 3},
 			{"id": "cart_l", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
-				"kind": "electronics", "rarity": "legendary", "value": 99000, "w": 1},
+				"kind": "electronics", "rarity": "legendary", "value": 5000, "w": 1},
 			{"id": "hand_l", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
-				"kind": "electronics", "rarity": "legendary", "value": 495000, "w": 2},
+				"kind": "electronics", "rarity": "legendary", "value": 7400, "w": 2},
 			# Los cuatro objetos que tenian sobre propio entran aqui: son los que le
 			# faltaban a esta tabla para ser "lo caro" del juego, y sin un sitio se
 			# quedaban sin salir nunca (y sus cuarenta sprites con ellos). Los
 			# valores van puestos al nivel de esta tabla, no al que tenian.
 			{"id": "cab_c", "name": "CABLE", "art": "loot_cable", "graded": true,
-				"kind": "electronics", "rarity": "common", "value": 2200, "w": 6},
+				"kind": "electronics", "rarity": "common", "value": 1400, "w": 6},
 			{"id": "wat_r", "name": "RELOJ", "art": "loot_watch", "graded": true,
-				"kind": "electronics", "rarity": "rare", "value": 15300, "w": 6},
+				"kind": "electronics", "rarity": "rare", "value": 2000, "w": 6},
 			{"id": "ing_e", "name": "LINGOTE DE ORO", "art": "loot_ingot", "graded": true,
-				"kind": "electronics", "rarity": "epic", "value": 90000, "w": 3},
+				"kind": "electronics", "rarity": "epic", "value": 3900, "w": 3},
 			{"id": "pwt_l", "name": "RELOJ DE BOLSILLO", "art": "loot_pocket_watch", "graded": true,
-				"kind": "electronics", "rarity": "legendary", "value": 495000, "w": 2},
+				"kind": "electronics", "rarity": "legendary", "value": 7600, "w": 2},
 		],
 	},
 	# --- los otros ocho sobres ------------------------------------------- #
-	# Mismo botin que su escalon 1, mas caro y multiplicado. El precio y el vmult
-	# van aparte a proposito: subir uno sin subir el otro seria un timo, y asi se
-	# puede tocar el equilibrio sin reescribir ninguna tabla de objetos.
-	# El NOMBRE y el DIBUJO cambian con el escalon; la tabla de botin no. El
-	# escalon 2 va de pan de oro y el 3 de laca con joya (ver tools/make_sprites.py,
-	# seccion "escalones 2 y 3"), asi que de un vistazo se sabe cual se esta
-	# abriendo sin leer el precio. Los nombres tienen que caber a 28 px en la
-	# columna de la izquierda (16 caracteres: PACK_NAME_BOX.x / 28), o UIKit
-	# encoge los doce a la vez y el "SOBRES" de arriba se queda enano.
-	{"id": "cards2", "name": "SOBRES ORO", "price": 4000, "hp": 68, "vmult": 20.0,
+	# Mismo botin que su escalon 1, mas caro y multiplicado. El NOMBRE y el
+	# DIBUJO cambian con el escalon; la tabla de botin no. El escalon 2 va de pan
+	# de oro y el 3 de laca con joya (ver tools/make_sprites.py, seccion "escalones
+	# 2 y 3"), asi que de un vistazo se sabe cual se esta abriendo sin leer el
+	# precio. Los nombres tienen que caber a 28 px en la columna de la izquierda
+	# (16 caracteres: PACK_NAME_BOX.x / 28), o UIKit encoge los doce a la vez y el
+	# "SOBRES" de arriba se queda enano.
+	#
+	# DOS REGLAS, Y LAS DOS SE COMPRUEBAN (dev/smoke_test.gd). El precio y el vmult
+	# se tocan juntos: subir uno sin subir el otro es un timo.
+	#
+	# 1. NINGUN SOBRE DE UN ESCALON ES MAS BARATO QUE LOS DEL ANTERIOR. Antes no
+	#    era asi: SOBRES ORO costaba 4.000 y la ELECTRONICA del escalon 1 cuesta
+	#    6.000, o sea que un sobre de CALIDAD 2 era mas barato que el de calidad 1
+	#    MAS CARO. El escalon de arriba multiplica el botin, asi que lo racional era
+	#    saltarse la electronica y las zapatillas del escalon 1 -que no se compraban
+	#    nunca- y esperar al sobre de arriba. Cada escalon empieza por encima del
+	#    techo del anterior: el 2 empieza en 15.000 (el 1 llega a 6.000) y el 3 en
+	#    600.000 (el 2 llega a 250.000).
+	#
+	# 2. CADA SOBRE PAGA UN POCO MAS DE LO QUE CUESTA: entre un 30 y un 45 %, en cualquier
+	#    escalon. De ahi salen los vmult de abajo, que NO son el mismo numero para
+	#    los doce: lo que paga un sobre es lo que valen los objetos de su tabla, y
+	#    el escalon multiplica ese total. Un sobre que cuesta tres veces mas que
+	#    otro del mismo escalon tiene que multiplicar tres veces menos para pagar
+	#    lo mismo por dinero. Ese 15 % es TODO el margen de la partida, y esta
+	#    medido: con un 350 % (que es lo que habia) la partida se terminaba en dos
+	#    minutos, porque el capital se multiplicaba por 4,5 en cada sobre y no
+	#    habia forma de gastarlo. Ver dev/balance.gd y LootDB.pack_payout().
+	#
+	# El SOBRES es el que mas multiplica de su escalon, y no es un capricho: su
+	# tabla es la que menos vale (cartas de 60 a 210) y su precio no puede bajar
+	# del techo del escalon de abajo, asi que sin un vmult mucho mas alto pagaria
+	# una decima parte de lo que cuesta. El ELECTRONICA hace lo contrario: su tabla
+	# es la mas cara y su vmult es el mas bajo.
+	{"id": "cards2", "name": "SOBRES ORO", "price": 15000, "hp": 2633, "vmult": 103.0,
 		"loot_id": "cards", "art": "pack_cards2", "art_open": "pack_cards2_open"},
-	{"id": "vinyls2", "name": "VINILOS ORO", "price": 20000, "hp": 135, "vmult": 20.0,
+	{"id": "vinyls2", "name": "VINILOS ORO", "price": 40000, "hp": 4300, "vmult": 96.0,
 		"loot_id": "vinyls", "art": "pack_vinyls2", "art_open": "pack_vinyls2_open"},
-	{"id": "sneakers2", "name": "ZAPATILLAS ORO", "price": 120000, "hp": 270, "vmult": 20.0,
-		"loot_id": "sneakers", "art": "pack_sneakers2", "art_open": "pack_sneakers2_open"},
-	{"id": "electronics2", "name": "ELECTRONICA ORO", "price": 500000, "hp": 540,
-		"vmult": 20.0, "loot_id": "electronics",
+	{"id": "sneakers2", "name": "ZAPATILLAS ORO", "price": 100000, "hp": 6799, "vmult": 62.0,
+		"loot_id": "sneakers", "art": "pack_sneakers2", "art_open": "pack_sneakers2_open"},{"id": "electronics2", "name": "ELECTRONICA ORO", "price": 250000, "hp": 10750, "vmult": 50.0, "loot_id": "electronics",
 		"art": "pack_electronics2", "art_open": "pack_electronics2_open"},
-	{"id": "cards3", "name": "SOBRES LUJO", "price": 80000, "hp": 90, "vmult": 400.0,
-		"loot_id": "cards", "art": "pack_cards3", "art_open": "pack_cards3_open"},
-	{"id": "vinyls3", "name": "VINILOS LUJO", "price": 400000, "hp": 180, "vmult": 400.0,
-		"loot_id": "vinyls", "art": "pack_vinyls3", "art_open": "pack_vinyls3_open"},
-	{"id": "sneakers3", "name": "ZAPATILLAS LUJO", "price": 2500000, "hp": 360,
-		"vmult": 400.0, "loot_id": "sneakers",
-		"art": "pack_sneakers3", "art_open": "pack_sneakers3_open"},
-	{"id": "electronics3", "name": "ELECTRONICA LUJO", "price": 10000000, "hp": 720,
-		"vmult": 400.0, "loot_id": "electronics",
+	{"id": "cards3", "name": "SOBRES LUJO", "price": 600000, "hp": 16654, "vmult": 4080.0,
+		"loot_id": "cards", "art": "pack_cards3", "art_open": "pack_cards3_open"},{"id": "vinyls3", "name": "VINILOS LUJO", "price": 1500000, "hp": 26332, "vmult": 3600.0, "loot_id": "vinyls",
+		"art": "pack_vinyls3", "art_open": "pack_vinyls3_open"},{"id": "sneakers3", "name": "ZAPATILLAS LUJO", "price": 4000000, "hp": 43000, "vmult": 2520.0, "loot_id": "sneakers",
+		"art": "pack_sneakers3", "art_open": "pack_sneakers3_open"},{"id": "electronics3", "name": "ELECTRONICA LUJO", "price": 10000000, "hp": 67989, "vmult": 1980.0, "loot_id": "electronics",
 		"art": "pack_electronics3", "art_open": "pack_electronics3_open"},
 ]
 
@@ -235,35 +260,85 @@ const GRADE_MAX := 10
 # AUTO_ITEM_BUY, que son los mismos ids que encienden las automatizaciones. Ver
 # item_max_level().
 const ITEM_MAX_LEVEL := 8
-const ITEM_COST_GROWTH := 1.9
+const ITEM_COST_GROWTH := 1.6
 ## Niveles que tienen las piezas de las automatizaciones: una compra y ya.
 const ITEM_SINGLE_LEVEL := 1
 
+## LAS TIJERAS (el item de dano) tienen su propia escalera de precios EN DOS
+## TRAMOS: las tres primeras mejoras son baratas y suben poco -SOFT_COST_GROWTH,
+## un 30 % cada una, la mitad de rapido que el x1,6 del resto de la tienda-, y a
+## partir de la cuarta el precio se DISPARA (x2,8 sobre lo que costaba la
+## tercera). Es lo que se pidio: al principio el dano sale barato y se nota
+## enseguida, y en las partidas avanzadas es donde cuesta. La tienda usa el
+## mismo item_cost() que los demas, que solo cambia la cuenta para estos dos ids.
+const TIJERAS_SOFT_LEVELS := 3
+const TIJERAS_COST_GROWTH := 2.8
+## Cuanto sube cada una de las tres primeras mejoras sobre la anterior. Antes las
+## tres costaban EXACTAMENTE lo mismo, y eso se leia como que el segundo y el
+## tercer nivel salian gratis: se pidio que cada una cueste mas que la de antes,
+## pero sin que el principio de partida se vuelva lento (de ahi el x1,3 y no el
+## x1,6 de la tienda, ni el x2,8 del tramo caro).
+const SOFT_COST_GROWTH := 1.3
+## LOS GUANTES tienen la MISMA escalera que las Tijeras -tres mejoras baratas que
+## suben poco y despues x2,8- pero un poco mas caros: son el segundo item que se
+## paga en una partida, cuando el dano ya esta encarrilado y lo que se nota es
+## el ritmo.
+const GLOVES_SOFT_LEVELS := 3
+const GLOVES_COST_GROWTH := 2.8
+## EL DOLAR (el item que ABASTA los sobres) usa la misma escalera en dos tramos,
+## pero con un salto mas suave: tres mejoras baratas que suben poco (x1,3) y a
+## partir de la cuarta x2,3 sobre lo que costaba la tercera. Son 1.500 la primera
+## y unas 163.000 la octava: el descuento se nota en TODO lo que compres, asi que
+## el ultimo nivel es de los mas caros de la tienda A PROPOSITO, y aun asi se
+## paga solo en una partida larga.
+
+const DOLAR_SOFT_LEVELS := 3
+const DOLAR_COST_GROWTH := 2.3
+
+## LOS PRECIOS DE LA TIENDA SE DOBLARON de golpe cuando el margen de los sobres
+## bajo del 350 % al 15 %. Con la partida nueva (unos dieciseis minutos hasta el
+## primer rebirth, un millon ganado) estos numeros son los que hacen que una mejora sea
+## una decision -unos miles al principio, decenas de miles a mitad de partida- y
+## no un tramite: la tienda es el otro sitio donde se va el dinero, junto con los
+## sobres, y las dos cosas compiten.
 const ITEMS: Array = [
-	{"id": "guantes", "name": "GUANTES", "art": "item_guantes", "base_cost": 900,
-		"desc": "VARIOS PAQUETES A LA VEZ",
-		"detail": "PUEDES TENER VARIOS PAQUETES CARGANDO A LA VEZ Y TE AGUANTAN EL TURNO. UN CLIC SIGUE EMPEZANDO SOLO EL PAQUETE QUE PULSAS."},
-	{"id": "trebol", "name": "TREBOL", "art": "item_trebol", "base_cost": 1400,
+	{"id": "tijeras", "name": "TIJERAS", "art": "item_tijeras", "base_cost": 540,
+		"desc": "MAS DANO POR GOLPE",
+		"detail": "SUBE EL DANO DE CADA GOLPE UN 15 % POR NIVEL. LAS TRES PRIMERAS MEJORAS SON BARATAS Y SUBEN POCO; DESPUES EL PRECIO SE DISPARA."},
+	{"id": "trebol", "name": "TREBOL", "art": "item_trebol", "base_cost": 840,
 		"desc": "MAS BOTIN RARO",
 		"detail": "SUBE LAS PROBABILIDADES DE QUE SALGA BOTIN RARO, EPICO O LEGENDARIO. VALE PARA TODOS LOS SOBRES."},
-	{"id": "cajon", "name": "CAJON", "art": "item_cajon", "base_cost": 2600,
+	{"id": "cajon", "name": "CAJON", "art": "item_cajon", "base_cost": 1560,
 		"desc": "MAS ESPACIO EN LA MESA",
-		"detail": "MAS HUECOS EN LA MESA PARA DEJAR PAQUETES Y OBJETOS A LA VEZ. A PARTIR DEL NIVEL 5 CADA NIVEL DA TRES HUECOS EN VEZ DE DOS."},
-	{"id": "ojo_verde", "name": "OJO VERDE", "art": "item_ojo_verde", "base_cost": 4200,
+		"detail": "MAS HUECOS EN LA MESA PARA DEJAR PAQUETES Y OBJETOS A LA VEZ. A PARTIR DEL NIVEL 5 CADA NIVEL DA CINCO HUECOS EN VEZ DE DOS."},
+	{"id": "ojo_verde", "name": "OJO VERDE", "art": "item_ojo_verde", "base_cost": 2520,
 		"desc": "PROBABILIDAD DE CRITICO",
 		"detail": "CADA GOLPE TIENE ESTA PROBABILIDAD DE SER CRITICO, Y UN CRITICO HACE EL DOBLE DE DANO Y SALE EN AMARILLO."},
-	{"id": "laser", "name": "LASER", "art": "item_laser", "base_cost": 6000,
+	{"id": "laser", "name": "LASER", "art": "item_laser", "base_cost": 3600,
 		"desc": "MAS DANO CRITICO",
 		"detail": "SUBE EL DANO QUE HACE CADA GOLPE CRITICO. SIN CRITICOS NO HACE NADA, ASI QUE VA DETRAS DEL OJO VERDE."},
-	{"id": "pc", "name": "PC", "art": "item_pc", "base_cost": 12000,
+	{"id": "pc", "name": "PC", "art": "item_pc", "base_cost": 24000,
 		"desc": "COMPRA LOS SOBRES SOLO",
 		"detail": "COMPRA SOLO, AL RITMO QUE DICE AQUI, EL SOBRE MAS BARATO DE LOS QUE TENGAS MARCADOS EN SU MENU. SE PAGA UNA SOLA VEZ."},
-	{"id": "pinchos", "name": "PINCHOS", "art": "item_pinchos", "base_cost": 20000,
+	{"id": "pinchos", "name": "PINCHOS", "art": "item_pinchos", "base_cost": 40000,
 		"desc": "ABRE LOS PAQUETES SOLO",
 		"detail": "CON LA APERTURA AUTOMATICA ENCENDIDA GOLPEAN TODOS LOS PAQUETES DE LA MESA A LA VEZ, SIN QUE LES HAGAS CLIC. SE PAGAN UNA SOLA VEZ."},
 	{"id": "armario", "name": "ARMARIO", "art": "item_armario", "base_cost": 35000,
 		"desc": "EXPONE BOTIN Y DA SUS BONUS",
-		"detail": "CADA OBJETO QUE EXPONGAS DA EL BONUS DE SU TIPO SEGUN SU NOTA PSA, DE UN 2 % EN LA NOTA 1 A UN 15 % EN LA 10: CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO Y ELECTRONICA REBIRTH. EMPIEZAS CON UN HUECO Y LLEGAS A OCHO."},
+		"detail": "CADA OBJETO EXPUESTO DA EL BONUS DE SU TIPO SEGUN SU NOTA PSA (DEL 2 % AL 15 %): CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO Y ELECTRONICA REBIRTH."},
+	# EL NOVENO, Y VA AL FINAL A PROPOSITO: los niveles de un guardado se leen
+	# por POSICION, asi que anadir un item en medio muda de sitio los niveles de
+	# todos los que vienen detras y una partida vieja se encontraria el dano
+	# donde tenia la suerte. Al final no mueve a nadie.
+	{"id": "guantes", "name": "GUANTES", "art": "item_guantes", "base_cost": 720,
+		"desc": "MAS VELOCIDAD DE GOLPE",
+		"detail": "ACELERA LA CARGA UN 15 % POR NIVEL: LOS GOLPES SALEN MAS SEGUIDOS. LAS TRES PRIMERAS SON BARATAS Y SUBEN POCO; DESPUES EL PRECIO SE DISPARA."},
+	# EL DECIMO, TAMBIEN AL FINAL y por lo mismo: los niveles de una partida
+	# guardada se leen por POSICION (ver game_state.gd), asi que meterlo en medio
+	# le cambiaria el item a los niveles de todo el que viniera detras.
+	{"id": "dolar", "name": "DOLAR", "art": "item_dolar", "base_cost": 1500,
+		"desc": "SOBRES MAS BARATOS",
+		"detail": "BAJA EL PRECIO DE TODOS LOS SOBRES UN 5 % POR NIVEL, HASTA UN 40 % CON LOS OCHO. LAS TRES PRIMERAS SON BARATAS Y LAS ULTIMAS MUY CARAS."},
 ]
 
 ## CADA AUTOMATIZACION VA CON SU PIEZA. Los Pinchos son la fuerza (golpean la
@@ -277,18 +352,43 @@ const AUTO_ITEM_OPEN := "pinchos"
 const AUTO_ITEM_BUY := "pc"
 
 # --- el dano y la apertura ------------------------------------------------- #
-## Dano de un golpe sin mejoras. Un paquete basico (45 de vida) son cuatro
-## ciclos: con doce de dano, el cuarto golpe le sobra medio y el sobrante NO se
-## guarda, cada caja empieza de cero.
-const BASE_DAMAGE := 12.0
-## Cada nivel comprado de CUALQUIER item suma un 18% al dano base. Los dos de
-## compra unica (PC y Pinchos) aportan su unico nivel, que es lo que aportaba su
-## primera compra.
-const DAMAGE_PER_LEVEL := 0.18
+## Dano de un golpe sin mejoras. El sobre basico (215 de vida) son cinco
+## ciclos: con cuarenta y cinco de dano el quinto le sobra algo y el sobrante NO
+## se guarda, cada caja empieza de cero. Subio de 18 a 45 en el mismo cambio que
+## freno la carga a un tercio (ver CHARGE_TIME): el golpe tarda mas, pero pega
+## mas, y el ritmo de la partida no se va al garete.
+const BASE_DAMAGE := 45.0
+## Cada nivel comprado de CUALQUIER item suma un 15% al dano base. Los dos de
+## compra unica (PC y Pinchos) aportan su unico nivel. El item de dano son las
+## TIJERAS (ver su escalera de precios en item_cost).
+##
+## El 25 % de antes hacia que los items lo fueran TODO: con los diez a tope se
+## llegaba a casi x40 de dano por segundo, y quien compraba bien se pasaba la
+## partida en la mitad de tiempo que quien compraba mal -el jugador no llegaba a
+## mirar los sobres-. Ahora el dano sube un 15 % por nivel y los Guantes suman
+## aparte su 15 % de velocidad, asi que el TOPE sigue siendo alto (x9,7 de dano
+## por x3,9 de velocidad, unos x38 de dano por segundo), pero ya no se llega ahi
+## en cuatro compras baratas: Tijeras y Guantes dan las tres primeras mejoras
+## baratas (cada una un 30 % mas cara que la anterior) y a partir de ahi
+## multiplican por 2,8, y el resto de items suben x1,6 por nivel. El principio de
+## partida lo decide el jugador y no la tienda.
+const DAMAGE_PER_LEVEL := 0.15
 ## Segundos que tarda un ciclo de carga del boton. Es el ritmo al que se golpea.
-const CHARGE_TIME := 0.55
-## Cada nivel comprado acelera la carga un 5% (menos tiempo por golpe).
-const CYCLE_SPEED_PER_LEVEL := 0.05
+## Un ciclo es un golpe y un clic: la caja no se abre sola de una tirada.
+##
+## ANTES ERAN 0,55 Y SE FRENO A PROPOSITO: la barra bajaba tan rapido que no
+## daba tiempo a verla. Ahora un ciclo tarda el triple, y para que el ritmo no
+## se fuera al garete el dano base subio x2,5 en el mismo cambio (ver
+## BASE_DAMAGE). Lo que devuelve la velocidad es el item de los GUANTES.
+const CHARGE_TIME := 1.65
+## Cada nivel comprado acelera la carga un 3% (menos tiempo por golpe).
+const CYCLE_SPEED_PER_LEVEL := 0.03
+## Los GUANTES: el item de VELOCIDAD. Cada nivel acelera la carga un 15 % mas,
+## en la misma cuenta que el 3 % de arriba (el tiempo se divide por 1 + lo que
+## sumen los dos). Los tres primeros niveles cuestan lo mismo y despues el
+## precio se dispara (ver GLOVES_COST_GROWTH): el ritmo se nota desde la
+## primera compra, pero llevarlo al tope es cosa de partidas avanzadas.
+const GLOVES_SPEED_PER_LEVEL := 0.15
 
 # --- el critico (Ojo verde + Laser) --------------------------------------- #
 ## Probabilidad de critico POR NIVEL del Ojo verde: un 5 % por nivel, o sea un
@@ -305,26 +405,42 @@ const CRIT_MULT_BASE := 2.0
 const CRIT_MULT_PER_LEVEL := 0.05
 
 # --- otros efectos -------------------------------------------------------- #
-## Guantes: paquetes que se pueden llevar a la vez (1 sin item; +2 por nivel).
-##
-## OJO: NO son paquetes que se abren con un clic. Un clic arranca SIEMPRE un solo
-## paquete, el pulsado; lo que sube con los Guantes es cuantos caben cargando al
-## mismo tiempo. Con Guantes el jugador tiene que ir pulsando uno y otro en vez de
-## machacar el mismo, que es justo lo que se queria quitar.
-const OPEN_PER_LEVEL := 2
+## Cuantos paquetes se pueden llevar a la vez: el cupo es el de la mesa (ver
+## table_slots). NO HAY ITEM DE CUPO (los Guantes volvieron a la tienda como
+## item de VELOCIDAD, ver GLOVES_SPEED_PER_LEVEL), y un clic sigue arrancando
+## SIEMPRE un solo paquete, el pulsado; lo que limita es cuantos caben cargando
+## a la vez, que es la mesa.
 ## Trebol: +2% de peso a los objetos no comunes por nivel.
 const LUCK_PER_LEVEL := 0.02
+## Dolar: descuento sobre el precio de TODOS los sobres. Un 5 % por nivel, o sea
+## un 40 % con los ocho.
+##
+## Se aplica en game_state.pack_price(), que es el UNICO sitio donde se decide lo
+## que cuesta un sobre: la columna de la partida y la compra automatica pasan por
+## ahi, asi que el descuento no se queda aplicado a medias en una de las dos.
+const PACK_DISCOUNT_PER_LEVEL := 0.05
 ## Cajon: huecos extra en la mesa. 2 por nivel, y 5 a partir del nivel 5.
 const DRAWER_BASE := 2
 const DRAWER_HIGH := 5
 const DRAWER_HIGH_LEVEL := 5
 ## Mesa sin cajon.
 const TABLE_BASE := 8
-## Pinchos: dano por segundo a TODOS los paquetes de la mesa mientras la apertura
-## automatica esta encendida. Antes eran seis por nivel; con una sola compra se
-## queda en el nivel medio de los ocho, que una automatizacion que tarda cinco
-## segundos por sobre no se usa.
-const SPIKE_DPS := 24.0
+## Pinchos: fraccion del ritmo de golpes del JUGADOR que reparten entre los
+## paquetes de la mesa mientras la apertura automatica esta encendida.
+##
+## Antes eran 24 de dano por segundo fijos, y hacian dos cosas mal: se quedaban
+## cortos en cuanto el jugador subia el dano (el item dejaba de notarse) y eran
+## una barbaridad al principio, porque el dano se aplicaba ENTERO a cada paquete
+## de la mesa: con los ocho huecos llenos eso es ocho veces el dano del jugador
+## y, con el PC y la venta automatica, la partida se abria sola. Ahora pegan el
+## 60 % de lo que pega el jugador por segundo REPARTIDO entre los paquetes de la
+## mesa: la mesa entera avanza como avanza tu dedo. Sube con los items de dano
+## -el item sigue sirviendo toda la partida- y no se multiplica por el numero de
+## paquetes, que es lo que lo desequilibraba.
+const SPIKE_SHARE := 1.0
+## Los Pinchos escalan con el dinero de la partida: cada 10x de dinero que llevas
+## suma este 50 % a lo que pegan. Asi en partidas avanzadas siguen notandose.
+const SPIKE_PER_DECADE := 0.5
 ## PC: segundos entre compras automaticas. Con el PC comprado van siempre a este
 ## ritmo; el valor lento es el de una partida sin PC (que ya no puede pasar,
 ## porque la compra automatica no se enciende sin el).
@@ -362,7 +478,7 @@ const LOOT_KINDS: Array = [
 ## llenas se llega a un +120 % repartido entre dano, velocidad, dinero y rebirth,
 ## que ya es una barbaridad sin romper el juego por el camino.
 const KIND_BONUS_MIN := 0.02
-const KIND_BONUS_MAX := 0.15
+const KIND_BONUS_MAX := 0.25
 
 # --- el rebirth (la hucha) ------------------------------------------------ #
 ## Lo que hay que haberse ganado EN LA PARTIDA para poder reiniciarla. Es una
@@ -438,6 +554,35 @@ static func tier_mult(pack_id: String) -> float:
 	return float(pack_by_id(pack_id).get("vmult", 1.0))
 
 
+## Lo que paga DE MEDIA un paquete: la media de su tabla de botin (ponderada por
+## "w") con la nota media y el VALUE_SCALE, todo por su multiplicador de escalon.
+##
+## Es la mitad "recompensa" del par precio/recompensa, y existe para poder
+## COMPROBAR que las dos mitades van juntas: el precio de un sobre tiene que ser
+## mas o menos la misma fraccion de lo que paga, en cualquier escalon. Si el
+## sobre de arriba pagara menos por dinero que el de abajo, subir de escalon
+## seria pagar mas para ganar menos; y si pagara mas, saltarse los baratos seria
+## lo racional. Los dos casos rompen la escalera, y los dos se miden con esto.
+##
+## No cuenta el Trebol (que sube las rarezas) ni el Armario (que multiplica lo
+## que dan los objetos expuestos): los dos son del jugador y del momento de la
+## partida. Esto es el suelo, con la partida recien empezada y sin nada expuesto.
+static func pack_payout(pack_id: String) -> float:
+	var total := 0.0
+	var peso := 0.0
+	for row in loot_table(pack_id):
+		total += float(row["value"]) * float(row.get("w", 1))
+		peso += float(row.get("w", 1))
+	if peso <= 0.0:
+		return 0.0
+	var nota := 0.0
+	var peso_nota := 0.0
+	for i in GRADE_WEIGHTS.size():
+		nota += float(GRADE_WEIGHTS[i]) * grade_mult(i + 1)
+		peso_nota += float(GRADE_WEIGHTS[i])
+	return total / peso * (nota / peso_nota) * VALUE_SCALE * tier_mult(pack_id)
+
+
 static func item_count() -> int:
 	return ITEMS.size()
 
@@ -474,7 +619,7 @@ static func item_level(levels: Array, item_id: String) -> int:
 # --------------------------------------------------------------------------- #
 
 ## Niveles que tiene un item. 1 para el PC y los Pinchos (compra unica) y
-## ITEM_MAX_LEVEL para los seis de estadisticas.
+## ITEM_MAX_LEVEL para los siete con niveles.
 static func item_max_level(index: int) -> int:
 	var item_id := str(ITEMS[clampi(index, 0, ITEMS.size() - 1)]["id"])
 	if item_id == AUTO_ITEM_OPEN or item_id == AUTO_ITEM_BUY:
@@ -490,6 +635,26 @@ static func item_cost(index: int, current_level: int) -> int:
 	if current_level >= item_max_level(index):
 		return -1
 	var base: float = ITEMS[clampi(index, 0, ITEMS.size() - 1)]["base_cost"]
+	# TIJERAS Y GUANTES, EN DOS TRAMOS. Las tres primeras mejoras suben poco
+	# (SOFT_COST_GROWTH) y a partir de la cuarta el precio se dispara sobre lo que
+	# costaba la TERCERA, no sobre la base: asi el salto se nota de verdad (x2,8
+	# del ultimo precio barato) aunque las tres primeras ya no valgan lo mismo.
+	# El resto de la tienda sigue con su escalera de siempre, x1,6 por nivel.
+	var item_id := str(ITEMS[clampi(index, 0, ITEMS.size() - 1)]["id"])
+	if item_id == "tijeras" or item_id == "guantes" or item_id == "dolar":
+		# El Dolar entra en el mismo tramo doble aunque su salto sea mas suave:
+		# tres mejoras seguidas y baratas, y a partir de ahi el precio se separa.
+		var growth: float = TIJERAS_COST_GROWTH
+		var soft: int = TIJERAS_SOFT_LEVELS
+		if item_id == "guantes":
+			growth = GLOVES_COST_GROWTH
+			soft = GLOVES_SOFT_LEVELS
+		elif item_id == "dolar":
+			growth = DOLAR_COST_GROWTH
+			soft = DOLAR_SOFT_LEVELS
+		var suaves := mini(current_level, soft - 1)
+		var saltos := maxi(0, current_level - (soft - 1))
+		return int(round(base * pow(SOFT_COST_GROWTH, suaves) * pow(growth, saltos)))
 	return int(round(base * pow(ITEM_COST_GROWTH, current_level)))
 
 
@@ -516,8 +681,18 @@ static func levels_with(index: int, level: int) -> Array:
 static func item_effect(index: int, level: int) -> String:
 	var levels := levels_with(index, level)
 	match str(item_at(index)["id"]):
+		"tijeras":
+			# El numero es lo que APORTA ese nivel, no lo acumulado: sin comprar no
+			# aporta nada, y por eso el nivel 1 y el 2 salen distintos en la ficha
+			# (con lo acumulado los dos dirian "+15 %" y no se veria que comprar
+			# sirve de algo).
+			return "+%d%% DE DANO POR GOLPE" % (roundi(DAMAGE_PER_LEVEL * 100.0)
+				if level > 0 else 0)
 		"guantes":
-			return "AGUANTAS %d A LA VEZ" % open_count(levels)
+			# Lo mismo que las Tijeras, pero con la velocidad: lo que aporta ESTE
+			# nivel, no el acumulado (ver el comentario de arriba).
+			return "+%d%% DE VELOCIDAD" % (roundi(GLOVES_SPEED_PER_LEVEL * 100.0)
+				if level > 0 else 0)
 		"trebol":
 			return "+%d%% DE BOTIN RARO" % roundi(LUCK_PER_LEVEL * float(level) * 100.0)
 		"cajon":
@@ -531,7 +706,17 @@ static func item_effect(index: int, level: int) -> String:
 		"pinchos":
 			return "%d DE DANO POR SEGUNDO" % roundi(spike_dps(levels))
 		"armario":
-			return "%d OBJETOS EXPUESTOS" % locker_slots(levels)
+			# En singular con uno: la ficha del primer nivel decia "1 OBJETOS
+			# EXPUESTOS", y eso se lee en la pantalla donde se decide comprarlo.
+			var huecos := locker_slots(levels)
+			return "1 OBJETO EXPUESTO" if huecos == 1 else "%d OBJETOS EXPUESTOS" % huecos
+		"dolar":
+			# Aqui SI se lee el ACUMULADO y no lo que aporta el nivel, al contrario
+			# que en las Tijeras y los Guantes: un descuento del 5 % no dice gran
+			# cosa, y lo que hay que ver es que al nivel 8 el sobre vale un 40 %
+			# menos. En la ficha sale el de ahora y el del nivel siguiente.
+			return "-%d%% DE PRECIO EN LOS SOBRES" % roundi(
+					pack_discount(levels) * 100.0)
 	return ""
 
 
@@ -556,14 +741,23 @@ static func total_levels(levels: Array) -> int:
 	return total
 
 
-## Dano de cada golpe: base mas el 18% por nivel comprado.
+## Dano de cada golpe: base mas el 15 % por nivel comprado.
 static func damage_per_hit(levels: Array) -> float:
 	return BASE_DAMAGE * (1.0 + DAMAGE_PER_LEVEL * float(total_levels(levels)))
 
 
-## Segundos por ciclo de carga. Baja con los niveles comprados.
+## Segundos por ciclo de carga. Baja con los niveles comprados, y los GUANTES
+## son los que la bajan de verdad: su 15 % por nivel va en la misma cuenta que
+## el 3 % que da cualquier item (CHARGE_TIME / (1 + los dos)).
 static func charge_time(levels: Array) -> float:
-	return CHARGE_TIME / (1.0 + CYCLE_SPEED_PER_LEVEL * float(total_levels(levels)))
+	return CHARGE_TIME / (1.0 + CYCLE_SPEED_PER_LEVEL * float(total_levels(levels))
+			+ GLOVES_SPEED_PER_LEVEL * float(item_level(levels, "guantes")))
+
+
+## Lo que baja el precio de los sobres: un 5 % por nivel del Dolar, o sea un
+## 40 % con los ocho. Devuelve una FRACCION (0.4), no un porcentaje.
+static func pack_discount(levels: Array) -> float:
+	return PACK_DISCOUNT_PER_LEVEL * float(item_level(levels, "dolar"))
 
 
 ## Probabilidad de critico: un 5 % por nivel del Ojo verde, y cero sin el.
@@ -576,10 +770,16 @@ static func crit_mult(levels: Array) -> float:
 	return CRIT_MULT_BASE + CRIT_MULT_PER_LEVEL * float(item_level(levels, "laser"))
 
 
-## Cuantos paquetes se pueden llevar A LA VEZ (Guantes). Ver game.gd,
+## Cuantos paquetes se pueden llevar A LA VEZ. Ver game.gd,
 ## _on_open_requested(): es el tope de paquetes empezados que caben a la vez.
+##
+## El cupo es el de la mesa (ver table_slots), sin comprar nada. Hubo un item
+## que abria el cupo de uno en uno y en la practica no se notaba -el jugador
+## machacaba el mismo sobre-, asi que fuera. Los Guantes volvieron despues como
+## item de VELOCIDAD, que es lo que de verdad se echaba en falta (ver
+## charge_time). Lo que limita es donde caben los paquetes, que es la mesa.
 static func open_count(levels: Array) -> int:
-	return 1 + OPEN_PER_LEVEL * item_level(levels, "guantes")
+	return table_slots(levels)
 
 
 ## Multiplicador de peso de los objetos no comunes (Trebol).
@@ -605,15 +805,18 @@ static func auto_buy_interval(levels: Array) -> float:
 	return AUTO_BUY_INTERVAL
 
 
-## Dano por segundo de los Pinchos a todos los paquetes de la mesa.
+## Dano por segundo TOTAL de los Pinchos, repartido entre los paquetes de la mesa
+## (ver game.gd, _spike_step()). Es una fraccion del ritmo de golpes del jugador
+## -su dano por segundo de carga continua-, asi que sube con los items de dano.
 ##
 ## Los Pinchos NO van solos: esto es lo que pegan cuando la apertura automatica
-## esta encendida (ver game.gd, _spike_step()). Apagada no hacen nada, porque
-## entonces el que golpea es el jugador con el boton.
-static func spike_dps(levels: Array) -> float:
+## esta encendida. Apagada no hacen nada, porque entonces el que golpea es el
+## jugador con el boton.
+static func spike_dps(levels: Array, money: float = 0.0) -> float:
 	if item_level(levels, "pinchos") <= 0:
 		return 0.0
-	return SPIKE_DPS
+	var scale := 1.0 + SPIKE_PER_DECADE * log(1.0 + maxf(0.0, money) / 1000.0) / log(10.0)
+	return SPIKE_SHARE * scale * damage_per_hit(levels) / charge_time(levels)
 
 
 ## ¿Se puede encender la apertura automatica? Hace falta SU pieza: los Pinchos.
@@ -740,15 +943,22 @@ static func roll_grade(rng: RandomNumberGenerator) -> int:
 	return GRADE_MAX
 
 
-## Cuanto vale la nota. Va de 0.50 (nota 1) a 1.13 (nota 10).
+## Cuanto vale la nota. Va de 0.80 (nota 1) a 1.25 (nota 10): un 56 % de subida
+## del 1 al 10, no el 126 % de antes.
 ##
-## Antes la nota multiplicaba por 0.60..1.40 y encima el estado (0.30..1.25)
-## hacia de factor aparte. Al derivar el estado de la nota, el multiplicador se
-## reescalo para que la media se quede en 1: la media de la nota sale en 7.6, y
-## 0.50 + 0.07*(7.6-1) da 0.96. Asi los precios de la tabla de arriba siguen
-## valiendo lo que valian y no hay que reequilibrar los paquetes.
+## La nota es lo que el jugador lee en la tarjeta y por lo que decide si guarda o
+## vende, asi que tiene que notarse -un 10 vale mas que un 3-, pero no puede ser
+## un premio gordo: con el 0.50..1.13 de antes, un 10 en un objeto bueno valia
+## mas que todo lo que llevabas y la partida se decidia en una tirada.
+##
+## La media se queda por encima de 1 (repartiendo las notas por su peso la nota
+## media sale 6,9 y con ella 1,09).
+## No es un descuido: la tabla de los sobres esta cuadrada con ESTE numero dentro
+## -ver LootDB.pack_payout(), que es lo que usa el smoke test para saber que un
+## sobre paga lo que tiene que pagar-, asi que tocar la curva sin volver a mirar
+## los precios descuadra el equilibrio.
 static func grade_mult(grade: int) -> float:
-	return 0.50 + 0.07 * float(clampi(grade, PSA_MIN, GRADE_MAX) - 1)
+	return 0.80 + 0.05 * float(clampi(grade, PSA_MIN, GRADE_MAX) - 1)
 
 
 ## El nombre del sprite de un objeto segun su nota. Las cartas no se desgastan.

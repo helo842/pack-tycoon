@@ -13,7 +13,7 @@ signal inventory_changed()
 signal locker_changed()
 signal items_changed()
 ## Un paquete ha pedido abrirse (el jugador le ha hecho clic). Lo escucha game.gd,
-## que es quien sabe cuantos paquetes se pueden llevar a la vez (los Guantes).
+## que es quien sabe cuantos paquetes se pueden llevar a la vez (el cupo de la mesa).
 signal open_requested(element: Object)
 signal settings_changed()
 ## Aviso corto para la parte de arriba de la pantalla.
@@ -43,9 +43,9 @@ var inventory: Array = []
 ## desde su panel (ver LockerPanel), que es lo que le da sentido a los huecos.
 var locker: Array = []
 ## Nivel comprado de cada item de la tienda (ITEMS SHOP del PDF). El indice del
-## array es el de LootDB.ITEMS. Los seis de estadisticas suben hasta ocho; el PC
-## y los Pinchos son de compra unica (nivel 1 y ya). Ver LootDB.item_max_level().
-var items: Array = [0, 0, 0, 0, 0, 0, 0, 0]
+## array es el de LootDB.ITEMS. Los siete con niveles suben hasta ocho; el PC y
+## los Pinchos son de compra unica (nivel 1 y ya). Ver LootDB.item_max_level().
+var items: Array = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 var auto_open: bool = false
 var auto_buy: bool = false
@@ -151,9 +151,16 @@ func spend(amount: int) -> bool:
 # compra automatica contesten lo mismo y para que un dia se pueda poner un
 # descuento o una oferta en un solo sitio.
 
-## Lo que cuesta un sobre.
+## Lo que cuesta un sobre, con el descuento del DOLAR ya aplicado.
+##
+## El sobre gratuito sigue a 0: un descuento sobre cero es cero, y ademas la
+## columna lo anuncia con GRATIS (ver pack_free).
 func pack_price(pack_id: String) -> int:
-	return int(LootDB.pack_by_id(pack_id)["price"])
+	var base := int(LootDB.pack_by_id(pack_id)["price"])
+	if base <= 0:
+		return base
+	var off := LootDB.pack_discount(items)
+	return maxi(1, roundi(float(base) * (1.0 - off)))
 
 
 ## ¿El sobre es gratuito? Los gratuitos se anuncian con GRATIS en la columna en
@@ -505,7 +512,7 @@ func auto_buy_interval() -> float:
 
 
 func spike_dps() -> float:
-	return LootDB.spike_dps(items)
+	return LootDB.spike_dps(items, float(money))
 
 
 ## Un paquete pide abrirse. game.gd decide cuantos mas arranca a la vez.

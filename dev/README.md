@@ -115,6 +115,18 @@ $G --headless --path . res://dev/InputTest.tscn
 # debe acabar con "RATON: todo correcto."
 # (sale con 1 si algo falla, asi que sirve tal cual en un script)
 
+# el reloj: juega la partida entera (comprar, golpear, cobrar, subir de escalon,
+# comprar mejoras) y dice cuantos minutos se tarda en llegar al primer rebirth
+$G --headless --path . res://dev/BalanceTest.tscn
+# lo mismo con la vida de una partida paso a paso (dinero, niveles y sobre de
+# cada momento): es lo que se mira cuando un jugador sale mas lento de lo que
+# deberia y hay que ver DONDE se pierde el rato
+$G --headless --path . res://dev/BalanceTest.tscn trace
+# y el barrido de cuanto se gasta de golpe en mejoras, que es la decision con
+# mas peso de la partida y la que menos se ve (gastar el 55 % del dinero en cada
+# sobre se come su margen del 15 % y deja el dinero sin componer)
+$G --headless --path . res://dev/BalanceTest.tscn shares
+
 # las capturas, CON ventana: en headless el renderizador es el de mentiritas
 # y get_viewport().get_texture() devuelve null, asi que no guarda nada.
 DISPLAY=:1 $G --path . --display-driver x11 --rendering-driver opengl3 \
@@ -147,6 +159,53 @@ $G --headless --path . --import
 Sin ese paso los dos tests se caen con `Could not find type "LockerPanel"` (el
 proyecto no tiene la escena en su cache todavia) y parece que el fallo esta en el
 codigo nuevo. Costo una vuelta entera de tests creerlo.
+
+## El reloj: cuanto dura una partida (balance.gd)
+
+Lo que dura una partida no se estima a ojo ni se comprueba mirando capturas: se
+**mide**. `balance.gd` juega la partida entera —comprar el sobre mas caro que te
+llega, golpearlo hasta abrirlo, cobrar el botin y volver a empezar, comprando
+mejoras por el camino— con las FORMULAS y los DATOS de verdad del juego
+(`LootDB.pack_payout()`, `roll_pack()`, `damage_per_hit()`, `charge_time()`,
+`spike_dps()`, `item_cost()`...), asi que cambiar un precio o una vida y volver a
+correr esto dice en un par de segundos que le ha pasado a la partida.
+
+El reloj es la suma del tiempo de cada accion: los ciclos de carga (mas el hueco
+entre clic y clic), la tarjeta de revelado y las compras. **No modela el raton ni
+la interfaz**: no hay clics que fallan, ni dudas, ni cansancio. Por eso sus
+tiempos son un SUELO —una persona hace lo mismo que dice aqui y algo mas—, no una
+promesa optimista.
+
+Juega de tres maneras, y las tres estan en el informe:
+
+| Jugador | Como juega |
+|---|---|
+| `normal` | el sobre mas caro que puede y mejoras hasta el 30 % del dinero; clic cada 0,35 s y la tarjeta leida (1,6 s) |
+| `optimizado` | clic cada 0,20 s, tarjeta en 1,1 s, **compra a tirones** (20 % del dinero de una vez, el óptimo que da el barrido con la barra a 1,65 s) y expone los vinilos en el armario |
+| `automatico` | como el optimizado, mas el PC y los Pinchos: la mesa se abre sola y no hay tarjeta |
+
+**El Dolar no entra en esta cuenta.** Su descuento se aplica en
+`Game.pack_price()` y la simulacion calcula con los precios de `LootDB`, asi que
+los tiempos de abajo son SIN el Dolar: como el descuento solo puede acortar la
+partida, son un techo, no una promesa. Modelarlo pediria meter tambien el
+ahorro en cada compra, que es otra cuenta y otro informe.
+
+Hoy dice: **normal 24,7 min** (el 80 % central, 17,4 a 34,0), **optimizado 17,7** y
+**automatico 16,2**. La banda que se considera sana para el normal es 20-30 y el
+informe lo dice en voz alta al final. Ademas saca, para el lector:
+
+- **Lo que paga cada sobre y lo que tarda**, contra su precio. Es la otra mitad
+del equilibrio: si un sobre paga mas de lo que cuesta, subir de escalon deja de
+ser una decision; si paga menos, nadie sube. Los doce van de x1,14 a x1,16.
+- **Que sobres abre de verdad** el jugador normal. Si la fila del sobre GRATUITO
+  se lleva una tajada, la partida se esta atascando en el escalon de abajo.
+- **Sin dado** (el botin puesto en su media). Separa lo que decide la suerte de
+  lo que decide el camino, y es la unica version que puede comprobar un test sin
+  volverse loca (ver el check de equilibrio de `smoke_test`).
+
+Los numeros salen de veinticinco partidas por jugador y el informe enseña el
+**80 % central**, no el minimo y el maximo: con veinticinco partidas, una racha
+buena en la ultima hace ver el juego roto.
 
 ## Que comprueba smoke_test.gd y por que
 
@@ -188,14 +247,14 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
 - Que un objeto no pueda salir de la mesa al moverlo, y que soltarlo tras
   arrastrarlo no lo abra ni lo venda. El arrastre de verdad (pulsar, mover y
   soltar) lo prueba `input_test`.
-- Que **un clic abra UN paquete y no varios**. Los Guantes suben cuantos
-  paquetes caben cargando a la vez (`Game.open_count()`: 1 sin ellos, 3 al nivel
-  1...), asi que el check arranca cuatro con Guantes nivel 1, comprueba que tras
-  el primer clic solo carga uno, que pulsando cada uno cargan los tres, que el
-  cuarto no entra, y que al soltar un hueco el que esperaba entra. Antes era al
-  reves (un clic arrancaba los tres de golpe y el jugador machacaba el mismo
-  sobre), y por eso la prueba mira el NUMERO de paquetes cargando y no solo que
-  el clic llegue.
+- Que **un clic abra UN paquete y no varios**. El cupo de cuantos caben
+  cargando a la vez es el de la mesa (`Game.open_count()`: ocho de serie, y el
+  Cajon lo sube), asi que el check comprueba que sin comprar nada ya caben
+  varios, que tras el primer clic solo carga uno (y el no pulsado sigue quieto),
+  que pulsando cada uno cargan los ocho huecos y que al soltar un hueco el que
+  esperaba entra. Antes era al reves (un clic arrancaba varios de golpe y el
+  jugador machacaba el mismo sobre), y por eso la prueba mira el NUMERO de
+  paquetes cargando y no solo que el clic llegue.
 - Que el precio de un sobre quepa **en la banda blanca de su chapa**, no solo en
   el hueco del sprite. La cinta solo pinta una franja en medio (`PACK_TAG_INK`,
   un 59 % del alto), y con la chapa baja el número se leía encima de la cinta:
@@ -210,8 +269,10 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   automatica **solo con el PC**. Antes hacian falta las dos piezas para
   cualquiera de las dos, y comprar el PC y que su boton siguiera apagado se lee
   como que la compra no ha servido de nada.
-- Que haya **dos clases de item y no se mezclen**: los seis de estadisticas
-  suben hasta ocho niveles (cada uno mas caro) y el PC y los Pinchos son de
+- Que haya **dos clases de item y no se mezclen**: los siete con niveles suben
+  hasta ocho (cada uno mas caro; las Tijeras y los Guantes suben poco en sus
+  tres primeras mejoras, x1,3, y se disparan a partir de la cuarta) y el PC y
+  los Pinchos son de
   compra unica, asi que su `item_cost()` contesta -1 en cuanto se tienen. La
   tienda lo dice con COMPRADO en esos dos y con AL TOPE en los que llegan a los
   ocho, y donde los otros llevan los puntos de nivel esos dos llevan el rotulo
@@ -221,9 +282,54 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   dibujaba nada (la fila parecia tener un hueco roto).
 - Que la escalera de la columna de sobres **suba tambien en resistencia**, no
   solo en precio: si el escalon de arriba fuera igual de blando, el precio solo
-  compraria botin mejor. Y que el sobre basico pida **cuatro golpes** con el
-  dano base (45 de vida entre 12 de dano): se mira en golpes y no en el numero
-  suelto, para que el check siga diciendo algo si cambia el dano base.
+  compraria botin mejor. Y que el sobre basico pida **cinco golpes** con el dano
+  base (215 de vida entre 45 de dano): se mira en golpes y no en el numero suelto,
+  para que el check siga diciendo algo si cambia el dano base.
+- Que **un escalon no se cuele por debajo del anterior** en precio, y que **cada
+  sobre pague entre cuatro y cinco veces lo que cuesta**. Son los dos checks que
+  faltaban porque la escalera se medía **tipo por tipo**, y así estaba todo en
+  verde con el fallo delante: dentro de SOBRES subía (0 → 4.000 → 80.000) y
+  dentro de ELECTRÓNICA también (25.000 → 500.000 → 10.000.000), pero de un
+  escalón al siguiente el precio se **cruzaba**: SOBRES ORO a 4.000, más barato
+  que la ELECTRÓNICA del escalón 1 (25.000). Con el botín multiplicado arriba,
+  eso deja a la electrónica y a las zapatillas del escalón 1 sin comprador:
+  nadie paga 25.000 por algo que un sobre de 4.000 da mejor. El primero mide los
+  precios **por escalón** (el mínimo de uno tiene que pasar el máximo del
+  anterior) y en la lista de fallos dice qué escalones se cruzan y por cuánto.
+  Comprobado que caza el fallo: con los precios viejos `ningun sobre de un
+  escalon baja del precio mas alto del anterior` FALLA y el test sale con 1; con
+  los nuevos pasa. El segundo no admite opiniones, necesita un número:
+  `LootDB.pack_payout()` calcula lo que paga de media un sobre —media ponderada
+  de su tabla, con la nota media y el `VALUE_SCALE`, por su `vmult`; sin el
+  Trébol ni el Armario, que son del jugador y del momento— y el check pide que
+  **pague entre un 30 y un 45 % más de lo que cuesta**: entre x1,30 y x1,45, y hoy los doce van
+  de x1,36 a x1,39. Es lo que obliga a que el `vmult` NO sea el mismo para los
+  doce: al subir los precios del escalón 2 por encima del techo del 1, los que
+  menos pagaban (SOBRES ORO, que tiene la tabla más barata) se quedaban pagando
+  una cuarta parte de lo que cuestan. **Ese margen es toda la progresión del
+  juego**: con el 350 % de antes el capital se multiplicaba por 4,5 en cada
+  sobre, no había forma de gastarlo y la partida se terminaba en dos minutos (un
+  PSA 10, o cualquier golpe de suerte, *era* la partida). Por eso el check es
+  estrecho y no un "paga más de lo que cuesta".
+- Que la **resistencia de cada sobre vaya con la raíz de su precio**
+  (`hp = 21,5 × √precio`, con un 6 % de margen para los números redondos). El
+  rato que dura una partida es la vida de los sobres partida por el daño del
+  jugador, así que esta curva es el reloj del juego: un sobre fuera de la curva
+  se ve en los minutos del informe de `balance.gd`. El 21,5 va **escrito a mano
+  en el test** aunque también esté en `loot_db.gd`: si el test lo leyera de los
+  datos, una tabla y una constante malas las dos seguirían pasando la prueba.
+- Que **la partida dure lo que tiene que durar**. Es lo único de este juego que
+  no se puede comprobar mirando una captura ni midiendo una pieza suelta (un
+  precio, una vida): sale de la partida entera, así que el test llama a
+  `dev/balance.gd` —la herramienta que juega la partida completa con las
+  fórmulas y los datos de verdad— y pide que el jugador normal llegue al primer
+  rebirth **entre 15 y 25 minutos**, que el que juega rápido y compra bien llegue
+  **antes** que el normal y que el que pone el PC y los
+  Pinchos llegue antes que el que hace clic. Se mide **sin dado** (el botín
+  puesto en su media), que es lo único que da siempre el mismo número; con dado
+  el resultado se mueve varios minutos de una partida a otra y un test que salta
+  por suerte es peor que no tener test. La banda es ancha a propósito: esto es un
+  guardia contra romper la partida, no un ajuste fino.
 - Que **cada escalon de un tipo tenga su propio dibujo**. Los tres escalones
   compartian sprite (el mismo sobre dibujado tres veces en una columna de doce),
   y el fallo no da ningun error: sale el de siempre y no se nota. El check pide

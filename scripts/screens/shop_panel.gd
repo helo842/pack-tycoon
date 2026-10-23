@@ -1,6 +1,6 @@
-# ShopPanel - la tienda: los ocho items que mejoran la apertura.
+# ShopPanel - la tienda: los diez items que mejoran la apertura.
 #
-# LOS ITEMS SON CAJAS. Ocho cajas en rejilla (cuatro arriba, cuatro abajo), cada
+# LOS ITEMS SON CAJAS. Diez cajas en rejilla (cinco arriba y cinco abajo), cada
 # una con su dibujo, su nombre, sus puntos de nivel y su precio. Antes eran dos
 # columnas de filas con el icono a la izquierda y el texto al lado, y una lista de
 # texto no dice "esto se puede coger": una caja si. Ademas, en rejilla caben los
@@ -12,7 +12,7 @@
 # ahora y del nivel siguiente. El precio de la caja esta para saber si llegas; el
 # boton de comprar esta en la ficha, con esos numeros delante.
 #
-# DOS CLASES DE ITEM, y se nota en la caja. Los seis de estadisticas suben hasta
+# DOS CLASES DE ITEM, y se nota en la caja. Los siete con niveles suben hasta
 # ocho niveles, asi que la caja lleva los puntos de nivel y un precio que crece
 # con cada uno. El PC y los Pinchos son de COMPRA UNICA: no hay nada que subir, y
 # donde irian los puntos dicen COMPRA UNICA. Quien es cual lo dice
@@ -37,19 +37,22 @@ const ITEM_CARD_SCENE := preload("res://scenes/ItemCard.tscn")
 ## contador de dinero con su moneda (y 143..245), asi que un titulo mas alto le
 ## caeria encima. A 264 su linea empieza en 231 y la del dinero acaba en 214.
 const ITEMS_TITLE_Y := 264.0
-## Una caja: 320 de ancho por 264 de alto, y la rejilla de cuatro columnas y dos
-## filas. Los pasos (368 y 324) dejan 48 px de aire entre cajas.
+## Una caja: 264 de ancho por 264 de alto, y la rejilla de cinco columnas y dos
+## filas (diez items: cinco arriba y cinco abajo). Los pasos (288 y 324) dejan
+## 24 px de aire entre cajas de la misma fila y 60 entre las dos filas. El ancho
+## bajo de 320 a 264 al entrar el noveno item: cinco cajas de 320 no caben en el
+## recuadro interior, que va de x 224 a x 1696.
 ##
 ## El alto lo manda lo que lleva dentro, de arriba abajo: el dibujo (112), el
 ## nombre (33), los puntos de nivel o COMPRA UNICA (22) y la chapa del precio
 ## (56). Todo va a multiplos de 4 y las medidas de la rejilla a multiplos de 8,
 ## para no descuadrar el pixelado al estirar.
-const BOX := Vector2(320, 264)
-const BOX_COL0_X := 256.0
-const BOX_COL_STEP := 368.0
+const BOX := Vector2(264, 264)
+const BOX_COL0_X := 252.0
+const BOX_COL_STEP := 288.0
 const BOX_ROW0_Y := 320.0
 const BOX_ROW_STEP := 324.0
-const PER_ROW := 4
+const PER_ROW := 5
 const ICON_BOX := Vector2(112, 112)
 const ICON_DY := 68.0
 const NAME_DY := 150.0
@@ -122,7 +125,7 @@ func _build_items() -> void:
 			Vector2(960, ITEMS_TITLE_Y), Vector2(1200, 60), 42, Palette.GOLD,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
-	# Un solo tamaño de nombre para las ocho cajas, como en la lista de sobres:
+	# Un solo tamaño de nombre para las diez cajas, como en la lista de sobres:
 	# encoger cada uno por su cuenta deja "PC" a 28 y "OJO VERDE" a 21 en la misma
 	# rejilla, y eso se lee como un fallo.
 	var nombres: Array = []
@@ -149,7 +152,7 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	var y := top_left.y
 
 	# La caja: un fondo oscuro con filete dorado, como la bandeja de los sobres
-	# (ver game.gd, _build_pack_zone()). NO es un ui_slot estirado a 320x264: el
+	# (ver game.gd, _build_pack_zone()). NO es un ui_slot estirado a 264x264: el
 	# marco del slot es cuadrado y estirarlo descuadra su bevel, que es lo unico
 	# que le da volumen.
 	var back := ColorRect.new()
@@ -161,7 +164,7 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	var frame := _frame(top_left, EDGE_OPEN)
 
 	# El dibujo del item, colocado por su DIBUJO dentro de la caja (ver
-	# UIKit.fit_art): los ocho items no llenan igual su lienzo y escalados por el
+	# UIKit.fit_art): los diez items no llenan igual su lienzo y escalados por el
 	# lienzo se verian de tres tamaños distintos.
 	var art := UIKit.fit_art(str(item["art"]), Vector2(x + BOX.x * 0.5, y + ICON_DY),
 			ICON_BOX)

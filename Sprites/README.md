@@ -313,7 +313,7 @@ vender*. Van repartidas entre `ui/panels/`, `ui/controls/` y
 | `ui_timer_fill.png` | 256×256 | **Un cuarto** de anillo, para que el juego lo gire cuatro veces |
 | `ui_panel_reveal.png` | 1600×960 | Tarjeta de revelado. Cuerpo casi negro, al contrario que la tienda, para que el objeto destaque |
 | `fx_shine.png` | 256×256 | Destello de fondo al salir un botín raro o legendario |
-| `ui_tag_price.png` | 320×160 | Chapita de valor que se pone bajo un objeto |
+| `ui_tag_price.png` | 320×160 | Chapita de valor: el precio de la columna de sobres y el de la tienda (en la mesa ya no va: ver `table_element.gd`) |
 | `ui_button_sell.png` | 320×144 | Botón de vender. Cuerpo oscuro: es una acción de perder |
 | `currency_coin.png` | 512×512 | Moneda suelta para los precios |
 

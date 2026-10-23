@@ -249,7 +249,7 @@ func _paint_inventory() -> void:
 		var hay := i < Game.inventory.size()
 		if not hay:
 			# El tooltip se limpia: una casilla vacia que siga diciendo "Exponer
-			# GUANTES" de la vez anterior es peor que no decir nada.
+			# TREBOL" de la vez anterior es peor que no decir nada.
 			b.tooltip_text = ""
 			b.disabled = true
 			continue

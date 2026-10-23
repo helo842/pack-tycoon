@@ -1,6 +1,6 @@
 # ItemCard - la ficha de un item de la tienda.
 #
-# La tienda enseña ocho CAJAS con lo justo (el dibujo, el nombre, los puntos de
+# La tienda enseña diez CAJAS con lo justo (el dibujo, el nombre, los puntos de
 # nivel y el precio). Esta es la pantalla que se abre al pulsar una: que es el
 # objeto y -lo que de verdad hace falta para decidir- LOS NUMEROS. Un "MAS BOTIN
 # RARO" no dice si el siguiente nivel vale sus monedas; un "+2 % DE BOTIN RARO"
@@ -8,7 +8,7 @@
 #
 # LOS NUMEROS SE SACAN DE LOOTDB, no se escriben aqui. Cada efecto se lee con
 # LootDB.item_effect(), que aplica la formula de verdad de ese item al nivel que
-# se le pida, asi que la ficha no puede mentir: si mañana cambia el +18 % de dano
+# se le pida, asi que la ficha no puede mentir: si mañana cambia el +15 % de dano
 # por nivel, la ficha lo dice sola sin que nadie se acuerde de tocarla.
 #
 # LA FICHA NO COMPRA: pide la compra. Emite buy_requested y quien la abrio (la
@@ -31,7 +31,7 @@ signal buy_requested(index: int)
 const TITLE_Y := 196.0
 const LEVEL_Y := 254.0
 ## El dibujo, a la izquierda, y la columna de texto, a la derecha. El dibujo se
-## coloca por su DIBUJO dentro de ART_BOX (ver UIKit.fit_art): los ocho items no
+## coloca por su DIBUJO dentro de ART_BOX (ver UIKit.fit_art): los diez items no
 ## llenan igual su lienzo y escalados por el lienzo se verian de tres tamaños.
 const ART_CENTER := Vector2(500, 520)
 const ART_BOX := Vector2(400, 400)
@@ -46,9 +46,14 @@ const COL_W := 860.0
 const COL_MID := 1190.0
 const DESC_Y := 340.0
 ## Las lineas de la descripcion larga. 860 px a tamaño 21 son 40 caracteres por
-## linea, asi que el texto mas largo de LootDB (unos 120) sale en tres o cuatro.
+## linea, y el hueco da para CUATRO lineas: de 390 a 534, con la raya en 540 y
+## los numeros en 560. La quinta ya los pisa, asi que las descripciones de
+## LootDB estan escritas para caber en cuatro y el smoke test lo comprueba en
+## los diez items (no solo en el que abre): alargar un texto sin mirar esto se
+## ve como texto encima de los numeros, no como un error.
 const DETAIL_Y := 390.0
 const DETAIL_STEP := 36.0
+const DETAIL_LINES_MAX := 4
 ## La raya que separa lo que ES el objeto de lo que HACE.
 const SEPARATOR_Y := 540.0
 const LINE_STEP := 40.0

@@ -24,9 +24,7 @@ enum State { CLOSED, OPENING, OPENED, LOOT }
 const BOX := Vector2(300, 340)          # caja que ocupa el elemento en la mesa
 const ART_CENTER := Vector2(150, 140)   # centro del sprite, en coordenadas suyas
 const SHADOW_CENTER := Vector2(150, 268)
-const TAG_CENTER := Vector2(150, 292)
 const ART_SIZE := Vector2(256, 256)     # el 512 del catalogo a la mitad
-const TAG_SIZE := Vector2(200, 88)      # 20x10 de arte al doble que antes
 const SHADOW_SIZE := Vector2(128, 128)
 ## Tamano del anillo de espera. Tiene que ser bastante mas grande que el dibujo
 ## del paquete para que se le vea la vuelta por fuera (ver _build_pack()): el
@@ -35,12 +33,6 @@ const SHADOW_SIZE := Vector2(128, 128)
 ## por el lado corto.
 const RING_SIZE := Vector2(320, 320)
 const HIT_RECT := Rect2(Vector2(20, 10), Vector2(260, 330))
-
-## Barra de resistencia. Va en la parte de arriba de la caja, para que se vea
-## cuanto le queda sin tapar el dibujo ni la chapita del precio.
-const HP_BAR_POS := Vector2(30, 6)
-const HP_BAR_SIZE := Vector2(240, 20)
-const HP_FILL_PAD := 3.0
 
 ## Cuanto hay que mover el raton para que un movimiento cuente como arrastre y
 ## no como un clic. Por debajo de esto es un clic con el pulso temblando.
@@ -63,7 +55,6 @@ var bounds := Rect2()
 var _rng := RandomNumberGenerator.new()
 var _art: TextureRect = null
 var _ring: TimerRing = null
-var _hp_fill: ColorRect = null
 var _charge := 0.0
 var _total := 1.0
 var _busy := false
@@ -129,18 +120,16 @@ func _build_pack() -> void:
 	add_child(UIKit.image("shadow_small", SHADOW_CENTER, SHADOW_SIZE,
 			Color(1, 1, 1, 0.55)))
 
-	# La barra de resistencia va encima, en el margen transparente de arriba del
-	# sprite, para que se lea sin tapar el dibujo de la caja.
-	_build_hp_bar()
-
-	# La chapita del precio va DESPUES del aro para que se lea por encima (el aro
-	# le pasa por detras a la altura de abajo), y la zona de clic va la ultima de
-	# todas para que el clic lo siga cogiendo el boton.
+	# NO HAY BARRA DE RESISTENCIA, y es a proposito: la caja ya dice como va
+	# -se agrieta en tres tramos y acaba abierta (ver _refresh_damage_art)- y una
+	# barra mas encima del dibujo era ruido sobre el unico sitio donde se mira.
 	#
-	# El sobre gratuito (precio 0, el inicial) NO lleva chapita: un "0" ahi no
-	# dice nada, y lo que dice que es gratis es la columna de sobres.
-	if int(pack.get("price", 0)) > 0:
-		_add_tag(int(pack.get("price", 0)))
+	# SIN CHAPITA DE PRECIO. Cada objeto de la mesa llevaba su numero colgado de
+	# la chapa ui_tag_price y el usuario la quito: el precio ya esta en la columna
+	# de sobres (y en el aviso al pasar por encima), y repetido debajo de cada
+	# caja lo unico que hacia era tapar la mesa. Aqui manda el dibujo del sobre.
+	#
+	# La zona de clic va la ultima de todas para que el clic lo coja el boton.
 	_hit = UIKit.hit_area(self, HIT_RECT, "Abrir %s" % pack.get("name", ""))
 	_hit.pressed.connect(_on_pressed)
 	_hit.gui_input.connect(_on_hit_input)
@@ -163,50 +152,13 @@ func _build_loot() -> void:
 	add_child(_art)
 	add_child(UIKit.image("shadow_small", SHADOW_CENTER, SHADOW_SIZE,
 			Color(1, 1, 1, 0.55)))
-	_add_tag(int(loot.get("value", 0)), 146.0)
+	# Sin chapita de valor, por lo mismo que el paquete. Lo que vale el botin se
+	# sigue diciendo en el aviso del boton y en su tarjeta de revelado.
 
 	_hit = UIKit.hit_area(self, HIT_RECT, "Vender por " + PixelNumber.format(
 			int(loot.get("value", 0))))
 	_hit.pressed.connect(_on_pressed)
 	_hit.gui_input.connect(_on_hit_input)
-
-
-## La barra de resistencia: fondo oscuro y relleno que se acorta a cada golpe.
-## Los dos son ColorRect planos, como los puntos de nivel de la tienda, porque
-## son informacion, no arte.
-func _build_hp_bar() -> void:
-	var back := ColorRect.new()
-	back.color = Color(0.05, 0.04, 0.08, 0.82)
-	back.position = HP_BAR_POS
-	back.size = HP_BAR_SIZE
-	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(back)
-
-	_hp_fill = ColorRect.new()
-	_hp_fill.color = _bar_color(1.0)
-	_hp_fill.position = HP_BAR_POS + Vector2(HP_FILL_PAD, HP_FILL_PAD)
-	_hp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_hp_fill)
-	_refresh_hp_bar()
-
-
-## Color del relleno: verde arriba, rojo abajo. Es lo unico del juego con esta
-## escala de color, y es a proposito: la vida se tiene que leer de un vistazo.
-func _bar_color(frac: float) -> Color:
-	if frac > 0.5:
-		return Color(0.35, 0.75, 0.42)
-	if frac > 0.25:
-		return Color(0.85, 0.65, 0.20)
-	return Color(0.80, 0.28, 0.22)
-
-
-func _refresh_hp_bar() -> void:
-	if _hp_fill == null:
-		return
-	var frac := clampf(hp / maxf(1.0, max_hp), 0.0, 1.0)
-	var inner := HP_BAR_SIZE - Vector2(HP_FILL_PAD, HP_FILL_PAD) * 2.0
-	_hp_fill.size = Vector2(maxf(0.0, inner.x * frac), inner.y)
-	_hp_fill.color = _bar_color(frac)
 
 
 ## Cambia el sprite del paquete segun lo danado que este. Es lo que pide el PDF:
@@ -227,28 +179,6 @@ func _damage_art_name() -> String:
 	if frac > 0.22:
 		return base + "_d2"
 	return base + "_d3"
-
-
-## La chapita de valor con el numero dentro.
-##
-## El texto se pone ANTES de colocar: el ancho del PixelNumber depende de
-## cuantos digitos tiene, asi que si se colocara con el texto vacio el numero
-## saldria pegado a la esquina de la chapita en vez de centrado.
-##
-## La escala es 0,34 y no mas pequena porque a 0,25 (lo que estaba antes) los
-## digitos salian con 18 px de alto dentro de una chapita de 80: se veian, pero
-## como un apunte al margen. Los 24 px de ahora son los mismos que el texto de
-## la interfaz, y es lo unico que se lee de un vistazo en la mesa llena.
-func _add_tag(value: int, max_width: float = 0.0) -> PixelNumber:
-	add_child(UIKit.image("ui_tag_price", TAG_CENTER, TAG_SIZE))
-	var num := PixelNumber.new()
-	num.name = "Price"
-	num.scale_factor = 0.34
-	num.max_width = maxf(max_width, TAG_SIZE.x - 22.0)
-	add_child(num)
-	num.set_number(value)
-	num.position = TAG_CENTER - num.size * 0.5
-	return num
 
 
 # --------------------------------------------------------------------------- #
@@ -351,16 +281,15 @@ func _strike() -> void:
 	# Y sale solo en la redonda del boton, no en take_damage(): los Pinchos pegan
 	# cada cuarto de segundo a TODOS los paquetes de la mesa, y un numero por
 	# paquete cada cuarto de segundo no se lee, se ve como basura encima de la
-	# mesa. La redonda es del jugador; el goteo de los Pinchos ya lo dice la barra.
+	# mesa. La redonda es del jugador; el goteo de los Pinchos ya lo dice la caja
+	# agrietandose (ver _refresh_damage_art).
 	damaged.emit(dmg, crit)
 	if hp <= 0.0:
 		if _art != null:
 			_art.texture = Sprites.tex(str(pack.get("art_open", "pack_cards_open")))
-		_refresh_hp_bar()
 		_finish()
 		return
 	_refresh_damage_art()
-	_refresh_hp_bar()
 	# Un ciclo es un golpe y un clic: si la caja aguanta, vuelve a quedar quieta
 	# esperando a que el jugador vuelva a pulsarla. Sin esto se abriria sola de
 	# una tirada encadenando ciclos.
@@ -379,11 +308,9 @@ func take_damage(amount: float) -> void:
 	if hp <= 0.0:
 		if _art != null:
 			_art.texture = Sprites.tex(str(pack.get("art_open", "pack_cards_open")))
-		_refresh_hp_bar()
 		_finish()
 		return
 	_refresh_damage_art()
-	_refresh_hp_bar()
 
 
 func _finish() -> void:
@@ -416,7 +343,7 @@ func _on_pressed() -> void:
 		return
 	if state == State.CLOSED:
 		# Lo pide al juego y no lo hace el solo: quien sabe cuantos paquetes caben
-		# cargando a la vez (los Guantes) es game.gd, no el elemento.
+		# cargando a la vez (el cupo de la mesa) es game.gd, no el elemento.
 		Game.request_open(self)
 	elif state == State.LOOT:
 		_sell()

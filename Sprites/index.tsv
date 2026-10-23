@@ -20,11 +20,13 @@ grade_star_full	ui/indicators/grade_star_full.png
 grade_star_half	ui/indicators/grade_star_half.png
 item_armario	items/item_armario.png
 item_cajon	items/item_cajon.png
+item_dolar	items/item_dolar.png
 item_guantes	items/item_guantes.png
 item_laser	items/item_laser.png
 item_ojo_verde	items/item_ojo_verde.png
 item_pc	items/item_pc.png
 item_pinchos	items/item_pinchos.png
+item_tijeras	items/item_tijeras.png
 item_trebol	items/item_trebol.png
 loot_cable_psa1	loot/loot_cable_psa1.png
 loot_cable_psa10	loot/loot_cable_psa10.png

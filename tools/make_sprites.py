@@ -60,6 +60,15 @@ GOLD_XL    = (248, 192, 0, 255)    # #F8C000
 GOLD_HI    = (255, 216, 88, 255)   # #F8D040
 CREAM      = (252, 236, 196, 255)
 CREAM_D    = (212, 184, 136, 255)
+
+# Cuero de los guantes (el item de velocidad). Son cuatro tonos de una misma
+# rampa naranja: el resto de marrones de la paleta tira a madera o a carton y
+# en la rejilla de la tienda los guantes se confundian con el Cajon y con el
+# Armario. El contorno sigue siendo OUTLINE, como en todos los items.
+LEATHER_HI = (252, 196, 140, 255)   # #FCC48C  cuero a plena luz
+LEATHER_L  = (224, 140, 84, 255)    # #E08C54  cuero iluminado
+LEATHER    = (172, 86, 46, 255)     # #AC562E  cuero en penumbra
+LEATHER_D  = (118, 46, 26, 255)     # #762E1A  costura del pulgar
 TEAL       = (56, 104, 168, 255)   # #3868A8
 TEAL_D     = (36, 64, 108, 255)
 TEAL_L     = (88, 208, 196, 255)
@@ -129,6 +138,7 @@ PALETTE: List[RGBA] = [
     BROWN_D, BROWN, BROWN_L,
     GOLD_D, GOLD, GOLD_L, GOLD_XL, GOLD_HI,
     CREAM, CREAM_D,
+    LEATHER_HI, LEATHER_L, LEATHER, LEATHER_D,
     TEAL, TEAL_D, TEAL_L, LCD, LCD_D, LCD_L,
     WHITE, STEEL, STEEL_D, STEEL_DD, SLATE,
     GREEN_D, GREEN, GREEN_L, RED_D, RED, RED_L,
@@ -1411,7 +1421,10 @@ def draw_fx_shine(s: Sprite) -> None:
 
 
 def draw_tag_price(s: Sprite) -> None:
-    """Chapita de valor que se pone bajo un objeto de la mesa."""
+    """Chapita de valor: el precio de la columna de sobres y el de la tienda.
+
+    Ya no se pone bajo los objetos de la mesa (ver scripts/screens/table_element.gd).
+    """
     w, h = s.w, s.h
     punta = [(3, 2), (w - 4, 2), (w - 2, h // 2), (w - 4, h - 3), (3, h - 3), (1, h // 2)]
     s.poly(punta, CREAM)
@@ -1604,16 +1617,131 @@ def draw_crowbar(s: Sprite) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# ITEMS SHOP: los ocho objetos equipables del Idea.pdf
+# ITEMS SHOP: los nueve objetos equipables (los ocho del Idea.pdf y los Guantes)
 #
 # Sustituyen a las cuatro herramientas: ya no acortan la espera, suben el dano,
 # la suerte o el espacio de la mesa. Se dibujan a 32x32 y salen a 512, como las
 # herramientas, para que la tienda los pinte al mismo tamano.
-# --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- ### EL GUANTE: una manopla de cuero, tramo a tramo.
+##
+## Es la unica pieza ORGANICA de la tienda. Probado a elipses y rectangulos en
+## tres versiones seguidas, siempre salia lo mismo: una masa redonda sin
+## pulgar y una muneca que se confundia con el puno. A 32 px no hay sitio para
+## corregirlo despues, asi que la silueta va escrita a mano, fila a fila.
+##
+## La pieza son TRES tramos de fila (y, x0, x1) sobre una rejilla de 13x20 que
+## se coloca en GLOVE_AT: el cuerpo, el pulgar (pegado al costado izquierdo,
+## arrancando a media altura) y el puno (mas ancho que la muneca, para que se
+## lea como un brazalete y no como el fondo del cuerpo).
+##
+## El sombreado NO va escrito: sale de mirar los vecinos, con la luz arriba a
+## la izquierda. Un pixel con el vecino de arriba o de la izquierda vacio es
+## borde iluminado; con el de abajo o el de la derecha vacio, borde en sombra.
+## Asi la rampa sigue la silueta sola y no hay que repintarla si cambia una
+## fila. Los detalles (costura del pulgar, banda dorada, puntadas) van encima.
+GLOVE_AT: Tuple[int, int] = (8, 4)
+
+GLOVE_BODY: List[Tuple[int, int, int]] = [
+    (0, 9, 10),
+    (1, 7, 12),
+    (2, 6, 13),
+    (3, 5, 14),
+    (4, 5, 14), (5, 5, 14), (6, 5, 14), (7, 5, 14),
+    (8, 5, 14), (9, 5, 14), (10, 5, 14), (11, 5, 14),
+    (12, 5, 14),
+    (13, 5, 14),
+    (14, 5, 13),
+]
+
+GLOVE_THUMB: List[Tuple[int, int, int]] = [
+    (6, 3, 4),
+    (7, 2, 4),
+    (8, 1, 4), (9, 1, 4), (10, 1, 4),
+    (11, 2, 4),
+    (12, 3, 4),
+]
+
+GLOVE_CUFF: List[Tuple[int, int, int]] = [
+    (15, 5, 14),
+    (16, 4, 15), (17, 4, 15), (18, 4, 15),
+    (19, 4, 15), (20, 4, 15), (21, 4, 15),
+    (22, 5, 14),
+]
+
+
+def _glove_cells() -> set:
+    """Los pixeles de arte del guante, en coordenadas de su rejilla."""
+    cells = set()
+    for grupo in (GLOVE_BODY, GLOVE_THUMB, GLOVE_CUFF):
+        for y, x0, x1 in grupo:
+            for x in range(x0, x1 + 1):
+                cells.add((x, y))
+    return cells
+
 
 def draw_item_guantes(s: Sprite) -> None:
-    """Guante de trabajo. Reutiliza el dibujo del guante de las herramientas."""
-    draw_gloves(s)
+    """Manopla de cuero: el item de VELOCIDAD (ver GLOVE_BODY)."""
+    ox, oy = GLOVE_AT
+    cells = _glove_cells()
+
+    def vacio(x: int, y: int) -> bool:
+        return (x, y) not in cells
+
+    tone: Dict[Tuple[int, int], RGBA] = {}
+    for x, y in cells:
+        if vacio(x - 1, y) or vacio(x, y - 1):
+            tone[(x, y)] = LEATHER_HI
+        elif vacio(x + 1, y) or vacio(x, y + 1):
+            tone[(x, y)] = LEATHER
+        else:
+            tone[(x, y)] = LEATHER_L
+
+    # Segunda fila de penumbra: se probo a encadenarla a todo el canto en
+    # sombra y salia una escalera de pixeles oscuros por el costado derecho.
+    # Se deja en el canto y en el pliegue de abajo, que es lo que se lee.
+    for (x, y), color in tone.items():
+        s.px(ox + x, oy + y, color)
+
+    # dorso: el canto derecho en penumbra y un pliegue suelto junto a la muneca
+    for y in range(3, 14):
+        s.px(ox + 13, oy + y, LEATHER)
+    for x in (6, 7):
+        s.px(ox + x, oy + 13, LEATHER)
+
+    # brillo: un solo tramo de luz plena en el hombro de la manopla. Con seis
+    # pixeles el hombro se comia el borde y parecia un pegote claro.
+    for x, y in ((6, 5), (7, 5), (6, 6)):
+        s.px(ox + x, oy + y, LEATHER_HI)
+
+    # costura del pulgar: la linea que lo despega del cuerpo
+    for y in range(7, 13):
+        s.px(ox + 5, oy + y, LEATHER_D)
+
+    # separacion de los dedos: dos muescas cortas desde el borde de arriba. Sin
+    # ellas la manopla se leia como un calcetin; con ellas se ve la mano dentro.
+    for x, y0, y1 in ((9, 3, 5), (11, 2, 4)):
+        for y in range(y0, y1 + 1):
+            s.px(ox + x, oy + y, LEATHER_D)
+
+    # puno: cuero granate, ribete dorado y puntadas de la banda. Se recorre el
+    # tramo de cada fila (no un rectangulo) para no pintar fuera de la silueta.
+    for y, x0, x1 in GLOVE_CUFF:
+        for x in range(x0, x1 + 1):
+            s.px(ox + x, oy + y, RUST_D)
+    for y, x0, x1 in GLOVE_CUFF:
+        banda = {16: GOLD, 17: GOLD_D, 22: shade(RUST_D, -0.30)}.get(y)
+        if banda is None:
+            continue
+        for x in range(x0, x1 + 1):
+            s.px(ox + x, oy + y, banda)
+    for x in (7, 9, 11, 13):
+        s.px(ox + x, oy + 19, CREAM)
+        s.px(ox + x, oy + 20, CREAM)
+
+
+def draw_item_tijeras(s: Sprite) -> None:
+    """Tijeras del item de dano. Reutiliza el dibujo de las tijeras viejas."""
+    draw_scissors(s)
 
 
 def draw_item_trebol(s: Sprite) -> None:
@@ -1722,6 +1850,47 @@ def draw_item_ojo_verde(s: Sprite) -> None:
     s.px(14, 12, GREEN_L)          # brillo
     # pestana superior marcada
     s.line([(3, 16), (9, 9)], OUTLINE)
+
+
+def draw_item_dolar(s: Sprite) -> None:
+    """Billete de dolar: el item que ABASTA todos los sobres.
+
+    Es un BILLETE y no una moneda a proposito: la moneda de oro ya es el icono
+    del dinero en toda la interfaz, y un segundo circulo dorado en la tienda se
+    leeria como "esto te da dinero", cuando lo que hace es que gastes menos. El
+    rectangulo horizontal, ademas, no se parece a nada mas de la rejilla.
+    """
+    # ---- billete ----
+    s.rect(2, 6, 29, 25, GREEN_D)              # borde
+    s.rect(3, 7, 28, 24, GREEN)                # cuerpo
+    s.rect(3, 7, 28, 7, GREEN_L)               # canto iluminado
+    s.rect(3, 24, 28, 24, GREEN_D)             # canto en sombra
+    # marco interior, a un px del borde
+    s.rect(5, 9, 26, 9, GREEN_D)
+    s.rect(5, 22, 26, 22, GREEN_D)
+    s.rect(5, 9, 5, 22, GREEN_D)
+    s.rect(26, 9, 26, 22, GREEN_D)
+    # esquinas del grabado
+    s.dots([(7, 11), (24, 11), (7, 20), (24, 20)], GREEN_L)
+    s.dots([(7, 12), (24, 12), (7, 19), (24, 19)], GREEN_D)
+    # ---- el simbolo del dolar, 5x9 ----
+    # Se pinta con el patron y no con poligonos: a este tamano una S de curvas
+    # sale con escalones feos, y aqui cada px tiene que decir algo.
+    patron = (
+        "..#..",
+        "..#..",
+        ".###.",
+        ".#...",
+        ".###.",
+        "...#.",
+        ".###.",
+        "..#..",
+        "..#..",
+    )
+    for y, fila in enumerate(patron):
+        for x, c in enumerate(fila):
+            if c == "#":
+                s.px(13 + x, 11 + y, CREAM)
 
 
 def draw_item_laser(s: Sprite) -> None:
@@ -1982,11 +2151,13 @@ def draw_button_plate(s: Sprite, pressed: bool = False) -> None:
     if not pressed:
         s.rect(3, 3, w - 4, 4, BROWN_L)                         # bisel superior
 
-    # esquinas redondeadas + remaches
+    # esquinas redondeadas
     for cx, cy in ((1, 1), (w - 2, 1), (1, h - 2), (w - 2, h - 2)):
         s.px(cx, cy, TRANSPARENT)
-    s.dots([(6, 6), (w - 7, 6), (6, h - 7), (w - 7, h - 7)],
-           GOLD_D if pressed else GOLD)
+    # SIN REMACHES. El cuerpo llevaba cuatro cuadrados de oro (dos a cada lado) y
+    # el usuario los quito: en el menu caian justo debajo del texto y se leian
+    # como dos puntos naranjas pegados a la ultima letra de JUGAR y AJUSTES. El
+    # cuerpo de la chapa ya tiene su bisel; no hace falta nada mas.
 
 
 def draw_icon_play(s: Sprite) -> None:
@@ -3073,8 +3244,10 @@ LOOT_ITEMS: Dict[str, Item] = {
     "scissors": draw_scissors,
     "gloves": draw_gloves,
     "crowbar": draw_crowbar,
-    # ITEMS SHOP: los ocho objetos equipables que sustituyen a las herramientas
+    # ITEMS SHOP: los objetos equipables que sustituyen a las herramientas
+    "dolar": draw_item_dolar,
     "guantes": draw_item_guantes,
+    "tijeras": draw_item_tijeras,
     "trebol": draw_item_trebol,
     "pinchos": draw_item_pinchos,
     "cajon": draw_item_cajon,
@@ -3289,6 +3462,7 @@ ITEM_PREFIX: Dict[str, str] = {
     "crowbar": "tool",
     # items de la tienda del PDF
     "guantes": "item",
+    "tijeras": "item",
     "trebol": "item",
     "pinchos": "item",
     "cajon": "item",
@@ -3296,6 +3470,7 @@ ITEM_PREFIX: Dict[str, str] = {
     "armario": "item",
     "ojo_verde": "item",
     "laser": "item",
+    "dolar": "item",
     "cards": "pack",
     "cards_open": "pack",
     "cards_d1": "pack",

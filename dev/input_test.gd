@@ -77,9 +77,9 @@ func _run() -> void:
 
 	# La tienda en cajas y su ficha. Es el camino entero con el raton: el clic en
 	# la caja abre la ficha del item, y desde la ficha se compra. El dinero se pone
-	# a mano porque una partida nueva no llega a los guantes (900).
+	# a mano porque una partida nueva no llega a las tijeras (540).
 	Game.money = 100000
-	var caja := _find_tooltip(_main._veil_host, "Ver ficha de GUANTES")
+	var caja := _find_tooltip(_main._veil_host, "Ver ficha de TIJERAS")
 	_check(caja != null, "cada item de la tienda se dibuja como una caja")
 	_check(_click(caja), "el clic en la caja llega al boton")
 	await _frames(3)
@@ -126,8 +126,10 @@ func _run() -> void:
 	_check(el.state == TableElement.State.OPENING, "el paquete empieza a abrirse")
 	# Y al cerrarse el aro sale el numero del golpe. Es la comprobacion del numero
 	# de dano que pasa por un clic de verdad: el aro tarda lo suyo en dar la vuelta,
-	# asi que hay que esperar a que termine la redonda.
-	await _wait(0.7)
+	# asi que hay que esperar a que termine la redonda. La espera va con la CARGA
+	# REAL: el ciclo base es de 1,65 s y con 0,7 fijos no daba tiempo a que
+	# terminara (ver LootDB.CHARGE_TIME).
+	await _wait(Game.charge_time() + 0.3)
 	var pops := 0
 	for c in game._fx.get_children():
 		var n := c as PixelNumber

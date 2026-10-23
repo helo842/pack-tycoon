@@ -21,6 +21,9 @@ normalize_sprite.py para meter un sprite que viene de fuera (un generador de
                     imagenes) en el formato del juego
 make_background.py  los dos fondos: la trastienda y la superficie de la mesa
 make_screens.py     maquetas de las pantallas, en Sprites/mockups/
+mockup_pack_quality.py
+                    prueba de calidad del sobre: el mismo dibujo a 128 y a 256, y
+                    la hoja comparativa con el de 32 de ahora
 make_sounds.py      los sonidos (efectos y musica), en Sounds/
 check_font_size.py  comprueba que la fuente se escala a pixeles enteros
 ```

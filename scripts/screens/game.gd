@@ -180,8 +180,9 @@ var _rng := RandomNumberGenerator.new()
 ## Los paquetes que el jugador ha empezado a abrir y que siguen en la mesa.
 ##
 ## Es el "turno": el paquete que se empieza NO se suelta hasta que se rompe o
-## sale de la mesa, y los Guantes amplian cuantos caben aqui a la vez. Un clic
-## arranca un solo paquete (el pulsado), no varios: ver _on_open_requested().
+## sale de la mesa, y el cupo de cuantos caben aqui a la vez es el de la mesa
+## (ver LootDB.open_count()). Un clic arranca un solo paquete (el pulsado), no
+## varios: ver _on_open_requested().
 var _worked: Array = []
 
 var _buy_timer := 0.0
@@ -217,6 +218,9 @@ func _ready() -> void:
 	Game.locker_changed.connect(_refresh_locker)
 	Game.items_changed.connect(_refresh_locker)
 	Game.items_changed.connect(_refresh_top)
+	# El Dolar cambia el PRECIO de los sobres, no solo el nivel de un item: la
+	# columna de la izquierda tiene que seguir diciendo lo que se cobra.
+	Game.items_changed.connect(_refresh_packs)
 	Game.open_requested.connect(_on_open_requested)
 	Game.settings_changed.connect(_refresh_top)
 	_refresh_locker()
@@ -412,7 +416,10 @@ func _pack_cell(list: Control, pack: Dictionary, index: int) -> Dictionary:
 	price.scale_factor = 0.55
 	price.max_width = PACK_TAG_SIZE.x - 20.0
 	list.add_child(price)
-	price.set_number(int(pack["price"]))
+	# Game.pack_price() y NO pack["price"]: el Dolar descuenta el precio de todos
+	# los sobres, y la columna tiene que enseñar lo que se cobra de verdad (ver
+	# game_state.pack_price). _refresh_packs() lo vuelve a poner al comprar.
+	price.set_number(Game.pack_price(str(pack["id"])))
 	price.position = tag - price.size * 0.5
 	# GRATIS al mismo tamano que los numeros (35 de fuente son 35 px de tinta,
 	# frente a los 40 del numero): es un rotulo corto, y a 28 se leia mas pequeno
@@ -884,14 +891,21 @@ func _process(delta: float) -> void:
 	_spike_step(delta)
 
 
-## Los Pinchos: con la apertura automatica ENCENDIDA danan solos todos los
-## paquetes de la mesa, sin que se les haga clic.
+## Los Pinchos: con la apertura automatica ENCENDIDA danan solos los paquetes
+## de la mesa, sin que se les haga clic.
 ##
 ## Los Pinchos no van por su cuenta. Son la pieza que hace falta para poder
 ## encender la apertura automatica (ver LootDB.AUTO_ITEM_OPEN), y encenderla es
 ## lo que los pone a golpear: el jugador compra la pieza y le da al interruptor.
 ## Apagada, no hacen nada -la mesa se abre a clics, como siempre-, y por eso el
 ## dano se aplica AQUI y no en el propio item.
+##
+## EL DANO ES UN TOTAL QUE SE REPARTE entre los paquetes que hay en la mesa, no
+## una cantidad por paquete. Es la diferencia entre una automatizacion y una
+## barbaridad: dando a cada paquete el dano entero, ocho paquetes en la mesa eran
+## ocho veces el dano del jugador y con el PC y la venta automatica la partida se
+## terminaba sola. Repartido, la mesa entera avanza al ritmo de tu dedo (ver
+## LootDB.SPIKE_SHARE).
 ##
 ## El dano se acumula y se aplica a tirones para que la barra de cada paquete
 ## baje de forma continua y no a saltos de frame.
@@ -907,24 +921,27 @@ func _spike_step(delta: float) -> void:
 	_spike_timer += delta
 	if _spike_timer < SPIKE_TICK:
 		return
-	var amount := dps * _spike_timer
-	_spike_timer = 0.0
+	var packs: Array = []
 	for el in _elements:
 		if is_instance_valid(el) and not el.is_loot():
-			el.take_damage(amount)
+			packs.append(el)
+	var amount := dps * _spike_timer / float(maxi(1, packs.size()))
+	_spike_timer = 0.0
+	for el in packs:
+		el.take_damage(amount)
 
 
 ## Un paquete ha pedido abrirse (el jugador le ha hecho clic).
 ##
 ## UN CLIC ES UN PAQUETE, y solo el pulsado: aqui no se arranca ninguno de
-## propina. Lo que hacen los Guantes es subir cuantos paquetes se pueden llevar
-## A LA VEZ (Game.open_count(): 1 sin ellos, 3 al nivel 1, 5 al 2...), que es
-## otra cosa: con Guantes el jugador tiene que ir pulsando uno y otro para que
-## avancen los tres, y machacar el mismo no adelanta mas que el suyo.
+## propina. Lo que sube el cupo es cuantos paquetes se pueden llevar A LA VEZ
+## (Game.open_count(), que hoy es el de la mesa), que es otra cosa: el jugador
+## tiene que ir pulsando uno y otro para que avancen todos, y machacar el mismo
+## no adelanta mas que el suyo.
 ##
 ## El "turno" de cada paquete empezado no se suelta hasta que se rompe o sale de
-## la mesa (ver _drop_element()), asi que los Guantes se notan en CUANTOS caben,
-## no en cuantas veces hay que pulsar.
+## la mesa (ver _drop_element()), asi que el cupo se nota en CUANTOS caben, no en
+## cuantas veces hay que pulsar.
 func _on_open_requested(el: Object) -> void:
 	if not (el is TableElement) or not is_instance_valid(el):
 		return
@@ -936,8 +953,7 @@ func _on_open_requested(el: Object) -> void:
 		var hueco := Game.open_count()
 		if _worked.size() >= hueco:
 			Sound.play("sfx_error")
-			Game.notice.emit("SIN GUANTES: DE UNO EN UNO" if hueco <= 1
-					else "YA LLEVAS %d A LA VEZ" % hueco, Palette.RUST_L)
+			Game.notice.emit("YA LLEVAS %d A LA VEZ" % hueco, Palette.RUST_L)
 			return
 		_worked.append(pack)
 	pack.start_opening()
@@ -1059,6 +1075,10 @@ func _refresh_packs() -> void:
 		if free:
 			continue
 		num.color = Palette.CREAM if affordable else Palette.RUST_L
+		# El numero se reescribe porque el Dolar abarata los sobres: set_number()
+		# no reconstruye nada si el valor no ha cambiado (ver pixel_number.gd),
+		# asi que repintar por cada moneda que entra no cuesta nada.
+		num.set_number(Game.pack_price(pack_id))
 		# El numero cambia de ancho al apagarse o al crecer: se vuelve a centrar.
 		num.position = (cell["tag"] as Vector2) - num.size * 0.5
 

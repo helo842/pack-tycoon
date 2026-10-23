@@ -194,9 +194,9 @@ func _run() -> void:
 	await _shot("04_shop")
 
 	# LA FICHA DE UN ITEM: la descripcion larga y -lo que de verdad decide- los dos
-	# numeros, el de ahora y el del nivel siguiente. Los guantes se suben a mano a
+	# numeros, el de ahora y el del nivel siguiente. Las Tijeras se suben a mano a
 	# tres niveles para que la captura enseñe que los numeros SE MUEVEN con el
-	# nivel (a 5 y a 7 paquetes a la vez), que es lo que hay que mirar aqui.
+	# nivel (el dano por golpe sube con cada uno), que es lo que hay que mirar aqui.
 	var items_antes: Array = Game.items.duplicate()
 	Game.items[0] = 3
 	# La ficha la abre la tienda (una caja), no la pantalla de partida: el clic en
@@ -318,10 +318,10 @@ func _run() -> void:
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "electronics"))
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "sneakers"))
-	# Guantes al nivel 3 y Trebol al 2: los seis items de estadisticas siguen
+	# Tijeras al nivel 3 y Trebol al 2: los siete items con niveles siguen
 	# subiendo de nivel (los otros dos son las piezas de las automatizaciones, que
 	# se compran una sola vez: ver LootDB.item_max_level()).
-	Game.items = [3, 2, 0, 0, 0, 0, 0, 0]
+	Game.items = [3, 2, 0, 0, 0, 0, 0, 0, 0, 0]
 	await _frames(4)
 
 	# EL ARMARIO. Primero el panel, que es donde se decide: el inventario a la

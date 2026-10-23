@@ -14,7 +14,7 @@ core/       lo que esta siempre vivo
 
 data/       lo que se toca para reequilibrar el juego
   loot_db.gd      precios, tiempos, que cae en cada paquete, cuanto vale, los
-                  items de la tienda (seis con ocho niveles y dos piezas de
+                  items de la tienda (siete con ocho niveles y dos piezas de
                   compra unica: ver item_max_level), con que pieza se enciende
                   cada automatizacion, los cuatro tipos de botin con el stat que
                   sube cada uno (LOOT_KINDS), los huecos del armario y lo que
@@ -37,7 +37,7 @@ screens/    una clase por pantalla
   menu.gd           el menu de inicio
   game.gd           la partida: la mesa, la columna de sobres (con scroll y sus
                     constantes PACK_*), el bucle y las automatizaciones
-  shop_panel.gd     la tienda: los ocho items como CAJAS en rejilla, y el clic
+  shop_panel.gd     la tienda: los diez items como CAJAS en rejilla, y el clic
                     en una abre su ficha
   item_card.gd      la ficha de un item: la descripcion larga, los numeros del
                     efecto de ahora y del nivel siguiente, y el boton de

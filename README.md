@@ -51,10 +51,10 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
 
    | | escalón 1 | escalón 2 | escalón 3 |
    |---|---|---|---|
-   | **SOBRES** | gratis | 4.000 | 80.000 |
-   | **VINILOS** | 1.000 | 20.000 | 400.000 |
-   | **ZAPATILLAS** | 6.000 | 120.000 | 2.500.000 |
-   | **ELECTRÓNICA** | 25.000 | 500.000 | 10.000.000 |
+   | **SOBRES** | gratis | 15.000 | 600.000 |
+   | **VINILOS** | 500 | 40.000 | 1.500.000 |
+   | **ZAPATILLAS** | 1.900 | 100.000 | 4.000.000 |
+   | **ELECTRÓNICA** | 6.000 | 250.000 | 10.000.000 |
 
    La columna **tiene scroll**: doce filas de 232 px son 2784 px de lista en una
    ventana de 752, así que la columna es una ventana a la lista larga (rueda del
@@ -94,16 +94,36 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
    El **SOBRES** del primer escalón es gratis en cualquier momento de la partida
    (su chapita pone GRATIS): además del sobre con el que se empieza, es el seguro
    para no quedarse nunca sin poder abrir nada. Los tres escalones de un tipo dan
-   **los mismos objetos**, cada vez multiplicados: subir de escalón es pagar más
-   por lo mismo ×20 (escalón 2) o ×400 (escalón 3). Y aguantan más: la vida de un
-   escalón 1 es 45, 90, 180 y 360, y los escalones 2 y 3 van a 1,5 y a 2 veces
-   eso. La **TIENDA** se ha quedado con los ocho items.
+   **los mismos objetos**, multiplicados por el escalón (`vmult`), y el precio va
+   en escalera de verdad: **ningún sobre de un escalón es más barato que los del
+   anterior**. El escalón 2 arranca en 15.000 (el 1 llega a 6.000) y el 3 en
+   600.000 (el 2 llega a 250.000). Cuando los escalones se cruzaban —SOBRES ORO a
+   4.000, más barato que la ELECTRÓNICA del escalón 1— no había ninguna razón
+   para comprar la electrónica ni las zapatillas del escalón 1: con el mismo
+   precio por dinero y más botín arriba, lo racional era saltárselas, y se
+   quedaban sin comprar nunca. A cambio, **cada sobre paga entre un 30 y un 45 % más de lo que
+   cuesta**, sea cual sea el escalón: lo que compra subir de escalón es capital
+   (mueve más dinero por el mismo porcentaje), no rentabilidad, así que ni el de
+   arriba es un chollo ni el de abajo una pérdida. Y aguantan más: la vida va con
+la **raíz** del precio (21,5 × √precio), así que los cuatro del escalón 1 son
+215 (el básico, que es gratis, va puesto a mano), 480, 937 y 1.665, los del 2
+son 2.633, 4.300, 6.799 y 10.750 y los del 3 son 16.654, 26.332, 43.000 y
+67.989. Un sobre que cuesta cuatro veces más no es
+   cuatro veces más duro, es el doble: eso deja el ritmo de la partida en el
+   **daño del jugador** —los items— y no en lo caro que sea el sobre, y es lo
+   que hace que una partida dure unos dieciséis minutos en vez de dos minutos. La
+   **TIENDA** se ha quedado con los diez items.
 2. **Clic en el paquete** → arranca la carga. Sale un anillo que se llena **por
    detrás del paquete**, rodeándolo, y el paquete va temblando. Cada carga
-   completa es un **golpe**: el paquete tiene una resistencia (la barra de
-   arriba de la caja) y hacen falta **varios clics** para bajarla a cero, uno
-   por ciclo (no se abre solo de una tirada). A medida que se daña, el sprite
-   cambia (agrietado, roto...).
+   completa es un **golpe**: el paquete tiene una resistencia y hacen falta
+   **varios clics** para bajarla a cero, uno por ciclo (no se abre solo de una
+   tirada). La resistencia **no se enseña en ninguna barra**: lo dice el propio
+   dibujo, que se agrieta en tres tramos y acaba abierto. Un ciclo dura **1,65 s** y, sin
+   nada comprado, cada golpe quita **45** de daño: el sobre básico (215 de vida,
+   gratis) se abre en **cinco golpes**. El ritmo es lento **a propósito** —la
+   barra bajaba tan rápido que no daba tiempo a verla— y quien lo devuelve son
+   los **Guantes**, un 15 % de velocidad por nivel. A medida que se daña, el
+   sprite cambia (agrietado, roto...).
 3. Cuando la resistencia llega a cero, sale la **tarjeta de revelado**: objeto, rareza,
    estado de conservación, nota PSA de 1 a 10 y el valor final. Abajo tiene los
    dos botones de la decisión: **GUARDAR** (al inventario) y **VENDER** (dinero
@@ -135,14 +155,18 @@ salga de una caja se vende en el momento, sin tarjeta de revelado y sin llegar a
 tocar la mesa.
 
 Los **items** de la tienda ya no acortan la espera: cambian **cómo se abre** el
-paquete. Son los ocho del `Idea.pdf` y hay **dos clases**, que se distinguen de
-un vistazo en la tienda:
+paquete. Son **diez** —los ocho del `Idea.pdf`, los **Guantes** (velocidad) y el
+**Dólar**, que abarata los sobres— y hay **dos clases**, que se distinguen de un vistazo en la tienda:
 
-- **Los seis de estadísticas suben de nivel**, hasta **8**: cada nivel cuesta
-  ×1,9 el anterior y da más efecto, y cada nivel comprado de *cualquiera* de
-  ellos sube el daño un 18 % sobre la base y acelera un 5 % la carga. La fila
-  lleva los **puntos de nivel** a la vista y, al llegar al tope, deja de
-  enseñar precio y pone **AL TOPE**.
+- **Los ocho con niveles suben de nivel**, hasta **8**: cada nivel cuesta ×1,6
+  el anterior —las **Tijeras** y los **Guantes** aparte: sus tres primeras
+  mejoras suben poco (×1,3 cada una, para que el principio no se ponga cuesta
+  arriba) y a partir de la cuarta el precio se dispara (×2,8); el **Dólar** usa
+  esa misma escalera suave con un salto menor (×2,3), de 1.500 a 163.000— y da
+  más efecto.
+  Cada nivel comprado de *cualquiera* de ellos sube el daño un 15 % sobre la
+  base y acelera un 3 % la carga. La fila lleva los **puntos de nivel** a la
+  vista y, al llegar al tope, deja de enseñar precio y pone **AL TOPE**.
 - **El PC y los Pinchos son de compra única**: se pagan una vez y ya está. Su
   efecto es un sí o un no —la automatización está encendida o no—, así que
   pagarlos ocho veces no tendría sentido. Su fila lo **dice**: donde los otros
@@ -157,7 +181,8 @@ contesta `LootDB.item_max_level()`.
 
 | Item | Qué hace |
 |---|---|
-| **Guantes** | Suben cuántos paquetes caben **a la vez** cargando (+2 por nivel): un clic sigue arrancando uno |
+| **Tijeras** | El item de daño: **+15 % de daño por golpe por nivel** (las tres primeras mejoras salen baratas y suben poco; después el precio se dispara) |
+| **Guantes** | El item de velocidad: **+15 % de velocidad de golpe por nivel** (misma escalera que las Tijeras, un poco más caros) |
 | **Trébol** | +2 % de peso a los objetos que no son comunes por nivel |
 | **Cajón** | +2 huecos de mesa por nivel, y +5 por nivel a partir del 5 |
 | **Ojo verde** | +5 % de probabilidad de crítico por nivel (el 40 % a los ocho) |
@@ -165,6 +190,7 @@ contesta `LootDB.item_max_level()`.
 | **PC** | **Compra única**: enciende la compra automática (y solo eso: no necesita los Pinchos) |
 | **Pinchos** | **Compra única**: encienden la apertura automática, golpean la mesa solos |
 | **Armario** | Abre el panel del armario: expone objetos del inventario, **un hueco por nivel (de 1 a 8)** |
+| **Dólar** | **-5 % de precio en todos los sobres por nivel** (un 40 % a los ocho). Las tres primeras mejoras son baratas y las últimas, muy caras |
 
 ### El armario: exponer objetos
 
@@ -240,6 +266,13 @@ que pasa de una partida a la siguiente, y por eso va detrás de un panel que
 explica el trato antes de aceptarlo (lo que se pierde, lo que te llevas y cuánto
 multiplica la Electrónica del armario).
 
+El primer millón es **unos dieciséis minutos de partida** (dieciséis el jugador
+típico, quince el que juega rápido y compra bien, y catorce con el PC y los
+Pinchos puestos): lo justo para subir los tres escalones de sobres, comprar
+media docena de mejoras y llegar con ganas de reiniciar. Ese número no es una
+esperanza, es una medida: lo dice `dev/balance.gd`, que juega la partida entera
+con los datos de verdad (ver «Cambiar el equilibrio»).
+
 El requisito se mide en **lo ganado en la partida** (un millón), no en el dinero
 que tengas en el bolsillo: guardarlo para el final no cambia nada. Las monedas
 son una por cada millón ganado y **la Electrónica del armario las multiplica**,
@@ -250,14 +283,14 @@ la chapa y su panel **dicen cuánto falta**: un botón muerto y callado no expli
 nada.
 
 **Un clic abre UN paquete, siempre: el pulsado.** Nada de arrancar varios de
-golpe, porque eso convertía el bucle en machacar siempre el mismo sobre. Lo que
-suben los Guantes es cuántos paquetes caben **a la vez**: sin ellos la mesa
-lleva uno solo, y un clic en otro mientras el primero está a medio abrir no hace
-nada (el que ya se está trabajando sigue aceptando clics, y el turno se suelta
-cuando la caja se rompe). Con Guantes caben 3 (5 al nivel 2, y así), y el jugador
-tiene que ir pulsando uno y otro para que avancen todos: insistir en el mismo no
-adelanta más que el suyo. Es la diferencia entre jugar a mano y jugar con la mesa
-montada, y el motivo de que los Guantes sean el primer item del catálogo.
+golpe, porque eso convertía el bucle en machacar siempre el mismo sobre. Cuántos
+paquetes caben **a la vez** lo dice la mesa: ocho de serie, y el Cajón los
+amplía (+2 por nivel). Todos los huecos pueden estar cargando a la vez, y un
+clic en otro mientras el primero está a medio abrir no hace nada (el que ya se
+está trabajando sigue aceptando clics, y el turno se suelta cuando la caja se
+rompe), así que el jugador tiene que ir pulsando uno y otro para que avancen
+todos: insistir en el mismo no adelanta más que el suyo. Es la diferencia entre
+jugar a mano y jugar con la mesa montada.
 
 ### Las automatizaciones: cada botón con su pieza
 
@@ -322,7 +355,7 @@ Sprites/               330 PNG, en subcarpetas (ver Sprites/README.md)
                        (el juego usa cuatro: SOBRES, VINILOS, ZAPATILLAS y
                        ELECTRONICA; el de VARIOS queda de reserva)
   tools/               las herramientas antiguas (ya no se usan)
-  items/               los 8 items equipables de la tienda
+  items/               los 9 items equipables de la tienda
   ui/panels/           los marcos de ventana
   ui/controls/         botones, deslizadores, casillas, flechas, ranuras
   ui/icons/            los iconos sueltos
@@ -395,6 +428,12 @@ dibujo en el árbol.
 ```bash
 G=/ruta/a/Godot_v4.7.2-stable_linux.x86_64
 
+# Cuánto dura una partida hasta el primer rebirth. Juega la partida entera con
+# los datos de verdad y saca el informe (mediana, dispersión, lo que paga cada
+# sobre). Hoy: unos 17 minutos el jugador normal y 14 el que juega rápido,
+# compra bien y pone el PC y los Pinchos.
+$G --headless --path . res://dev/BalanceTest.tscn
+
 # Prueba de integración: recorre el bucle entero sin ratón y dice qué falla.
 $G --headless --path . res://dev/SmokeTest.tscn     # sale con 0 si todo pasa
 
@@ -412,16 +451,24 @@ importar antes (`$G --headless --path . --import`) o los dos tests se caen con
 `Could not find type "LockerPanel"` y parece un fallo del juego cuando el que
 falta es el paso de la importación.
 
-`smoke_test` toca las 452 cosas que se pueden romper sin que se note
+`smoke_test` toca las 478 cosas que se pueden romper sin que se note
 mirando capturas: que la escalera de los doce sobres suba en precio, en botín, en
 resistencia y **en dibujo** (los tres escalones de un tipo ya no comparten
-sprite, y el arte de cada uno tiene que traer sus tres tramos de daño), que el
+sprite, y el arte de cada uno tiene que traer sus tres tramos de daño), que
+**ningún sobre de un escalón baje del precio más alto del anterior** (con los
+escalones cruzados, comprar la electrónica o las zapatillas del escalón 1 no
+tenía ningún sentido), que **cada sobre pague de media entre un 30 y un 45 % más de lo que
+cuesta** y que **su resistencia vaya con la raíz de su precio** (la curva de la
+que sale cuánto dura la partida), y que **la partida dure lo que tiene que durar**
+(el test vuelve a medirla con `dev/balance.gd`: el jugador normal llega al primer
+rebirth entre 15 y 25 minutos, el que juega y compra bien al menos un minuto
+antes, y con el PC y los Pinchos antes que haciendo clic), que el
 sobre inicial no cobre nunca y los demás sí, que las doce filas de la columna
 caben sin pisarse, que la columna tenga su **fondo opaco** y que vaya **detrás**
 de los sobres, que el anillo avance y que se dibuje
 **detrás** del paquete, que cada redonda del botón saque su **número de daño**
 (naranja el golpe normal y amarillo el crítico, encima del paquete y con el daño
-que toca), que los items de la tienda sean **ocho cajas** en rejilla que no se
+que toca), que los items de la tienda sean **diez cajas** en rejilla que no se
 pisen, que al pulsar una se abra su **ficha** con la descripción larga y los
 números del efecto de ahora y del nivel siguiente (y que esos números se
 repinten al comprar), que se compre desde esa misma ficha, que los items suban
@@ -432,9 +479,9 @@ con el rótulo COMPRA ÚNICA, con puntos de nivel solo en los seis que los tiene
 que una caja necesite varios golpes, que la mesa no pase de 8, que con la mesa llena no se cobre el sobre, que la tienda ya no venda sobres ni lleve título ni el rótulo del daño y sí la moneda del contador, que la moneda de los ajustes no salga gigante, que GUARDAR meta el
 objeto en el inventario y lo saque de la mesa (y VENDER al contrario), que con la
 venta automática el objeto no llegue ni a la mesa, que un clic arranque un solo
-paquete y que sin Guantes solo se trabaje uno a la vez (y que con ellos el cupo
-sea el que dice `Game.open_count()`, con el que espera entrando en cuanto se
-suelta un hueco), que la apertura automática se encienda solo con los
+paquete y que el cupo sea el de la mesa (el que dice `Game.open_count()`, con el
+que espera entrando en cuanto se suelta un hueco), que la apertura automática
+se encienda solo con los
 Pinchos y la compra automática solo con el PC, que los Pinchos no toquen la mesa con la
 apertura apagada, que la compra automática compre solo lo marcado en su mini
 menú y coja el más barato de lo marcado, que arrastrar no venda el botín y que
@@ -475,6 +522,67 @@ tienda) y reiniciar la partida desde el botón de su panel.
 Todo está en `scripts/data/loot_db.gd`, y solo ahí: precios, resistencia (`hp`),
 daño, items, qué cae en cada paquete y cuánto vale. Añadir un objeto nuevo es
 añadir una fila a la lista `loot` de un paquete; no hay que tocar la interfaz.
+
+Dos reglas mandan sobre el precio de los sobres, y las dos se comprueban en
+`smoke_test`, así que no se pueden romper sin que salte:
+
+1. **Ningún sobre de un escalón es más barato que los del anterior.** El jugador
+   no ve el `vmult` ni el id: ve la columna de precios, y con dos escalones
+   cruzados el de arriba se come al de abajo (no se compra ni la electrónica ni
+   las zapatillas del escalón 1 si un sobre de oro cuesta menos). Al tocar un
+   precio hay que mirar el TECHO del escalón anterior, no solo los precios de su
+   tipo.
+2. **Cada sobre paga de media entre un 30 y un 45 % más de lo que cuesta**, en cualquier
+   escalón. Por eso el `vmult` NO es el mismo número para los doce: lo que paga
+   un sobre es lo que valen los objetos de su tabla, y el escalón multiplica ese
+   total, así que un sobre que cuesta tres veces más que otro del mismo escalón
+   tiene que multiplicar tres veces menos para pagar lo mismo por dinero. El
+   SOBRES es el que más multiplica (su tabla es la que menos vale y su precio no
+   puede bajar del techo del escalón de abajo) y el ELECTRÓNICA el que menos. Lo
+   que decide si sigue cuadrando es `LootDB.pack_payout()`: la media de la tabla
+   con la nota media y el `VALUE_SCALE`, por el `vmult`. Mover un precio sin
+   mover su `vmult` es un timo (`el sobre caro paga menos de lo que cuesta`) y
+   saltarse los baratos vuelve a ser lo racional si el de arriba paga más por
+   dinero.
+
+   **Ese 15 % ES toda la progresión del juego**, y es el número que estaba roto.
+   Con el 350 % que había, el capital se multiplicaba por 4,5 en cada sobre, no
+   había forma de gastarlo (la tienda no da para tanto) y la partida se
+   terminaba en dos minutos: un PSA 10, o cualquier golpe de suerte, **era** la
+   partida, y el resto de los objetos no valían para nada. Con el 15 % el dinero
+   crece despacio, cada sobre cuenta y la tienda compite de verdad con la
+   columna por el mismo dinero.
+3. **La resistencia va con la raíz del precio** (`hp = 21,5 × √precio`), que es
+   la otra mitad de lo mismo: el rato que dura una partida es la vida de los
+   sobres partida por el daño del jugador, así que subir la vida es alargar la
+   partida y bajar el exponente (vida más cerca del precio) hace que los sobres
+   caros paguen más por segundo. Es la curva que se toca cuando la partida dura
+   demasiado o demasiado poco, y el smoke test la comprueba sobre los doce
+   sobres (con el 21,5 escrito a mano en el test, para que una tabla y una
+   constante malas las dos no pasen la prueba juntas).
+
+Con esas tres reglas cuadradas, **cuánto dura una partida hasta el primer
+rebirth no se estima: se mide**. De eso se encarga `dev/balance.gd`, que juega la
+partida entera —comprar, golpear, cobrar, subir de escalón, comprar mejoras— con
+las fórmulas y los datos de verdad:
+
+```bash
+$G --headless --path . res://dev/BalanceTest.tscn
+```
+
+Hoy dice que un jugador normal (un clic cada 0,35 s, la tarjeta leída, y pagando
+mejoras cuando le caben en el bolsillo) llega al primer rebirth en **unos
+diecisiete minutos**; que el que juega rápido y compra bien —gastando a tirones
+de una quinta parte del dinero en vez de vaciarse en cada mejora— lo hace en
+**unos catorce**; y que con el PC y los Pinchos, en **unos trece**. Esos son los
+números **sin dado**, que es con lo que se mide el test; con dado la mediana de
+veinticinco partidas sale 16,8 / 15,8 / 14,6. Desde que la barra va a 1,65 s por
+golpe cada golpe pesa más, así que el clic ya no decide la partida —el que juega
+rápido gana un par de minutos, no cinco— y lo que manda es subir el daño pronto
+sin comerse el dinero que hace falta para sobres: por eso el óptimo de gasto se
+movió del 12 % al 20 % de golpe. El informe entero (la mediana, el 80 % central,
+lo que paga cada sobre y cuánto tarda cada escalón) sale al ejecutarlo, y
+`dev/README.md` explica cómo se lee.
 
 ---
 
