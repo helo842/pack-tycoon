@@ -14,6 +14,16 @@
 # huecos del armario y los Pinchos-, para que el arbol no invente nada nuevo:
 # aqui se compra mas de lo mismo.
 #
+# Y TRES DE ESOS CAMINOS SIGUEN. El del dano, el de la velocidad y el de los
+# Pinchos tienen DOS nodos mas cada uno, en la misma diagonal y mas lejos del
+# centro: es lo unico que se puede seguir subiendo de una partida a otra sin que
+# el juego invente un sistema nuevo, y por eso son los tres que crecen. Cada
+# anillo cuesta mas que el anterior (COST_BRANCH, COST_BRANCH2, COST_BRANCH3) y
+# da menos por moneda que el de antes, que es lo que hace que el arbol tenga fondo
+# sin romper el principio de la partida. El del armario NO sigue: sus huecos son
+# una cuenta (dos mas de golpe) y un cuarto anillo de armario seria media pantalla
+# de exposicion.
+#
 # Y DEBAJO DEL CENTRO, LA CALIDAD DE VIDA. Los cuatro caminos diagonales son
 # numeros que suben; la rama de abajo son INTERRUPTORES que quitan trabajo de
 # encima (ver QOL_STAT): atajos de teclado, vender solo lo barato, el golpe que
@@ -39,18 +49,32 @@ extends RefCounted
 const LEVELS := 1
 
 ## La separacion de un camino: (+-SEP.x, +-SEP.y) son los cuatro centros
-## diagonales. Las medidas estan elegidas para que el arbol ENTERO quepa de una
-## vez en la ventana del panel (992x634 de dibujo en una vista de 1472x800, de la
-## que el rebirth se queda los 150 de arriba): abrir el panel y ver los cinco
-## nodos sin tocar nada es lo primero que se agradece, y el arrastre esta para
-## cuando el arbol crezca, que es cuando hara falta. Los dos son multiplos de 8
-## para no descuadrar el pixelado.
+## diagonales, y cada anillo que sigue esta a otro tanto. Las medidas estan
+## elegidas para que el PRIMER anillo quepa entero en la ventana del panel
+## (1472x800, de la que el rebirth se queda los 150 de arriba): abrir el panel y
+## ver el centro con sus cuatro caminos sin tocar nada es lo primero que se
+## agradece, y el arrastre esta para el resto del arbol, que es lo que se sale.
+##
+## Los dos son multiplos de 8 para no descuadrar el pixelado. El alto (208) no se
+## puede subir: el primer anillo entero, con su rotulo, tiene que caber entre la
+## barra del rebirth y el borde de abajo del panel, y con 240 ya no cabe (se
+## salia 14 px). Lo que asoma por detras de la barra lo resuelve el panel, que no
+## pinta el rotulo de un nodo tapado (ver rebirth_panel.gd, _update_covers).
 const SEP := Vector2(336, 208)
 
 ## Lo que cuesta una mejora de camino. Todas iguales a proposito: el que mira el
 ## arbol tiene que poder contar de un vistazo lo que le falta, y cuatro precios
 ## distintos convierten eso en una sopa de numeros.
 const COST_BRANCH := 3
+## Y lo que cuestan el SEGUNDO y el TERCER anillo de los tres caminos que siguen
+## (el dano, la velocidad y los Pinchos). Un precio por anillo y no por camino,
+## por lo mismo que arriba: los tres nodos de un anillo se ven a la misma
+## distancia del centro y tienen que costar lo mismo, o el arbol deja de
+## leerse como cuatro rayas y pasa a ser una lista de precios. Suben en cada
+## anillo porque el segundo se compra con una partida ya montada (mas monedas
+## por rebirth) y el tercero es el fondo del arbol.
+const COST_BRANCH2 := 5
+const COST_BRANCH3 := 8
 ## Y lo que cuesta la del centro, que es la puerta: una moneda, o sea el primer
 ## rebirth. Si costara mas, el primer arbol comprado llegaria demasiado tarde.
 const COST_CENTER := 1
@@ -173,6 +197,67 @@ const NODES: Array = [
 		"detail": "MULTIPLICA EL DANO DE LOS PINCHOS, QUE SE REPARTE ENTRE LOS"
 			+ " SOBRES DE LA MESA. SIN EL PC Y LOS PINCHOS NO HAY NADA QUE"
 			+ " SUBIR.",
+	},
+
+	# --- EL SEGUNDO Y EL TERCER ANILLO ------------------------------------ #
+	#
+	# El dano, la velocidad y los Pinchos siguen por su diagonal dos nodos mas.
+	# Cada uno cuelga del anterior (`req`), asi que un camino se compra DE ARRIBA
+	# ABAJO y no se puede saltar al fondo. El de arriba a la derecha (armario) no
+	# sigue: sus huecos son de dos en dos y un cuarto anillo seria media pantalla
+	# de exposicion, no una mejora.
+	{
+		"id": "damage_2", "stat": "damage", "value": 0.25, "cost": COST_BRANCH2,
+		"pos": Vector2(-SEP.x * 2.0, -SEP.y * 2.0), "art": "pack_cards",
+		"req": "damage",
+		"desc": "LOS SOBRES CAEN AUN ANTES",
+		"detail": "OTRO 25 % DE DANO ENCIMA DEL CAMINO DE ARRIBA. SE SUMA A EL"
+			+ " Y A LAS CARTAS DEL ARMARIO: CON EL CAMINO Y ESTE, EL GOLPE VA"
+			+ " POR ENCIMA DEL DOBLE.",
+	},
+	{
+		"id": "damage_3", "stat": "damage", "value": 0.35, "cost": COST_BRANCH3,
+		"pos": Vector2(-SEP.x * 3.0, -SEP.y * 3.0), "art": "pack_cards",
+		"req": "damage_2",
+		"desc": "EL GOLPE MAS DURO DEL ARBOL",
+		"detail": "EL FONDO DEL CAMINO DEL DANO: 35 % MAS, QUE CON LOS DOS"
+			+ " NODOS DE ARRIBA ES CASI EL DOBLE DE LO QUE PEGAS SIN EL"
+			+ " ARBOL. LOS PINCHOS VAN POR SU CAMINO.",
+	},
+	{
+		"id": "speed_2", "stat": "speed", "value": 0.25, "cost": COST_BRANCH2,
+		"pos": Vector2(SEP.x * 2.0, -SEP.y * 2.0), "art": "pack_sneakers",
+		"req": "speed",
+		"desc": "LA COLA DE LA MESA ACELERA",
+		"detail": "OTRO 25 % DE VELOCIDAD ENCIMA DEL CAMINO DE ARRIBA, QUE SE"
+			+ " SUMA A EL Y A LAS ZAPATILLAS DEL ARMARIO.",
+	},
+	{
+		"id": "speed_3", "stat": "speed", "value": 0.35, "cost": COST_BRANCH3,
+		"pos": Vector2(SEP.x * 3.0, -SEP.y * 3.0), "art": "pack_sneakers",
+		"req": "speed_2",
+		"desc": "LA MESA NO PARA",
+		"detail": "EL FONDO DEL CAMINO DE LA VELOCIDAD: 35 % MAS, QUE CON LOS"
+			+ " DOS NODOS DE ARRIBA ES CASI EL DOBLE DE RAPIDO QUE SIN EL"
+			+ " ARBOL.",
+	},
+	{
+		"id": "spikes_2", "stat": "spikes", "value": 0.35, "cost": COST_BRANCH2,
+		"pos": Vector2(SEP.x * 2.0, SEP.y * 2.0), "art": "item_pinchos",
+		"req": "spikes",
+		"desc": "LOS PINCHOS PICAN MAS",
+		"detail": "OTRO 35 % DE DANO DE PINCHOS ENCIMA DEL CAMINO DE ARRIBA."
+			+ " SE REPARTE ENTRE LOS SOBRES DE LA MESA, ASI QUE CON LA MESA"
+			+ " LLENA ES DONDE MAS SE NOTA.",
+	},
+	{
+		"id": "spikes_3", "stat": "spikes", "value": 0.50, "cost": COST_BRANCH3,
+		"pos": Vector2(SEP.x * 3.0, SEP.y * 3.0), "art": "item_pinchos",
+		"req": "spikes_2",
+		"desc": "PINCHOS DE FIN DE PARTIDA",
+		"detail": "EL FONDO DEL CAMINO DE LOS PINCHOS: 50 % MAS, EL NODO MAS"
+			+ " FUERTE DEL ARBOL EN PORCENTAJE. CON LOS DOS DE ARRIBA LOS"
+			+ " PINCHOS PEGAN MAS QUE NADA.",
 	},
 
 	# --- LA CALIDAD DE VIDA (los interruptores) --------------------------- #

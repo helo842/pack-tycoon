@@ -136,6 +136,19 @@ const NODE_COST_MAX_W := 60.0
 ## tamano legible).
 const NODE_TEXT_DY := 26.0
 const NODE_TEXT_BOX := Vector2(320, 30)
+## Donde cae la MEJORA DEL CENTRO al abrir el arbol: con EL PRIMER ANILLO justo
+## debajo de la barra. Antes se apoyaba en la barra la caja del dibujo entero, y
+## daba lo mismo porque la caja ERA el primer anillo; ahora que el dano, la
+## velocidad y los Pinchos se estiran tres anillos hacia fuera, apoyar la caja
+## entera abriria el arbol por su fondo (con el centro casi fuera por abajo).
+##
+## Apoyando el primer anillo en TREE_TOP se ve lo que hay que ver al abrirlo: el
+## centro, sus cuatro caminos y el principio de la rama de abajo. El SEGUNDO
+## anillo queda entero detras de la barra, y su ROTULO tambien (cuelga 67 px por
+## debajo del nodo, asi que asomaba una linea de letras cortadas). De eso se
+## encarga _update_covers(): no se ensancha la separacion porque el primer anillo
+## entero, rotulo incluido, no cabe entre la barra y el borde del panel.
+const CENTER_Y := TREE_TOP + SkillTree.SEP.y + NODE * 0.5
 
 ## Las lineas que unen los nodos, por estado del camino.
 const LINK_W := 12.0
@@ -530,6 +543,23 @@ func _on_buy_skill(id: String) -> void:
 func _set_offset(value: Vector2) -> void:
 	_offset = _clamp_offset(value)
 	_world.position = _offset
+	_update_covers()
+
+
+## El rotulo de un nodo que esta ENTERO detras de la barra no se pinta.
+##
+## El rotulo del efecto cuelga 67 px por debajo de su chapa, asi que un nodo que
+## la barra tapa del todo dejaba asomar UNA LINEA DE LETRAS CORTADAS justo debajo
+## de ella (se vio en la captura del arbol con los anillos nuevos). Se apaga el
+## rotulo; la chapa no hace falta tocarla, porque el recorte de la vista ya la
+## corta y la barra va encima. Se repasa al mover el arbol, que es cuando un nodo
+## entra o sale de debajo: al arrastrarlo hacia abajo, su rotulo vuelve.
+func _update_covers() -> void:
+	var fondo := VIEW_POS.y + BAR_H + EDGE
+	for id in _nodes:
+		var view: Control = _nodes[id]["view"]
+		var arriba := VIEW_POS.y + _offset.y + view.position.y
+		(_nodes[id]["effect"] as Label).visible = arriba + NODE > fondo
 
 
 ## El tope del arrastre, por eje y a partir del dibujo del arbol (SkillTree.bounds):
@@ -554,13 +584,14 @@ func _axis(value: float, lo: float, hi: float) -> float:
 	return clampf(value, lo, hi)
 
 
-## Donde se apoya el arbol al abrir: centrado a lo ancho y con su borde de arriba
-## justo debajo de la barra. Sale de SkillTree.bounds(), asi que el dia que se
-## anada un camino el arbol se sigue colocando solo.
+## Donde se coloca el arbol al abrir: centrado a lo ancho en el dibujo ENTERO
+## (para que los cuatro caminos queden a la misma distancia de un borde y del
+## otro) y con la mejora del centro en CENTER_Y, que deja el primer anillo
+## apoyado debajo de la barra. Lo que asoma del dibujo por los lados y por abajo
+## se alcanza arrastrando, que es lo que hace un arbol mas grande que la ventana.
 func _centered_offset() -> Vector2:
 	var b := SkillTree.bounds()
-	return _clamp_offset(Vector2(VIEW_SIZE.x * 0.5 - b.get_center().x,
-		TREE_TOP - b.position.y))
+	return _clamp_offset(Vector2(VIEW_SIZE.x * 0.5 - b.get_center().x, CENTER_Y))
 
 
 # --------------------------------------------------------------------------- #

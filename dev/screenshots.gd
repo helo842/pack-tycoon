@@ -134,9 +134,9 @@ func _run() -> void:
 
 	# Y EL ARBOL ENTERO, que es la pantalla que ha venido a sustituir a la hucha:
 	# el saldo arriba (lo que se gasta aqui), el rebirth como boton de la barra y
-	# los cinco nodos debajo. Con doce monedas y SIN nada comprado es cuando mejor
-	# se ve la forma: el centro disponible y los cuatro caminos cerrados, con la
-	# linea que los une en su color de cerrado.
+	# el centro con su primer anillo debajo. Con doce monedas y SIN nada comprado
+	# es cuando mejor se ve la forma: el centro disponible y los cuatro caminos
+	# cerrados, con la linea que los une en su color de cerrado.
 	Game.skills = {}
 	g._open_rebirth()
 	await _frames(4)
@@ -145,6 +145,19 @@ func _run() -> void:
 	for c in _main._veil_host.get_children():
 		if c is RebirthPanel:
 			hucha = c
+	# Y EL FONDO DE LOS CAMINOS, que NO entra al abrir: el dano, la velocidad y
+	# los Pinchos se estiran dos anillos mas hacia fuera y se llega a ellos
+	# arrastrando, igual que a la rama de calidad de vida. Es la cara que hay que
+	# mirar para saber que el arbol sigue teniendo sentido cuando se sale de la
+	# vista.
+	if hucha != null:
+		var fondo: Vector2 = SkillTree.node_by_id("damage_3")["pos"]
+		hucha._set_offset(hucha._clamp_offset(Vector2(
+			hucha.VIEW_SIZE.x * 0.5 - fondo.x, hucha.VIEW_SIZE.y * 0.5 - fondo.y)))
+		await _frames(3)
+		await _shot("03h_arbol_fondo")
+		hucha._set_offset(hucha._centered_offset())
+		await _frames(2)
 	# Y CON MEJORAS COMPRADAS: los dos estados del nodo (dorado y pendiente), las
 	# lineas encendidas y las cifras de la barra mas bajitas. Se compra por el
 	# mismo camino que el jugador (Game.buy_skill) para que la captura no enseñe

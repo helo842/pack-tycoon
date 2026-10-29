@@ -469,7 +469,12 @@ func _dibujo(t: TextureRect) -> Rect2:
 ## del dibujo del objeto (la columna de texto se colocaba por su BORDE y
 ## label_at() coloca por su CENTRO: ver item_card.gd, COL_X y COL_MID). En una
 ## captura eso se ve, pero no se mide, y el fallo volvio dos veces.
-func _pisados(de: Node) -> Array:
+## `tapado` es la franja de una capa que va POR ENCIMA: la barra del rebirth se
+## dibuja DESPUES del arbol, asi que un dibujo que se mete debajo de ella no es
+## una fuga, esta tapado. Sin esto, el arbol colandose por debajo de la barra
+## -que es como esta hecho a proposito- saltaba como si tuviera el saldo escrito
+## encima de las chapas.
+func _pisados(de: Node, tapado := Rect2()) -> Array:
 	var textos: Array = []
 	var dibujos: Array = []
 	var pila: Array = [de]
@@ -483,7 +488,8 @@ func _pisados(de: Node) -> Array:
 					textos.append([c, r])
 			elif c is TextureRect and (c as TextureRect).texture != null:
 				var b := _dibujo(c as TextureRect)
-				if b.size.x > 0.0 and b.size.y > 0.0:
+				var tapada: bool = tapado.size.x > 0.0 and tapado.intersects(b)
+				if b.size.x > 0.0 and b.size.y > 0.0 and not tapada:
 					dibujos.append([c, b])
 		pila.append_array(n.get_children())
 	var malas: Array = []
@@ -504,13 +510,19 @@ func _pisados(de: Node) -> Array:
 
 ## Check de que una pantalla no dibuje texto encima de un objeto. Cada fuga
 ## imprime lo que pisa y donde, que es lo que hace falta para saber que mover.
-func _check_sin_pisar_dibujos(what: String, de: Node) -> void:
+func _check_sin_pisar_dibujos(what: String, de: Node, tapado := Rect2()) -> void:
 	if de == null:
 		return
-	var malas := _pisados(de)
+	var malas := _pisados(de, tapado)
 	_check(what, malas.is_empty())
 	for m in malas:
 		print("         encima del dibujo: ", m)
+
+
+## La franja de la barra del rebirth, en coordenadas de pantalla: lo que queda
+## debajo de ella esta tapado por una capa que se pinta DESPUES del arbol.
+func _franja_barra(panel: Node) -> Rect2:
+	return Rect2(panel.VIEW_POS, Vector2(panel.VIEW_SIZE.x, panel.BAR_H))
 
 
 func _texto_de(n: Control) -> String:
@@ -562,7 +574,10 @@ func _check_cabe(what: String, de: Node, dentro: Rect2) -> void:
 ## estan dentro a proposito. Se salta la chapa a la que el rotulo pertenece (el
 ## texto de dentro de un boton si tiene que estar ahi) y la que este dentro del
 ## rotulo, que no puede pasar.
-func _check_sin_encimarse(what: String, de: Node) -> void:
+##
+## `tapado` es la franja de la capa que se pinta POR ENCIMA (la barra del
+## rebirth): un texto que cae debajo no se ve, asi que no ensucia nada.
+func _check_sin_encimarse(what: String, de: Node, tapado := Rect2()) -> void:
 	if de == null:
 		return
 	var textos: Array = []
@@ -574,7 +589,8 @@ func _check_sin_encimarse(what: String, de: Node) -> void:
 		if c != null and c.visible:
 			if c is Label or c is PixelNumber:
 				var r := _visible(c, true)
-				if r.size.x > 0.0 and r.size.y > 0.0:
+				var tapada: bool = tapado.size.x > 0.0 and tapado.intersects(r)
+				if r.size.x > 0.0 and r.size.y > 0.0 and not tapada:
 					textos.append([c, r])
 			elif c is BaseButton and _es_chapa(c):
 				chapas.append([c, _marco_de_chapa(c)])
@@ -2411,9 +2427,10 @@ func _run() -> void:
 		_check("el panel enseña las monedas que va a dar",
 			hucha._coins.get_text() == PixelNumber.format(premio))
 		_check_cabe("el panel del rebirth no saca texto del panel", hucha, PANEL)
-		_check_sin_encimarse("el panel del rebirth no pone texto encima de una chapa", hucha)
+		_check_sin_encimarse("el panel del rebirth no pone texto encima de una chapa", hucha,
+			_franja_barra(hucha))
 		_check_sin_pisar_dibujos("el panel del rebirth no dibuja el texto encima de la hucha",
-			hucha)
+			hucha, _franja_barra(hucha))
 		var coins_antes: int = Game.rebirth_coins
 		hucha._go.pressed.emit()
 		await get_tree().process_frame
@@ -2446,9 +2463,35 @@ func _run() -> void:
 
 	# La forma del arbol: UNA mejora en el centro y CUATRO caminos DIAGONALES,
 	# uno por cada lado, enchufados al centro.
-	# Diez: cinco de numeros (el centro y los cuatro caminos) y cinco
-	# INTERRUPTORES de calidad de vida en la rama de abajo.
-	_check("el arbol trae diez mejoras", SkillTree.node_count() == 10)
+	# Dieciseis: el centro, cuatro caminos de los que tres siguen dos nodos mas
+	# (dano, velocidad y Pinchos) y cinco INTERRUPTORES de calidad de vida en la
+	# rama de abajo.
+	_check("el arbol trae dieciseis mejoras", SkillTree.node_count() == 16)
+	# LOS TRES CAMINOS QUE SIGUEN: cada anillo esta en SU diagonal (2 x SEP y
+	# 3 x SEP) y cuelga del nodo de antes, asi que un camino se compra de arriba
+	# abajo y no se puede empezar por el fondo.
+	var cadenas_ok := true
+	var cadenas_precio := true
+	for par in [["damage", "damage_2", "damage_3"], ["speed", "speed_2", "speed_3"],
+			["spikes", "spikes_2", "spikes_3"]]:
+		for k in range(1, par.size()):
+			var id_hijo := str(par[k])
+			var id_padre := str(par[k - 1])
+			var pos_hijo: Vector2 = SkillTree.node_by_id(id_hijo)["pos"]
+			var pos_padre: Vector2 = SkillTree.node_by_id(id_padre)["pos"]
+			if SkillTree.req_of(id_hijo) != id_padre \
+					or pos_hijo != SkillTree.node_by_id(str(par[0]))["pos"] * float(k + 1) \
+					or float(SkillTree.node_by_id(id_hijo)["value"]) \
+						<= float(SkillTree.node_by_id(id_padre)["value"]):
+				cadenas_ok = false
+			if Game.skill_cost(id_hijo) != (SkillTree.COST_BRANCH2 if k == 1
+					else SkillTree.COST_BRANCH3):
+				cadenas_precio = false
+	_check("y dano, velocidad y pinchos siguen dos nodos mas por su diagonal",
+		cadenas_ok)
+	_check("y cada anillo cuesta mas que el de antes, igual en los tres caminos",
+		cadenas_precio and SkillTree.COST_BRANCH < SkillTree.COST_BRANCH2
+		and SkillTree.COST_BRANCH2 < SkillTree.COST_BRANCH3)
 	var diagonales := 0
 	var cuelgan_del_centro := 0
 	var interruptores: Array = []
@@ -2641,17 +2684,20 @@ func _run() -> void:
 	var arbol = g._rebirth
 	_check("la chapa del rebirth abre el arbol", arbol != null)
 	if arbol != null:
-		_check("y el panel dibuja los diez nodos", arbol._nodes.size() == 10)
+		_check("y el panel dibuja los dieciseis nodos",
+			arbol._nodes.size() == SkillTree.node_count())
 		# AL ABRIRLO SE VE LO DE SIEMPRE: el centro y los cuatro caminos, dentro del
 		# marco y por DEBAJO de la barra del rebirth, que es lo unico fijo de la
 		# pantalla. La rama de calidad de vida baja tres filas mas de lo que mide la
 		# vista, asi que NO entra al abrir y se llega a ella arrastrando: eso se
 		# comprueba en el bloque de abajo, porque es la mitad de como se usa.
+		# Solo el PRIMER anillo: el arbol crece hacia fuera por la diagonal y lo
+		# de fuera se alcanza arrastrando, que es justo para lo que esta el
+		# arrastre (igual que la rama de calidad de vida, que baja tres filas).
 		var dentro := true
 		var debajo := true
-		for id in SkillTree.ids():
-			if SkillTree.is_qol(str(id)):
-				continue
+		var primer_anillo: Array = ["money", "damage", "speed", "locker", "spikes"]
+		for id in primer_anillo:
 			var r: Rect2 = arbol.node_rect(str(id))
 			if not PANEL.encloses(r):
 				dentro = false
@@ -2664,12 +2710,16 @@ func _run() -> void:
 		# mira que sus cinco nodos entren en la vista del panel. Sin esto, la rama
 		# nueva seria un dibujo que existe y no se puede tocar.
 		var offset_ini: Vector2 = arbol._offset
-		var qol_fuera_al_abrir := true
+		# NO ENTRA ENTERA al abrir (son tres filas de 320 y la vista mide 800): lo
+		# que se mira es que haga falta arrastrar, o sea que alguno de sus nodos se
+		# quede fuera. La primera fila si asoma, y eso es bueno: se ve que hay algo
+		# mas abajo.
+		var qol_fuera_al_abrir := 0
 		for id in interruptores:
-			if PANEL.encloses(arbol.node_rect(str(id))):
-				qol_fuera_al_abrir = false
-		_check("la calidad de vida queda fuera de la vista al abrir el arbol",
-			qol_fuera_al_abrir)
+			if not PANEL.encloses(arbol.node_rect(str(id))):
+				qol_fuera_al_abrir += 1
+		_check("la rama de calidad de vida no entra entera al abrir el arbol",
+			qol_fuera_al_abrir > 0)
 		# Cada uno se lleva al centro de la vista por separado: la rama entera no
 		# cabe de una vez (son tres filas de 320 y la vista mide 800), y lo que hay
 		# que poder hacer es llegar a CUALQUIERA de ellos arrastrando, que es como
@@ -2717,20 +2767,41 @@ func _run() -> void:
 		# en la ventana del panel tal y como se abre: aqui, sin arrastrar nada.
 		var vista_ini := Rect2(PANEL.position, arbol.VIEW_SIZE)
 		var caben_los_cinco := true
-		for id in SkillTree.ids():
-			if SkillTree.is_qol(str(id)):
-				continue
+		for id in primer_anillo:
 			if not vista_ini.encloses(arbol.node_rect(str(id))):
 				caben_los_cinco = false
 		_check("y el centro y los cuatro caminos se ven de una vez al abrirlo",
 			caben_los_cinco)
+		# Y LOS ANILLOS DE FUERA NO SE VEN AL ABRIR, pero se llega a ellos
+		# arrastrando: es lo mismo que se hace con la rama de calidad de vida, y
+		# es la razon de que el arbol se pueda mover.
+		var fuera_al_abrir := true
+		for id in ["damage_3", "speed_3", "spikes_3"]:
+			if vista_ini.encloses(arbol.node_rect(str(id))):
+				fuera_al_abrir = false
+		_check("y el fondo de los caminos queda fuera al abrir el arbol",
+			fuera_al_abrir)
+		var fondo_alcanzable := true
+		for id in ["damage_3", "speed_3", "spikes_3"]:
+			var pos_fondo: Vector2 = SkillTree.node_by_id(str(id))["pos"]
+			# Centrado en los DOS ejes: el fondo se abre hacia los lados, asi que
+			# llevar solo la y no lo dejaria a la vista.
+			arbol._set_offset(arbol._clamp_offset(Vector2(
+				arbol.VIEW_SIZE.x * 0.5 - pos_fondo.x,
+				arbol.VIEW_SIZE.y * 0.5 - pos_fondo.y)))
+			if not vista_ini.encloses(arbol.node_rect(str(id))):
+				fondo_alcanzable = false
+		_check("y arrastrando se llega al fondo de los tres caminos", fondo_alcanzable)
+		arbol._set_offset(offset_ini)
 		_check_cabe("el arbol no saca texto del panel", arbol, PANEL)
 		var raras_arbol := _minusculas_en(arbol)
 		_check("el arbol no tiene letras minusculas", raras_arbol.is_empty())
 		for r in raras_arbol:
 			print("         con minusculas: ", r)
-		_check_sin_encimarse("el arbol no pone texto encima de una chapa", arbol)
-		_check_sin_pisar_dibujos("el arbol no dibuja texto encima de los nodos", arbol)
+		_check_sin_encimarse("el arbol no pone texto encima de una chapa", arbol,
+			_franja_barra(arbol))
+		_check_sin_pisar_dibujos("el arbol no dibuja texto encima de los nodos", arbol,
+			_franja_barra(arbol))
 		# EL PRECIO VA EN SU FILA, debajo del dibujo del nodo: el cerdito y su
 		# numero, uno detras del otro. El numero lo coloca el panel a mano (mide lo
 		# que ocupan sus cifras), asi que olvidarse de colocarlo lo deja en la
@@ -2843,7 +2914,8 @@ func _run() -> void:
 		# sueltan con queue_free() (ver pixel_number.gd, _rebuild), asi que en el
 		# mismo frame en que se compra todavia estan en el arbol.
 		await get_tree().process_frame
-		_check_sin_pisar_dibujos("y con la mejora comprada tampoco pisa el dibujo", arbol)
+		_check_sin_pisar_dibujos("y con la mejora comprada tampoco pisa el dibujo", arbol,
+			_franja_barra(arbol))
 		_check("y con el centro comprado los caminos se abren",
 			arbol._state_of("damage") == "ready"
 			and arbol._state_of("locker") == "ready")
@@ -2927,7 +2999,7 @@ func _run() -> void:
 			if f != null:
 				f._close()
 				await get_tree().process_frame
-		_check("la ficha de los diez nodos se monta entera", fichas_rotas.is_empty())
+		_check("la ficha de los dieciseis nodos se monta entera", fichas_rotas.is_empty())
 		for f_rota in fichas_rotas:
 			print("         ficha rota: ", f_rota)
 		# Y SE MIRA UNA DE INTERRUPTOR ENTERA, con los mismos checks de encuadre

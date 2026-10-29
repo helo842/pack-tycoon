@@ -465,12 +465,14 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   `AL COMPRARLO` del mismo numero mas el `value` del nodo, asi que no pueden
   mentir. Y se compra desde ahi: el boton cobra lo mismo que costaba el nodo y la
   ficha se repinta sola (COMPRADO y sin boton).
-- Que el **arbol de mejoras** este entero: los cinco nodos de numeros (una mejora
-  en el centro y cuatro caminos **en diagonal**, uno por cada lado, colgando del
-  centro), que la
+- Que el **arbol de mejoras** este entero: los dieciseis nodos (una mejora en el
+  centro, cuatro caminos **en diagonal**, uno por cada lado, colgando del centro,
+  y cinco interruptores de calidad de vida debajo), que la
   del centro cueste **una moneda y de un 30 % mas de dinero**, que los cuatro
   caminos cuesten **tres** y den **+20 % de dano, +20 % de velocidad, +2 huecos de
-  armario y +30 % de pinchos**, que **sin monedas no se compre**, que los caminos
+  armario y +30 % de pinchos**, que **dano, velocidad y pinchos sigan dos anillos
+  mas** por su diagonal (cada uno colgando del anterior, cada anillo mas caro y
+  dando mas que el de antes), que **sin monedas no se compre**, que los caminos
   **no se abran sin el centro** y que **cada mejora se compre una sola vez**. Los
   cuatro efectos se miden contra los mismos numeros que usa la partida
   (`Game.damage_per_hit()`, `charge_time()`, `locker_slots()` y `spike_dps()`),
@@ -498,12 +500,14 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   en el test del raton: la tecla tiene que abrir la tienda, el armario y el arbol,
   la V tiene que vender la mesa, y **sin la mejora o con un panel abierto** no
   puede hacer nada.
-- Que el **arbol quepa al abrirlo**: el centro y los cuatro caminos dentro del
+- Que el **arbol quepa al abrirlo**: el centro y el primer anillo dentro del
   marco del panel y **por debajo de la barra del rebirth** (que va superpuesta y
   se come la franja de arriba). Se mira en el estado en el que se ve casi siempre
-  -sin nada comprado, los cuatro caminos cerrados-. La rama de calidad de vida no
-  entra (son tres filas de 320 en una vista de 800): se llega a ella arrastrando,
-  y eso es lo que se comprueba, nodo por nodo.
+  -sin nada comprado, los cuatro caminos cerrados-. Ni la rama de calidad de vida
+  ni el fondo de los tres caminos entran (son filas de 320 y anillos de 208 en
+  una vista de 800): se llega a ellos arrastrando, y eso es lo que se comprueba,
+  nodo por nodo. Y como el arbol se cuela POR DEBAJO de la barra a proposito, los
+  checks de solapes reciben su franja: un texto tapado por ella no ensucia nada.
 - Que el **arrastre del arbol** mueva el dibujo y que su tope deje siempre un
   trozo de arbol a la vista: sin tope, arrastrar hacia un lado deja la pantalla
   vacia y no hay forma de volver. El tope se calcula sobre la caja ENTERA del

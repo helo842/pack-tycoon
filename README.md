@@ -313,6 +313,21 @@ lado, de **tres monedas cada uno**:
 | **ARMARIO** (abajo a la izquierda) | +2 huecos de armario |
 | **PINCHOS** (abajo a la derecha) | +30 % de daño de los Pinchos |
 
+Y **tres de esos caminos siguen dos nodos más** por la misma diagonal, cada
+anillo más caro que el anterior y dando menos por moneda:
+
+| Camino | Segundo nodo | Tercer nodo |
+|---|---|---|
+| **DANO** | +25 % de daño · **5 monedas** | +35 % de daño · **8 monedas** |
+| **VELOCIDAD** | +25 % de velocidad · **5 monedas** | +35 % de velocidad · **8 monedas** |
+| **PINCHOS** | +35 % de daño de los Pinchos · **5 monedas** | +50 % · **8 monedas** |
+
+Se compran **de arriba abajo**: cada nodo pide el anterior, así que no se puede
+empezar por el fondo del camino. El del **ARMARIO no sigue**, porque sus huecos
+son de dos en dos y un tercer anillo sería media pantalla de exposición. Con los
+tres anillos comprados, el daño y la velocidad quedan en **+80 %** y los Pinchos
+en **+115 %**, que es el fondo que tiene hoy el árbol.
+
 Cada nodo se pinta según lo que se pueda hacer con él: **en dorado** el comprado
 (con la palabra COMPRADO en lugar del precio), **claro** el que ya te llega,
 **apagado** el que no, y **cerrado** el que necesita el nodo anterior —y su
@@ -608,7 +623,9 @@ un objeto** (el check que cazó un solape de verdad en el panel del armario), qu
 **las monedas de rebirth no den dinero por sí solas** (el cambio de fondo: antes
 cada una subía un 5 % el valor de todo lo que vendes, para siempre, y el rebirth
 se acumulaba sin que hubiera nada que decidir), que el árbol de mejoras traiga
-**una mejora en el centro y cuatro caminos en diagonal**, que los cuatro
+**una mejora en el centro y cuatro caminos en diagonal** —de los que **tres
+siguen dos nodos más**, en su diagonal, colgando cada uno del anterior—, que los
+cuatro del primer anillo
 **cuesten lo que dice SkillTree** y que no se abran hasta comprar el centro, que
 cada uno dé **lo suyo** (+20 % de daño, +20 % de velocidad, +2 huecos de armario
 y +30 % de daño de los Pinchos) y que el del armario dé huecos **de verdad**
@@ -616,8 +633,9 @@ y +30 % de daño de los Pinchos) y que el del armario dé huecos **de verdad**
 sí solo** sino que abra su **ficha** —con su explicación larga entera, la de los
 cinco, que tiene que caber en su hueco de cuatro líneas— y que desde ahí el botón
 COMPRAR cobre lo mismo que el nodo, que el árbol **no se pierda al
-reiniciar** la partida y que sus cinco nodos **quepan de una vez** en la pantalla
-al abrirla (por debajo de la barra del rebirth), que la barra del rebirth
+reiniciar** la partida y que **el centro y el primer anillo quepan de una vez** en
+la pantalla al abrirla (por debajo de la barra del rebirth) y que **el fondo se
+alcance arrastrando**, que la barra del rebirth
 prometa **las mismas monedas que da** el rebirth y que el multiplicador de la
 Electrónica entre en el premio, que esa barra se mida **también con el requisito
 sin cumplir** (la línea de lo que falta es la más larga de la pantalla y con el
@@ -746,9 +764,9 @@ de la barra ya reinicia la partida a cambio de monedas, que se gastan en el árb
 de mejoras.
 
 **Sistemas del documento que no están** — el árbol de habilidades **ya está** (es
-el árbol del rebirth: la mejora del centro, cuatro caminos de números y la rama de
-calidad de vida, con un nodo por camino de momento; estirar un camino es añadir
-una fila a `SkillTree.NODES`), logros y eventos de mercado todavía no.
+el árbol del rebirth: la mejora del centro, cuatro caminos de números —tres de
+ellos estirados dos anillos más— y la rama de calidad de vida; estirar un camino
+es añadir una fila a `SkillTree.NODES`), logros y eventos de mercado todavía no.
 
 **Extras de la interfaz** — los deslizadores de volumen de los ajustes ya mueven
 sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta el

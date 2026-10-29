@@ -546,8 +546,9 @@ const REBIRTH_REQUIRE := 80000
 ## puede es una moneda, y aguantar es la unica forma de llevarse mas.
 const REBIRTH_COIN_AT := 1500000
 ## Y LAS MONEDAS SE GASTAN EN EL ARBOL DE MEJORAS, que es donde esta lo que dan
-## (ver SkillTree): +30 % de dinero, +20 % de dano, +20 % de velocidad, +2
-## huecos de armario y +30 % de pinchos, un nodo cada uno.
+## (ver SkillTree): +30 % de dinero en el centro, +20 % de dano, +20 % de
+## velocidad, +2 huecos de armario y +30 % de pinchos en el primer anillo, y dos
+## anillos mas de dano, velocidad y pinchos por la misma diagonal.
 ##
 ## Antes cada moneda sumaba un 5 % al valor de lo que vendias SIN hacer nada, y a
 ## ese precio no habia nada que decidir: se acumulaba sola y el rebirth se hacia
