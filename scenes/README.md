@@ -32,9 +32,11 @@ Game.tscn          la partida
 Menu.tscn          el menu de inicio
 ShopPanel.tscn     la tienda
 ItemCard.tscn      la ficha de un item de la tienda
+SkillCard.tscn     la ficha de compra de una mejora del arbol del rebirth
 AutoBuyPanel.tscn  el mini menu de la compra automatica
 LockerPanel.tscn   el armario: el inventario y las vitrinas
-RebirthPanel.tscn  la hucha: reiniciar la partida a cambio de monedas
+RebirthPanel.tscn  el arbol de mejoras: aqui se gastan las monedas, y el
+                   rebirth es el boton de la barra de arriba
 RevealCard.tscn    la tarjeta de revelado
 SettingsPanel.tscn los ajustes
 ui/

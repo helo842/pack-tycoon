@@ -1,5 +1,20 @@
 # balance - cuanto tarda una partida en llegar al primer rebirth.
 #
+# EL REBIRTH SE PARA CUANDO TIENE EL DINERO EN EL CONTADOR: el requisito no es
+# una meta de lo ganado, es tener LootDB.REBIRTH_REQUIRE a la vez (ver
+# Game.can_rebirth), asi que la partida acaba en cuanto el contador los toca. El
+# jugador modelado gasta en sobres y mejoras como siempre hasta ese momento, que
+# es lo que hace el que juega rapido: reiniciar en cuanto se puede. Si alguna vez
+# deja de cuadrar con la partida de verdad, lo primero que hay que mirar es esa
+# decision (no el resto de la simulacion, que no depende del requisito): el
+# jugador de verdad, al ver lo que le falta, deja de comprar y llega ANTES de lo
+# que dice esta herramienta.
+#
+# LA CIFRA DEL REQUISITO (80.000) SALIO DE AQUI, barriendo: con 50.000 el normal
+# llegaba en 16,3 min y con 120.000 en 22,0, asi que 80.000 es lo que deja el
+# primer rebirth en los mismos ~18 minutos que daba el requisito viejo (lo
+# ganado: era un millon). Menos de 50.000 se sale de la banda por abajo y mas de
+# 120.000 alarga la partida de mas.
 # ESTE FICHERO ES LA HERRAMIENTA DE MEDIDA DEL EQUILIBRIO, no un adorno. Que la
 # partida dure lo que tiene que durar (un cuarto de hora largo hasta poder
 # menos si se juega bien) no se comprueba mirando capturas: se comprueba
@@ -120,7 +135,12 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	var locker: Array = []
 	var table: Array = []
 	var buy_left := 0.0
-	while earned < LootDB.REBIRTH_REQUIRE and t < CAP:
+	# SE PARA CUANDO EL CONTADOR LLEGA AL REQUISITO, que es la regla del rebirth
+	# desde que su requisito se mide en el dinero que TIENES y no en lo ganado (ver
+	# Game.can_rebirth). El requisito de la partida no es "hacer tal cosa": es
+	# "tener tanto dinero a la vez" (LootDB.REBIRTH_REQUIRE), asi que este bucle
+	# mira `money` y no `earned`, que se sigue llevando solo para el informe.
+	while money < LootDB.REBIRTH_REQUIRE and t < CAP:
 		if trace and opened % 20 == 0:
 			print("    %6.1f min  dinero %9d  niveles %2d  sobres %4d  ahora %s"
 				% [t / 60.0, money, LootDB.total_levels(levels), opened,
@@ -152,7 +172,7 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 		var buy := _shop(st, levels, money)
 		money = int(buy["money"])
 		spent += int(buy["spent"])
-	if earned < LootDB.REBIRTH_REQUIRE:
+	if money < LootDB.REBIRTH_REQUIRE:
 		return {"minutes": INF, "packs": opened, "spent": spent, "levels": 0}
 	var roi := float(income) / float(paid) if paid > 0 else 0.0
 	return {"minutes": t / 60.0, "packs": opened, "spent": spent,
@@ -310,6 +330,7 @@ func _ready() -> void:
 			simulate(i, 0, false, true)
 	if args.has("shares"):
 		_sweep_shares()
+
 	report()
 	get_tree().quit(0)
 

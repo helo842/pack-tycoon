@@ -343,15 +343,16 @@ func _run() -> void:
 			await _frames(3)
 			_check(not _main.has_veil(), "y el cerrar cierra el panel del armario")
 
-	print("Hucha (rebirth):")
+	print("Arbol de mejoras (rebirth):")
 	# La chapa vive en la BARRA DE LA PARTIDA, al lado de la tienda, y el menu ya no
-	# sabe nada de ella: el rebirth se hace jugando. El requisito se mide en lo
-	# GANADO, y una partida de prueba no llega al millon, asi que el estado se pone
-	# a mano: es una variable del estado y no un atajo del panel (el panel lee lo
-	# mismo que lee la chapa). El refresco tambien se pide a mano: asignar la
-	# variable no emite nada (en el juego la enciende el dinero que entra, que si
-	# emite money_changed).
-	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
+	# sabe nada de ella: el rebirth se hace jugando. El requisito se mide en el
+	# DINERO QUE HAY EN EL CONTADOR, y una partida de prueba no lo junta, asi que el
+	# estado se pone a mano: es una variable del estado y no un atajo del panel (el
+	# panel lee lo mismo que lee la chapa). Con eso, el premio es la moneda minima
+	# (una por cada 1,5 M del contador), que es lo unico que se comprueba aqui. El
+	# refresco tambien se pide a mano: asignar el dinero no emite nada (en el juego
+	# lo mueve add_money, que si emite money_changed).
+	Game.money = LootDB.REBIRTH_REQUIRE
 	Game.rebirth_coins = 0
 	game._refresh_rebirth()
 	await _frames(2)
@@ -363,20 +364,73 @@ func _run() -> void:
 	for c in _main._veil_host.get_children():
 		if c is RebirthPanel:
 			hucha = c
-	_check(hucha != null, "y abre el panel de la hucha")
+	_check(hucha != null, "y abre el arbol de mejoras")
 	if hucha != null:
-		# El premio que ENSEÑA el panel y el que DA el rebirth tienen que ser el
+		# EL ARBOL SE ARRASTRA CON EL RATON DE VERDAD, y los nodos se compran con
+		# el raton de verdad. Son los dos gestos del MISMO boton (pulsar y mover
+		# mueve el arbol; pulsar y soltar sin moverse compra), y por eso hay que
+		# probar los dos: con botones de verdad en lugar de dibujos, el Button se
+		# comeria la pulsacion y no habria arrastre desde encima de un nodo.
+		#
+		# EL DINERO SE PONE A MANO porque el nodo del centro cuesta una moneda y
+		# una partida de prueba no gana ninguna: cero monedas antes de la primera
+		# compra del juego.
+		Game.skills = {}
+		Game.rebirth_coins = 5
+		hucha.refresh()
+		await _frames(2)
+		var centro: Vector2 = hucha.node_point("money")
+		var asentado: Vector2 = hucha._offset
+		_drag(centro, centro + Vector2(-220, -140))
+		await _frames(3)
+		_check(hucha._offset != asentado, "el arrastre mueve el arbol")
+		_check((hucha.node_point("money") - centro).length() > 200.0,
+			"y el arbol se queda donde se ha soltado")
+		_click_at(hucha.node_point("money"))
+		await _frames(3)
+		# EL CLIC NO COMPRA: ABRE LA FICHA. La compra se decide dentro, con el
+		# precio y lo que da el nodo delante, y se paga con el boton de la ficha.
+		var ficha_nodo: Node = hucha._card
+		_check(ficha_nodo != null, "el clic en un nodo abre su ficha de compra")
+		_check(not Game.skill_owned("money"), "y no la compra por su cuenta")
+		if ficha_nodo != null:
+			var comprar := _find_button(ficha_nodo, "COMPRAR")
+			_check(comprar != null, "la ficha del nodo trae el boton de comprar")
+			if comprar != null:
+				_check(_click(comprar), "el clic en COMPRAR llega al boton")
+			await _frames(3)
+			_check(Game.skill_owned("money"), "y compra la mejora del nodo")
+			_check(Game.rebirth_coins == 4, "pagando sus monedas de rebirth")
+			_check(is_equal_approx(Game.value_multiplier(), 1.30),
+				"y la mejora se nota en la partida")
+			# Y se cierra con su boton, que devuelve al arbol sin cerrarlo.
+			var cerrar_ficha := _find_tooltip(ficha_nodo, "Cerrar")
+			_check(cerrar_ficha != null, "la ficha trae su boton de cerrar")
+			if cerrar_ficha != null:
+				_check(_click(cerrar_ficha), "el clic en cerrar de la ficha llega al boton")
+			await _frames(3)
+			_check(hucha._card == null, "y el cerrar quita la ficha")
+			_check(Game.skill_owned("money") and Game.rebirth_coins == 4,
+				"sin tocar lo que ya se ha pagado")
+		# Y LA BARRA NO SE VA CON EL ARBOL: el boton de reiniciar se queda en su
+		# sitio (es lo unico de la pantalla que no se mueve).
+		var go_antes: Rect2 = hucha._go.get_global_rect()
+		var boton := _find_button(hucha, "REBIRTH")
+		_check(boton != null, "la barra del arbol trae la chapa de REBIRTH")
+		_check(hucha._go.get_global_rect() == go_antes,
+			"y el boton de reiniciar no se mueve cuando el arbol se arrastra")
+		# El premio que ENSEÑA la barra y el que DA el rebirth tienen que ser el
 		# mismo numero: sale del mismo calculo, y aqui se comprueba de verdad
 		# pulsando el boton.
 		var premio: int = Game.pending_rebirth_coins()
-		_check(premio >= 1, "el panel promete al menos una moneda")
+		_check(premio >= 1, "la barra promete al menos una moneda")
 		var monedas_antes: int = Game.rebirth_coins
 		_check(_click(hucha._go), "el clic en REBIRTH del panel llega al boton")
 		await _frames(3)
 		_check(Game.rebirth_coins == monedas_antes + premio,
 			"y reinicia la partida dando las monedas que prometia el panel")
-		_check(Game.lifetime_earned == 0 and not Game.can_rebirth(),
-			"la partida vuelve a cero: el requisito hay que ganarselo otra vez")
+		_check(Game.money == Game.START_MONEY and not Game.can_rebirth(),
+			"la partida vuelve a cero: el requisito hay que juntarlo otra vez")
 		_check(not _main.has_veil(), "y el panel se cierra solo al reiniciar")
 
 	print("Menu otra vez:")
@@ -470,6 +524,24 @@ func _right_click(b: Button) -> void:
 	for pulsar in [true, false]:
 		var e := InputEventMouseButton.new()
 		e.button_index = MOUSE_BUTTON_RIGHT
+		e.pressed = pulsar
+		e.position = at
+		e.global_position = at
+		get_viewport().push_input(e, true)
+
+
+## Un clic completo (raton -> pulsar -> soltar) en un punto de la PANTALLA, para
+## las cosas que no son botones y se pulsan por coordenadas: los nodos del arbol
+## del rebirth son dibujos (no un Button) y quien sabe cual se ha pulsado es el
+## propio panel.
+func _click_at(at: Vector2) -> void:
+	var m := InputEventMouseMotion.new()
+	m.position = at
+	m.global_position = at
+	get_viewport().push_input(m, true)
+	for pulsar in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
 		e.pressed = pulsar
 		e.position = at
 		e.global_position = at

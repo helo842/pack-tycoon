@@ -5,7 +5,7 @@
 #
 # Y NADA MAS: aqui no hay hucha. El rebirth VIVIO en este menu (arriba a la
 # derecha, la hucha con su contador) y se quito: el rebirth se hace jugando -el
-# requisito es lo ganado en la partida-, asi que su sitio es la barra de la
+# requisito es el dinero que tienes en el contador-, asi que su sitio es la
 # pantalla de partida, al lado de la tienda (ver game.gd, _open_rebirth). En el
 # menu lo que se hacia era mirar, y en una partida nueva lo que se veia era una
 # hucha con un cero y un "TE FALTAN 1.000.000" en rojo antes de saber siquiera

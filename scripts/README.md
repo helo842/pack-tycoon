@@ -17,8 +17,11 @@ data/       lo que se toca para reequilibrar el juego
                   items de la tienda (siete con ocho niveles y dos piezas de
                   compra unica: ver item_max_level), con que pieza se enciende
                   cada automatizacion, los cuatro tipos de botin con el stat que
-                  sube cada uno (LOOT_KINDS), los huecos del armario y lo que
-                  da el rebirth
+                  sube cada uno (LOOT_KINDS), los huecos del armario y el precio
+                  del rebirth (el requisito y las monedas)
+  skill_tree.gd   el arbol de mejoras que se paga con monedas de rebirth: los
+                  cinco nodos (uno en el centro y cuatro caminos en diagonal),
+                  lo que cuesta cada uno, lo que da y donde se dibuja
 
 ui/         las piezas de interfaz, reutilizables
   ui_kit.gd       fabrica de controles: etiquetas, botones, paneles, sprites
@@ -45,8 +48,12 @@ screens/    una clase por pantalla
   auto_buy_panel.gd el mini menu de la compra automatica (que sobres se compran)
   locker_panel.gd   el armario: el inventario a la IZQUIERDA y las vitrinas a la
                     DERECHA, con la suma de los cuatro bonus y VENDER TODO
-  rebirth_panel.gd  la hucha: lo que te llevas al reiniciar la partida y cuanto
-                    multiplica la electronica del armario
+  rebirth_panel.gd  el arbol de mejoras: la barra de arriba (el rebirth, lo que
+                    te llevas y lo que falta) superpuesta al arbol, que se
+                    arrastra con el raton; pulsar un nodo abre su ficha
+  skill_card.gd     la ficha de una mejora del arbol: lo que da, lo que el stat
+                    lleva sumado y lo que sumara, el precio y el boton de
+                    comprar (que PIDE la compra al arbol, no la hace)
   reveal_card.gd    la tarjeta de revelado
   settings_panel.gd los ajustes
   table_element.gd  un objeto de la mesa: el paquete que se abre, el botin que

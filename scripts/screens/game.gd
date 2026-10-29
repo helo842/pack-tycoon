@@ -48,20 +48,50 @@ const LOCK_BTN_W := 300.0
 ## La chapa del REBIRTH, en la barra de arriba y PEGADA A LA TIENDA.
 ##
 ## ESTUVO EN EL MENU Y AHI NO VA, y no es una manía de colocacion: el rebirth se
-## hace JUGANDO (el requisito es lo ganado en la partida), asi que su sitio es
-## donde se juega, al lado de las otras dos cosas que se hacen "cuando se para"
+## hace JUGANDO (el requisito es el dinero que tienes en el contador), asi que su
+## sitio es donde se juega, al lado de las otras dos cosas que se hacen "cuando se para"
 ## (vender y entrar en la tienda). En el menu solo estorbaba: aparecia antes de
 ## que el jugador supiera que era, con un cero y un "TE FALTAN 1.000.000" en rojo
 ## en la primera pantalla del juego.
 ##
-## POR ESO LA BARRA SE HA APRETADO. No habia sitio -entre el rotulo de la mesa y
-## el icono de ajustes ya no cabia nada-, asi que el grupo de la derecha se movio
-## a la izquierda: los tres iconos van a 832/932/1032 (antes 1050/1145/1240),
-## VENDER a 1192 y TIENDA a 1440, y el rotulo de la mesa a la caja de 240 a 660
-## (el dinero, que es el que manda a la izquierda, sigue anclado a 128). Los
-## huecos de la fila son de 20 px, el mismo aire que se dejan los iconos.
-const REBIRTH_CENTER := Vector2(1688, 58)
-const REBIRTH_W := 200.0
+## POR ESO LA BARRA SE HA APRETADO, Y DOS VECES. Primero entro la chapa del
+## rebirth, que no cabia entre el rotulo de la mesa y los ajustes; despues se le
+## pidio ser DEL TAMANO DE LA TIENDA, con el cerdito al lado de la palabra, y un
+## contador de monedas de rebirth pegado al dinero. Asi que el grupo de la derecha
+## se movio otra vez a la izquierda: los tres iconos van a 808/904/1000 (antes
+## 832/932/1032), VENDER a 1156 (antes 1192), TIENDA a 1400 (antes 1440) y
+## REBIRTH a 1672 con la misma chapa de 256 que la tienda (antes 200). El dinero
+## sigue anclado a 128, con 252 px de tope, y a su derecha va el grupo de las
+## monedas de rebirth (cerdito y numero), pegado al ultimo digito. El rotulo de la
+## mesa se queda en 656 y 24 px de letra (antes 660 y 28) para dejarle su hueco al
+## contador nuevo. Los huecos de la fila son de 16 px.
+const REBIRTH_CENTER := Vector2(1672, 58)
+const REBIRTH_W := 256.0
+## El cerdito que marca las monedas de rebirth en la barra, pegado al dinero.
+##
+## A 0.17, que es la MISMA escala de la moneda del contador: la tinta del cerdito
+## (406x448 de un lienzo de 512) sale a 69x76 px y la de la moneda (448x448) a
+## 76x76, asi que los dos se ven del mismo tamano. A 0.12 media 49 px y al lado de
+## la moneda de verdad se leia como un icono de segunda fila.
+##
+## LA X NO ES FIJA: se pega al numero del dinero alli donde acaba (ver
+## _coloca_monedas_rebirth()). Antes estaba clavada en 458, o sea a la derecha del
+## hueco que el dinero PUEDE llegar a ocupar: con 500 en el contador el cerdito
+## flotaba a 210 px del ultimo digito, solo en medio de la barra.
+const REBIRTH_COIN_SCALE := 0.17
+## Aire entre el ultimo digito del dinero y el cerdito, y entre el cerdito y su
+## numero.
+const REBIRTH_COIN_GAP := 14.0
+const REBIRTH_COINS_GAP := 8.0
+## El numero de monedas: mas pequeno que el del dinero, que es el que se mira
+## todo el rato. Cabe en dos cifras sin encogerse.
+const REBIRTH_COUNT_SCALE := 0.40
+const REBIRTH_COUNT_MAX_W := 52.0
+## Donde empieza el contador del dinero y cuanto puede crecer antes de encogerse.
+## 252 y no 288: el cerdito, ahora del tamano de la moneda, ocupa 87 px mas a su
+## derecha y con 288 el grupo se metia debajo del rotulo de la mesa.
+const MONEY_X := 128.0
+const MONEY_MAX_W := 252.0
 
 ## La mesa: donde caen los objetos. Es el rectangulo ENTERO de la superficie
 ## (el mismo que ocupa el sprite bg_table), y de ahi para dentro se recorta
@@ -145,8 +175,13 @@ const PACK_TAG_DY := 26.0
 ## sprite: con la chapa baja el precio cabia en el sprite y se salia de la banda.
 const PACK_TAG_INK := 0.59
 
-## Cuantos puntos al azar se prueban para colocar un objeto nuevo. Ver _free_spot().
-const SPOT_TRIES := 40
+## Cada cuanto se prueban sitios para colocar un objeto nuevo, y cuanto aire
+## tiene que quedar entre las cajas. Ver _free_spot().
+const SPOT_STEP := 32.0
+## Las cajas son de 300x340 y el dibujo de dentro de 256x256, asi que 16 px de
+## hueco entre cajas son 44 px de aire a la vista. Con este paso y este hueco los
+## OCHO objetos que caben en la mesa entran sin pisarse.
+const SPOT_PAD := 16.0
 
 ## Cada cuanto se aplica el dano de los Pinchos a la mesa (segundos).
 const SPIKE_TICK := 0.25
@@ -154,6 +189,12 @@ const SPIKE_TICK := 0.25
 var _table: Control
 var _fx: Control
 var _money: PixelNumber
+## El contador de monedas de rebirth de la barra: el cerdito y, a su derecha, el
+## numero. Es la unica moneda del juego que no se gasta, asi que se lee de reojo
+## mientras se juega. El cerdito se guarda para poder moverlo: va pegado al
+## dinero, y el dinero cambia de ancho (ver _coloca_monedas_rebirth).
+var _rebirth_coin: TextureRect
+var _rebirth_count: PixelNumber
 var _table_label: Label
 var _locker_label: Label
 var _locker_slots: Array = []
@@ -465,19 +506,40 @@ func _build_top_bar() -> void:
 	add_child(UIKit.square("currency_coin", Vector2(74, 58), 0.17))
 	_money = PixelNumber.new()
 	_money.scale_factor = 0.48
-	_money.max_width = 470.0
+	# 252 Y NO 470: el contador del dinero ya no tiene la franja entera para el
+	# -a su lado vive el de monedas de rebirth-, asi que este es su presupuesto.
+	# "99.999.999" son 307 px y se encoge un 18 %, y a partir de ahi el numero se
+	# hace mas pequeno en vez de comerse el cerdito de al lado.
+	_money.max_width = MONEY_MAX_W
 	add_child(_money)
 	_money.set_number(Game.money)
 	# El contador se ancla por su IZQUIERDA, no por su centro: si no, cuando el
 	# numero crece se sale por la pantalla en vez de empujar lo de al lado.
-	_money.position = Vector2(128, 58 - _money.size.y * 0.5)	# Las cajas van anchas a proposito: label_at agranda la caja si el texto no
-	# cabe y la centra, asi que una caja corta ("MESA 3/8" son 224 px en una de
-	# 190) deslocaba el texto a la izquierda y lo pegaba al contador.
-	# A 660 y con la caja de 240 (antes 690 y 250): es lo que le deja el grupo de
-	# la derecha, que ha crecido con la chapa del rebirth. La caja sigue cabiendo
-	# justa para "MESA 8/8" (8 caracteres a 28 son 224) y el numero del dinero, que
-	# va anclado a 128 por su izquierda, no llega hasta aqui ni con doce cifras.
-	_table_label = UIKit.label_at("", Vector2(660, 58), Vector2(240, 50), 28,
+	_money.position = Vector2(MONEY_X, 58 - _money.size.y * 0.5)
+
+	# LAS MONEDAS DE REBIRTH, AL LADO DE LAS NORMALES. Son la paga permanente y
+	# hasta ahora solo se veian dentro del panel de la hucha (y en su tooltip): un
+	# numero que decide cuanto valen TODAS las ventas no puede estar detras de un
+	# clic. Se dibuja el mismo cerdito dorado que la moneda del panel, DEL TAMANO de
+	# la moneda del contador, y los dos se colocan pegados al dinero en
+	# _coloca_monedas_rebirth().
+	_rebirth_coin = UIKit.square("currency_piggy", Vector2.ZERO, REBIRTH_COIN_SCALE)
+	add_child(_rebirth_coin)
+	_rebirth_count = PixelNumber.new()
+	_rebirth_count.scale_factor = REBIRTH_COUNT_SCALE
+	_rebirth_count.max_width = REBIRTH_COUNT_MAX_W
+	add_child(_rebirth_count)
+	# El numero va ANTES que la posicion: PixelNumber mide su texto al construir
+	# los glifos, y sin texto el alto es cero.
+	_rebirth_count.set_number(Game.rebirth_coins)
+	_coloca_monedas_rebirth()
+
+	# Las cajas van anchas a proposito: label_at agranda la caja si el texto no
+	# cabe y la centra, asi que una caja corta deslocaba el texto y lo pegaba al
+	# contador. Aqui la caja es EXACTA (8 caracteres a 24 son 192) porque el hueco
+	# lo mandan los contadores de la izquierda y el primer icono. La letra baja de
+	# 28 a 24 por eso mismo: son 32 px de barra que se lleva el cerdito.
+	_table_label = UIKit.label_at("", Vector2(656, 58), Vector2(192, 50), 24,
 			Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT, 0)
 	add_child(_table_label)
 	# El rotulo del dano por golpe que habia aqui ("DANO 12") se ha quitado: es
@@ -492,35 +554,38 @@ func _build_top_bar() -> void:
 	# armario) y despues las tres que se hacen cuando se PARA (vender, tienda y
 	# reiniciar la partida). El armario va pegado a las automatizaciones por eso, y
 	# el rebirth pegado a la tienda por lo mismo.
-	_auto_open_btn = UIKit.icon_button("ui_icon_auto_open", Vector2(832, 58), 80.0,
+	_auto_open_btn = UIKit.icon_button("ui_icon_auto_open", Vector2(808, 58), 80.0,
 			"Apertura automatica (con los Pinchos): abre sola los paquetes de la mesa")
 	_auto_open_btn.pressed.connect(_toggle_auto_open)
 	add_child(_auto_open_btn)
 
-	_auto_buy_btn = UIKit.icon_button("ui_icon_auto_buy", Vector2(932, 58), 80.0,
+	_auto_buy_btn = UIKit.icon_button("ui_icon_auto_buy", Vector2(904, 58), 80.0,
 			"Compra automatica (con el PC): elige que sobres se compran solos")
 	_auto_buy_btn.pressed.connect(_open_auto_buy)
 	add_child(_auto_buy_btn)
 
-	_locker_btn = UIKit.icon_button("ui_icon_vitrine", Vector2(1032, 58), 80.0,
+	_locker_btn = UIKit.icon_button("ui_icon_vitrine", Vector2(1000, 58), 80.0,
 			"Armario: expone objetos y da sus bonus (con la pieza comprada)")
 	_locker_btn.pressed.connect(_open_locker)
 	add_child(_locker_btn)
 
-	_sell_btn = UIKit.small_button("VENDER", "", Vector2(1192, 58), 200, 21,
+	_sell_btn = UIKit.small_button("VENDER", "", Vector2(1156, 58), 200, 21,
 			"ui_button_sell", "ui_button_sell")
 	_sell_btn.pressed.connect(_sell_all_table)
 	add_child(_sell_btn)
 
-	var shop := UIKit.small_button("TIENDA", "ui_icon_shop", Vector2(1440, 58), 256, 32)
+	var shop := UIKit.small_button("TIENDA", "ui_icon_shop", Vector2(1400, 58), 256, 32)
 	shop.pressed.connect(_open_shop)
 	add_child(shop)
 
-	# LA HUCHA, AL LADO DE LA TIENDA. Misma chapa pequena que VENDER (200 de ancho
-	# y fuente 21) y sin icono: el dibujo de la hucha se come 40 px del cuerpo y el
-	# rotulo se quedaria en 12 px de letra -medido-, y la palabra REBIRTH dice mas
-	# que un dibujo de una hucha en una barra que ya tiene cinco iconos.
-	_rebirth_btn = UIKit.small_button("REBIRTH", "", REBIRTH_CENTER, REBIRTH_W, 21)
+	# LA HUCHA, AL LADO DE LA TIENDA Y DEL MISMO TAMANO QUE ELLA: misma chapa de
+	# 256 y mismo pedido de fuente, con el cerdito al lado de la palabra como la
+	# tienda lleva su icono. Antes era una chapa pequeña (200 y fuente 21) y se
+	# leia como un boton secundario al lado del boton grande de la tienda, cuando es
+	# la otra forma de parar la partida. El rotulo se encoge lo que haga falta para
+	# caber al lado del dibujo, igual que en TIENDA (fit_size).
+	_rebirth_btn = UIKit.small_button("REBIRTH", "currency_piggy", REBIRTH_CENTER,
+			REBIRTH_W, 32)
 	_rebirth_btn.pressed.connect(_open_rebirth)
 	add_child(_rebirth_btn)
 
@@ -571,33 +636,99 @@ func _build_locker() -> void:
 # La mesa
 # --------------------------------------------------------------------------- #
 
-## Un sitio libre para un objeto nuevo, dentro de la mesa.
+## Las casillas donde caen los objetos, repartidas por toda la mesa.
 ##
-## Se prueban SPOT_TRIES puntos al azar y se elige el que menos pisa a los que
-## ya hay. Con eso salen repartidos solos y solo se solapan cuando de verdad no
-## cabe otro, que es cuando el jugador los separa arrastrando: para eso se
-## pueden mover. Sorteando a pelo, con ocho objetos de 300x340 en una mesa de
-## 1344x752 la mitad caerian uno encima de otro desde el primer minuto.
+## Son una rejilla con una casilla por objeto que cabe A LA VEZ (Game.table_slots())
+## y ocupan la mesa entera, no el rincon que les dejan los que ya hay. Con los
+## ocho huecos de serie salen cuatro columnas de 336 px y dos filas de 376, o sea
+## cajas de 300x340 con 18 px de holgura por lado SIEMPRE, aunque las ocho esten
+## puestas: es lo que hace que se vean y se puedan pulsar una por una.
+##
+## Con mas huecos (el Cajon) la rejilla se aprieta sola. Cuando la casilla se
+## queda mas pequena que la caja, el objeto ya no cabe sin pisar al de al lado y
+## eso no lo arregla el reparto: ahi se sigue colocando, pero encima.
+func _slot_cells() -> Array:
+	var n := maxi(1, Game.table_slots())
+	var cols := clampi(int(floor(TABLE_RECT.size.x / TableElement.BOX.x)), 1, n)
+	var rows := int(ceil(float(n) / float(cols)))
+	var cell := Vector2(TABLE_RECT.size.x / float(cols), TABLE_RECT.size.y / float(rows))
+	var celdas: Array = []
+	for r in rows:
+		for c in cols:
+			if celdas.size() >= n:
+				break
+			celdas.append(Rect2(TABLE_RECT.position
+					+ Vector2(float(c) * cell.x, float(r) * cell.y), cell))
+	return celdas
+
+
+## Un punto dentro de su casilla, con un temblor corto para que la mesa no parezca
+## un tablero. El temblor deja SIEMPRE 8 px de aire hasta el borde de la casilla,
+## asi que dos vecinos no se tocan ni en el peor caso (8 + 8).
+func _jitter_in(cell: Rect2) -> Vector2:
+	var margen := Vector2(
+			maxf(0.0, (cell.size.x - TableElement.BOX.x) * 0.5 - 8.0),
+			maxf(0.0, (cell.size.y - TableElement.BOX.y) * 0.5 - 8.0))
+	var centro := cell.get_center() - TableElement.BOX * 0.5
+	return centro + Vector2(_rng.randf_range(-margen.x, margen.x),
+			_rng.randf_range(-margen.y, margen.y))
+
+
+## Un sitio libre para un objeto nuevo, dentro de la mesa, CON AIRE alrededor.
+##
+## Se prueba primero en las casillas de la rejilla y se coge, al azar entre las
+## que estan limpias, una. Eso es lo que hace que dos objetos que salen de dos
+## sobres no caigan uno encima de otro: antes cada uno caia en uno de 40 puntos
+## sorteados al azar y en las capturas salian tres apilados en un rincon, con los
+## dibujos comiendose entre si, teniendo media mesa vacia al lado.
+##
+## Si no queda ninguna casilla limpia -la mesa llena, o el jugador ha arrastrado
+## objetos encima de otras casillas- se barre la mesa entera en pasos de
+## SPOT_STEP y se coge el sitio que menos pisa, contando SPOT_PAD de aire alrededor
+## de cada objeto. De ahi solo se sale mejor si el jugador los separa arrastrando,
+## que para eso se pueden mover.
 func _free_spot() -> Vector2:
+	var libres: Array = []
+	for cell in _slot_cells():
+		var p := _jitter_in(cell)
+		if _spot_score(p) <= 0.0:
+			libres.append(p)
+	if not libres.is_empty():
+		return libres[_rng.randi_range(0, libres.size() - 1)]
+
 	var x0 := TABLE_RECT.position.x
 	var y0 := TABLE_RECT.position.y
 	var x1 := x0 + TABLE_RECT.size.x - TableElement.BOX.x
 	var y1 := y0 + TABLE_RECT.size.y - TableElement.BOX.y
-	var best := Vector2(x0, y0)
-	var best_score := -1.0
-	for i in SPOT_TRIES:
-		var p := Vector2(_rng.randf_range(x0, x1), _rng.randf_range(y0, y1))
-		var mine := Rect2(p, TableElement.BOX)
-		var score := 0.0
-		for el in _elements:
-			if is_instance_valid(el):
-				score += _overlap(mine, Rect2(el.position, TableElement.BOX))
-		if best_score < 0.0 or score < best_score:
-			best_score = score
-			best = p
-		if score <= 0.0:
-			break
-	return best
+	var mejor := Vector2(x0, y0)
+	var mejor_score := INF
+	var y := y0
+	while y <= y1 + 0.5:
+		var x := x0
+		while x <= x1 + 0.5:
+			var score := _spot_score(Vector2(x, y))
+			if score <= 0.0:
+				libres.append(Vector2(x, y))
+			elif score < mejor_score:
+				mejor_score = score
+				mejor = Vector2(x, y)
+			x += SPOT_STEP
+		y += SPOT_STEP
+	if not libres.is_empty():
+		return libres[_rng.randi_range(0, libres.size() - 1)]
+	return mejor
+
+
+## Cuanto pisa un candidato a los objetos que ya hay, con SPOT_PAD de aire.
+## Cero es sitio limpio.
+func _spot_score(p: Vector2) -> float:
+	var mine := Rect2(p, TableElement.BOX)
+	var score := 0.0
+	for el in _elements:
+		if is_instance_valid(el):
+			score += _overlap(mine,
+					Rect2(el.spot(), TableElement.BOX).grow(SPOT_PAD))
+	return score
 
 
 static func _overlap(a: Rect2, b: Rect2) -> float:
@@ -1048,6 +1179,9 @@ func _locked_notice(item_id: String) -> void:
 func _on_money_changed(value: int) -> void:
 	if is_instance_valid(_money):
 		_money.set_number(value)
+		# El dinero cambio de ancho (o de cifras): el cerdito se vuelve a pegar a
+		# su ultimo digito.
+		_coloca_monedas_rebirth()
 	# Los sobres de la izquierda se apagan cuando no te llega su precio, asi que
 	# cualquier cambio de dinero los tiene que repintar.
 	_refresh_packs()
@@ -1083,9 +1217,38 @@ func _refresh_packs() -> void:
 		num.position = (cell["tag"] as Vector2) - num.size * 0.5
 
 
+## Pone el cerdito y su numero justo detras del ultimo digito del dinero.
+##
+## El ancho del dinero se mide con _money.size.x, que es el de SUS CELDAS (ver
+## PixelNumber._rebuild) y no cambia al subir un digito: solo cuando el contador
+## gana o pierde una cifra. Por eso el cerdito se pega de verdad al numero y aun
+## asi no baila con cada venta.
+##
+## Va SIN centrar en el hueco que le queda a la barra: los dos huecos que manda
+## son los de arriba (REBIRTH_COIN_GAP y REBIRTH_COINS_GAP), y el cerdito puede
+## acabar en cualquier sitio entre el dinero y el rotulo de la mesa. Es lo que
+## pide el que mira el contador: las monedas se leen como parte del dinero.
+func _coloca_monedas_rebirth() -> void:
+	if not is_instance_valid(_money) or not is_instance_valid(_rebirth_coin) \
+			or not is_instance_valid(_rebirth_count):
+		return
+	var x := MONEY_X + _money.size.x + REBIRTH_COIN_GAP
+	# UIKit.image() coloca por centro y el nodo se mueve por su esquina: la
+	# izquierda del cerdito es la x que se pide, sin restarle nada.
+	_rebirth_coin.position = Vector2(x, 58 - _rebirth_coin.size.y * 0.5)
+	_rebirth_count.position = Vector2(x + _rebirth_coin.size.x + REBIRTH_COINS_GAP,
+			58 - _rebirth_count.size.y * 0.5)
+
+
 func _refresh_top() -> void:
 	if is_instance_valid(_table_label):
 		_table_label.text = "MESA %d/%d" % [table_count(), Game.table_slots()]
+	# Las monedas de rebirth solo cambian al reiniciar, y eso emite
+	# settings_changed; pero el repintado va aqui, con el resto de la barra, para
+	# no tener un camino aparte que se pueda olvidar.
+	if is_instance_valid(_rebirth_count):
+		_rebirth_count.set_number(Game.rebirth_coins)
+		_coloca_monedas_rebirth()
 	# Cada boton de automatizacion se pinta bloqueado por SU pieza: el de abrir
 	# espera a los Pinchos y el de comprar al PC. Apagado se ve que aun no sirve, y
 	# el clic sigue llegando para poder decir cual falta (ver _locked_notice()).
@@ -1108,13 +1271,14 @@ func _refresh_top() -> void:
 
 ## La chapa del rebirth: apagada mientras la partida no de para reiniciarla.
 ##
-## El tooltip dice QUE falta, que es lo unico util de una chapa apagada, y lleva
-## tambien las monedas que llevas: el contador vivia en su propia fila cuando la
-## hucha estaba en el menu, y aqui no cabe -la barra se apretó al maximo para
-## meter la chapa-, asi que las monedas se leen en el tooltip y en el panel.
+## El tooltip dice QUE falta, que es lo unico util de una chapa apagada. Las
+## monedas ya no viven aqui: tienen su propio contador en la barra, al lado del
+## dinero (ver _build_top_bar), asi que el tooltip se queda con la explicacion de
+## la chapa apagada y con el recuerdo de cuantas llevas.
 ##
-## Depende de lifetime_earned, que cambia con el dinero que ENTRA (ver
-## _on_money_changed) y no solo con los items: por eso no basta con _refresh_top.
+## Depende del DINERO QUE HAY EN EL CONTADOR, que cambia con todo lo que entra y
+## sale de la partida (ver _on_money_changed) y no solo con los items: por eso no
+## basta con _refresh_top, que se llama por las otras senales.
 func _refresh_rebirth() -> void:
 	if not is_instance_valid(_rebirth_btn):
 		return
@@ -1123,7 +1287,8 @@ func _refresh_rebirth() -> void:
 	if puede:
 		_rebirth_btn.tooltip_text = "REBIRTH: la hucha (%d monedas): reinicia la partida a cambio de monedas" % Game.rebirth_coins
 	else:
-		_rebirth_btn.tooltip_text = "REBIRTH: te faltan %s de lo ganado en esta partida" % PixelNumber.format(Game.rebirth_missing())
+		_rebirth_btn.tooltip_text = ("REBIRTH: te faltan %s en el contador"
+			% PixelNumber.format(Game.rebirth_missing()))
 
 
 ## La tira de la vitrina: el rotulo y los ocho huecos.

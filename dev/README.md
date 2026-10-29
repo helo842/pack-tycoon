@@ -15,8 +15,10 @@ input_test.gd    el test del RATON. Manda clics y arrastres sinteticos y
                  (que con los Pinchos, y no con el PC, no se abre), el armario
                  (su boton, exponer, devolver, el clic derecho que vende un
                  objeto del inventario y VENDER TODO) y la chapa REBIRTH
-                 de la barra de la partida, que abre la hucha y reinicia la
-                 partida desde el boton de su panel
+                 de la barra de la partida, que abre el arbol de mejoras (el
+                 ARRASTRE del arbol con el raton, el clic en un nodo que abre SU
+                 FICHA y el boton COMPRAR de esa ficha) y reinicia la partida
+                 desde el boton de la barra
 screenshots.gd   guarda un PNG de cada pantalla en user://shots/
 probe_font.gd    mide de verdad cuanto ocupa cada rotulo con la fuente
 probe_pop.gd     pinta un numero de dano normal y uno critico sobre el fondo y
@@ -303,7 +305,7 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   de su tabla, con la nota media y el `VALUE_SCALE`, por su `vmult`; sin el
   Trébol ni el Armario, que son del jugador y del momento— y el check pide que
   **pague entre un 30 y un 45 % más de lo que cuesta**: entre x1,30 y x1,45, y hoy los doce van
-  de x1,36 a x1,39. Es lo que obliga a que el `vmult` NO sea el mismo para los
+  de x1,37 a x1,40. Es lo que obliga a que el `vmult` NO sea el mismo para los
   doce: al subir los precios del escalón 2 por encima del techo del 1, los que
   menos pagaban (SOBRES ORO, que tiene la tabla más barata) se quedaban pagando
   una cuarta parte de lo que cuestan. **Ese margen es toda la progresión del
@@ -387,6 +389,18 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   un 2 % a un 15 %, y que el tipo lo diga la fila del botin (el campo `kind`) y
   no el dibujo ni el id: deducirlo del nombre es una regla escondida que se rompe
   sola en cuanto se anade un objeto con otro nombre.
+- Que **la nota alta sea rara y el Trébol no la toque**. Se mide la TABLA
+  (`GRADE_WEIGHTS`), que es fija: el 10 sale el 2,4 % y las 9 o más el 6,1 % del
+  botín. Antes el 10 era la nota MÁS probable (22,9 %) y las 9-10 se llevaban el
+  43 %, que es justo lo que se notaba abriendo sobres sin parar de sacar "como
+  nuevo". El precio de la nota lleva además dos anclas escritas a mano -la 5
+  vale lo que valía la 10 de antes (1,25) y la 10 el doble (2,50)- para que
+  mover la curva se vea aquí y no dentro de un mes en el reloj de la partida.
+  La independencia del Trébol se comprueba con la MISMA semilla: 500 tiradas con
+  y sin suerte tienen que dar las mismas 500 notas y más rarezas con suerte. El
+  dado del objeto gasta un número por tirada, así que si la nota se metiera en
+  el dado de la suerte las dos listas se separarían; y si no se separaran por la
+  nota pero tampoco cambiara la rareza, el check también falla.
 - Que el armario tenga **exactamente los huecos de su nivel**: con el armario a 2
   caben dos objetos y el tercero NO entra, y el que se queda fuera sigue en el
   inventario (no se pierde por pulsar). Era la unica razon de subir el armario de
@@ -424,21 +438,74 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   rotulo de VENDER TODO comiendose 7 px del marco de la ultima fila del
   inventario. Los objetos son dibujos, y una chapa no es lo unico con lo que se
   puede chocar un rotulo.
-- Que el rebirth **prometa lo que da**: las monedas que enseña el panel salen de
-  `Game.pending_rebirth_coins()`, el MISMO calculo que usa `do_rebirth()`, y el
-  multiplicador de la Electronica del armario entra en el premio (que es lo unico
-  que hace que exponer electronica signifique algo). Se comprueba contra el
-  numero que da de verdad, no contra una copia de la formula escrita al lado.
-- Que el panel del rebirth **quepa tambien cuando la partida no llega al
-  requisito**. La linea de lo que falta ("TE FALTAN 1.000.000 DE LO GANADO EN
-  ESTA PARTIDA") es la mas larga del juego -48 caracteres- y la unica que cruza el
-  panel de lado a lado: estaba centrada en la columna de los numeros (x 1152) y
-  se dibujaba **128 px fuera del marco** por el lado derecho (tinta de x 480 a
-  1824 en un interior que acaba en 1696). El check viejo no la
-  veia porque medía el panel con el requisito CUMPLIDO, y ahi esa linea esta
-  vacia (texto ""), asi que no medía nada; ahora se mide en los dos estados. La
-  linea se centra con el panel (x 960) en la misma caja que el texto del trato, y
-  encoge a paso de fuente entero si el numero se hace largo.
+- Que el rebirth **prometa lo que da**: las monedas que enseña la barra del
+  arbol salen de `Game.pending_rebirth_coins()`, el MISMO calculo que usa
+  `do_rebirth()`, y el multiplicador de la Electronica del armario entra en el
+  premio (que es lo unico que hace que exponer electronica signifique algo). Se
+  comprueba contra el numero que da de verdad, no contra una copia de la formula
+  escrita al lado. Y tanto el **requisito** como las **monedas** se cuentan sobre
+  **el dinero que hay en el contador en ese momento** (el requisito son 5.000 y
+  una moneda por cada 1,5 M): hay un check con la partida entera ganada y el
+  contador vacio que no deja reiniciar y da la moneda minima, otro con el
+  contador a una unidad del requisito que todavia no deja, y otro con 12,5 M en
+  el contador que tiene que dar 8. Si alguien vuelve a mirar `lifetime_earned`
+  para el requisito, el primero falla.
+- Que **las monedas de rebirth no den nada por si solas**, que es el cambio de
+  fondo del arbol: cada una sumaba un 5 % al valor de todo lo que vendias, para
+  siempre, y eso dejaba el rebirth sin decision (se acumulaba solo). El check
+  pone cuarenta monedas y pide los cuatro multiplicadores a 1 y cero huecos de
+  armario: si alguien devuelve la paga pasiva, falla.
+- Que **pulsar un nodo no compre**: abre su FICHA (`SkillCard`), que es una
+  pantalla nueva, y ahi no se cobra nada hasta que se pulsa COMPRAR. La ficha
+  lleva el efecto de titulo, la linea corta y la explicacion larga del nodo
+  ENTERA (partida con `UIKit.wrap()`, y se comprueba en los cinco que cabe en las
+  cuatro lineas del hueco, porque la quinta se dibuja encima de los numeros), el
+  estado (comprado, cerrado diciendo que falta antes, o cuantas monedas faltan) y
+  los **dos numeros**: `AHORA, CON EL ARBOL` sale de `Game.skill_bonus()` y
+  `AL COMPRARLO` del mismo numero mas el `value` del nodo, asi que no pueden
+  mentir. Y se compra desde ahi: el boton cobra lo mismo que costaba el nodo y la
+  ficha se repinta sola (COMPRADO y sin boton).
+- Que el **arbol de mejoras** este entero: cinco nodos (una mejora en el centro y
+  cuatro caminos **en diagonal**, uno por cada lado, colgando del centro), que la
+  del centro cueste **una moneda y de un 30 % mas de dinero**, que los cuatro
+  caminos cuesten **tres** y den **+20 % de dano, +20 % de velocidad, +2 huecos de
+  armario y +30 % de pinchos**, que **sin monedas no se compre**, que los caminos
+  **no se abran sin el centro** y que **cada mejora se compre una sola vez**. Los
+  cuatro efectos se miden contra los mismos numeros que usa la partida
+  (`Game.damage_per_hit()`, `charge_time()`, `locker_slots()` y `spike_dps()`),
+  que es donde se notan. Los Pinchos y el Armario se compran antes de mirar los
+  numeros porque sin la pieza de la tienda no hay nada que medir: los Pinchos sin
+  su pieza pegan **0**, y un 30 % de 0 es 0.
+- Que el arbol **no se pierda al reiniciar** la partida (y que si se pierdan las
+  piezas de la partida, el armario y los Pinchos): es lo que hace que reiniciar
+  signifique algo, porque las monedas se ganan reiniciando y se gastan en el
+  arbol. Y que el dano del armario **se multiplique con el** y no lo sustituya:
+  una carta de nota 10 expuesta (+25 %) con el camino del dano comprado (+20 %)
+  tiene que dar el producto (x1,5), no el mayor de los dos.
+- Que el **arbol quepa de una vez** en la pantalla al abrirlo: los cinco nodos
+  dentro del marco del panel y **por debajo de la barra del rebirth** (que va
+  superpuesta y se come la franja de arriba). Se mira en el estado en el que se
+  ve casi siempre -sin nada comprado, los cuatro caminos cerrados-.
+- Que el **arrastre del arbol** mueva el dibujo y que su tope deje siempre un
+  trozo de arbol a la vista: sin tope, arrastrar hacia un lado deja la pantalla
+  vacia y no hay forma de volver. El tope se calcula sobre la caja ENTERA del
+  dibujo (`SkillTree.bounds()`), no sobre el nodo del centro: el centro puede
+  salirse por un lado mientras el resto sigue viendose. Y que la **barra no se
+  mueva con el arbol**: el boton de reiniciar se queda en su sitio (es lo unico
+  de la pantalla que no se arrastra).
+- Que las **lineas del arbol** (las que unen el centro con cada camino) lleven el
+  color que toca: dorado el camino comprado, ambar el que ya se puede comprar y
+  apagado el cerrado. Se comprueba en la funcion que decide el color
+  (`link_color`), que es la unica forma de mirarlo sin leer el pixel. Y el color
+  se pide AL LIENZO que pinta las lineas: pedirle el repintado al mundo no pinta
+  nada, y el sintoma era que comprabas una mejora y su linea seguia apagada. Eso
+  no lo caza ningun check de los de encuadre: salio en la captura, mirandola.
+- Que la **barra del arbol se mida tambien cuando la partida no llega al
+  requisito**: la linea de lo que falta solo existe en ese estado (con el
+  requisito cumplido esta vacia, texto ""), y medir un panel en el estado que no
+  es el que se ve de verdad es como no medirlo. Es la leccion de la version
+  anterior de esta pantalla: alli esa misma linea se dibujaba **128 px fuera del
+  marco** y el check no la veia por estar midiendo el otro estado.
 - Que el **menu no tenga rebirth ninguno**: ni hucha, ni contador, ni chapa, ni
   siquiera el metodo que lo abre, ni la moneda que hacia de adorno en su pie. La
   primera pantalla es para empezar, y el
@@ -452,8 +519,29 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   al requisito** y abre su panel igual, porque el panel es el que dice cuanto
   falta (misma regla que los dos iconos de las automatizaciones: dim apagado, el
   clic sigue llegando).
-- Que el requisito del rebirth se mida en **lo ganado en la partida**
-  (`lifetime_earned`) y no en el dinero que se tenga: guardar el dinero para el
-  final no cambia nada. Y que despues de reiniciar la partida vuelva todo a cero
+- Que la barra traiga el **contador de monedas de rebirth** al lado del dinero
+  (cerdito y numero, repintado con el valor de `Game.rebirth_coins`), que el
+  cerdito **mida lo mismo que la moneda del dinero** (se comparan los dos dibujos,
+  la tinta y no el lienzo) y que vaya **pegado al ultimo digito**: se mide el
+  hueco con el contador en 500 -que es cuando un cerdito clavado en una x fija se
+  queda flotando en medio de la barra- y con el dinero en su tope de 252 px. Con
+  eso, que las tres anchuras no se pisen -dinero, cerdito+numero y rotulo de la
+  mesa- y que la chapa del REBIRTH sea **del tamano de la de TIENDA** y lleve el
+  cerdito al lado de la palabra. Todas se pueden romper sin un solo error a la
+  vista: un numero mas ancho empuja el cerdito, y una chapa estrecha se lee como
+  un boton de segunda.
+- Que **lo que sale de los sobres no caiga encima de otra cosa**. Se llena la
+  mesa hasta sus ocho huecos y se comprueba que ninguna de las ocho cajas se toca
+  con otra ni se sale de la mesa, midiendo el sitio de REPOSO (`spot()`) y no
+  `position`: mientras un objeto esta cayendo, `position` esta 260 px mas arriba y
+  el que mide huecos se creeria que ese sitio esta libre. Antes los objetos se
+  sorteaban entre 40 puntos al azar y salian tres apilados en un rincon teniendo
+  media mesa vacia al lado.
+- Que el **dinero no se pierda** en el camino: el requisito del rebirth se mide
+  en el dinero que hay en el contador (5.000), igual que el premio (1 moneda por
+  cada 1,5 M). Antes eran dos numeros de sitios distintos -lo ganado para el
+  requisito, el contador para el premio- y el jugador leia que le faltaba un
+  millon "de lo ganado" mientras tenia cuatro perras delante. Que despues de
+  reiniciar la partida vuelva todo a cero
   (dinero, items, inventario, armario y las automatizaciones, que se caen con sus
   piezas) mientras las monedas y las estadisticas de la cuenta se quedan.

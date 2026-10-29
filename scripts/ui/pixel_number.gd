@@ -57,6 +57,18 @@ func set_number(value: int) -> void:
 	set_text(PixelNumber.format(value))
 
 
+## Repintar con otro color. Hace falta este camino propio y no basta con asignar
+## `color`, porque el color solo entra al CONSTRUIR los glifos (ver _rebuild) y
+## set_number() no reconstruye nada cuando las cifras son las mismas (ver
+## set_text): un numero que pasa de rojo a dorado sin cambiar de cifras se
+## quedaba con el color viejo hasta que le cambiara el valor.
+func recolor(value: Color) -> void:
+	if value == color:
+		return
+	color = value
+	_rebuild()
+
+
 func get_text() -> String:
 	return _text
 

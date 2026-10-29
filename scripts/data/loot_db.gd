@@ -233,9 +233,32 @@ const CONDITIONS: Array = [
 # --------------------------------------------------------------------------- #
 # Nota PSA: la graduacion de 1 a 10 que se enseña en el badge
 # --------------------------------------------------------------------------- #
-# Se reparte hacia arriba (lo normal es que el objeto venga ya graduado) pero
-# nunca sale un 10 fijo: el 10 es el premio gordo.
-const GRADE_WEIGHTS: Array = [1, 1, 2, 3, 5, 7, 9, 12, 14, 16]
+# LA MAYORIA DEL BOTIN VIENE TOCADO, y el 10 es el premio gordo de verdad. La
+# tabla es una piramide que se apoya en la 2-4 y se afila hacia arriba, con la
+# probabilidad de cada nota escrita debajo:
+#
+#     nota   1     2     3     4     5     6    7     8    9    10
+#     peso  11    13    13    12    10     8    6     4    3     2     (de 82)
+#     %   13,4  15,9  15,9  14,6  12,2   9,8  7,3   4,9  3,7   2,4
+#
+# ANTES ERA AL REVES: la tabla iba de 1 a 16, con el 10 como la nota MAS
+# probable (el 22,9 %) y casi la mitad del botin saliendo en 9 o 10. Se pidio
+# justo lo contrario -que las notas altas sean raras-, asi que la piramide se ha
+# dado la vuelta. El 10 sale una vez de cada cuarenta y pico; el 9, una de cada
+# veintisiete. La cola no se aplana: cada nota alta es mas rara que la de abajo.
+#
+# LA FORMA NO ES CAPRICHO: es la que deja el valor MEDIO del sobre donde estaba.
+# Las notas 5 y 10 valen ahora mucho mas (ver GRADE_MULT), asi que si la tabla
+# siguiera cargada por arriba cada sobre pagaria un 20 % mas de lo que cuesta y
+# el margen de la partida se iria por la ventana. Con esta piramide la nota media
+# baja de 7,6 a 4,2 y la media de valor se queda en 1,136 (antes 1,131): medio
+# punto de mas, que es lo que el test de los sobres mide como margen (1,39 contra
+# 1,38) y lo que deja las partidas donde estaban.
+#
+# LA SUERTE DEL TREBOL NO ENTRA AQUI. La tabla es fija: el Trebol solo engorda el
+# peso del botin raro, epico y legendario (ver _lucky_weight), nunca la nota. Un
+# 10 con el Trebol al maximo sigue saliendo una vez de cada cuarenta.
+const GRADE_WEIGHTS: Array = [11, 13, 13, 12, 10, 8, 6, 4, 3, 2]
 const PSA_MIN := 1
 const GRADE_MAX := 10
 
@@ -307,7 +330,7 @@ const ITEMS: Array = [
 		"detail": "SUBE EL DANO DE CADA GOLPE UN 15 % POR NIVEL. LAS TRES PRIMERAS MEJORAS SON BARATAS Y SUBEN POCO; DESPUES EL PRECIO SE DISPARA."},
 	{"id": "trebol", "name": "TREBOL", "art": "item_trebol", "base_cost": 840,
 		"desc": "MAS BOTIN RARO",
-		"detail": "SUBE LAS PROBABILIDADES DE QUE SALGA BOTIN RARO, EPICO O LEGENDARIO. VALE PARA TODOS LOS SOBRES."},
+		"detail": "SUBE LAS PROBABILIDADES DE QUE SALGA BOTIN RARO, EPICO O LEGENDARIO. LA NOTA PSA NO CAMBIA. VALE PARA TODOS LOS SOBRES."},
 	{"id": "cajon", "name": "CAJON", "art": "item_cajon", "base_cost": 1560,
 		"desc": "MAS ESPACIO EN LA MESA",
 		"detail": "MAS HUECOS EN LA MESA PARA DEJAR PAQUETES Y OBJETOS A LA VEZ. A PARTIR DEL NIVEL 5 CADA NIVEL DA CINCO HUECOS EN VEZ DE DOS."},
@@ -481,18 +504,34 @@ const KIND_BONUS_MIN := 0.02
 const KIND_BONUS_MAX := 0.25
 
 # --- el rebirth (la hucha) ------------------------------------------------ #
-## Lo que hay que haberse ganado EN LA PARTIDA para poder reiniciarla. Es una
-## meta redonda y a la vista (un millon) y no una cifra fina a proposito: el
-## jugador tiene que poder leer el requisito y saber donde esta.
-const REBIRTH_REQUIRE := 1000000
-## Cada cuanto ganado sale UNA moneda de rebirth. Con el requisito de arriba, el
-## primer rebirth son 1 moneda, y a partir de ahi la cuenta sube sola: ganar diez
-## millones en una partida son diez monedas.
-const REBIRTH_EARN_AT := 1000000
-## Lo que suma CADA moneda de rebirth al valor de todo lo que vendes, para
-## siempre (no se pierde en el siguiente rebirth). 5 % por moneda: con diez
-## monedas todo vale la mitad mas, y hacen falta diez rebirths para llegar.
-const REBIRTH_VALUE_PER_COIN := 0.05
+## Lo que hay que TENER EN EL CONTADOR para poder reiniciarla. Se cuenta el dinero
+## que hay EN EL MOMENTO de pulsar REBIRTH (lo mismo que el premio), y no lo
+## ganado a lo largo de la partida: el cerdo se lleva lo que hay dentro, asi que
+## el requisito es juntarlo y no gastarlo.
+##
+## LA CIFRA SALE DE MEDIR (dev/balance.gd), no de elegir un numero redondo: en el
+## contador de una partida normal hay MILES, no millones -el dinero entra y sale
+## comprando sobres-, asi que el millon que pedia el requisito viejo no se junta
+## "en el contador" ni en horas. Con 80.000 (0,8 M), el jugador normal llega al
+## primer rebirth en ~18 minutos, que es lo que tardaba con el requisito en lo
+## ganado: barrer dio 16,3 min con 50.000 y 22,0 con 120.000, y 80.000 es el que
+## conserva el ritmo.
+const REBIRTH_REQUIRE := 80000
+## Cada cuanto DINERO EN EL CONTADOR sale UNA moneda de rebirth. Se cuenta lo que
+## tengas EN EL MOMENTO de pulsar REBIRTH, no lo ganado en la partida: el cerdo
+## se lleva el dinero que hay dentro, asi que gastarlo antes de reiniciar cuesta
+## monedas y guardarlo las da. Con 1,5 millones por moneda, el primer rebirth
+## (que se hace con el contador justo en el requisito) da la moneda minima y las
+## buenas son las que se terminan con la hucha llena: reiniciar en cuanto se
+## puede es una moneda, y aguantar es la unica forma de llevarse mas.
+const REBIRTH_COIN_AT := 1500000
+## Y LAS MONEDAS SE GASTAN EN EL ARBOL DE MEJORAS, que es donde esta lo que dan
+## (ver SkillTree): +30 % de dinero, +20 % de dano, +20 % de velocidad, +2
+## huecos de armario y +30 % de pinchos, un nodo cada uno.
+##
+## Antes cada moneda sumaba un 5 % al valor de lo que vendias SIN hacer nada, y a
+## ese precio no habia nada que decidir: se acumulaba sola y el rebirth se hacia
+## por inercia. Aqui ya no queda nada de esa paga.
 
 # --------------------------------------------------------------------------- #
 # Consultas
@@ -874,20 +913,22 @@ static func bonus_for(item: Dictionary) -> float:
 	return kind_bonus(kind_of(item), int(item.get("grade", PSA_MIN)))
 
 
-## Lo que suma cada moneda de rebirth al valor de lo que vendes: la paga
-## permanente que se lleva de una partida a la siguiente.
-static func rebirth_value_mult(coins: int) -> float:
-	return 1.0 + REBIRTH_VALUE_PER_COIN * float(maxi(0, coins))
-
-
-## Las monedas que da reiniciar una partida con lo ganado en ella, ya con el
-## bonus de la Electronica del armario dentro (ver Game.rebirth_multiplier()).
+## Las monedas que da reiniciar una partida con el DINERO QUE HAYA EN EL
+## CONTADOR en ese momento, ya con el bonus de la Electronica del armario dentro
+## (ver Game.rebirth_multiplier()).
+##
+## Se pasa el dinero que se tiene, no lo ganado: es lo que el jugador ve en la
+## barra y lo que el cerdo se lleva al romperse. Por eso `amount` se llama asi y
+## no `earned`, que es la confusion que este cambio ha venido a quitar de en
+## medio.
 ##
 ## Se calcula con SUELO y no redondeando a la mitad: las monedas de rebirth son
 ## un premio gordo y decir "te llevas 2" para luego dar 1 es la clase de mentira
-## que se nota. Con el multiplicador del armario en 1.0 la cuenta es exacta.
-static func rebirth_coins_for(earned: int, mult: float = 1.0) -> int:
-	var base := int(earned / REBIRTH_EARN_AT)
+## que se nota. Con el multiplicador del armario en 1.0 la cuenta es exacta. Y
+## nunca baja de 1: un rebirth que diera cero monedas seria un boton que cobra
+## toda la partida y no paga nada.
+static func rebirth_coins_for(amount: int, mult: float = 1.0) -> int:
+	var base := int(maxi(0, amount) / REBIRTH_COIN_AT)
 	if base <= 0:
 		return 1
 	return maxi(1, int(floor(float(base) * maxf(mult, 1.0))))
@@ -943,22 +984,31 @@ static func roll_grade(rng: RandomNumberGenerator) -> int:
 	return GRADE_MAX
 
 
-## Cuanto vale la nota. Va de 0.80 (nota 1) a 1.25 (nota 10): un 56 % de subida
-## del 1 al 10, no el 126 % de antes.
+## Cuanto vale la nota, de 0.61 (nota 1) a 2.50 (nota 10): la 10 vale cuatro
+## veces lo que la 1. La curva se dispara hacia arriba porque la nota alta tiene
+## que ser un PREMIO: antes iba de 0.80 a 1.25 (un 56 %, casi plano) y el 10 no
+## se notaba en el bolsillo.
 ##
-## La nota es lo que el jugador lee en la tarjeta y por lo que decide si guarda o
-## vende, asi que tiene que notarse -un 10 vale mas que un 3-, pero no puede ser
-## un premio gordo: con el 0.50..1.13 de antes, un 10 en un objeto bueno valia
-## mas que todo lo que llevabas y la partida se decidia en una tirada.
+## LAS DOS ANCLAS SON LAS QUE PIDIO EL JUGADOR, y estan puestas a mano a
+## proposito para que el smoke test las pueda comprobar:
+##   - la 5 vale 1.25, que es EXACTAMENTE lo que valia la 10 de antes;
+##   - la 10 vale 2.50, el DOBLE que valia la 10 de antes.
+## Y las de abajo, un poco por debajo de lo que valian antes (la 1 baja de 0.80 a
+## 0.61), que es lo que hace que ensenar una nota baja se note: el botin tocado
+## se vende por menos y el 10 se guarda siempre.
 ##
-## La media se queda por encima de 1 (repartiendo las notas por su peso la nota
-## media sale 6,9 y con ella 1,09).
-## No es un descuido: la tabla de los sobres esta cuadrada con ESTE numero dentro
-## -ver LootDB.pack_payout(), que es lo que usa el smoke test para saber que un
-## sobre paga lo que tiene que pagar-, asi que tocar la curva sin volver a mirar
-## los precios descuadra el equilibrio.
+## La curva es convexa (cada tramo sube mas que el anterior) para que la 9 tampoco
+## sea "casi un 10": la 8 ya vale casi el doble que la 4.
+##
+## La tabla de los sobres esta cuadrada con la MEDIA de esta curva dentro (ver
+## LootDB.pack_payout(), que es lo que usa el smoke test para saber que un sobre
+## paga lo que tiene que pagar), asi que tocar un solo numero sin volver a mirar
+## GRADE_WEIGHTS descuadra el equilibrio.
+const GRADE_MULT: Array = [0.61, 0.72, 0.86, 1.02, 1.25, 1.45, 1.68, 1.95, 2.22, 2.50]
+
+
 static func grade_mult(grade: int) -> float:
-	return 0.80 + 0.05 * float(clampi(grade, PSA_MIN, GRADE_MAX) - 1)
+	return float(GRADE_MULT[clampi(grade, PSA_MIN, GRADE_MAX) - PSA_MIN])
 
 
 ## El nombre del sprite de un objeto segun su nota. Las cartas no se desgastan.

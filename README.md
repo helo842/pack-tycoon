@@ -234,52 +234,121 @@ la columna del inventario entre su rótulo y los huecos. El objeto vendido sale 
 que enseña su hueco. Las vitrinas no se venden así: lo expuesto vuelve antes al
 inventario, que es la regla que ya tenía.
 
-La **barra de arriba** lleva, de izquierda a derecha: el dinero, el contador de la
-mesa, los tres iconos (apertura automática, compra automática y armario), el
-**VENDER**, la **TIENDA** y el **REBIRTH**, con los ajustes en el extremo. El
-grupo de la derecha tuvo que correrse a la izquierda para que el rebirth cupiera
-en la barra: los tres iconos están a 832/932/1032 (antes 1050/1145/1240), el
-VENDER a 1192, la TIENDA a 1440 y el REBIRTH a 1688, y el contador de la mesa pasó
-a una caja de 240 px a x 660 para no tocarlos.
+La **barra de arriba** lleva, de izquierda a derecha: el dinero con su moneda, el
+**contador de monedas de rebirth** (el cerdito dorado y su número), el contador de
+la mesa, los tres iconos (apertura automática, compra automática y armario), el
+**VENDER**, la **TIENDA** y el **REBIRTH**, con los ajustes en el extremo. La
+chapa del REBIRTH es **del mismo tamaño que la de TIENDA** (256 px de ancho, con
+el cerdito al lado de la palabra) y las monedas de rebirth tienen **contador
+propio en la barra**, no solo dentro del árbol de mejoras: son la moneda con la
+que se compra ese árbol, así que hay que saber cuántas quedan **sin abrir nada**. Como la barra ya iba justa, el grupo de la
+derecha se corrió otra vez a la izquierda: los tres iconos están a 808/904/1000,
+el VENDER a 1156, la TIENDA a 1400 y el REBIRTH a 1672; el dinero se ancla a 128
+con 252 px de tope, el cerdito es **del mismo tamaño que la moneda del dinero** y
+va **pegado al último dígito** (se recoloca cada vez que el contador gana o
+pierde una cifra, así que no flota en medio de la barra cuando hay poco dinero), y
+el contador de la mesa pasó a 24 px de letra en una caja de 192 a x 656 para no
+tocarlos.
 
-### El rebirth (la hucha)
+Los objetos que salen de los sobres caen en la mesa **repartidos y con aire**: se
+recorre la mesa entera en una rejilla y se elige uno de los sitios que no pisan a
+nadie (16 px de hueco entre cajas, que con el dibujo de dentro son 44 px de aire
+a la vista), y solo cuando de verdad no cabe otro se apila. Antes se probaban 40
+puntos al azar y salían tres objetos encima de otro con media mesa vacía al lado.
 
-La hucha está en la **barra de la partida, pegada a la TIENDA**, y no en el menú:
+### El rebirth y el árbol de mejoras
+
+El rebirth está en la **barra de la partida, pegada a la TIENDA**, y no en el menú:
 es la otra cosa que se hace «cuando se para» (vender, entrar en la tienda y
 reiniciar la partida), y además es algo que se hace jugando, porque el requisito
-se gana dentro de la partida. El **menú no tiene nada de esto** —es la pantalla de
-empezar—: estuvo ahí con su hucha, su contador y su chapa, y en una partida nueva
-lo que se veía era una hucha con un cero y un «TE FALTAN 1.000.000» en rojo, o sea
-un sistema anunciado antes de que el jugador supiera que existe.
+—el dinero— se junta dentro de la partida. El **menú no tiene nada de esto** —es
+la pantalla de empezar—: estuvo ahí con su hucha, su contador y su chapa, y en una
+partida nueva lo que se veía era una hucha con un cero y un «TE FALTAN 80.000» en
+rojo, o sea un sistema anunciado antes de que el jugador supiera que existe.
 
 La chapa **REBIRTH** se puede pulsar siempre, también cuando la partida todavía no
-llega: abre el panel, que es el que explica el trato y dice cuánto falta. Sale
-**apagada** mientras no haya nada que decidir, como los dos iconos de las
-automatizaciones. Y las monedas **no tienen contador en la barra** (no cabía): se
-ven en el panel y en el tooltip de la chapa, que es donde se mira un número que
-cambia una vez cada muchas partidas.
+llega: abre el árbol, que es quien dice cuánto falta. Sale **apagada** mientras no
+haya nada que decidir, como los dos iconos de las automatizaciones. Las monedas se
+leen **en su contador de la barra**, al lado del dinero, y en el tooltip de la
+chapa.
 
 El rebirth **reinicia la partida entera** (dinero, items, inventario y armario) y
-a cambio te llevas **monedas**, que ya no se pierden nunca más: **cada moneda sube
-un 5 % el valor de todo lo que vendas**, para siempre. Es la única cosa del juego
-que pasa de una partida a la siguiente, y por eso va detrás de un panel que
-explica el trato antes de aceptarlo (lo que se pierde, lo que te llevas y cuánto
-multiplica la Electrónica del armario).
+a cambio te llevas **monedas**, que ya no se pierden nunca más: se **gastan en el
+árbol de mejoras**. Lo que pasa de una partida a la siguiente son las monedas y lo
+que hayas comprado con ellas, y por eso el rebirth se hace **desde dentro del
+árbol**: arriba está el botón, con lo que te llevas (cuántas monedas y cuánto
+multiplica la Electrónica del armario), y debajo, lo que se compra con ellas.
 
-El primer millón es **unos dieciséis minutos de partida** (dieciséis el jugador
-típico, quince el que juega rápido y compra bien, y catorce con el PC y los
-Pinchos puestos): lo justo para subir los tres escalones de sobres, comprar
-media docena de mejoras y llegar con ganas de reiniciar. Ese número no es una
-esperanza, es una medida: lo dice `dev/balance.gd`, que juega la partida entera
-con los datos de verdad (ver «Cambiar el equilibrio»).
+**Las monedas ya no dan nada solas.** Cada una subía un 5 % el valor de todo lo
+que vendías sin hacer nada, y eso dejaba el rebirth sin decisión: se acumulaba
+solo. Ahora el dinero es **un nodo del árbol** que hay que comprar, y las monedas
+solo valen lo que compres con ellas.
 
-El requisito se mide en **lo ganado en la partida** (un millón), no en el dinero
-que tengas en el bolsillo: guardarlo para el final no cambia nada. Las monedas
-son una por cada millón ganado y **la Electrónica del armario las multiplica**,
-que es la razón de que el armario dé puntos de rebirth. Lo que no se pierde son
-las estadísticas de la cuenta —paquetes abiertos, objetos encontrados, mejor
-nota—, que son de la cuenta y no de la partida. Y mientras el requisito no llega,
-la chapa y su panel **dicen cuánto falta**: un botón muerto y callado no explica
+#### El árbol: la barra arriba, el árbol debajo
+
+La barra del rebirth va **superpuesta al árbol** y no al lado, porque el árbol **se
+arrastra con el ratón** (pulsar y mover lo desplaza, y nunca se puede perder de
+vista) y el saldo, lo que te llevas y lo que falta tienen que seguir leyéndose
+mientras te mueves. Los nodos **no son botones**: un botón de verdad se comería la
+pulsación, así que no se podría empezar a arrastrar encima de un nodo, que es
+donde se empieza casi siempre. Un nodo son dibujos, y quien sabe cuál has pulsado
+es el propio panel.
+
+**Pulsar un nodo no compra: abre su ficha.** La compra se decide dentro, con la
+tela delante —lo que da el nodo, lo que cuesta y **lo que el árbol lleva sumado
+ya** frente a **lo que sumará al comprarlo**—, y se paga con el botón COMPRAR. Es
+la misma ficha que la tienda usa para sus items (mismo panel, mismas medidas) y la
+misma regla: **la ficha no compra, pide la compra**, y quien cobra, suena y avisa
+es el panel del árbol. Los números de la ficha salen de `Game.skill_bonus()` y del
+`value` del nodo, así que no pueden mentir.
+
+El árbol empieza con **una mejora en el centro** —**+30 % de dinero, una moneda**,
+que es la puerta— y de ella salen **cuatro caminos en diagonal**, uno por cada
+lado, de **tres monedas cada uno**:
+
+| Camino | Lo que da |
+|---|---|
+| **CARTAS** (arriba a la izquierda) | +20 % de daño |
+| **ZAPATILLAS** (arriba a la derecha) | +20 % de velocidad |
+| **ARMARIO** (abajo a la izquierda) | +2 huecos de armario |
+| **PINCHOS** (abajo a la derecha) | +30 % de daño de los Pinchos |
+
+Cada nodo se pinta según lo que se pueda hacer con él: **en dorado** el comprado
+(con la palabra COMPRADO en lugar del precio), **claro** el que ya te llega,
+**apagado** el que no, y **cerrado** el que necesita el nodo anterior —y su
+ficha, la de ese y la de todos, dice cuál hay que comprar antes y cuántas monedas
+faltan—. Las líneas que los unen llevan el color de su camino.
+
+El árbol **suma** a lo que ya tienes, nunca lo sustituye: los huecos de armario del
+árbol son huecos aunque no tengas el armario comprado (con el tope de los ocho que
+dibuja el panel del armario) y su daño se multiplica con el de las Cartas
+expuestas. Y **no se pierde al reiniciar**: es lo que hace que reiniciar signifique
+algo, porque las monedas se ganan reiniciando y se gastan aquí. Lo que se pierde
+es la partida: dinero, items, inventario y armario.
+
+El primer rebirth pide **80.000 en el contador**, que son **unos dieciocho minutos
+de partida** (dieciséis el jugador típico con el botín en su media, catorce el que
+juega rápido y compra bien, y trece con el PC y los Pinchos puestos): lo justo
+para subir los tres escalones de sobres, comprar media docena de mejoras y llegar
+con ganas de reiniciar. Ese número no es una esperanza, es una medida: lo dice
+`dev/balance.gd`, que juega la partida entera con los datos de verdad (ver «Cambiar
+el equilibrio»). Cuando ese requisito se medía en **lo ganado en la partida** eran
+también unos dieciocho minutos, así que el ritmo es el mismo; lo que cambió es
+**qué** se mide.
+
+El **requisito** y el **premio** se cuentan sobre lo mismo: **el dinero que hay en
+el contador**. Se piden **80.000** para poder reiniciar y cada **1,5 millones** dan
+una moneda, así que gastar en sobres y mejoras antes de reiniciar **aleja las dos
+cosas** y guardar el dinero las acerca. El número del requisito es bajo (en el
+contador de una partida se manejan miles, no millones) y **está medido**, no
+elegido: sale de barrer con `dev/balance.gd` y quedarse con el que deja la partida
+durando lo mismo que antes. La moneda de rebirth es **el cerdo dorado** (el mismo dibujo de la hucha,
+pequeño, junto al número) y **la Electrónica del armario las multiplica**, que es
+la razón de que el armario dé puntos de rebirth. Lo que no se pierde son las
+estadísticas de la cuenta —paquetes abiertos, objetos encontrados, mejor nota—,
+que son de la cuenta y no de la partida. Y mientras el requisito no llega, la
+chapa y la barra del árbol **dicen cuánto falta**: un botón muerto y callado no
+explica
 nada.
 
 **Un clic abre UN paquete, siempre: el pulsado.** Nada de arrancar varios de
@@ -327,7 +396,15 @@ por rareza. El cartón se desgasta distinto a una consola (roce, humedad, esquin
 doblada, pliegue, mancha de anillo), así que el desgaste de carta es otro código
 en el generador.
 
-La nota PSA reparte hacia arriba pero nunca es 10 fijo: el 10 es el premio gordo.
+**La nota PSA es una pirámide apoyada en la 2-4**, no un reparto hacia arriba:
+casi la mitad del botín sale tocado (nota 1-3), la 9 sale una de cada veintisiete
+y la **10 una de cada cuarenta**. Y lo que vale cada nota es lo que hace que mirar
+el número importe: la 1 vale un 0.61 del precio base, la 5 ya vale lo que antes
+valía un 10 (1.25) y la 10 vale el doble que aquel 10 (2.50). O sea que un 10 no
+es "un poco mejor": es el objeto que se guarda y el que se expone en el armario.
+El **Trébol no toca la nota**, solo engorda el peso del botín raro, épico y
+legendario (y por eso un 10 sigue saliendo una vez de cada cuarenta con el
+Trébol al máximo).
 
 ### Teclado
 
@@ -430,7 +507,7 @@ G=/ruta/a/Godot_v4.7.2-stable_linux.x86_64
 
 # Cuánto dura una partida hasta el primer rebirth. Juega la partida entera con
 # los datos de verdad y saca el informe (mediana, dispersión, lo que paga cada
-# sobre). Hoy: unos 17 minutos el jugador normal y 14 el que juega rápido,
+# sobre). Hoy: unos 18 minutos el jugador normal y 13 el que juega rápido,
 # compra bien y pone el PC y los Pinchos.
 $G --headless --path . res://dev/BalanceTest.tscn
 
@@ -494,11 +571,23 @@ exponer **saque el objeto del inventario** y devolverlo lo devuelva, que el
 inventario sea de **50 huecos** y ya no esté en la pantalla de partida, que la
 vitrina de la partida enseñe lo expuesto, que **el texto no se dibuje encima de
 un objeto** (el check que cazó un solape de verdad en el panel del armario), que
-el panel del rebirth prometa **las mismas monedas que da** el rebirth y que el
-multiplicador de la Electrónica entre en el premio, que ese panel se mida
-**también con el requisito sin cumplir** (la línea de lo que falta es la más
-larga del juego y la única que cruza el panel de lado a lado, y con el requisito
-cumplido está vacía: medirla entonces no medía nada), que la chapa del rebirth
+**las monedas de rebirth no den dinero por sí solas** (el cambio de fondo: antes
+cada una subía un 5 % el valor de todo lo que vendes, para siempre, y el rebirth
+se acumulaba sin que hubiera nada que decidir), que el árbol de mejoras traiga
+**una mejora en el centro y cuatro caminos en diagonal**, que los cuatro
+**cuesten lo que dice SkillTree** y que no se abran hasta comprar el centro, que
+cada uno dé **lo suyo** (+20 % de daño, +20 % de velocidad, +2 huecos de armario
+y +30 % de daño de los Pinchos) y que el del armario dé huecos **de verdad**
+(expuestos, no un número en un rótulo), que **pulsar un nodo no compre nada por
+sí solo** sino que abra su **ficha** —con su explicación larga entera, la de los
+cinco, que tiene que caber en su hueco de cuatro líneas— y que desde ahí el botón
+COMPRAR cobre lo mismo que el nodo, que el árbol **no se pierda al
+reiniciar** la partida y que sus cinco nodos **quepan de una vez** en la pantalla
+al abrirla (por debajo de la barra del rebirth), que la barra del rebirth
+prometa **las mismas monedas que da** el rebirth y que el multiplicador de la
+Electrónica entre en el premio, que esa barra se mida **también con el requisito
+sin cumplir** (la línea de lo que falta es la más larga de la pantalla y con el
+requisito cumplido está vacía: medirla entonces no medía nada), que la chapa del rebirth
 esté en la barra de la partida **junto a la tienda** y que el menú ya no sepa
 abrirlo (el rebirth se hace jugando, no en la pantalla de empezar) **ni lleve
 moneda en el pie**, que un objeto del inventario se pueda vender **de uno en uno**
@@ -514,8 +603,9 @@ mesa y moverlo, para abrir el mini menú de la compra automática y marcar y
 desmarcar un sobre en su lista, para abrir el armario desde su botón de la barra
 exponer un objeto y devolverlo a su sitio y vender otro con el **clic derecho**
 (el gesto que no se ve y que por eso hay que probar con el ratón de verdad), y
-para abrir la hucha desde la chapa REBIRTH de la barra (que está junto a la
-tienda) y reiniciar la partida desde el botón de su panel.
+para abrir el árbol de mejoras desde la chapa REBIRTH de la barra (que está junto
+a la tienda), **arrastrar el árbol** con el ratón, **comprar un nodo** con un clic
+y reiniciar la partida desde el botón de la barra.
 
 ### Cambiar el equilibrio
 
@@ -572,7 +662,7 @@ $G --headless --path . res://dev/BalanceTest.tscn
 
 Hoy dice que un jugador normal (un clic cada 0,35 s, la tarjeta leída, y pagando
 mejoras cuando le caben en el bolsillo) llega al primer rebirth en **unos
-diecisiete minutos**; que el que juega rápido y compra bien —gastando a tirones
+dieciocho minutos**; que el que juega rápido y compra bien —gastando a tirones
 de una quinta parte del dinero en vez de vaciarse en cada mejora— lo hace en
 **unos catorce**; y que con el PC y los Pinchos, en **unos trece**. Esos son los
 números **sin dado**, que es con lo que se mide el test; con dado la mediana de
@@ -618,11 +708,13 @@ es qué pasa con la fuente de los **números**, que aún se componen con sprites
 adorno: expone objetos (uno por hueco de su nivel, de 1 a 8), cada uno da el
 bonus de su tipo según su nota PSA, y su panel lleva el inventario al lado (50
 huecos) con la vitrina a la vista en la pantalla de partida. Y la chapa REBIRTH
-de la barra ya reinicia la partida a cambio de monedas, que suben para siempre el
-valor de lo que vendes.
+de la barra ya reinicia la partida a cambio de monedas, que se gastan en el árbol
+de mejoras.
 
-**Sistemas del documento que no están** — árbol de habilidades (4 ramas × 2
-opciones), logros, eventos de mercado.
+**Sistemas del documento que no están** — el árbol de habilidades **ya está** (es
+el árbol del rebirth: la mejora del centro y cuatro caminos, con un nodo por
+camino de momento; estirar un camino es añadir una fila a `SkillTree.NODES`),
+logros y eventos de mercado todavía no.
 
 **Extras de la interfaz** — los deslizadores de volumen de los ajustes ya mueven
 sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta el

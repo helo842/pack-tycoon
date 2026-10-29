@@ -8,6 +8,8 @@
 # Python
 __pycache__/
 *.pyc
+# El entorno con el que se corren las herramientas de tools/
+.venv/
 
 # Salidas de las herramientas de sprites
 tools/_preview.png

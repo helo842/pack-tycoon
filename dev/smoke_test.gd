@@ -360,6 +360,19 @@ func _usa_sprite(de: Node, nombre: String) -> bool:
 	return false
 
 
+## El primer TextureRect del arbol que lleva ese sprite, o null.
+func _sprite_de(de: Node, nombre: String) -> TextureRect:
+	var quiero := Sprites.tex(nombre)
+	var pila: Array = [de]
+	while not pila.is_empty():
+		var n: Node = pila.pop_back()
+		var t := n as TextureRect
+		if t != null and t.texture == quiero:
+			return t
+		pila.append_array(n.get_children())
+	return null
+
+
 ## ¿Este sprite se dibuja mas grande que `lado` en algun sitio del arbol?
 ##
 ## Es el check de la moneda gigante de los ajustes: los iconos se dibujaban con
@@ -380,6 +393,24 @@ func _sprite_gigante(de: Node, nombre: String, lado: float) -> bool:
 
 ## ¿Algun rotulo del arbol dice esto? Con `empieza` en true vale con que EMPIECE
 ## por el texto, que es lo que hace falta para "DANO 12" sin saber el numero.
+## Los rotulos de una pantalla que llevan alguna minuscula.
+##
+## La fuente del juego es de mapa de bits y NO TIENE MINUSCULAS: una letra
+## minuscula no sale "en minuscula", sale un cuadro de basura, y los checks de
+## encuadre no lo ven porque el texto cabe igual. Paso con las explicaciones de la
+## ficha de una mejora, que estaban escritas en minusculas y salian ilegibles.
+func _minusculas_en(de: Node) -> Array:
+	var malas: Array = []
+	var pila: Array = [de]
+	while not pila.is_empty():
+		var n: Node = pila.pop_back()
+		var l := n as Label
+		if l != null and l.text != "" and l.text != l.text.to_upper():
+			malas.append(l.text)
+		pila.append_array(n.get_children())
+	return malas
+
+
 func _dice(de: Node, texto: String, empieza: bool = false) -> bool:
 	var pila: Array = [de]
 	while not pila.is_empty():
@@ -622,6 +653,14 @@ func _uno_dentro_de(n: Node, de: Node) -> bool:
 	return false
 
 
+## La caja que ocupa el DIBUJO del arbol en la pantalla: la de SkillTree.bounds()
+## movida por el arrastre que tenga el panel. Es lo que se mira para saber si el
+## arbol sigue a la vista (el tope del arrastre se calcula sobre esta caja).
+func _caja_del_arbol(arbol: RebirthPanel) -> Rect2:
+	var b := SkillTree.bounds()
+	return Rect2(b.position + arbol._offset + arbol.VIEW_POS, b.size)
+
+
 ## Que un numero quepa dentro del nodo que lo envuelve (la chapita del precio).
 ##
 ## Es el caso que mas se escapa: el numero se encoge con max_width, pero si
@@ -652,6 +691,21 @@ func _nivel_buscado(index: int, ultimo: int) -> int:
 ## Las chapas de UIKit son un Button pelado con un Label dentro (el texto va en un
 ## hijo, no en button.text), asi que para pulsar GUARDAR o VENDER desde una prueba
 ## hay que buscar: primero el rotulo, y de ahi para arriba hasta el boton.
+## Pulsar el COMPRAR de una ficha (SkillCard o ItemCard).
+##
+## Existe para que las pruebas del arbol digan lo que hacen -"se compra desde la
+## ficha"- y no como se pulsa: el boton lleva el texto en un Label hijo, asi que
+## buscarlo y soltarle un pressed.emit() son tres lineas que se repiten. Devuelve
+## false si esa ficha no trae boton, que es lo que se comprueba cuando el nodo ya
+## esta comprado.
+func _pulsa_comprar(ficha: Node) -> bool:
+	var b := _boton_de(ficha, "COMPRAR")
+	if b == null:
+		return false
+	b.pressed.emit()
+	return true
+
+
 func _boton_de(de: Node, texto: String) -> BaseButton:
 	var pila: Array = [de]
 	while not pila.is_empty():
@@ -730,6 +784,57 @@ func _run() -> void:
 	_check("la partida dibuja la moneda del contador", _usa_sprite(g, "currency_coin"))
 	_check("a tamano de contador, no gigante",
 		not _sprite_gigante(g, "currency_coin", 128.0))
+	# LAS MONEDAS DE REBIRTH, AL LADO DEL DINERO: el cerdito y su numero, en la
+	# barra. Es la unica moneda que no se gasta y decide cuanto valen todas las
+	# ventas, asi que no puede vivir solo dentro del panel de la hucha.
+	_check("la barra trae el contador de monedas de rebirth",
+		g._rebirth_count != null
+		and g._rebirth_count.get_text() == PixelNumber.format(Game.rebirth_coins))
+	_check("y el cerdito del contador esta en la barra",
+		_usa_sprite(g, "currency_piggy"))
+	# EL CERDITO, DEL TAMANO DE LA MONEDA DEL DINERO. Se comparan los dos DIBUJOS
+	# (la tinta, no el lienzo, que es de 512 para los dos pero no lo llenan igual),
+	# que es justo lo que se mira al lado de un contador: si uno mide la mitad que
+	# el otro, el pequeno se lee como un icono de segunda fila. Y la moneda se
+	# busca por el arbol porque es la primera del juego.
+	var moneda := _sprite_de(g, "currency_coin")
+	var cerdito: TextureRect = g._rebirth_coin
+	var alto_moneda: float = _dibujo(moneda).size.y if moneda != null else 0.0
+	var alto_cerdito: float = _dibujo(cerdito).size.y if cerdito != null else 0.0
+	_check("el cerdito del contador mide lo mismo que la moneda del dinero",
+		alto_moneda > 0.0 and absf(alto_cerdito - alto_moneda) <= alto_moneda * 0.06)
+
+	# Y VA PEGADO AL DINERO, alli donde acaba el numero: el hueco entre el ultimo
+	# digito y la tinta del cerdito se mide de verdad, con el contador en pequeno
+	# (que es cuando antes se quedaba flotando en medio de la barra) y en su tope.
+	var saldo_antes: int = Game.money
+	for saldo in [500, 999999999]:
+		Game.money = int(saldo)
+		g._on_money_changed(int(saldo))
+		await get_tree().process_frame
+		var hueco: float = _dibujo(cerdito).position.x - g._money.get_global_rect().end.x
+		# 40 px es un digito y medio: mas que eso ya no se lee como "las monedas
+		# del dinero", y menos que 0 es que una cosa esta encima de la otra.
+		_check("con %s en el contador el cerdito va pegado al dinero (%d px)"
+				% [PixelNumber.format(int(saldo)), roundi(hueco)],
+			hueco >= 0.0 and hueco <= 40.0)
+	Game.money = saldo_antes
+	g._on_money_changed(saldo_antes)
+
+	# Las tres anchuras no se pueden tocar: dinero, cerdito+numero y rotulo de la
+	# mesa. Se mide con el numero EN SU TOPE, que es cuando el dinero se encoge.
+	_check("el dinero no pisa el contador de rebirth ni el rotulo de la mesa",
+		g._money.get_global_rect().end.x < _dibujo(cerdito).position.x - 8.0
+		and g._rebirth_count.get_global_rect().end.x
+			< g._table_label.get_global_rect().position.x - 8.0)
+	# LA CHAPA DEL REBIRTH, DEL TAMANO DE LA TIENDA Y CON EL CERDITO. Antes era
+	# una chapa pequeña sin icono, y al lado de la tienda se leia como un boton
+	# secundario cuando es la otra forma de parar la partida.
+	var tienda := _boton_de(g, "TIENDA")
+	_check("la chapa del rebirth es del tamano de la tienda",
+		tienda != null and g._rebirth_btn.size == tienda.size)
+	_check("y lleva el cerdito al lado de la palabra",
+		_usa_sprite(g._rebirth_btn, "currency_piggy"))
 	# Y el rotulo del dano sigue quitado: es un numero que no se consulta en
 	# ninguna parte de la pantalla de partida.
 	_check("la partida no lleva el rotulo de dano", not _dice(g, "DANO", true))
@@ -934,6 +1039,65 @@ func _run() -> void:
 		timos.is_empty())
 	for t in timos:
 		print("        descuadrado: ", t)
+	# LA NOTA PSA: las altas son RARAS y el 10 es el premio. Se mide la tabla, que
+	# es fija, y no una tirada: un test que depende de la suerte es peor que no
+	# tenerlo. Antes el 10 era la nota MAS probable (el 22,9 %) y las 9 y 10 se
+	# llevaban casi la mitad del botin, que es lo que el jugador notaba al abrir
+	# sobres sin parar de sacar "como nuevo".
+	var peso_total := 0
+	for w in LootDB.GRADE_WEIGHTS:
+		peso_total += int(w)
+	var peso_alta := 0
+	for i in LootDB.GRADE_WEIGHTS.size():
+		if i + 1 >= 9:
+			peso_alta += int(LootDB.GRADE_WEIGHTS[i])
+	var p_diez := 100.0 * float(LootDB.GRADE_WEIGHTS[LootDB.GRADE_MAX - 1]) / float(peso_total)
+	_check("la nota 10 es rara (sale el %.1f %% de las veces)" % p_diez, p_diez <= 5.0)
+	_check("y las 9 o mas no pasan del 10 %",
+		100.0 * float(peso_alta) / float(peso_total) <= 10.0)
+	# Y el precio de la nota: la 5 vale lo que valia la 10, y la 10 el doble de
+	# aquella. Son las dos anclas que se pidieron, escritas como numero a mano
+	# para que moverlas sin querer se vea aqui.
+	_check("la nota 5 vale lo que valia la 10 de antes",
+		is_equal_approx(LootDB.grade_mult(5), 1.25))
+	_check("y la nota 10 el doble que la 10 de antes",
+		is_equal_approx(LootDB.grade_mult(10), 2.50))
+	_check("una nota baja vale menos que antes", LootDB.grade_mult(1) < 0.80)
+	var notas_bajas: Array = []
+	for grado in range(2, LootDB.GRADE_MAX + 1):
+		if LootDB.grade_mult(grado) <= LootDB.grade_mult(grado - 1):
+			notas_bajas.append(grado)
+	_check("cada nota vale mas que la de abajo", notas_bajas.is_empty())
+	# EL TREBOL NO TOCA LA NOTA, SOLO LA RAREZA. Se comprueba con la MISMA semilla
+	# y la misma cantidad de tiradas: el dado del objeto gasta los mismos numeros
+	# con cualquier suerte (un randf por tirada), asi que si la nota se metiera
+	# dentro del dado de la suerte las dos listas se separarian. Y la rareza SI
+	# tiene que cambiar, o el Trebol no estaria haciendo nada.
+	var sin_suerte := RandomNumberGenerator.new()
+	var con_suerte := RandomNumberGenerator.new()
+	sin_suerte.seed = 20261023
+	con_suerte.seed = 20261023
+	var niveles: Array = []
+	for i in LootDB.item_count():
+		niveles.append(0)
+	niveles[LootDB.item_index("trebol")] = LootDB.ITEM_MAX_LEVEL
+	var con_luck := LootDB.luck(niveles)
+	var notas_distintas := 0
+	var raras_sin := 0
+	var raras_con := 0
+	for i in 500:
+		var a := LootDB.roll_pack(sin_suerte, "electronics", 1.0)
+		var b := LootDB.roll_pack(con_suerte, "electronics", con_luck)
+		if int(a["grade"]) != int(b["grade"]):
+			notas_distintas += 1
+		if str(a["rarity"]) != "common":
+			raras_sin += 1
+		if str(b["rarity"]) != "common":
+			raras_con += 1
+	_check("la suerte no cambia ni una nota (%d de 500 distintas)" % notas_distintas,
+		notas_distintas == 0)
+	_check("y con el Trebol al maximo salen mas raros (%d contra %d de 500)"
+			% [raras_con, raras_sin], raras_con > raras_sin)
 	# LA RESISTENCIA VA CON LA RAIZ DEL PRECIO (hp = 21,5 x raiz(precio)): un sobre
 	# cuatro veces mas caro no es cuatro veces mas duro, es el doble. Esa curva es
 	# la que decide cuanto DURA la partida -el rato es la vida partida por el dano
@@ -1551,6 +1715,23 @@ func _run() -> void:
 	while g.table_count() < 8:
 		g._spawn_pack("cards")
 	_check("la mesa se llena hasta 8", g.table_count() == 8)
+	# REPARTIDOS Y CON AIRE: dos objetos no pueden caer uno encima de otro. Antes
+	# cada uno caia en un punto sorteado entre 40 y en las capturas se veian tres
+	# apilados en un rincon teniendo media mesa vacia al lado, con los dibujos
+	# comiendose entre si (ver _free_spot()). Se mira la caja de cada uno, que es
+	# un poco mas grande que su dibujo: si las cajas no se tocan, los dibujos
+	# tampoco y ademas queda aire entre ellos.
+	var apilados := 0
+	var colgando := 0
+	for i in g._elements.size():
+		var caja: Rect2 = Rect2(g._elements[i].spot(), TableElement.BOX)
+		if not g.TABLE_RECT.encloses(caja):
+			colgando += 1
+		for j in range(i + 1, g._elements.size()):
+			if caja.intersects(Rect2(g._elements[j].spot(), TableElement.BOX)):
+				apilados += 1
+	_check("los ocho objetos de la mesa no se pisan entre ellos", apilados == 0)
+	_check("y ninguno se sale de la mesa", colgando == 0)
 	var before_full: int = Game.money
 	g._buy_pack("electronics")
 	_check("con la mesa llena no entra nada mas", g.table_count() == 8)
@@ -2112,21 +2293,42 @@ func _run() -> void:
 	_check("el fichero de guardado existe", FileAccess.file_exists(Game.SAVE_PATH))
 
 	# --- rebirth: la hucha ---
-	# El requisito se mide en lo GANADO en la partida (lifetime_earned) y no en el
-	# dinero que se tenga: guardar para el final no cambia nada. Y las monedas que
-	# da salen del MISMO calculo que enseña el panel, que es lo unico que impide
-	# que la pantalla prometa una cosa y pase otra.
+	# UNA SOLA CUENTA: EL CONTADOR. Tanto el REQUISITO para poder reiniciar como LAS
+	# MONEDAS que da se miran sobre el dinero que hay EN ESE MOMENTO (ver
+	# Game.can_rebirth y Game.pending_rebirth_coins), asi que guardarlo adelanta el
+	# reinicio Y sube el premio, y gastarlo aleja las dos cosas. Antes eran dos
+	# numeros de sitios distintos -lo ganado para el requisito, el contador para el
+	# premio- y esa es justo la confusion que se quito: se pedia un requisito que no
+	# era el dinero que el jugador tenia delante.
 	#
 	# LA CHAPA VIVE EN LA BARRA DE LA PARTIDA, al lado de la tienda, y el menu ya no
-	# sabe nada de ella: el rebirth se hace JUGANDO (el requisito es lo ganado en la
-	# partida), no se mira antes de empezar. Se comprueba por los dos lados.
+	# sabe nada de ella: el rebirth se hace JUGANDO, no se mira antes de empezar.
+	# Se comprueba por los dos lados.
 	Game.inventory.clear()
 	Game.locker.clear()
 	for i in Game.items.size():
 		Game.items[i] = 0
 	Game.rebirth_coins = 0
-	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE
-	_check("con lo justo el rebirth da una moneda", Game.pending_rebirth_coins() == 1)
+	Game.money = Game.START_MONEY
+	_check("con el contador vacio el rebirth da la moneda minima",
+		Game.pending_rebirth_coins() == 1)
+	# LO GANADO NO CUENTA: se puede haber ganado la partida entera y no llegar ni al
+	# requisito ni a mas monedas si el dinero no esta en el contador. Es el check que
+	# distingue las dos formas de contar, y el que se romperia volviendo a mirar
+	# lifetime_earned.
+	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE * 100
+	_check("y lo ganado no da monedas ni deja reiniciar si no esta en el contador",
+		not Game.can_rebirth() and Game.pending_rebirth_coins() == 1)
+	Game.money = LootDB.REBIRTH_REQUIRE - 1
+	_check("con el contador a una unidad del requisito todavia no se puede",
+		not Game.can_rebirth() and Game.rebirth_missing() == 1)
+	Game.money = LootDB.REBIRTH_REQUIRE
+	_check("con el requisito en el contador ya se puede reiniciar",
+		Game.can_rebirth() and Game.rebirth_missing() == 0
+		and Game.pending_rebirth_coins() == 1)
+	Game.money = LootDB.REBIRTH_COIN_AT * 8 + LootDB.REBIRTH_COIN_AT / 2
+	_check("una moneda por cada 1,5 M del contador (8 con 12,5 M)",
+		Game.pending_rebirth_coins() == 8)
 	_check("y sin armario el multiplicador del rebirth es 1",
 		is_equal_approx(Game.rebirth_multiplier(), 1.0))
 	# La ELECTRONICA expuesta es lo unico que sube el premio del rebirth: por eso
@@ -2136,17 +2338,17 @@ func _run() -> void:
 	Game.locker.append(chip)
 	_check("la electronica expuesta sube el multiplicador del rebirth",
 		is_equal_approx(Game.rebirth_multiplier(), 1.0 + LootDB.KIND_BONUS_MAX))
-	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE * 10
-	_check("y con diez millones da mas monedas que sin ella",
+	Game.money = LootDB.REBIRTH_COIN_AT * 10
+	_check("y con quince millones en el contador da mas monedas que sin ella",
 		Game.pending_rebirth_coins() > 10
 		and Game.pending_rebirth_coins()
-			== LootDB.rebirth_coins_for(Game.lifetime_earned, Game.rebirth_multiplier()))
+			== LootDB.rebirth_coins_for(Game.money, Game.rebirth_multiplier()))
 	# La chapa de la barra: abre el panel de la hucha, y lo abre TAMBIEN cuando la
 	# partida todavia no da para reiniciarla (entonces el panel es el que dice
 	# cuanto falta, que es lo unico util). El estado se pone a mano porque asignar
-	# lifetime_earned no emite nada: en el juego lo mueve el dinero que entra.
+	# el dinero no emite nada: en el juego lo mueven add_money y spend.
 	Game.rebirth_coins = 0
-	Game.lifetime_earned = 0
+	Game.money = 0
 	g._refresh_rebirth()
 	await get_tree().process_frame
 	_check("la chapa del rebirth esta en la barra de la partida",
@@ -2172,6 +2374,20 @@ func _run() -> void:
 		# va a ver, no en el que le deja el test.
 		_check("el panel dice lo que falta cuando no se puede reiniciar",
 			hucha._missing.text.begins_with("TE FALTAN"))
+		# Y LO QUE FALTA ES DEL DINERO QUE TIENES, no de lo ganado en la partida:
+		# el requisito compara con el contador (ver LootDB.REBIRTH_REQUIRE), asi
+		# que la nota que lo explica tiene que hablar de lo que hay ahora. Estuvo
+		# diciendo "DE LO GANADO EN LA PARTIDA", que es otra regla y descoloca al
+		# que mira el numero que tiene delante en la barra.
+		_check("y la nota dice que es del dinero que tienes ahora",
+			hucha._missing_note.text.contains("TENGAS AHORA")
+				and not hucha._missing_note.text.contains("GANADO"))
+		# LA MONEDA DE REBIRTH ES EL CERDO DORADO. Se pide el dibujo de la hucha y
+		# que NO este el de la moneda del dinero: la unidad del premio y la moneda de
+		# los precios eran el mismo PNG, y por eso el rebirth se leia como calderilla.
+		_check("la moneda del premio es el cerdo dorado, no la moneda del dinero",
+			_usa_sprite(hucha, "currency_piggy")
+				and not _usa_sprite(hucha, "currency_coin"))
 		_check("y esa linea cabe en el marco del panel",
 			PANEL.encloses(_visible(hucha._missing, true)))
 		_check_cabe("el panel del rebirth no saca texto del panel ni sin el requisito",
@@ -2180,10 +2396,12 @@ func _run() -> void:
 		await get_tree().process_frame
 	_check("y el cerrar quita el panel", g._rebirth == null)
 
-	# Y con lo ganado, la chapa se enciende y el panel enseña lo que te llevarias.
-	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE * 10
+	# Y con el dinero del contador, la chapa se enciende y el panel enseña lo que te
+	# llevarias.
+	Game.money = LootDB.REBIRTH_REQUIRE * 3
 	g._refresh_rebirth()
-	_check("con lo ganado la chapa se enciende", g._rebirth_btn.modulate == Color.WHITE)
+	_check("con el dinero del contador la chapa se enciende",
+		g._rebirth_btn.modulate == Color.WHITE)
 	g._rebirth_btn.pressed.emit()
 	await get_tree().process_frame
 	hucha = g._rebirth
@@ -2201,16 +2419,421 @@ func _run() -> void:
 		await get_tree().process_frame
 		_check("el rebirth da las monedas que prometia",
 			Game.rebirth_coins == coins_antes + premio)
+		_check("y el contador de la barra se repinta con las nuevas",
+			g._rebirth_count.get_text() == PixelNumber.format(Game.rebirth_coins))
 		_check("y la partida vuelve a empezar de cero",
 			Game.money == Game.START_MONEY and Game.locker.is_empty()
 			and Game.inventory.is_empty() and Game.item_level(0) == 0)
 		_check("y el panel se cierra solo", g._rebirth == null)
-	# Las monedas de rebirth son la paga permanente: TODO lo que se venda vale mas
-	# con ellas, y por eso el multiplicador del valor las lleva dentro.
-	_check("y las monedas suben el valor de lo que se vende",
-		is_equal_approx(Game.rebirth_value_mult(),
-			1.0 + LootDB.REBIRTH_VALUE_PER_COIN * float(Game.rebirth_coins))
-		and Game.value_multiplier() > 1.0)
+	# --- el arbol de mejoras: las monedas se GASTAN ---
+	#
+	# LAS MONEDAS YA NO DAN NADA SOLAS. Antes cada una sumaba un 5 % al valor de
+	# todo lo que vendias, para siempre, y el rebirth se acumulaba sin que hubiera
+	# nada que decidir. Ahora son una moneda de verdad: se cambian por una mejora
+	# del arbol (SkillTree) y hasta que se compra no dan nada. Este es el check que
+	# vigila justo eso.
+	for i in Game.items.size():
+		Game.items[i] = 0
+	Game.locker.clear()
+	Game.inventory.clear()
+	Game.skills = {}
+	Game.rebirth_coins = 40
+	_check("las monedas de rebirth ya no dan dinero por si solas",
+		is_equal_approx(Game.value_multiplier(), 1.0)
+		and is_equal_approx(Game.damage_multiplier(), 1.0)
+		and is_equal_approx(Game.charge_multiplier(), 1.0)
+		and Game.locker_slots() == 0 and is_equal_approx(Game.spike_dps(), 0.0))
+
+	# La forma del arbol: UNA mejora en el centro y CUATRO caminos DIAGONALES,
+	# uno por cada lado, enchufados al centro.
+	_check("el arbol trae cinco mejoras", SkillTree.node_count() == 5)
+	var diagonales := 0
+	var cuelgan_del_centro := 0
+	for id in SkillTree.ids():
+		if str(id) == "money":
+			continue
+		var pos: Vector2 = SkillTree.node_by_id(str(id))["pos"]
+		if absf(pos.x) == absf(SkillTree.SEP.x) and absf(pos.y) == absf(SkillTree.SEP.y):
+			diagonales += 1
+		if SkillTree.req_of(str(id)) == "money":
+			cuelgan_del_centro += 1
+	_check("y los cuatro caminos van en diagonal, uno en cada lado", diagonales == 4)
+	_check("y los cuatro salen de la mejora del centro", cuelgan_del_centro == 4)
+	_check("la del centro da un 30 % mas de dinero",
+		is_equal_approx(float(SkillTree.node_by_id("money")["value"]), 0.30))
+	_check("y los cuatro caminos cuestan lo mismo",
+		Game.skill_cost("damage") == SkillTree.COST_BRANCH
+		and Game.skill_cost("speed") == SkillTree.COST_BRANCH
+		and Game.skill_cost("locker") == SkillTree.COST_BRANCH
+		and Game.skill_cost("spikes") == SkillTree.COST_BRANCH)
+
+	# CADA MEJORA TIENE SU TEXTO PARA LA FICHA, como los items de la tienda: una
+	# linea corta y una explicacion larga. Se miran los CINCO y no el que se abra,
+	# porque la ficha enseña el que se pulse: un texto que no cabe (mas de
+	# DETAIL_LINES_MAX lineas) se dibuja ENCIMA de los numeros del AHORA y del
+	# AL COMPRARLO y eso no da ningun error, solo una pantalla ilegible.
+	var sin_texto: Array = []
+	var textos_largos: Array = []
+	var textos_anchos: Array = []
+	for id_arbol in SkillTree.ids():
+		if SkillTree.desc_of(str(id_arbol)) == "" \
+				or SkillTree.detail_of(str(id_arbol)) == "":
+			sin_texto.append(str(id_arbol))
+		var lineas := UIKit.wrap(SkillTree.detail_of(str(id_arbol)),
+				SkillCard.COL_W, 21).size()
+		if lineas > SkillCard.DETAIL_LINES_MAX:
+			textos_largos.append("%s (%d lineas)" % [str(id_arbol), lineas])
+		if UIKit.text_width(SkillTree.desc_of(str(id_arbol)), 28) > SkillCard.COL_W:
+			textos_anchos.append(str(id_arbol))
+	# LA FUENTE DEL JUEGO ES DE MAPA DE BITS Y NO TIENE MINUSCULAS: una letra
+	# minuscula no sale "en minuscula", sale un cuadro de basura. Y no lo ve
+	# ninguno de los checks de encuadre, porque el texto CABE: se vio en la
+	# captura de la ficha, con las cuatro lineas de explicacion ilegibles. Se mira
+	# el TEXTO de los cinco nodos, y ademas lo que se dibuja en la ficha y en el
+	# arbol, que es donde aparecen esas letras.
+	var con_minusculas: Array = []
+	for id_txt in SkillTree.ids():
+		for texto in [SkillTree.desc_of(str(id_txt)), SkillTree.detail_of(str(id_txt)),
+				SkillTree.effect_text(str(id_txt))]:
+			if str(texto) != str(texto).to_upper():
+				con_minusculas.append(str(texto))
+	_check("el texto de las mejoras va en mayusculas (la fuente no tiene minusculas)",
+		con_minusculas.is_empty())
+	for m in con_minusculas:
+		print("         con minusculas: ", m)
+	# Y el signo del efecto se suma UNA vez: "+30 % DE DINERO", no "++30 %". Se
+	# vio en la captura del arbol, escrito en los cinco nodos y sin romper nada.
+	var con_doble: Array = []
+	for id_efe in SkillTree.ids():
+		if SkillTree.effect_text(str(id_efe)).begins_with("++"):
+			con_doble.append(SkillTree.effect_text(str(id_efe)))
+	_check("y el efecto lleva el signo una sola vez", con_doble.is_empty())
+	_check("y cada mejora trae el texto de su ficha", sin_texto.is_empty())
+	_check("y la explicacion de las cinco cabe en la ficha", textos_largos.is_empty())
+	_check("y su linea corta tampoco se sale", textos_anchos.is_empty())
+	for t in sin_texto + textos_largos + textos_anchos:
+		print("         se sale de la ficha: ", t)
+
+	# Y como se compra: primero el centro (una moneda), y los caminos no se abren
+	# hasta tenerlo. Sin monedas no se compra nada.
+	Game.rebirth_coins = 0
+	_check("sin monedas no se compra el centro",
+		not Game.can_buy_skill("money") and not Game.buy_skill("money")
+		and not Game.skill_owned("money"))
+	_check("y los caminos estan cerrados hasta comprar el centro",
+		not Game.skill_unlocked("damage") and not Game.buy_skill("damage")
+		and Game.skill_cost("damage") == SkillTree.COST_BRANCH)
+	Game.rebirth_coins = 1
+	_check("con una moneda se compra el centro", Game.buy_skill("money"))
+	_check("y cuesta esa moneda", Game.rebirth_coins == 0)
+	_check("y a partir de ahi todo vale un 30 % mas",
+		is_equal_approx(Game.value_multiplier(), 1.30))
+
+	# Los cuatro caminos, cada uno con lo suyo. Los Pinchos y el Armario son
+	# piezas de la tienda y sin ellas no hay nada que medir (los Pinchos sin la
+	# pieza pegan 0), asi que se compran antes de mirar los numeros.
+	Game.items[LootDB.item_index("pinchos")] = 1
+	Game.items[LootDB.item_index("armario")] = 2
+	Game.rebirth_coins = SkillTree.COST_BRANCH * 4
+	var dano_arbol0: float = Game.damage_per_hit()
+	var carga_arbol0: float = Game.charge_time()
+	var huecos_base: int = Game.locker_slots()
+	var pinchos_base: float = Game.spike_dps()
+	Game.buy_skill("damage")
+	_check("el camino del dano da un 20 % mas de dano",
+		is_equal_approx(Game.damage_multiplier(), 1.20)
+		and is_equal_approx(Game.damage_per_hit(), dano_arbol0 * 1.20))
+	Game.buy_skill("speed")
+	_check("el de la velocidad, un 20 % mas de velocidad",
+		is_equal_approx(Game.charge_multiplier(), 1.20)
+		and is_equal_approx(Game.charge_time(), carga_arbol0 / 1.20))
+	Game.buy_skill("locker")
+	_check("el del armario, dos huecos mas para exponer",
+		Game.locker_slots() == huecos_base + 2)
+	Game.buy_skill("spikes")
+	_check("y el de los pinchos, un 30 % mas de dano de pinchos",
+		Game.spike_dps() > pinchos_base
+		and is_equal_approx(Game.spike_dps(), pinchos_base * 1.30))
+	_check("y las doce monedas se han gastado enteras", Game.rebirth_coins == 0)
+	_check("y una mejora comprada no se puede comprar dos veces",
+		Game.skill_cost("damage") < 0 and not Game.buy_skill("damage"))
+	# Y EL ARBOL NO SUSTITUYE AL ARMARIO: las dos cosas multiplican lo mismo. Una
+	# carta de nota maxima expuesta (un +25 %) con el camino del dano comprado
+	# (un +20 %) tiene que dar el producto, no el mayor de los dos.
+	var carta_psa10 := LootDB.roll_item(RandomNumberGenerator.new(), "cards")
+	carta_psa10["grade"] = LootDB.GRADE_MAX
+	Game.locker.clear()
+	Game.locker.append(carta_psa10)
+	_check("el dano del armario se multiplica con el del arbol",
+		is_equal_approx(Game.damage_multiplier(), (1.0 + LootDB.KIND_BONUS_MAX) * 1.20))
+	Game.locker.clear()
+
+	# EL ARBOL NO SE PIERDE AL REINICIAR, y es lo que hace que reiniciar valga la
+	# pena: las monedas se ganan reiniciando y se gastan en el arbol, asi que un
+	# rebirth que se llevara las mejoras por delante seria pagar por nada. Las
+	# piezas de la partida (el armario, los pinchos) si se van.
+	Game.locker.clear()
+	Game.locker.append(chip)
+	# Con dos millones en el contador se pasa el requisito de sobra (que es lo que
+	# se mira para poder reiniciar) y el premio son dos monedas.
+	Game.money = LootDB.REBIRTH_COIN_AT * 2
+	Game.do_rebirth()
+	_check("el arbol de mejoras se queda al reiniciar la partida",
+		Game.skill_owned("money") and Game.skill_owned("damage")
+		and Game.skill_owned("speed") and Game.skill_owned("locker")
+		and Game.skill_owned("spikes"))
+	_check("y con el arbol la partida nueva sigue valiendo mas",
+		is_equal_approx(Game.value_multiplier(), 1.30)
+		and is_equal_approx(Game.damage_multiplier(), 1.20))
+	_check("y las piezas de la partida si se pierden",
+		Game.item_level(LootDB.item_index("armario")) == 0
+		and Game.item_level(LootDB.item_index("pinchos")) == 0)
+	_check("y los huecos del armario del arbol siguen ahi",
+		Game.locker_slots() == 2)
+
+	# --- el panel del arbol: el dibujo y los clics ---
+	# Se abre SIN nada comprado y con monedas de sobra: es el estado en el que se
+	# ve el arbol entero de una vez, con el centro en medio y los cuatro caminos
+	# cerrados hasta que se compre la mejora del centro.
+	Game.skills = {}
+	Game.rebirth_coins = 12
+	g._refresh_rebirth()
+	g._open_rebirth()
+	await get_tree().process_frame
+	var arbol = g._rebirth
+	_check("la chapa del rebirth abre el arbol", arbol != null)
+	if arbol != null:
+		_check("y el panel dibuja los cinco nodos", arbol._nodes.size() == 5)
+		# EL ARBOL ENTERO DE UNA VEZ: los cinco nodos dentro del marco y por
+		# DEBAJO de la barra del rebirth, que es lo que se ve al abrirlo. La
+		# barra es lo unico fijo de la pantalla y el arbol se mueve por debajo.
+		var dentro := true
+		var debajo := true
+		for id in arbol._nodes:
+			var r: Rect2 = arbol.node_rect(str(id))
+			if not PANEL.encloses(r):
+				dentro = false
+			if r.position.y < PANEL.position.y + arbol.BAR_H:
+				debajo = false
+		_check("los cinco nodos caben en el panel nada mas abrirlo", dentro)
+		_check("y ninguno se cuela debajo de la barra del rebirth", debajo)
+		# Las posiciones no se guardan por duplicado en el panel: son las del
+		# arbol, asi que lo que se comprueba es que el dibujo esta DONDE dice
+		# SkillTree (si el panel se inventara sus coordenadas, esto falla).
+		var colocado := true
+		for id in SkillTree.ids():
+			var quiero: Vector2 = SkillTree.node_by_id(str(id))["pos"]
+			var centro: Vector2 = arbol._nodes[str(id)]["center"]
+			if not centro.is_equal_approx(quiero):
+				colocado = false
+		_check("y cada nodo esta donde dice el arbol", colocado)
+		# Y EL DIBUJO ENTERO (los nodos y sus rotulos, la caja de SkillTree) cabe
+		# en la ventana del panel tal y como se abre: aqui, sin arrastrar nada.
+		var vista_ini := Rect2(PANEL.position, arbol.VIEW_SIZE)
+		_check("y el arbol entero se ve de una vez al abrirlo",
+			vista_ini.encloses(_caja_del_arbol(arbol)))
+		_check_cabe("el arbol no saca texto del panel", arbol, PANEL)
+		var raras_arbol := _minusculas_en(arbol)
+		_check("el arbol no tiene letras minusculas", raras_arbol.is_empty())
+		for r in raras_arbol:
+			print("         con minusculas: ", r)
+		_check_sin_encimarse("el arbol no pone texto encima de una chapa", arbol)
+		_check_sin_pisar_dibujos("el arbol no dibuja texto encima de los nodos", arbol)
+		# EL PRECIO VA EN SU FILA, debajo del dibujo del nodo: el cerdito y su
+		# numero, uno detras del otro. El numero lo coloca el panel a mano (mide lo
+		# que ocupan sus cifras), asi que olvidarse de colocarlo lo deja en la
+		# ESQUINA de la chapa, que es un sitio donde cabe y no se ve mal del todo:
+		# eso paso, y por eso se comprueba la fila y no solo que quepa.
+		var cerdo: Rect2 = _dibujo(arbol._nodes["damage"]["coin"])
+		var precio: Rect2 = arbol._nodes["damage"]["cost"].get_global_rect()
+		var chapa_dano: Rect2 = arbol.node_rect("damage")
+		_check("el coste del nodo se dibuja en su fila: el numero detras del cerdito",
+			precio.position.x > cerdo.end.x
+			and absf(precio.get_center().y - cerdo.get_center().y) < 8.0
+			and cerdo.position.y > chapa_dano.position.y + chapa_dano.size.y * 0.6)
+		# Con el centro sin comprar, los cuatro caminos estan CERRADOS: pulsarlos
+		# no cobra nada y su ficha dice cual hay que comprar antes.
+		_check("sin el centro comprado los cuatro caminos estan cerrados",
+			arbol._state_of("damage") == "locked"
+			and arbol._state_of("spikes") == "locked"
+			and arbol.link_color("damage") == arbol.LINK_DIM)
+		# Y PULSAR UN NODO NO LO COMPRA: abre su FICHA (SkillCard), que es donde
+		# estan el precio y el boton. Antes el clic gastaba a ciegas y lo unico que
+		# explicaba lo que acababas de pagar era una linea de aviso que se borraba
+		# al siguiente clic.
+		arbol._tap("damage")
+		await get_tree().process_frame
+		var ficha_nodo = arbol._card
+		_check("pulsar un nodo abre su ficha en vez de comprarlo",
+			ficha_nodo != null and ficha_nodo.skill_id() == "damage"
+			and not Game.skill_owned("damage") and Game.rebirth_coins == 12)
+		_check("y la ficha se cuelga de la capa de encima, no dentro del panel",
+			ficha_nodo != null and ficha_nodo.get_parent() == _main._overlay_host)
+		if ficha_nodo != null:
+			# Lo que dice de un nodo cerrado: cual hay que comprar antes, cuanto
+			# cuesta y que es lo que va a cambiar. Los dos numeros salen de Game y
+			# de SkillTree, o sea que no pueden mentir.
+			_check("la ficha de un nodo cerrado dice cual falta antes",
+				_dice(ficha_nodo, "ANTES: " + SkillTree.effect_text("money")))
+			_check("y trae su explicacion larga entera",
+				_dice(ficha_nodo, str(UIKit.wrap(SkillTree.detail_of("damage"),
+					SkillCard.COL_W, 21)[0])))
+			_check("y el numero que tendra al comprarlo",
+				_dice(ficha_nodo, "AL COMPRARLO: " + SkillTree.total_text("damage",
+					Game.skill_bonus("damage") + 0.20)))
+			# El boton ESTA aunque no se pueda comprar (un boton escondido o muerto
+			# no explica nada) y quien comprueba de verdad es el panel, que lo dice
+			# en la barra: mismo camino que la chapa del rebirth.
+			_check("la ficha trae el boton de comprar",
+				_boton_de(ficha_nodo, "COMPRAR") != null)
+			var raras := _minusculas_en(ficha_nodo)
+			_check("y no hay ninguna letra minuscula en la ficha", raras.is_empty())
+			for r in raras:
+				print("         con minusculas: ", r)
+			_check("y pulsarlo en un nodo cerrado no cobra nada",
+				_pulsa_comprar(ficha_nodo) and not Game.skill_owned("damage")
+				and Game.rebirth_coins == 12
+				and arbol._hint_label.text.begins_with("ANTES"))
+			ficha_nodo._close()
+			await get_tree().process_frame
+		_check("y al cerrar la ficha el arbol se queda sin ella", arbol._card == null)
+		# El clic: se pulsa DONDE SE VE el nodo (no en un id), que es lo que hace
+		# el jugador y lo que prueba de paso el paso de pantalla a arbol.
+		_check("pulsar donde se ve un nodo acierta cual es",
+			arbol._node_at(arbol._nodes["money"]["center"]) == "money")
+		arbol._tap(arbol._node_at(arbol._nodes["money"]["center"]))
+		await get_tree().process_frame
+		var ficha_centro = arbol._card
+		_check("y abre la ficha del centro",
+			ficha_centro != null and ficha_centro.skill_id() == "money")
+		if ficha_centro != null:
+			# Los dos numeros que hacen falta para decidir: lo que el arbol lleva
+			# sumado AHORA y lo que llevara al comprarlo.
+			_check("la ficha trae el numero de AHORA y el de despues",
+				_dice(ficha_centro, "AHORA, CON EL ARBOL: "
+					+ SkillTree.total_text("money", Game.skill_bonus("money")))
+				and _dice(ficha_centro, "AL COMPRARLO: "
+					+ SkillTree.total_text("money", 0.30)))
+			# Y LA FICHA CABE Y NO PISA NADA: es una pantalla nueva, y una linea de
+			# texto encima del dibujo del nodo no da ningun error (solo una ficha
+			# ilegible), asi que se mira con los mismos checks que la tienda.
+			_check_cabe("la ficha de la mejora no saca texto del panel", ficha_centro, PANEL)
+			_check_sin_encimarse("la ficha no pone texto encima de una chapa", ficha_centro)
+			_check_sin_pisar_dibujos("la ficha no dibuja texto encima del nodo", ficha_centro)
+			_check("y comprar desde la ficha compra la mejora del centro",
+				_pulsa_comprar(ficha_centro) and Game.skill_owned("money")
+				and Game.rebirth_coins == 11
+				and is_equal_approx(Game.value_multiplier(), 1.30))
+			_check("y el aviso de la barra lo dice",
+				arbol._hint_label.text.begins_with("COMPRADO"))
+			await get_tree().process_frame
+			# Y LA FICHA SE REPINTA SOLA (Game.skills_changed): el nodo pasa a
+			# COMPRADO y el boton de comprar desaparece, que es lo unico que se
+			# puede hacer con el ya.
+			_check("y la ficha se repinta con el nodo ya comprado",
+				_dice(ficha_centro, "COMPRADO")
+				and _boton_de(ficha_centro, "COMPRAR") == null)
+			ficha_centro._close()
+			await get_tree().process_frame
+		_check("y el nodo se pone en COMPRADO",
+			not arbol._nodes["money"]["cost"].visible
+			and not arbol._nodes["money"]["coin"].visible
+			and arbol._nodes["money"]["done"].visible)
+		# Y EL COMPRADO VA DONDE IBA EL PRECIO, no en medio de la chapa: el rotulo
+		# se coloca por su centro y el nodo por su esquina, y equivocarse ahi (que
+		# es lo que paso) deja la palabra escrita ENCIMA del dibujo del nodo sin
+		# que ningun check de "cabe" se entere, porque cabe de sobra.
+		var comprado: Rect2 = _visible(arbol._nodes["money"]["done"], true)
+		var chapa_money: Rect2 = arbol.node_rect("money")
+		_check("y el COMPRADO se dibuja en la fila del coste, abajo de la chapa",
+			comprado.position.y > chapa_money.position.y + chapa_money.size.y * 0.6)
+		# Y un frame antes de medir: los glifos del precio que se acaba de vaciar se
+		# sueltan con queue_free() (ver pixel_number.gd, _rebuild), asi que en el
+		# mismo frame en que se compra todavia estan en el arbol.
+		await get_tree().process_frame
+		_check_sin_pisar_dibujos("y con la mejora comprada tampoco pisa el dibujo", arbol)
+		_check("y con el centro comprado los caminos se abren",
+			arbol._state_of("damage") == "ready"
+			and arbol._state_of("locker") == "ready")
+		arbol._tap("speed")
+		await get_tree().process_frame
+		var ficha_speed = arbol._card
+		_check("comprar un camino se lleva tres monedas",
+			ficha_speed != null and _pulsa_comprar(ficha_speed)
+			and Game.skill_owned("speed") and Game.rebirth_coins == 8)
+		if ficha_speed != null:
+			ficha_speed._close()
+			await get_tree().process_frame
+		_check("y sube la velocidad de la partida de verdad",
+			is_equal_approx(Game.charge_multiplier(), 1.20)
+			and arbol._state_of("speed") == "owned")
+		# LA LINEA DEL CAMINO CAMBIA DE COLOR con lo que se puede hacer con el, y
+		# el cambio se pide al lienzo que la pinta (pedirlo al mundo no repinta
+		# nada, que es el fallo que se cazo mirando la captura: comprabas la mejora
+		# y la linea seguia apagada).
+		_check("la linea del camino comprado se enciende",
+			arbol.link_color("money") == arbol.LINK_DONE
+			and arbol.link_color("spikes") == arbol.LINK_OPEN
+			and arbol._lines != null)
+		# Una mejora ya comprada: su ficha lo dice y no trae NADA que comprar.
+		var saldo2: int = Game.rebirth_coins
+		arbol._tap("speed")
+		await get_tree().process_frame
+		var ficha_ya = arbol._card
+		_check("la ficha de una mejora comprada lo dice y no cobra monedas",
+			ficha_ya != null and _dice(ficha_ya, "COMPRADO")
+			and _boton_de(ficha_ya, "COMPRAR") == null
+			and not _pulsa_comprar(ficha_ya)
+			and Game.rebirth_coins == saldo2)
+		if ficha_ya != null:
+			ficha_ya._close()
+			await get_tree().process_frame
+		# Sin monedas para el siguiente: la ficha dice cuanto falta, pulsar
+		# COMPRAR no cobra nada y la barra repite lo que falta.
+		Game.rebirth_coins = 0
+		arbol.refresh()
+		arbol._tap("spikes")
+		await get_tree().process_frame
+		var ficha_pobre = arbol._card
+		_check("sin monedas la ficha dice cuanto falta y no compra nada",
+			ficha_pobre != null
+			and _dice(ficha_pobre, "TE FALTAN %d MONEDAS"
+				% Game.skill_missing_coins("spikes"))
+			and not (_pulsa_comprar(ficha_pobre) and Game.skill_owned("spikes"))
+			and Game.rebirth_coins == 0 and not Game.skill_owned("spikes")
+			and arbol._hint_label.text.begins_with("TE FALTAN")
+			and arbol._state_of("spikes") == "poor")
+		if ficha_pobre != null:
+			ficha_pobre._close()
+			await get_tree().process_frame
+
+		# El arrastre: el arbol se mueve y el tope no lo deja salir de la vista.
+		var antes_drag: Vector2 = arbol.node_point("money")
+		arbol._set_offset(arbol._offset + Vector2(120, 80))
+		_check("arrastrar mueve el arbol", arbol.node_point("money") != antes_drag)
+		# EL TOPE: por mucho que se arrastre, un trozo del DIBUJO del arbol (su
+		# caja entera, no un nodo suelto: el nodo del centro puede salirse por un
+		# lado mientras el resto sigue a la vista) se queda dentro de la vista.
+		# Sin tope, arrastrar hacia un lado deja la pantalla vacia.
+		var vista := Rect2(PANEL.position, arbol.VIEW_SIZE)
+		arbol._set_offset(Vector2(-99999, -99999))
+		var dentro_neg: Rect2 = _caja_del_arbol(arbol).intersection(vista)
+		_check("y arrastrando hasta el tope no se puede sacar de la vista",
+			dentro_neg.size.x >= arbol.KEEP - 1.0 and dentro_neg.size.y >= arbol.KEEP - 1.0)
+		arbol._set_offset(Vector2(99999, 99999))
+		var dentro_pos: Rect2 = _caja_del_arbol(arbol).intersection(vista)
+		_check("por el otro lado tampoco",
+			dentro_pos.size.x >= arbol.KEEP - 1.0 and dentro_pos.size.y >= arbol.KEEP - 1.0)
+		arbol._set_offset(arbol._centered_offset())
+		# Y el boton de reiniciar sigue en su sitio, en la barra: la barra no se
+		# mueve con el arbol (que es justo lo que se pide de una barra).
+		var punto_go: Vector2 = arbol._go.get_global_rect().get_center()
+		arbol._set_offset(arbol._offset + Vector2(-160, 120))
+		_check("y la barra no se mueve con el arbol",
+			arbol._go.get_global_rect().get_center() == punto_go)
+		arbol._close()
+		await get_tree().process_frame
+	_check("y el cerrar quita el arbol", g._rebirth == null)
 
 	# Y EL MENU NO SABE NADA DE ESTO. El menu que se ve al arrancar (y al salir de
 	# la partida) no tiene hucha ni forma de abrirla: el rebirth se hace jugando, y

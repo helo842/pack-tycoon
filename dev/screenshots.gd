@@ -127,37 +127,60 @@ func _run() -> void:
 	# numeros de verdad. El refresco se pide a mano porque son dos variables del
 	# estado y asignarlas no emite ninguna senal.
 	Game.rebirth_coins = 12
-	Game.lifetime_earned = LootDB.REBIRTH_REQUIRE * 3
+	Game.money = LootDB.REBIRTH_REQUIRE * 3
 	g._refresh_rebirth()
 	await _frames(4)
 	await _shot("03b_barra_rebirth")
 
-	# Y el panel entero: lo que te llevas, cuanto sube cada moneda y cuanto
-	# multiplica la electronica del armario. Es el unico panel del juego que se
-	# puede permitir el lujo de explicarse, porque solo se abre a proposito y
-	# detras de su chapa.
+	# Y EL ARBOL ENTERO, que es la pantalla que ha venido a sustituir a la hucha:
+	# el saldo arriba (lo que se gasta aqui), el rebirth como boton de la barra y
+	# los cinco nodos debajo. Con doce monedas y SIN nada comprado es cuando mejor
+	# se ve la forma: el centro disponible y los cuatro caminos cerrados, con la
+	# linea que los une en su color de cerrado.
+	Game.skills = {}
 	g._open_rebirth()
 	await _frames(4)
-	await _shot("03c_panel_rebirth")
+	await _shot("03c_arbol_rebirth")
 	var hucha: Node = null
 	for c in _main._veil_host.get_children():
 		if c is RebirthPanel:
 			hucha = c
+	# Y CON MEJORAS COMPRADAS: los dos estados del nodo (dorado y pendiente), las
+	# lineas encendidas y las cifras de la barra mas bajitas. Se compra por el
+	# mismo camino que el jugador (Game.buy_skill) para que la captura no enseñe
+	# un estado que el juego no pueda alcanzar.
 	if hucha != null:
+		Game.buy_skill("money")
+		Game.buy_skill("damage")
+		Game.rebirth_coins = 7
+		hucha.refresh()
+		await _frames(4)
+		await _shot("03d_arbol_comprado")
+		# Y SU FICHA DE COMPRA, que es donde se paga: pulsar un nodo la abre (el
+		# nodo ya no compra al pulsarlo) y dentro estan lo que da, lo que cuesta y
+		# el boton. Se pulsa uno que TODAVIA no es tuyo y SI te llega (los Pinchos,
+		# con siete monedas): es la cara util, con el precio en blanco y los dos
+		# numeros del AHORA y del AL COMPRARLO de verdad.
+		hucha._tap("spikes")
+		await _frames(4)
+		await _shot("03f_ficha_mejora")
+		var ficha_mejora: Node = hucha._card
+		if ficha_mejora != null:
+			ficha_mejora._close()
+		await _frames(3)
 		hucha._close()
 	await _frames(3)
 
-	# Y LA CARA CONTRARIA, que es como se abre el panel casi siempre: SIN poder
-	# reiniciar todavia. Es la que hay que mirar cuando se toque este panel, porque
-	# la linea de "TE FALTAN ..." solo existe en este estado (con el requisito
-	# cumplido esta vacia) y es la mas larga de la pantalla: se dibujaba 128 px
-	# fuera del marco. El requisito se baja a mano y se pide el refresco: asignar
-	# lifetime_earned no emite ninguna senal.
-	Game.lifetime_earned = 0
+	# Y LA CARA CONTRARIA, que es como se abre el arbol casi siempre: SIN poder
+	# reiniciar todavia. Es la que hay que mirar cuando se toque esta pantalla,
+	# porque la linea de "TE FALTAN ..." solo existe en este estado (con el
+	# requisito cumplido esta vacia). El dinero se pone por debajo del requisito y
+	# se pide el refresco: asignarlo no emite ninguna senal.
+	Game.money = LootDB.REBIRTH_REQUIRE / 2
 	g._refresh_rebirth()
 	g._open_rebirth()
 	await _frames(4)
-	await _shot("03d_panel_rebirth_falta")
+	await _shot("03e_arbol_falta")
 	hucha = null
 	for c in _main._veil_host.get_children():
 		if c is RebirthPanel:
@@ -166,9 +189,11 @@ func _run() -> void:
 		hucha._close()
 	await _frames(3)
 	# Y el estado de vuelta a cero: las capturas que vienen detras son de una
-	# partida que empieza y no tienen que llevar el saldo de un rebirth encima.
+	# partida que empieza y no tienen que llevar el saldo de un rebirth ni las
+	# mejoras de otra partida encima.
 	Game.rebirth_coins = 0
-	Game.lifetime_earned = 0
+	Game.money = Game.START_MONEY
+	Game.skills = {}
 	g._refresh_rebirth()
 	await _frames(2)
 

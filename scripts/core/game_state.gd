@@ -16,6 +16,9 @@ signal items_changed()
 ## que es quien sabe cuantos paquetes se pueden llevar a la vez (el cupo de la mesa).
 signal open_requested(element: Object)
 signal settings_changed()
+## El arbol de mejoras ha cambiado: se ha comprado un nodo con monedas de
+## rebirth. Lo escucha el panel del arbol, que es el unico que lo enseña.
+signal skills_changed()
 ## Aviso corto para la parte de arriba de la pantalla.
 signal notice(text: String, color: Color)
 
@@ -29,7 +32,17 @@ const START_MONEY := 500
 const INVENTORY_SLOTS := 50
 
 var money: int = START_MONEY
+## Las monedas de rebirth SIN GASTAR. Se ganan reiniciando la partida (una por
+## cada 1,5 M del contador, ver LootDB.REBIRTH_COIN_AT) y se gastan en el arbol
+## de mejoras, que es lo unico que se compra con ellas.
 var rebirth_coins: int = 0
+## El arbol de mejoras: el id de cada nodo comprado y su nivel (ver SkillTree).
+##
+## GUARDAR ESTO Y NADA MAS es lo que hace que el arbol sea pequeno: lo que da
+## cada nodo y lo que cuesta lo dice SkillTree, y los multiplicadores de abajo
+## los sacan de aqui. Un diccionario y no una lista de ids porque el nivel de un
+## nodo es parte del nodo (hoy todos son de una compra, ver SkillTree.LEVELS).
+var skills: Dictionary = {}
 
 # Inventario y estadisticas. "items_found" y "packs_opened" son para logros,
 # que todavia no estan.
@@ -63,6 +76,10 @@ var music_volume: float = 0.7
 var sfx_volume: float = 0.45
 var fullscreen: bool = false
 
+## Todo lo que ha ENTRADO en esta partida (no lo que hay en el contador: el
+## dinero se va comprando sobres). Se sigue llevando la cuenta porque es un dato
+## de la partida que se guarda, pero el REBIRTH ya no lo mira: su requisito se
+## mide en el dinero que tienes (ver can_rebirth).
 var lifetime_earned: int = 0
 var packs_opened: int = 0
 var items_found: int = 0
@@ -291,9 +308,18 @@ func inventory_value() -> int:
 # que LLENAR, y elegir que se expone (dano, velocidad, dinero o rebirth) es la
 # decision.
 
-## Huecos del armario. Cero sin la pieza comprada.
+## Huecos del armario: los de la pieza de la tienda (uno por nivel) mas los que
+## compre el arbol del rebirth (+2 por la mejora de ARMARIO), y el total con el
+## TOPE de LootDB.LOCKER_SLOTS_MAX.
+##
+## El tope no es un detalle: el panel del armario dibuja los ocho marcos del tope
+## y son los que hay, asi que un hueco de mas seria un objeto expuesto que no se
+## puede ver ni recuperar. Con el tope, la mejora del arbol adelanta el armario
+## (te lleva al octavo con menos niveles comprados), que es exactamente lo que
+## promete un +2 de huecos.
 func locker_slots() -> int:
-	return LootDB.locker_slots(items)
+	return clampi(LootDB.locker_slots(items) + int(skill_bonus(SkillTree.SLOTS_STAT)),
+		0, LootDB.LOCKER_SLOTS_MAX)
 
 
 func locker_size() -> int:
@@ -352,23 +378,32 @@ func kind_totals() -> Dictionary:
 	return totals
 
 
-## Cuanto sube el DANO del golpe (Cartas expuestas).
+## Cuanto sube el DANO del golpe: lo que dan las Cartas expuestas EN EL ARMARIO y
+## lo que hay comprado en el arbol del rebirth. Son dos cosas distintas y cada
+## una con su origen, pero el golpe solo tiene un multiplicador, asi que se
+## juntan aqui y no en cada sitio que pega (el boton, los pinchos y la mesa).
 func damage_multiplier() -> float:
-	return 1.0 + kind_bonus("cards")
+	return (1.0 + kind_bonus("cards")) * (1.0 + skill_bonus("damage"))
 
 
-## Cuanto se acelera la CARGA del boton (Zapatillas expuestas). El tiempo por
-## ciclo se divide por esto: 1.0 es "igual que sin armario".
+## Cuanto se acelera la CARGA del boton (Zapatillas expuestas y la mejora de
+## VELOCIDAD del arbol). El tiempo por ciclo se divide por esto: 1.0 es "igual
+## que sin nada".
 func charge_multiplier() -> float:
-	return 1.0 + kind_bonus("sneakers")
+	return (1.0 + kind_bonus("sneakers")) * (1.0 + skill_bonus("speed"))
 
 
 ## Cuanto sube el DINERO que se saca de cada objeto encontrado: lo que dan los
-## Vinilos expuestos mas la paga permanente del rebirth. Es el multiplicador que
-## se le pasa a LootDB.roll_pack(), asi que lo que se ve en la tarjeta de
-## revelado ya lo lleva.
+## Vinilos expuestos y la mejora de DINERO del arbol del rebirth. Es el
+## multiplicador que se le pasa a LootDB.roll_pack(), asi que lo que se ve en la
+## tarjeta de revelado ya lo lleva.
+##
+## LAS MONEDAS DE REBIRTH YA NO ENTRAN AQUI. Cada moneda sumaba un 5 % al valor
+## de todo lo que vendias sin hacer nada, y eso dejaba el rebirth sin decision:
+## se acumulaba solo. Ahora el dinero es un NODO del arbol que hay que comprar
+## (+30 %) y las monedas se gastan ahi.
 func value_multiplier() -> float:
-	return (1.0 + kind_bonus("vinyls")) * rebirth_value_mult()
+	return (1.0 + kind_bonus("vinyls")) * (1.0 + skill_bonus("money"))
 
 
 ## Cuanto se multiplican las monedas de rebirth que da reiniciar (Electronica
@@ -378,37 +413,45 @@ func rebirth_multiplier() -> float:
 	return 1.0 + kind_bonus("electronics")
 
 
-## La paga permanente del rebirth, al valor de lo que se vende.
-func rebirth_value_mult() -> float:
-	return LootDB.rebirth_value_mult(rebirth_coins)
-
-
 # --------------------------------------------------------------------------- #
 # Rebirth (la hucha)
 # --------------------------------------------------------------------------- #
 
-## ¿Le llega para reiniciar? El requisito se mide en lo GANADO en esta partida
-## (lifetime_earned), no en el dinero que tenga ahora: es una meta de la partida
-## entera, y guardar el dinero para el final no cambia nada.
+## ¿Le llega para reiniciar? El requisito se mide en el DINERO QUE TIENE AHORA
+## (money, lo que hay en el contador), que es lo mismo que se lleva el cerdo al
+## romperse: el rebirth pide juntar esa cifra y no gastarla, y por eso guardar el
+## dinero sube las monedas del premio Y adelanta el reinicio.
 func can_rebirth() -> bool:
-	return lifetime_earned >= LootDB.REBIRTH_REQUIRE
+	return money >= LootDB.REBIRTH_REQUIRE
 
 
 ## Las monedas que daria reiniciar AHORA, con la Electronica del armario dentro.
 ## Es el mismo calculo que hace do_rebirth(), y lo enseña el panel: si los dos
 ## numeros no salieran de aqui, el panel podria prometer una cosa y dar otra.
+##
+## SE CUENTA EL DINERO DEL CONTADOR (`money`), igual que el requisito: el cerdo
+## se lleva lo que hay dentro cuando se rompe. Por eso el numero del panel BAJA
+## al comprar sobres y mejoras, que es justo la informacion que necesita el
+## jugador para decidir si le queda una moneda mas o si reinicia ya.
 func pending_rebirth_coins() -> int:
-	return LootDB.rebirth_coins_for(lifetime_earned, rebirth_multiplier())
+	return LootDB.rebirth_coins_for(money, rebirth_multiplier())
 
 
-## Lo que falta para poder reiniciar (0 si ya se puede).
+## Lo que falta para poder reiniciar (0 si ya se puede). Es dinero del contador,
+## como el requisito: se puede decir con la misma cifra que enseña la barra de
+## arriba sin traducir nada.
 func rebirth_missing() -> int:
-	return maxi(0, LootDB.REBIRTH_REQUIRE - lifetime_earned)
+	return maxi(0, LootDB.REBIRTH_REQUIRE - money)
 
 
 ## Reiniciar la partida: se pierde TODO lo de la partida (dinero, items, armario
 ## e inventario) y se gana la hucha, que es lo unico que pasa de una partida a la
 ## siguiente. Devuelve las monedas ganadas.
+##
+## EL ARBOL DE MEJORAS NO SE TOCA, y es lo que hace que reiniciar signifique
+## algo: las monedas se ganan reiniciando y se gastan en el arbol (ver
+## buy_skill), asi que el arbol es tan permanente como las monedas. Reiniciar
+## para perderlo seria pagar por nada.
 ##
 ## Las estadisticas de logros (paquetes abiertos, objetos encontrados, mejor
 ## nota) NO se pierden: son de la cuenta, no de la partida.
@@ -437,6 +480,98 @@ func do_rebirth() -> int:
 	settings_changed.emit()
 	save_game()
 	return coins
+
+
+# --------------------------------------------------------------------------- #
+# El arbol de mejoras (las monedas de rebirth)
+# --------------------------------------------------------------------------- #
+#
+# Las monedas que da el rebirth se GASTAN aqui. El id de cada nodo, lo que
+# cuesta y lo que da viven en SkillTree; aqui solo esta lo que el jugador tiene
+# comprado y los multiplicadores que salen de eso.
+#
+# POR QUE LAS COMPRAS SON DEFINITIVAS. El arbol es lo que hace que el rebirth
+# valga la pena: si reiniciar se llevara por delante las mejoras compradas, cada
+# moneda gastada seria una moneda tirada en el siguiente rebirth y el juego se
+# quedaria sin nada que construir. No se pueden deshacer ni devolver, que es lo
+# mismo que pasa con las piezas de la tienda dentro de una partida.
+
+## El nivel comprado de un nodo (0 si no se ha comprado).
+func skill_level(id: String) -> int:
+	return int(skills.get(id, 0))
+
+
+func skill_owned(id: String) -> bool:
+	return skill_level(id) > 0
+
+
+## ¿Se puede comprar ya, aunque no haya monedas? Es el requisito del arbol:
+## todos los caminos salen del nodo del centro (ver SkillTree.NODES). Un nodo que
+## no existe sale BLOQUEADO, para que un id de un guardado viejo no abra nada.
+func skill_unlocked(id: String) -> bool:
+	if not SkillTree.has_node(id):
+		return false
+	var req := SkillTree.req_of(id)
+	return req == "" or skill_owned(req)
+
+
+## Lo que cuesta el siguiente nivel de un nodo, o -1 si no hay nada que comprar:
+## o ese nodo no existe, o ya esta al tope.
+func skill_cost(id: String) -> int:
+	if not SkillTree.has_node(id) or skill_level(id) >= SkillTree.levels_of(id):
+		return -1
+	return int(SkillTree.node_by_id(id)["cost"])
+
+
+## ¿Le llega para comprarlo? Es lo que mira el panel para pintar el nodo de una
+## forma o de otra.
+func can_buy_skill(id: String) -> bool:
+	var cost := skill_cost(id)
+	return cost >= 0 and skill_unlocked(id) and rebirth_coins >= cost
+
+
+## Cuantas monedas faltan para ese nodo (0 si le llega ahora mismo). Lo dice el
+## panel cuando no se puede comprar, que es lo unico util que se puede decir.
+func skill_missing_coins(id: String) -> int:
+	var cost := skill_cost(id)
+	if cost < 0:
+		return 0
+	return maxi(0, cost - rebirth_coins)
+
+
+## Comprar un nodo. Devuelve false si no se puede: al tope, con el requisito sin
+## cumplir o sin monedas. La comprobacion vive aqui y no en el boton para que
+## valga igual viniendo del panel, de un test o de donde sea.
+func buy_skill(id: String) -> bool:
+	var cost := skill_cost(id)
+	if cost < 0 or not skill_unlocked(id) or rebirth_coins < cost:
+		return false
+	rebirth_coins -= cost
+	skills[id] = skill_level(id) + 1
+	_dirty = true
+	skills_changed.emit()
+	# Y con el arbol cambian los multiplicadores de la partida en curso (el dano
+	# y la velocidad se notan en el acto, y los huecos del armario ya estan
+	# disponibles): se avisa por donde se avisa siempre de estas cosas, que es
+	# como se entera la pantalla de juego sin saber que existe un arbol.
+	items_changed.emit()
+	locker_changed.emit()
+	settings_changed.emit()
+	save_game()
+	return true
+
+
+## Lo que suma un stat entre todos los nodos comprados. Los de porcentaje suman
+## fracciones (0.5 = +50 %) y el armario suma huecos: cada uno se lo pide a
+## SkillTree, que es quien sabe que es cada nodo.
+func skill_bonus(stat: String) -> float:
+	var total := 0.0
+	for id in skills:
+		var n := SkillTree.node_by_id(str(id))
+		if n.is_empty() or str(n["stat"]) != stat:
+			continue
+		total += float(n["value"]) * float(skill_level(str(id)))
+	return total
 
 
 # --------------------------------------------------------------------------- #
@@ -511,8 +646,11 @@ func auto_buy_interval() -> float:
 	return LootDB.auto_buy_interval(items)
 
 
+## Dano por segundo de los Pinchos, con la mejora de PINCHOS del arbol encima.
+## Se multiplica AQUI y no dentro de LootDB.spike_dps() porque ese calculo es el
+## de los Pinchos de la tienda, y el arbol no es una pieza de la tienda.
 func spike_dps() -> float:
-	return LootDB.spike_dps(items, float(money))
+	return LootDB.spike_dps(items, float(money)) * (1.0 + skill_bonus("spikes"))
 
 
 ## Un paquete pide abrirse. game.gd decide cuantos mas arranca a la vez.
@@ -588,6 +726,7 @@ func set_auto_sell(on: bool) -> void:
 func hard_reset() -> void:
 	money = START_MONEY
 	rebirth_coins = 0
+	skills = {}
 	inventory = []
 	locker = []
 	items = []
@@ -618,6 +757,7 @@ func to_dict() -> Dictionary:
 		"version": 1,
 		"money": money,
 		"rebirth_coins": rebirth_coins,
+		"skills": skills,
 		"inventory": inventory,
 		"locker": locker,
 		"items": items,
@@ -663,6 +803,11 @@ func load_game() -> void:
 func _apply(d: Dictionary) -> void:
 	money = int(d.get("money", START_MONEY))
 	rebirth_coins = int(d.get("rebirth_coins", 0))
+	# El arbol de mejoras, limpio contra los nodos que existen de verdad: un
+	# guardado de antes del arbol no trae la clave (y sale vacio, que es lo
+	# correcto: nadie habia comprado nada) y uno tocado a mano no puede meter un
+	# nodo inventado ni un nivel de mas.
+	skills = SkillTree.clean_levels(d.get("skills", {}))
 	inventory = d.get("inventory", [])
 	if typeof(inventory) != TYPE_ARRAY:
 		inventory = []

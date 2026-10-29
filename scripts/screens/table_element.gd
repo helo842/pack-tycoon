@@ -59,6 +59,11 @@ var _charge := 0.0
 var _total := 1.0
 var _busy := false
 
+## Donde queda el objeto cuando acaba de caer. Mientras vuela, position esta 260
+## px mas arriba, asi que quien mide huecos en la mesa no puede mirar position:
+## un objeto a medio caer no ocupa su sitio todavia (ver spot()).
+var rest_spot := Vector2.ZERO
+
 var _hit: Button = null
 var _dragging := false
 var _drag_from_mouse := Vector2.ZERO
@@ -214,6 +219,7 @@ func start_opening() -> bool:
 ## el tween seguiria moviendolo por su cuenta por debajo del raton y el arrastre
 ## no responderia. Ver _stop_drop().
 func play_drop(rest: Vector2) -> void:
+	rest_spot = rest
 	position = rest + Vector2(0, -260)
 	scale = Vector2(0.7, 0.7)
 	modulate.a = 0.0
@@ -225,6 +231,14 @@ func play_drop(rest: Vector2) -> void:
 	_drop_tween.tween_property(self, "scale", Vector2.ONE, 0.24)
 	_drop_tween.chain()
 	_drop_tween.tween_property(self, "position", rest, 0.42)
+
+
+## El sitio que OCUPA el objeto en la mesa: el de reposo mientras cae y el suyo
+## cuando ya esta puesto (o cuando el jugador lo ha movido).
+func spot() -> Vector2:
+	if _drop_tween != null and _drop_tween.is_valid():
+		return rest_spot
+	return position
 
 
 ## Se agarra el objeto: se corta la caida y se deja puesto y entero, no a medio
