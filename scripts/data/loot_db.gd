@@ -262,6 +262,26 @@ const GRADE_WEIGHTS: Array = [11, 13, 13, 12, 10, 8, 6, 4, 3, 2]
 const PSA_MIN := 1
 const GRADE_MAX := 10
 
+# --- calidad de vida (los interruptores del arbol) ------------------------- #
+#
+# Los dos numeros que necesitan las dos mejoras que no son un multiplicador. Van
+# aqui y no en la escena porque son equilibrio, igual que el precio de un sobre:
+# el dia que la chatarra sea otra, se toca este numero y ya esta.
+
+## Hasta que nota un objeto cuenta como CHATARRA para la mejora SIN FICHA, que
+## lo vende sin abrir su tarjeta. Tres y no cuatro porque la nota 4 ya vale lo
+## mismo que la media (grade_mult 1.02): vender eso sin preguntar es tirar dinero
+## del jugador, y con la 3 (0.86) se vende el 45 % de lo que sale -los pesos de
+## GRADE_WEIGHTS- que es justo el trozo que nadie mira.
+const AUTO_SELL_GRADE := 3
+
+## Segundos que un objeto puede quedarse quieto en la mesa antes de que la
+## mejora MESA LIMPIA lo venda. Doce: lo que tarda uno en mirar una ficha o en
+## comprar en la tienda, para que no se venda delante de sus narices lo que
+## acaba de salir. Mas corto y la mejora parece que roba; mas largo y la mesa se
+## llena igual, que es lo que quita.
+const AUTO_SELL_TABLE_AFTER := 12.0
+
 # --------------------------------------------------------------------------- #
 # Items equipables (ITEMS SHOP del Idea.pdf)
 # --------------------------------------------------------------------------- #

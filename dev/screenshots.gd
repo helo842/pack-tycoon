@@ -186,6 +186,16 @@ func _run() -> void:
 		if c is RebirthPanel:
 			hucha = c
 	if hucha != null:
+		# Y LA RAMA DE CALIDAD DE VIDA, que NO entra al abrir el arbol: son tres
+		# filas mas abajo de lo que mide la vista. Se baja hasta ella por el mismo
+		# camino que el raton (_set_offset, que es lo que llama el arrastre) y se
+		# para donde las DOS filas de abajo caben enteras debajo de la barra fija
+		# (que se come 150 px de arriba): mas arriba se corta el ultimo rotulo, y
+		# mas abajo se cuelan los nodos por debajo de la barra.
+		hucha._set_offset(Vector2(hucha._offset.x, hucha.BAR_H
+			- (float(SkillTree.node_by_id(SkillTree.QOL_CHAFF)["pos"].y) - hucha.NODE * 0.5)))
+		await _frames(3)
+		await _shot("03g_arbol_calidad")
 		hucha._close()
 	await _frames(3)
 	# Y el estado de vuelta a cero: las capturas que vienen detras son de una

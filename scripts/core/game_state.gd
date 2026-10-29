@@ -60,6 +60,15 @@ var locker: Array = []
 ## los Pinchos son de compra unica (nivel 1 y ya). Ver LootDB.item_max_level().
 var items: Array = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
+## El dano que ha sobrado de un golpe y que espera al siguiente sobre, para la
+## mejora EL SOBRANTE NO SE TIRA (ver SkillTree.QOL_CARRY). Es de la PARTIDA y no
+## del elemento: el golpe que rompe una caja se da contra ella, que desaparece, y
+## lo que sobra tiene que llegar al siguiente que el jugador golpee.
+##
+## Vive fuera del guardado a proposito: es medio golpe en vuelo, no progreso. Al
+## cargar una partida guardada vale cero, que es lo mismo que empieza valiendo.
+var carry_damage: float = 0.0
+
 var auto_open: bool = false
 var auto_buy: bool = false
 ## Que sobres puede comprar la compra automatica: los ids que el jugador ha
@@ -333,11 +342,46 @@ func locker_free() -> bool:
 ## Exponer el objeto `index` del inventario. Devuelve false si no hay hueco (ni
 ## armario comprado, o ya lleno), que es lo unico que puede fallar: el indice lo
 ## pone la interfaz, que es quien esta mirando la lista.
+##
+## CON LA MEJORA ARMARIO SOLO, el armario lleno ya no es un no: si entre lo
+## expuesto hay una pieza del MISMO TIPO que da menos que esta, entra esta y la
+## otra vuelve al inventario. Es lo que quita el trabajo de ir comparando notas a
+## mano, y por eso solo actua cuando el hueco falta: con sitio libre, exponer es
+## sumar y nunca se cambia una pieza por otra (dos del mismo tipo suman los dos
+## bonus, y cambiar una por otra no).
 func locker_put(index: int) -> bool:
-	if index < 0 or index >= inventory.size() or not locker_free():
+	if index < 0 or index >= inventory.size():
 		return false
+	if not locker_free():
+		return _locker_swap(index) if skill_owned(SkillTree.QOL_LOCKER) else false
 	locker.append(inventory[index])
 	inventory.remove_at(index)
+	_dirty = true
+	inventory_changed.emit()
+	locker_changed.emit()
+	return true
+
+
+## El cambio del armario automatico: la pieza expuesta de este tipo que menos da,
+## si da menos que la que se esta exponiendo. Devuelve true si ha cambiado algo.
+##
+## Se hace cambiando los dos objetos de sitio y no quitando y metiendo (que
+## dejaria el armario con un hueco de mas y el inventario con uno de menos a mitad
+## de la operacion), y no se toca nada si la de dentro ya es mejor: una mejora de
+## "que se ordene solo" que empeora el armario cuando pulsas no es una mejora.
+func _locker_swap(index: int) -> bool:
+	var nuevo: Dictionary = inventory[index]
+	var peor := -1
+	for i in locker.size():
+		if LootDB.kind_of(locker[i]) != LootDB.kind_of(nuevo):
+			continue
+		if peor < 0 or LootDB.bonus_for(locker[i]) < LootDB.bonus_for(locker[peor]):
+			peor = i
+	if peor < 0 or LootDB.bonus_for(nuevo) <= LootDB.bonus_for(locker[peor]):
+		return false
+	var fuera: Dictionary = locker[peor]
+	locker[peor] = nuevo
+	inventory[index] = fuera
 	_dirty = true
 	inventory_changed.emit()
 	locker_changed.emit()
@@ -467,6 +511,9 @@ func do_rebirth() -> int:
 	inventory = []
 	locker = []
 	lifetime_earned = 0
+	# Lo que sobraba de un golpe era de la partida que se va: la nueva empieza sin
+	# nada en el aire.
+	carry_damage = 0.0
 	# Las automatizaciones se caen con las piezas, que se han ido: si no, la
 	# partida nueva empezaria con la mesa abriendose sola y sin Pinchos.
 	auto_open = false
@@ -653,6 +700,36 @@ func spike_dps() -> float:
 	return LootDB.spike_dps(items, float(money)) * (1.0 + skill_bonus("spikes"))
 
 
+## El dano que espera al siguiente golpe, y se lleva por delante: el que lo pide
+## es el golpe que va a pegar, y lo que quede se vuelve a guardar despues (ver
+## keep_carry). Devuelve siempre 0 si la mejora no esta comprada, para que quien
+## golpea no tenga que saber si existe.
+func take_carry() -> float:
+	var amount := carry_damage
+	carry_damage = 0.0
+	return amount
+
+
+## Guarda el dano que le ha sobrado a un golpe para el siguiente. Sin la mejora
+## EL SOBRANTE NO SE TIRA, no guarda nada: es exactamente el desperdicio que
+## quita, asi que aqui y no en quien golpea esta la regla.
+func keep_carry(amount: float) -> void:
+	if amount <= 0.0 or not skill_owned(SkillTree.QOL_CARRY):
+		return
+	carry_damage = amount
+
+
+## ¿Este objeto es chatarra para la mejora SIN FICHA? Es una nota, no un precio:
+## lo que vale un objeto sube con el escalon del sobre -una zapatilla comun vale
+## cuarenta veces lo que una carta comun-, asi que un umbral en dinero tendria que
+## cambiar con cada escalon y el jugador no sabria nunca cual es. La nota va de 1
+## a 10 en todos los sobres y se ve en la ficha como estrellas, o sea que la
+## mejora se puede explicar en una linea: "de tres estrellas o menos".
+func auto_sell_chaff(item: Dictionary) -> bool:
+	return skill_owned(SkillTree.QOL_CHAFF) \
+			and int(item.get("grade", LootDB.GRADE_MAX)) <= LootDB.AUTO_SELL_GRADE
+
+
 ## Un paquete pide abrirse. game.gd decide cuantos mas arranca a la vez.
 func request_open(element: Object) -> void:
 	open_requested.emit(element)
@@ -739,6 +816,7 @@ func hard_reset() -> void:
 	music_volume = 0.7
 	sfx_volume = 0.45
 	fullscreen = false
+	carry_damage = 0.0
 	lifetime_earned = 0
 	packs_opened = 0
 	items_found = 0

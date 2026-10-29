@@ -60,6 +60,10 @@ const BUY_W := 384.0
 
 ## Lo que dice la ficha cuando el nodo ya es tuyo, en el sitio del boton.
 const OWNED_TEXT := "COMPRADO"
+## Y lo que dicen el AHORA y el AL COMPRARLO de un interruptor de calidad de vida:
+## son las dos unicas palabras que necesita una mejora que se tiene o no se tiene.
+const ON_TEXT := "ENCENDIDO"
+const OFF_TEXT := "APAGADO"
 ## Y el nombre de lo que se paga: la moneda del rebirth, que es el cerdito. Va en
 ## el tooltip del precio porque en la chapa solo cabe el numero.
 const COIN_NAME := "monedas de rebirth"
@@ -157,20 +161,29 @@ func refresh() -> void:
 	# arbol lleva sumado al stat en este momento y el AL COMPRARLO es eso mas lo
 	# que suma este nodo. Es el par que hace falta para decidir, y por eso van
 	# juntos y con el mismo texto: comparar dos lineas iguales se lee de un golpe.
+	# Un INTERRUPTOR no tiene numeros que comparar: su "AHORA" es si esta encendido
+	# y su "AL COMPRARLO" es que se enciende. Enseñarle un porcentaje seria mentir
+	# (no suma nada a ningun stat) y dejar la linea vacia seria peor: es justo la
+	# informacion que hace falta para decidir, igual que en las de porcentaje.
+	var qol := SkillTree.is_qol(_id)
 	var ahora := Game.skill_bonus(stat)
-	_add(UIKit.label_at("AHORA, CON EL ARBOL: " + SkillTree.total_text(stat, ahora),
-			Vector2(COL_MID, NOW_Y), Vector2(COL_W, LINE_STEP), 21, Palette.CREAM,
-			HORIZONTAL_ALIGNMENT_CENTER))
+	var linea_ahora := "AHORA, CON EL ARBOL: " + SkillTree.total_text(stat, ahora)
+	if qol:
+		linea_ahora = "AHORA: " + (ON_TEXT if owned else OFF_TEXT)
+	_add(UIKit.label_at(linea_ahora, Vector2(COL_MID, NOW_Y), Vector2(COL_W, LINE_STEP),
+			21, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER))
 	if cost < 0:
 		# Ya es tuyo: no hay nada que pagar. Se DICE donde iria el boton, que es
 		# lo que sustituye (igual que hace la ficha de la tienda).
 		_add(UIKit.label_at(OWNED_TEXT, BUY_CENTER, Vector2(COL_W, 60), 42,
 				Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER))
 		return
-	_add(UIKit.label_at("AL COMPRARLO: "
-			+ SkillTree.total_text(stat, ahora + float(node["value"])),
-			Vector2(COL_MID, NEXT_Y), Vector2(COL_W, LINE_STEP), 21, Palette.GOLD_XL,
-			HORIZONTAL_ALIGNMENT_CENTER))
+	var linea_siguiente := "AL COMPRARLO: " \
+			+ SkillTree.total_text(stat, ahora + float(node["value"]))
+	if qol:
+		linea_siguiente = "AL COMPRARLO: " + ON_TEXT
+	_add(UIKit.label_at(linea_siguiente, Vector2(COL_MID, NEXT_Y), Vector2(COL_W, LINE_STEP),
+			21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER))
 
 	# El precio: la chapa con el cerdito y su numero, el mismo par que en el arbol
 	# y en la barra de la partida. El numero en ROJO cuando no llega, que es lo

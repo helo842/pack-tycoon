@@ -61,7 +61,12 @@ const VIEW_SIZE := Vector2(1472, 800)
 ## REBIRTH, que mide 0,45 del ancho: con 288 son 130 px, que con 16 de aire por
 ## arriba y por abajo son los 150 de la barra.
 const BAR_H := 150.0
-const BAR_BACK := Color(0.02, 0.015, 0.04, 0.88)
+## Casi opaca, y no es un capricho: el arbol se cuela POR DEBAJO de la barra, y con
+## un 0.88 los rotulos de la fila que acaba de subir se leian a traves del fondo
+## como un fantasma detras del saldo (se vio en la captura de la rama de calidad
+## de vida, que es la primera que queda medio tapada). Con 0.97 la franja sigue
+## leyendose como una capa por encima y no como un cristal.
+const BAR_BACK := Color(0.02, 0.015, 0.04, 0.97)
 const BAR_EDGE := Color(Palette.GOLD_D, 0.85)
 const EDGE := 4.0
 ## Donde se apoya el arbol al abrir: pegado a la barra por arriba, que es el

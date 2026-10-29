@@ -319,6 +319,40 @@ Cada nodo se pinta según lo que se pueda hacer con él: **en dorado** el compra
 ficha, la de ese y la de todos, dice cuál hay que comprar antes y cuántas monedas
 faltan—. Las líneas que los unen llevan el color de su camino.
 
+#### La calidad de vida: la rama de abajo
+
+Debajo del centro, y aparte de los cuatro caminos, hay una rama de
+**interruptores**: no suman ningún número, quitan trabajo. Son de **un solo
+nivel** y cuestan menos que un camino, porque no se comparan con un +20 % —se
+compran o no se compran—:
+
+| Interruptor | Lo que quita | Monedas |
+|---|---|---|
+| **ATAJOS** | T la tienda, A el armario, R el rebirth y V vende la mesa | 1 |
+| **SIN FICHA** | los objetos de tres estrellas o menos se venden al salir, sin abrir la tarjeta | 2 |
+| **SOBRANTE** | el daño que le sobra a un golpe pasa al siguiente sobre | 2 |
+| **MESA LIMPIA** | lo que lleva doce segundos quieto en la mesa se vende solo | 3 |
+| **ARMARIO SOLO** | con el armario lleno, entra la mejor pieza de su tipo y la peor vuelve al inventario | 4 |
+
+Tres detalles que se ven poco y son los que las hacen buenas:
+
+- **SIN FICHA mide estrellas, no dinero.** Lo que vale un objeto sube con el
+  escalón del sobre (una zapatilla común vale cuarenta veces una carta común), así
+  que un umbral en dinero habría que moverlo con cada escalón; la nota va de 1 a 10
+  en todos los sobres y se ve como estrellas en la ficha. El corte está en tres
+  porque la nota 4 ya vale la media: venderla sin preguntar sería tirar dinero del
+  jugador.
+- **MESA LIMPIA no corre con la ficha abierta.** La mesa se vacía mientras el
+  jugador está en la tienda o en el armario, no mientras está decidiendo qué hacer
+  con lo que acaba de salir.
+- **ARMARIO SOLO no empeora nunca el armario.** Solo cambia cuando el hueco falta
+  y lo de dentro da menos; con sitio libre siempre se suma, porque dos piezas del
+  mismo tipo suman las dos.
+
+La rama **baja tres filas y no cabe en la vista** al abrir el árbol: se llega a
+ella arrastrando, que es para lo que está el arrastre (el centro y los cuatro
+caminos sí se ven de entrada).
+
 El árbol **suma** a lo que ya tienes, nunca lo sustituye: los huecos de armario del
 árbol son huecos aunque no tengas el armario comprado (con el tope de los ocho que
 dibuja el panel del armario) y su daño se multiplica con el de las Cartas
@@ -712,9 +746,9 @@ de la barra ya reinicia la partida a cambio de monedas, que se gastan en el árb
 de mejoras.
 
 **Sistemas del documento que no están** — el árbol de habilidades **ya está** (es
-el árbol del rebirth: la mejora del centro y cuatro caminos, con un nodo por
-camino de momento; estirar un camino es añadir una fila a `SkillTree.NODES`),
-logros y eventos de mercado todavía no.
+el árbol del rebirth: la mejora del centro, cuatro caminos de números y la rama de
+calidad de vida, con un nodo por camino de momento; estirar un camino es añadir
+una fila a `SkillTree.NODES`), logros y eventos de mercado todavía no.
 
 **Extras de la interfaz** — los deslizadores de volumen de los ajustes ya mueven
 sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta el

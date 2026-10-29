@@ -433,6 +433,51 @@ func _run() -> void:
 			"la partida vuelve a cero: el requisito hay que juntarlo otra vez")
 		_check(not _main.has_veil(), "y el panel se cierra solo al reiniciar")
 
+	print("Atajos de teclado:")
+	# Los atajos son la mejora ATAJOS del arbol, y sin ella las letras no hacen
+	# nada: se prueban los DOS estados, porque una tecla que abre la tienda sin
+	# haberla comprado es peor que no tener atajos (nadie sabria por que abre).
+	Game.skills = {}
+	_key(KEY_T)
+	await _frames(3)
+	_check(not _main.has_veil(), "sin la mejora, las letras no abren nada")
+	Game.skills[SkillTree.QOL_KEYS] = 1
+	_key(KEY_T)
+	await _frames(3)
+	_check(_main.has_veil() and game._shop != null, "con ATAJOS, la T abre la tienda")
+	# CON UN PANEL ABIERTO LA LETRA NO HACE NADA: la V no puede vender una mesa que
+	# no se esta viendo, ni la A abrir el armario encima de la tienda.
+	var mesa_antes: int = game.table_count()
+	_key(KEY_V)
+	await _frames(3)
+	_check(game.table_count() == mesa_antes and game._shop != null,
+		"y con un panel abierto la V no vende nada")
+	game._close_shop()
+	await _frames(3)
+	_key(KEY_A)
+	await _frames(3)
+	_check(game._locker != null, "la A abre el armario")
+	game._close_locker()
+	await _frames(3)
+	_key(KEY_R)
+	await _frames(3)
+	_check(game._rebirth != null, "la R abre el arbol del rebirth")
+	if game._rebirth != null:
+		game._rebirth._close()
+	await _frames(3)
+	# Y LA V VACIA LA MESA DE VERDAD, por el mismo camino que el boton: el dinero
+	# entra y el objeto desaparece.
+	game._spawn_loot({"id": "card_c", "name": "CARTA COMUN",
+		"art": "loot_card_common", "rarity": "common", "grade": 5, "value": 600,
+		"kind": "cards"})
+	await _wait(0.9)
+	var dinero_antes: int = Game.money
+	_key(KEY_V)
+	await _frames(3)
+	_check(game.table_count() == 0 and Game.money >= dinero_antes + 600,
+		"y la V vende la mesa")
+	Game.skills = {}
+
 	print("Menu otra vez:")
 	_main.show_menu()
 	await _frames(3)
@@ -445,6 +490,18 @@ func _run() -> void:
 	_check(_click(settings), "el clic en AJUSTES llega al boton")
 	await _frames(3)
 	_check(_main.has_veil(), "AJUSTES abre su panel")
+
+
+## Una pulsacion de tecla completa, por el mismo camino que el raton: al viewport
+## de la ventana. Los atajos se miran en _unhandled_input de game.gd, asi que la
+## tecla tiene que llegar sin que ningun control se la coma.
+func _key(code: int) -> void:
+	for pulsar in [true, false]:
+		var e := InputEventKey.new()
+		e.keycode = code
+		e.physical_keycode = code
+		e.pressed = pulsar
+		get_viewport().push_input(e, true)
 
 
 func _frames(n: int) -> void:

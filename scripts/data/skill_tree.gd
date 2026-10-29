@@ -14,6 +14,14 @@
 # huecos del armario y los Pinchos-, para que el arbol no invente nada nuevo:
 # aqui se compra mas de lo mismo.
 #
+# Y DEBAJO DEL CENTRO, LA CALIDAD DE VIDA. Los cuatro caminos diagonales son
+# numeros que suben; la rama de abajo son INTERRUPTORES que quitan trabajo de
+# encima (ver QOL_STAT): atajos de teclado, vender solo lo barato, el golpe que
+# sobra, la mesa que se vacia y el armario que se ordena. Van aparte porque no se
+# comparan con un +20 %: se compran o no se compran, y por eso son de un solo
+# nivel y mucho mas baratos. La rama baja en dos columnas para no alargar el
+# arbol como si fuera una cadena de cinco.
+#
 # POR QUE ESTA AQUI Y NO EN Game. Esto es una tabla, como LootDB: cambiar un
 # precio o anadir un nodo es tocar este fichero y nada mas. Game guarda que
 # nodos tienes comprados y saca de aqui los multiplicadores; el panel dibuja lo
@@ -47,6 +55,29 @@ const COST_BRANCH := 3
 ## rebirth. Si costara mas, el primer arbol comprado llegaria demasiado tarde.
 const COST_CENTER := 1
 
+## La separacion vertical de la rama de abajo. 320 y no los 208 de SEP porque
+## aqui los nodos van UNO DEBAJO DE OTRO y lo que hay que dejar libre es la
+## chapa MAS su rotulo: medio lado (88) mas el rotulo, que cuelga a 202 del
+## centro y mide 30 de alto (217). Con 240 el rotulo de arriba se metia dentro de
+## la chapa de abajo y el test de encuadre lo cazaba; 320 es el primer multiplo
+## de 8 que deja aire entre los dos.
+const QOL_STEP := 320.0
+## Y la separacion a los lados de las dos columnas de abajo: 176 pone una columna
+## en -176 y la otra en 176, que con el rotulo de 320 de ancho deja 32 px entre
+## los dos textos de una misma fila.
+const QOL_SIDE := 176.0
+
+## El precio de cada interruptor de calidad de vida. Suben al bajar la rama y no
+## valen lo que un +20 %: los de arriba son un lujo barato (1) y el armario, que
+## es el que mas trabajo quita, es el caro (4). La rama entera son 12 monedas, o
+## sea ocho rebirth, y se puede comprar por partes en cualquier orden dentro de
+## su columna.
+const COST_QOL_KEYS := 1
+const COST_QOL_CHAFF := 2
+const COST_QOL_CARRY := 2
+const COST_QOL_TABLE := 3
+const COST_QOL_LOCKER := 4
+
 ## El nombre con el que se escribe cada stat en pantalla, y el que se lee en el
 ## aviso de compra. Uno solo para las dos cosas: dos nombres para el mismo stat
 ## se desincronizan solos.
@@ -61,6 +92,21 @@ const STAT_NAME := {
 ## El unico stat que NO es un porcentaje: los huecos del armario son una cuenta
 ## (dos huecos mas, no un 2 % mas de no se que).
 const SLOTS_STAT := "locker"
+
+## El stat de los INTERRUPTORES: no hay numero que sumar, el nodo se tiene o no
+## se tiene. Game.skill_bonus() no lo consulta nunca (nadie pregunta por "qol"),
+## asi que su `value` solo esta para que la fila tenga la misma forma que las
+## demas; quien pregunta de verdad es Game.skill_owned(id), con los ids de abajo.
+##
+## Los ids van aqui y no escritos a mano en game.gd y en tabla_element.gd: son el
+## nombre con el que media partida pregunta "¿tengo los atajos?", y un id suelto
+## mal escrito no da ningun error, solo una mejora que no hace nada.
+const QOL_STAT := "qol"
+const QOL_KEYS := "qol_keys"
+const QOL_CHAFF := "qol_chaff"
+const QOL_CARRY := "qol_carry"
+const QOL_TABLE := "qol_table"
+const QOL_LOCKER := "qol_locker"
 
 ## Los nodos, EN ORDEN. El primero es el centro y los otros cuatro son los
 ## caminos diagonales, en el sentido de las agujas del reloj desde arriba a la
@@ -127,6 +173,59 @@ const NODES: Array = [
 		"detail": "MULTIPLICA EL DANO DE LOS PINCHOS, QUE SE REPARTE ENTRE LOS"
 			+ " SOBRES DE LA MESA. SIN EL PC Y LOS PINCHOS NO HAY NADA QUE"
 			+ " SUBIR.",
+	},
+
+	# --- LA CALIDAD DE VIDA (los interruptores) --------------------------- #
+	#
+	# Lo que va de aqui abajo no sube ningun numero: quita trabajo. Se dibuja en
+	# `effect` en vez de calcularse con el valor, porque un interruptor no tiene
+	# "+20 %" que enseñar: debajo de la chapa va su nombre y ya esta.
+	#
+	# Y son de UN NIVEL, como todas: pagar dos veces por tener los atajos no
+	# significa nada.
+	{
+		"id": QOL_KEYS, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_KEYS,
+		"pos": Vector2(0, QOL_STEP), "art": "ui_icon_settings", "req": "money",
+		"desc": "TECLAS EN VEZ DE LA BARRA",
+		"detail": "T LA TIENDA, A EL ARMARIO, R EL REBIRTH Y V VENDE LA MESA."
+			+ " ESC CIERRA LO QUE ESTE ABIERTO, COMO SIEMPRE.",
+		"effect": "ATAJOS",
+	},
+	{
+		"id": QOL_CHAFF, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_CHAFF,
+		"pos": Vector2(-QOL_SIDE, QOL_STEP * 2.0), "art": "ui_tag_price",
+		"req": QOL_KEYS,
+		"desc": "LO BARATO SE VENDE SOLO",
+		"detail": "LOS OBJETOS DE TRES ESTRELLAS O MENOS SE VENDEN NADA MAS"
+			+ " SALIR, SIN ABRIR SU FICHA. EL DINERO ENTRA IGUAL.",
+		"effect": "SIN FICHA",
+	},
+	{
+		"id": QOL_CARRY, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_CARRY,
+		"pos": Vector2(QOL_SIDE, QOL_STEP * 2.0), "art": "item_guantes",
+		"req": QOL_KEYS,
+		"desc": "EL GOLPE QUE SOBRA NO SE TIRA",
+		"detail": "EL DANO QUE LE SOBRA A UN GOLPE PASA AL SIGUIENTE SOBRE"
+			+ " QUE GOLPEES. CON LA CAJA A UN TOQUE, ESE GOLPE YA NO SE PIERDE.",
+		"effect": "SOBRANTE",
+	},
+	{
+		"id": QOL_TABLE, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_TABLE,
+		"pos": Vector2(-QOL_SIDE, QOL_STEP * 3.0), "art": "ui_icon_auto_open",
+		"req": QOL_CHAFF,
+		"desc": "LA MESA SE VENDE SOLA",
+		"detail": "LO QUE LLEVA UN RATO EN LA MESA SE VENDE AL PRECIO DE"
+			+ " SIEMPRE. SIRVE PARA VOLVER DE LA TIENDA Y ENCONTRARLA LIBRE.",
+		"effect": "MESA LIMPIA",
+	},
+	{
+		"id": QOL_LOCKER, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_LOCKER,
+		"pos": Vector2(QOL_SIDE, QOL_STEP * 3.0), "art": "ui_icon_display_case",
+		"req": QOL_CARRY,
+		"desc": "EXPONER YA NO ES COMPARAR",
+		"detail": "AL EXPONER ALGO, SI YA HAY UNA PIEZA DE SU TIPO ENTRA LA"
+			+ " MEJOR. LA PEOR VUELVE AL INVENTARIO.",
+		"effect": "ARMARIO SOLO",
 	},
 ]
 
@@ -197,13 +296,27 @@ static func total_text(stat: String, total: float) -> String:
 ## una cuenta: "2 HUECOS DE ARMARIO"), y los de porcentaje ya lo llevan dentro
 ## ("+30 % DE DINERO"): anadirlo siempre daba "++30 % DE DINERO", que es lo que se
 ## vio en las capturas y no rompe ningun check (el texto sigue cabiendo).
+##
+## Un interruptor NO suma nada: su texto es su nombre ("SIN FICHA"), escrito a
+## mano en la fila, y es lo que se dibuja debajo de su chapa y lo que titula su
+## ficha.
 static func effect_text(id: String) -> String:
 	var n := node_by_id(id)
 	if n.is_empty():
 		return ""
+	if n.has("effect"):
+		return str(n["effect"])
 	var stat := str(n["stat"])
 	var texto := total_text(stat, float(n["value"]))
 	return "+" + texto if stat == SLOTS_STAT else texto
+
+
+## ¿Este nodo es un interruptor de calidad de vida? Lo es todo el que no suma un
+## numero a un stat, y lo preguntan la ficha (no tiene AHORA ni AL COMPRARLO de
+## porcentajes) y los tests (que no le buscan un `value` con sentido).
+static func is_qol(id: String) -> bool:
+	var n := node_by_id(id)
+	return not n.is_empty() and str(n["stat"]) == QOL_STAT
 
 
 ## Los ids de los nodos, en orden.

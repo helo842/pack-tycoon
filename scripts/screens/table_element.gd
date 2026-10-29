@@ -287,6 +287,14 @@ func _strike() -> void:
 	if Game.crit_chance() > 0.0 and _rng.randf() < Game.crit_chance():
 		crit = true
 		dmg *= Game.crit_mult()
+	# El sobrante del golpe anterior entra AQUI, ya hecho dano y sin critico: se
+	# gano cuando se gano, y volver a multiplicarlo por el critico de este golpe lo
+	# haria crecer solo por cambiar de caja. Devuelve 0 si la mejora no esta.
+	dmg += Game.take_carry()
+	# La vida de ANTES, para saber cuanto ha sobrado de este golpe. Sin esto, el
+	# hp queda clavado en cero y el sobrante se pierde, que es justo lo que arregla
+	# la mejora EL SOBRANTE NO SE TIRA.
+	var before := hp
 	hp = maxf(0.0, hp - dmg)
 	_tap(crit)
 	# El numero sale AQUI, antes de mirar si la caja se ha roto: el golpe que la
@@ -299,6 +307,9 @@ func _strike() -> void:
 	# agrietandose (ver _refresh_damage_art).
 	damaged.emit(dmg, crit)
 	if hp <= 0.0:
+		# Lo que le ha sobrado a este golpe espera al siguiente sobre (ver
+		# Game.keep_carry, que no guarda nada sin la mejora).
+		Game.keep_carry(dmg - before)
 		if _art != null:
 			_art.texture = Sprites.tex(str(pack.get("art_open", "pack_cards_open")))
 		_finish()

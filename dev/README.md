@@ -465,8 +465,9 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   `AL COMPRARLO` del mismo numero mas el `value` del nodo, asi que no pueden
   mentir. Y se compra desde ahi: el boton cobra lo mismo que costaba el nodo y la
   ficha se repinta sola (COMPRADO y sin boton).
-- Que el **arbol de mejoras** este entero: cinco nodos (una mejora en el centro y
-  cuatro caminos **en diagonal**, uno por cada lado, colgando del centro), que la
+- Que el **arbol de mejoras** este entero: los cinco nodos de numeros (una mejora
+  en el centro y cuatro caminos **en diagonal**, uno por cada lado, colgando del
+  centro), que la
   del centro cueste **una moneda y de un 30 % mas de dinero**, que los cuatro
   caminos cuesten **tres** y den **+20 % de dano, +20 % de velocidad, +2 huecos de
   armario y +30 % de pinchos**, que **sin monedas no se compre**, que los caminos
@@ -482,10 +483,27 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   arbol. Y que el dano del armario **se multiplique con el** y no lo sustituya:
   una carta de nota 10 expuesta (+25 %) con el camino del dano comprado (+20 %)
   tiene que dar el producto (x1,5), no el mayor de los dos.
-- Que el **arbol quepa de una vez** en la pantalla al abrirlo: los cinco nodos
-  dentro del marco del panel y **por debajo de la barra del rebirth** (que va
-  superpuesta y se come la franja de arriba). Se mira en el estado en el que se
-  ve casi siempre -sin nada comprado, los cuatro caminos cerrados-.
+- Que la **rama de calidad de vida** este entera: cinco interruptores debajo del
+  centro (atajos, sin ficha, sobrante, mesa limpia y armario solo), de **un solo
+  nivel** y con los ids que consulta el juego (un id mal escrito seria una mejora
+  que se paga y no hace nada), y que cada uno se pueda **traer a la vista
+  arrastrando**, porque la rama es mas alta que la ventana del panel. Las cuatro
+  reglas que tocan la partida se prueban donde viven: la **chatarra** por nota
+  (3 o menos se vende, 4 no), el **sobrante** del golpe (sin la mejora se pierde,
+  con ella espera al siguiente golpe y se gasta de una vez), el **armario** (con
+  el hueco lleno cambia una pieza mejor y devuelve la peor al inventario, con una
+  peor no toca nada, y sin la mejora el armario lleno sigue diciendo que no) y la
+  **mesa limpia** (un objeto puesto de verdad, con su reloj vencido, se vende solo
+  y cobra lo mismo que el clic; uno recien salido no se toca). Los **atajos** van
+  en el test del raton: la tecla tiene que abrir la tienda, el armario y el arbol,
+  la V tiene que vender la mesa, y **sin la mejora o con un panel abierto** no
+  puede hacer nada.
+- Que el **arbol quepa al abrirlo**: el centro y los cuatro caminos dentro del
+  marco del panel y **por debajo de la barra del rebirth** (que va superpuesta y
+  se come la franja de arriba). Se mira en el estado en el que se ve casi siempre
+  -sin nada comprado, los cuatro caminos cerrados-. La rama de calidad de vida no
+  entra (son tres filas de 320 en una vista de 800): se llega a ella arrastrando,
+  y eso es lo que se comprueba, nodo por nodo.
 - Que el **arrastre del arbol** mueva el dibujo y que su tope deje siempre un
   trozo de arbol a la vista: sin tope, arrastrar hacia un lado deja la pantalla
   vacia y no hay forma de volver. El tope se calcula sobre la caja ENTERA del

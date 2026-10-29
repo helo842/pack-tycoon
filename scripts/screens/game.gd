@@ -228,6 +228,11 @@ var _worked: Array = []
 
 var _buy_timer := 0.0
 var _spike_timer := 0.0
+## Cuanto lleva cada botin quieto en la mesa, en segundos, para la mejora MESA
+## LIMPIA. Se lleva por elemento y no se le pregunta al elemento porque el reloj
+## es de la pantalla: el objeto no sabe si el jugador esta mirando su ficha o
+## comprando, y los dos son motivos para no venderlo.
+var _loot_age := {}
 
 
 func _ready() -> void:
@@ -756,6 +761,8 @@ func _add_element(el: TableElement) -> void:
 	# estan los demas, y el que se esta colocando todavia no esta.
 	var rest := _free_spot()
 	_elements.append(el)
+	if el.is_loot():
+		_loot_age[el] = 0.0
 	el.bounds = TABLE_RECT
 	el.opened.connect(_on_element_opened.bind(el))
 	el.sold.connect(_on_element_sold.bind(el))
@@ -769,6 +776,7 @@ func _add_element(el: TableElement) -> void:
 
 func _drop_element(el: TableElement) -> void:
 	_elements.erase(el)
+	_loot_age.erase(el)
 	# El que se estaba trabajando suelta el turno al salir de la mesa: es lo que
 	# deja empezar con otro (ver _on_open_requested).
 	_worked.erase(el)
@@ -881,7 +889,11 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 	# Encontrado es una cosa y guardado es otra: se apunta aqui, cuando sale,
 	# porque a partir de este punto puede venderse sin pasar por el inventario.
 	Game.register_found(item)
-	if Game.auto_sell:
+	# Dos formas de vender sin pasar por la mesa: la venta automatica de los
+	# ajustes (todo) y la mejora SIN FICHA del arbol (solo la chatarra, ver
+	# Game.auto_sell_chaff). La de los ajustes va primero porque es la que pidio el
+	# jugador para TODA la partida.
+	if Game.auto_sell or Game.auto_sell_chaff(item):
 		_sell_quietly(item)
 		return
 	_reveal_item(item)
@@ -1020,6 +1032,38 @@ func _process(delta: float) -> void:
 			_buy_timer = Game.auto_buy_interval()
 			_auto_buy_step()
 	_spike_step(delta)
+	_table_broom_step(delta)
+
+
+## La mejora MESA LIMPIA: lo que lleva AUTO_SELL_TABLE_AFTER segundos quieto en la
+## mesa se vende solo, al mismo precio que si se pulsara.
+##
+## El reloj no corre con la ficha de revelado abierta (ver _process, que sale
+## antes), y esa es la mitad de la mejora: la mesa se vacia mientras el jugador
+## esta en otra pantalla, no mientras esta decidiendo que hacer con lo que acaba
+## de salir.
+##
+## Se vende con el camino de siempre (_on_element_sold) colgado de la venta
+## instantanea: el dinero, el sonido y el aviso flotante son los mismos que los
+## de un clic, que es lo que hace que la mejora no cambie las cuentas.
+func _table_broom_step(delta: float) -> void:
+	if not Game.skill_owned(SkillTree.QOL_TABLE):
+		# Sin la mejora no se lleva la cuenta: apagarla y volver a encenderla no
+		# puede vender de golpe lo que se acumulo mientras estaba apagada.
+		_loot_age.clear()
+		return
+	for el in _loot_age.keys():
+		if not is_instance_valid(el) or not _elements.has(el) or not el.is_loot():
+			_loot_age.erase(el)
+			continue
+		_loot_age[el] = float(_loot_age[el]) + delta
+		if float(_loot_age[el]) < LootDB.AUTO_SELL_TABLE_AFTER:
+			continue
+		var at: Vector2 = el.global_position + el.size * 0.5
+		# Tipado a mano: `el` sale del diccionario y GDScript no sabe que es un
+		# TableElement, asi que no puede deducir el tipo de lo que devuelve.
+		var value: int = el.sell_instant()
+		_on_element_sold(value, at, el)
 
 
 ## Los Pinchos: con la apertura automatica ENCENDIDA danan solos los paquetes
@@ -1368,6 +1412,44 @@ func _main() -> MainRoot:
 	return MainRoot.get_root()
 
 
+## Los atajos de la mejora ATAJOS: T la tienda, A el armario, R el rebirth y V
+## vende la mesa. Todo lo que estaba a un viaje de raton a la barra.
+##
+## SE MIRAN ANTES QUE EL ESC y solo con la partida DESPEJADA: si hay una ficha de
+## revelado o cualquier panel abierto, la letra no hace nada. Si no fuera asi, la
+## T abriria la tienda encima de la ficha del objeto que estas decidiendo -y peor:
+## la V venderia la mesa desde dentro de una pantalla en la que la mesa ni se ve.
+##
+## La tecla se lee de `keycode` y, si viene a cero, de `physical_keycode`: con una
+## distribucion que no sea la espanola, la tecla fisica es la que el jugador
+## pulsa y la que esta escrita en el menu.
+func _hotkey(event: InputEvent) -> bool:
+	var key := event as InputEventKey
+	if key == null or not key.pressed or key.echo:
+		return false
+	if not Game.skill_owned(SkillTree.QOL_KEYS) or not _table_clear():
+		return false
+	var code := key.keycode if key.keycode != 0 else key.physical_keycode
+	match code:
+		KEY_T:
+			_open_shop()
+		KEY_A:
+			_open_locker()
+		KEY_R:
+			_open_rebirth()
+		KEY_V:
+			_sell_all_table()
+		_:
+			return false
+	return true
+
+
+## ¿No hay nada abierto encima de la mesa? Es la condicion de los atajos.
+func _table_clear() -> bool:
+	return _reveal == null and _settings == null and _locker == null \
+			and _shop == null and _rebirth == null and _auto_buy_panel == null
+
+
 ## "2.10" -> "2.1"
 static func _trim(v: float) -> String:
 	var s := "%.2f" % v
@@ -1379,6 +1461,9 @@ static func _trim(v: float) -> String:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _hotkey(event):
+		get_viewport().set_input_as_handled()
+		return
 	if not event.is_action_pressed("ui_cancel"):
 		return
 	if _reveal != null:

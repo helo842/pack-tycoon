@@ -2446,11 +2446,17 @@ func _run() -> void:
 
 	# La forma del arbol: UNA mejora en el centro y CUATRO caminos DIAGONALES,
 	# uno por cada lado, enchufados al centro.
-	_check("el arbol trae cinco mejoras", SkillTree.node_count() == 5)
+	# Diez: cinco de numeros (el centro y los cuatro caminos) y cinco
+	# INTERRUPTORES de calidad de vida en la rama de abajo.
+	_check("el arbol trae diez mejoras", SkillTree.node_count() == 10)
 	var diagonales := 0
 	var cuelgan_del_centro := 0
+	var interruptores: Array = []
 	for id in SkillTree.ids():
 		if str(id) == "money":
+			continue
+		if SkillTree.is_qol(str(id)):
+			interruptores.append(str(id))
 			continue
 		var pos: Vector2 = SkillTree.node_by_id(str(id))["pos"]
 		if absf(pos.x) == absf(SkillTree.SEP.x) and absf(pos.y) == absf(SkillTree.SEP.y):
@@ -2459,6 +2465,38 @@ func _run() -> void:
 			cuelgan_del_centro += 1
 	_check("y los cuatro caminos van en diagonal, uno en cada lado", diagonales == 4)
 	_check("y los cuatro salen de la mejora del centro", cuelgan_del_centro == 4)
+	# LA RAMA DE LA CALIDAD DE VIDA: cinco interruptores, todos por debajo del
+	# centro y todos de UN NIVEL (pagar dos veces por tener los atajos no
+	# significa nada). Sus ids son los que consulta el juego para saber si quitar
+	# trabajo de encima, asi que si uno deja de existir, la mejora no hace nada y
+	# no da ningun error: se mira aqui.
+	_check("y debajo cuelgan cinco interruptores de calidad de vida",
+		interruptores.size() == 5)
+	var qol_abajo := true
+	var qol_un_nivel := true
+	var qol_precios: Array = []
+	for id in interruptores:
+		if float(SkillTree.node_by_id(str(id))["pos"].y) <= 0.0:
+			qol_abajo = false
+		if not is_equal_approx(float(SkillTree.levels_of(str(id))), 1.0):
+			qol_un_nivel = false
+		qol_precios.append(int(SkillTree.node_by_id(str(id))["cost"]))
+	_check("y los cinco van por debajo del centro", qol_abajo)
+	_check("y cada uno se compra una sola vez", qol_un_nivel)
+	# Los cinco ids tienen que ser los que usa el juego, no otros: un id mal
+	# escrito en la tabla seria una mejora que se paga y no hace nada.
+	_check("y son los interruptores que el juego consulta",
+		interruptores.has(SkillTree.QOL_KEYS) and interruptores.has(SkillTree.QOL_CHAFF)
+		and interruptores.has(SkillTree.QOL_CARRY)
+		and interruptores.has(SkillTree.QOL_TABLE)
+		and interruptores.has(SkillTree.QOL_LOCKER))
+	# Y EL PRECIO: baratos y en subida. Un interruptor cuesta menos que un camino
+	# (+20 %) porque quita trabajo, no potencia; y el armario, que es el que mas
+	# quita, es el caro de la rama.
+	_check("y la rama entera cuesta doce monedas, de la mas barata a la mas cara",
+		qol_precios.min() == SkillTree.COST_QOL_KEYS
+		and qol_precios.max() == SkillTree.COST_QOL_LOCKER
+		and Game.skill_cost(SkillTree.QOL_LOCKER) < SkillTree.COST_BRANCH * 2)
 	_check("la del centro da un 30 % mas de dinero",
 		is_equal_approx(float(SkillTree.node_by_id("money")["value"]), 0.30))
 	_check("y los cuatro caminos cuestan lo mismo",
@@ -2603,20 +2641,68 @@ func _run() -> void:
 	var arbol = g._rebirth
 	_check("la chapa del rebirth abre el arbol", arbol != null)
 	if arbol != null:
-		_check("y el panel dibuja los cinco nodos", arbol._nodes.size() == 5)
-		# EL ARBOL ENTERO DE UNA VEZ: los cinco nodos dentro del marco y por
-		# DEBAJO de la barra del rebirth, que es lo que se ve al abrirlo. La
-		# barra es lo unico fijo de la pantalla y el arbol se mueve por debajo.
+		_check("y el panel dibuja los diez nodos", arbol._nodes.size() == 10)
+		# AL ABRIRLO SE VE LO DE SIEMPRE: el centro y los cuatro caminos, dentro del
+		# marco y por DEBAJO de la barra del rebirth, que es lo unico fijo de la
+		# pantalla. La rama de calidad de vida baja tres filas mas de lo que mide la
+		# vista, asi que NO entra al abrir y se llega a ella arrastrando: eso se
+		# comprueba en el bloque de abajo, porque es la mitad de como se usa.
 		var dentro := true
 		var debajo := true
-		for id in arbol._nodes:
+		for id in SkillTree.ids():
+			if SkillTree.is_qol(str(id)):
+				continue
 			var r: Rect2 = arbol.node_rect(str(id))
 			if not PANEL.encloses(r):
 				dentro = false
 			if r.position.y < PANEL.position.y + arbol.BAR_H:
 				debajo = false
-		_check("los cinco nodos caben en el panel nada mas abrirlo", dentro)
+		_check("el centro y los cuatro caminos caben en el panel nada mas abrirlo", dentro)
 		_check("y ninguno se cuela debajo de la barra del rebirth", debajo)
+		# LA RAMA DE ABAJO SE ALCANZA ARRASTRANDO. Se mueve el arbol por el mismo
+		# camino que el raton (_set_offset, que es lo que llama el arrastre) y se
+		# mira que sus cinco nodos entren en la vista del panel. Sin esto, la rama
+		# nueva seria un dibujo que existe y no se puede tocar.
+		var offset_ini: Vector2 = arbol._offset
+		var qol_fuera_al_abrir := true
+		for id in interruptores:
+			if PANEL.encloses(arbol.node_rect(str(id))):
+				qol_fuera_al_abrir = false
+		_check("la calidad de vida queda fuera de la vista al abrir el arbol",
+			qol_fuera_al_abrir)
+		# Cada uno se lleva al centro de la vista por separado: la rama entera no
+		# cabe de una vez (son tres filas de 320 y la vista mide 800), y lo que hay
+		# que poder hacer es llegar a CUALQUIERA de ellos arrastrando, que es como
+		# se usa un arbol mas alto que la ventana.
+		var inalcanzables: Array = []
+		for id in interruptores:
+			var centro_nodo: Vector2 = SkillTree.node_by_id(str(id))["pos"]
+			arbol._set_offset(Vector2(offset_ini.x,
+				arbol.VIEW_SIZE.y * 0.5 - centro_nodo.y))
+			if not PANEL.encloses(arbol.node_rect(str(id))):
+				inalcanzables.append(str(id))
+		_check("y arrastrando se llega a cada nodo de la rama", inalcanzables.is_empty())
+		for m in inalcanzables:
+			print("         no se alcanza: ", m)
+		# Y CON LA RAMA A LA VISTA, sus rotulos se dibujan y no se salen: el mismo
+		# check de encuadre que se le hace al resto del arbol, que arriba no la ve
+		# porque la vista recorta lo que queda por debajo.
+		arbol._set_offset(Vector2(offset_ini.x,
+			arbol.VIEW_SIZE.y * 0.5 - float(SkillTree.node_by_id(SkillTree.QOL_TABLE)["pos"].y)))
+		_check_cabe("la rama de calidad de vida no saca texto de la vista", arbol, PANEL)
+		_check_sin_encimarse("y no pone texto encima de las chapas de la rama", arbol)
+		# AQUI NO SE MIRA EL "TEXTO ENCIMA DE UN DIBUJO", y es a proposito: al bajar
+		# el arbol, sus nodos pasan POR DEBAJO de la barra fija (asi esta hecho, la
+		# barra va superpuesta y el arbol se cuela por debajo), asi que el check
+		# encuentra los rotulos del saldo encima de las chapas que acaban de subir.
+		# Eso no es una fuga: es la capa de arriba tapando lo que pasa por debajo.
+		var raras_qol := _minusculas_en(arbol)
+		_check("y sus rotulos no tienen letras minusculas", raras_qol.is_empty())
+		for r in raras_qol:
+			print("         con minusculas: ", r)
+		# El arbol vuelve a donde estaba: los checks de abajo pulsan nodos y miden
+		# el precio del DANO, que se colocan con el desplazamiento de apertura.
+		arbol._set_offset(offset_ini)
 		# Las posiciones no se guardan por duplicado en el panel: son las del
 		# arbol, asi que lo que se comprueba es que el dibujo esta DONDE dice
 		# SkillTree (si el panel se inventara sus coordenadas, esto falla).
@@ -2630,8 +2716,14 @@ func _run() -> void:
 		# Y EL DIBUJO ENTERO (los nodos y sus rotulos, la caja de SkillTree) cabe
 		# en la ventana del panel tal y como se abre: aqui, sin arrastrar nada.
 		var vista_ini := Rect2(PANEL.position, arbol.VIEW_SIZE)
-		_check("y el arbol entero se ve de una vez al abrirlo",
-			vista_ini.encloses(_caja_del_arbol(arbol)))
+		var caben_los_cinco := true
+		for id in SkillTree.ids():
+			if SkillTree.is_qol(str(id)):
+				continue
+			if not vista_ini.encloses(arbol.node_rect(str(id))):
+				caben_los_cinco = false
+		_check("y el centro y los cuatro caminos se ven de una vez al abrirlo",
+			caben_los_cinco)
 		_check_cabe("el arbol no saca texto del panel", arbol, PANEL)
 		var raras_arbol := _minusculas_en(arbol)
 		_check("el arbol no tiene letras minusculas", raras_arbol.is_empty())
@@ -2834,6 +2926,95 @@ func _run() -> void:
 		arbol._close()
 		await get_tree().process_frame
 	_check("y el cerrar quita el arbol", g._rebirth == null)
+
+	# --- LA CALIDAD DE VIDA, DENTRO DE LA PARTIDA -------------------------- #
+	#
+	# Los cuatro interruptores que tocan la partida se prueban donde vive cada
+	# regla. Los atajos van aparte, en el test del raton, que es donde hay teclas.
+	#
+	# SIN FICHA: la chatarra es una NOTA, no un precio. Lo que vale un objeto sube
+	# con el escalon del sobre (cuarenta veces de los SOBRES a ELECTRONICA), asi que
+	# un umbral en dinero tendria que cambiar con cada escalon; la nota va de 1 a 10
+	# en todos y se ve como estrellas en la ficha.
+	Game.skills = {}
+	_check("sin la mejora, la chatarra se sigue mirando una por una",
+		not Game.auto_sell_chaff({"grade": 1}))
+	Game.skills[SkillTree.QOL_CHAFF] = 1
+	_check("y con SIN FICHA lo de tres estrellas o menos se vende sin abrir ficha",
+		Game.auto_sell_chaff({"grade": 1}) and Game.auto_sell_chaff({"grade": 3})
+			and not Game.auto_sell_chaff({"grade": 4}))
+
+	# EL SOBRANTE: el dano que le sobra a un golpe no se tira, espera al siguiente.
+	Game.skills = {}
+	Game.carry_damage = 0.0
+	Game.keep_carry(40.0)
+	_check("sin EL SOBRANTE, el dano que sobra de un golpe se pierde",
+		is_zero_approx(Game.take_carry()))
+	Game.skills[SkillTree.QOL_CARRY] = 1
+	Game.keep_carry(40.0)
+	_check("y con ella espera al siguiente sobre y se gasta de una vez",
+		is_equal_approx(Game.take_carry(), 40.0)
+			and is_zero_approx(Game.carry_damage))
+
+	# ARMARIO SOLO: cuando el armario esta lleno, exponer una pieza mejor de su
+	# tipo cambia una por otra; una peor no toca nada (una mejora que empeora el
+	# armario al pulsar no es una mejora), y con hueco libre siempre se suma.
+	Game.items = []
+	while Game.items.size() < LootDB.item_count():
+		Game.items.append(0)
+	Game.skills = {SkillTree.QOL_LOCKER: 1, "locker": 1}
+	var flojo := {"kind": "cards", "grade": 2, "value": 100}
+	var otro := {"kind": "vinyls", "grade": 2, "value": 100}
+	Game.locker = [flojo.duplicate(), otro.duplicate()]
+	Game.inventory = [{"kind": "cards", "grade": 9, "value": 900},
+		{"kind": "cards", "grade": 1, "value": 50}]
+	Game.locker_put(0)
+	_check("con ARMARIO SOLO, una pieza mejor entra en el armario lleno",
+		LootDB.bonus_for(Game.locker[0]) > LootDB.bonus_for(flojo)
+			and Game.locker.size() == 2 and Game.inventory.size() == 2)
+	_check("y la que estaba vuelve al inventario, que no se pierde nada",
+		int(Game.inventory[0].get("grade", 0)) == 2)
+	var antes_peor: float = LootDB.bonus_for(Game.locker[0])
+	_check("y una pieza peor no cambia nada",
+		not Game.locker_put(1) and is_equal_approx(LootDB.bonus_for(Game.locker[0]), antes_peor))
+	# Y sin la mejora, el armario lleno sigue diciendo que no: el cambio es lo que
+	# se paga, no una forma distinta de contar los huecos.
+	Game.skills = {"locker": 1}
+	Game.locker = [flojo.duplicate(), otro.duplicate()]
+	Game.inventory = [{"kind": "cards", "grade": 9, "value": 900}]
+	_check("y sin ella el armario lleno no deja exponer nada",
+		not Game.locker_put(0) and Game.locker.size() == 2)
+
+	# MESA LIMPIA: lo que lleva un rato quieto en la mesa se vende solo, al mismo
+	# precio que el clic. Se prueba con un objeto puesto de verdad en la mesa, no
+	# con el reloj a mano, porque lo que hay que comprobar es que pasa por el
+	# camino de la venta de siempre (dinero, sonido y aviso).
+	var botin := {"id": "card_c", "name": "CARTA COMUN", "art": "loot_card_common",
+		"rarity": "common", "grade": 5, "value": 500, "kind": "cards"}
+	Game.skills = {}
+	var esperando: TableElement = g._spawn_loot(botin.duplicate())
+	g._loot_age[esperando] = LootDB.AUTO_SELL_TABLE_AFTER + 30.0
+	g._table_broom_step(0.016)
+	_check("sin MESA LIMPIA, la mesa no vende nada sola", g._elements.has(esperando))
+	if is_instance_valid(esperando):
+		g._remove_from_table(esperando)
+	Game.skills = {SkillTree.QOL_TABLE: 1}
+	var dinero_antes: int = Game.money
+	var viejo: TableElement = g._spawn_loot(botin.duplicate())
+	g._loot_age[viejo] = LootDB.AUTO_SELL_TABLE_AFTER + 1.0
+	g._table_broom_step(0.016)
+	_check("y con ella, lo que lleva un rato en la mesa se vende solo",
+		not g._elements.has(viejo) and g._loot_age.is_empty())
+	_check("y el dinero entra igual que si se pulsara", Game.money == dinero_antes + 500)
+	# Y lo recien salido NO se toca: la mejora vende lo que se ha quedado, no lo
+	# que acaba de caer delante del jugador.
+	var recien: TableElement = g._spawn_loot(botin.duplicate())
+	g._loot_age[recien] = 0.0
+	g._table_broom_step(0.016)
+	_check("y no vende lo que acaba de salir", g._elements.has(recien))
+	if is_instance_valid(recien):
+		g._remove_from_table(recien)
+	Game.skills = {}
 
 	# Y EL MENU NO SABE NADA DE ESTO. El menu que se ve al arrancar (y al salir de
 	# la partida) no tiene hucha ni forma de abrirla: el rebirth se hace jugando, y
