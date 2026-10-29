@@ -165,11 +165,17 @@ func refresh() -> void:
 	# y su "AL COMPRARLO" es que se enciende. Enseñarle un porcentaje seria mentir
 	# (no suma nada a ningun stat) y dejar la linea vacia seria peor: es justo la
 	# informacion que hace falta para decidir, igual que en las de porcentaje.
+	# OJO CON EL ORDEN: un interruptor NO se pasa por total_text(). Su stat no es
+	# un porcentaje y no esta en SkillTree.STAT_NAME, asi que pedirle el texto es
+	# pedirle la clave de un diccionario que no existe -y eso no pinta una ficha
+	# rara, revienta la ficha entera en mitad del montaje (paso: pulsar un
+	# interruptor cerraba el juego). Por eso se pregunta PRIMERO si es un
+	# interruptor y solo se calcula el porcentaje cuando de verdad lo es.
 	var qol := SkillTree.is_qol(_id)
 	var ahora := Game.skill_bonus(stat)
-	var linea_ahora := "AHORA, CON EL ARBOL: " + SkillTree.total_text(stat, ahora)
-	if qol:
-		linea_ahora = "AHORA: " + (ON_TEXT if owned else OFF_TEXT)
+	var linea_ahora := "AHORA: " + (ON_TEXT if owned else OFF_TEXT)
+	if not qol:
+		linea_ahora = "AHORA, CON EL ARBOL: " + SkillTree.total_text(stat, ahora)
 	_add(UIKit.label_at(linea_ahora, Vector2(COL_MID, NOW_Y), Vector2(COL_W, LINE_STEP),
 			21, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER))
 	if cost < 0:
@@ -178,10 +184,10 @@ func refresh() -> void:
 		_add(UIKit.label_at(OWNED_TEXT, BUY_CENTER, Vector2(COL_W, 60), 42,
 				Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER))
 		return
-	var linea_siguiente := "AL COMPRARLO: " \
-			+ SkillTree.total_text(stat, ahora + float(node["value"]))
-	if qol:
-		linea_siguiente = "AL COMPRARLO: " + ON_TEXT
+	var linea_siguiente := "AL COMPRARLO: " + ON_TEXT
+	if not qol:
+		linea_siguiente = "AL COMPRARLO: " \
+				+ SkillTree.total_text(stat, ahora + float(node["value"]))
 	_add(UIKit.label_at(linea_siguiente, Vector2(COL_MID, NEXT_Y), Vector2(COL_W, LINE_STEP),
 			21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER))
 

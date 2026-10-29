@@ -2899,6 +2899,53 @@ func _run() -> void:
 			ficha_pobre._close()
 			await get_tree().process_frame
 
+		# TODAS LAS FICHAS, UNA POR UNA. Los checks de arriba abren las de un nodo
+		# cerrado, la del centro y la de un camino sin monedas, pero NUNCA la de un
+		# interruptor: y la de un interruptor reventaba entera (pulsar uno cerraba
+		# el juego) porque se le pedia el texto de un porcentaje que no tiene. El
+		# fallo no dejaba la ficha a medias, se llevaba por delante el montaje, asi
+		# que lo que se mira es que esten las DOS lineas de abajo, que son las que
+		# se escriben despues del numero.
+		var fichas_rotas: Array = []
+		for id_ficha in SkillTree.ids():
+			arbol._tap(str(id_ficha))
+			await get_tree().process_frame
+			var f = arbol._card
+			var bien := f != null and _dice(f, SkillTree.effect_text(str(id_ficha)))
+			if bien and Game.skill_owned(str(id_ficha)):
+				bien = _dice(f, "COMPRADO")
+			elif bien:
+				# Las dos lineas se escriben con el numero detras, asi que se mira el
+				# principio del texto (empieza = true) y no la linea entera.
+				bien = _dice(f, "AHORA, CON EL ARBOL: ", true)
+				if SkillTree.is_qol(str(id_ficha)):
+					bien = _dice(f, "AHORA: ", true) and _dice(f, "AL COMPRARLO: ", true)
+				else:
+					bien = bien and _dice(f, "AL COMPRARLO: ", true)
+			if not bien:
+				fichas_rotas.append(str(id_ficha))
+			if f != null:
+				f._close()
+				await get_tree().process_frame
+		_check("la ficha de los diez nodos se monta entera", fichas_rotas.is_empty())
+		for f_rota in fichas_rotas:
+			print("         ficha rota: ", f_rota)
+		# Y SE MIRA UNA DE INTERRUPTOR ENTERA, con los mismos checks de encuadre
+		# que la del centro: no tiene numeros de porcentaje, sino AHORA: APAGADO /
+		# AL COMPRARLO: ENCENDIDO, y esa linea tambien puede acabar encima del
+		# dibujo o fuera del marco sin que nada avise.
+		arbol._tap(SkillTree.QOL_KEYS)
+		await get_tree().process_frame
+		var ficha_qol = arbol._card
+		_check("la ficha de un interruptor se abre",
+			ficha_qol != null and ficha_qol.skill_id() == SkillTree.QOL_KEYS)
+		if ficha_qol != null:
+			_check_cabe("y no saca texto del panel", ficha_qol, PANEL)
+			_check_sin_encimarse("y no pone texto encima de una chapa", ficha_qol)
+			_check_sin_pisar_dibujos("y no dibuja texto encima del nodo", ficha_qol)
+			ficha_qol._close()
+			await get_tree().process_frame
+
 		# El arrastre: el arbol se mueve y el tope no lo deja salir de la vista.
 		var antes_drag: Vector2 = arbol.node_point("money")
 		arbol._set_offset(arbol._offset + Vector2(120, 80))
