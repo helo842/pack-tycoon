@@ -409,11 +409,17 @@ static func small_button(text: String, icon: String, center: Vector2,
 	# salia a 14 px mientras VENDER, sin icono, salia a 28, y las dos chapas
 	# parecian de dos juegos distintos. Ahora el texto empieza donde acaba el
 	# icono y el hueco se reparte con la medida de verdad.
+	#
+	# Y AUN ASI SALIAN A 14: con el icono entero dentro del cuerpo, a TIENDA le
+	# quedaban 120 px y a REBIRTH lo mismo, y a 21 piden 126 y 147. El icono va
+	# ahora MONTADO SOBRE EL MARCO de la izquierda (su centro casi en el borde del
+	# cuerpo, como una insignia) y un punto mas pequeno, y el texto empieza justo
+	# donde acaba. Asi los dos caben a 21, el mismo tamano que VENDER al lado.
 	var text_x0 := inner_x0
 	if icon != "":
-		var ih := s.y * 0.45
-		b.add_child(_icon(icon, Vector2(inner_x0 + ih * 0.5, s.y * 0.5), ih))
-		text_x0 = inner_x0 + ih + s.y * 0.08
+		var ih := s.y * 0.42
+		b.add_child(_icon(icon, Vector2(inner_x0 + ih * 0.1, s.y * 0.5), ih))
+		text_x0 = inner_x0 + ih * 0.6 + 2.0
 	if text != "":
 		var l := label(text, fit_size(text, inner_x1 - text_x0, font_size),
 			Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER)

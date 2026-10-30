@@ -67,7 +67,9 @@ const STAT_STEP := 40.0
 ## La nota va a 824 y no mas abajo: el pie de la columna es del boton de vender
 ## (su chapa sube hasta 840) y con la nota a 856 el marco le comia el texto.
 const HINT_Y := 824.0
-const HINT_COLOR := Color(0.72, 0.72, 0.78, 1.0)
+## Las notas de ayuda, en crema apagado: el gris azulado de antes sobre el marron
+## del panel se quedaba sin contraste.
+const HINT_COLOR := Palette.CREAM_D
 
 var _inv_label: Label = null
 var _locker_label: Label = null
@@ -85,7 +87,7 @@ func _ready() -> void:
 	add_child(UIKit.panel("ui_panel_shop"))
 
 	add_child(UIKit.label_at("ARMARIO", Vector2(960, TITLE_Y), Vector2(1400, 70),
-		48, Palette.GOLD, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
+		48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 	var close := UIKit.close_button(Vector2(1650, TITLE_Y), 96.0)
 	close.pressed.connect(_close)
@@ -204,8 +206,12 @@ func _build_stats() -> void:
 				Vector2(660, 36), 24, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 		add_child(l)
 		_stat_labels.append(l)
-	add_child(UIKit.label_at("CADA OBJETO DA DE UN 2 % A UN 15 % SEGUN SU NOTA PSA",
-			Vector2(RIGHT_MID, HINT_Y), Vector2(660, 32), 16, HINT_COLOR,
+	# Los porcentajes salen de LootDB y no escritos a mano: este rotulo decia
+	# "DEL 2 % AL 15 %" cuando el tope ya era el 25 %. Y es CORTO a proposito: con
+	# 53 letras en 660 px encogia hasta 7 px de alto, que no se leia ni de cerca.
+	add_child(UIKit.label_at("CADA OBJETO DA DEL %d %% AL %d %% SEGUN SU NOTA" % [
+				roundi(LootDB.KIND_BONUS_MIN * 100.0), roundi(LootDB.KIND_BONUS_MAX * 100.0)],
+			Vector2(RIGHT_MID, HINT_Y), Vector2(660, 32), 14, HINT_COLOR,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 
@@ -255,8 +261,11 @@ func _paint_inventory() -> void:
 			continue
 		b.disabled = false
 		var item: Dictionary = Game.inventory[i]
+		# 8 px por encima del centro y no 6: los dibujos que llenan su lienzo hasta
+		# abajo (un vinilo es un disco entero) bajaban 1,5 px por encima del precio
+		# de la casilla. Es la misma cuenta que la vitrina de la partida.
 		holder.add_child(UIKit.fit_art(str(item.get("art", "loot_vinyl")),
-				Vector2(INV_SIDE * 0.5, INV_SIDE * 0.5 - 6.0),
+				Vector2(INV_SIDE * 0.5, INV_SIDE * 0.5 - 8.0),
 				Vector2(INV_SIDE * 0.6, INV_SIDE * 0.6)))
 		_add_value(holder, int(item.get("value", 0)), INV_SIDE)
 		# El tooltip dice QUE pasa al pulsarlo, con lo que va a aportar: es lo
@@ -312,13 +321,19 @@ func _paint_stats() -> void:
 
 
 ## La linea de una casilla: el objeto y, debajo, lo que vale.
+##
+## Las cifras iban a 0,13 (9 px de alto en una casilla de 96) y no se leian: es lo
+## que dice si un objeto vale la pena exponerlo o venderlo. Ahora van a 0,18 en
+## las casillas del inventario y a 0,22 en las del armario, y un poco mas abajo
+## para no tocar el dibujo, que acaba a 8 px por encima del centro mas su alto.
 func _add_value(holder: Control, value: int, side: float) -> void:
 	var num := PixelNumber.new()
-	num.scale_factor = 0.13
+	num.scale_factor = 0.18 if side < LOCK_SIDE else 0.22
 	num.max_width = side - 10.0
 	holder.add_child(num)
 	num.set_number(value)
-	num.position = Vector2(side * 0.5, side - 22.0) - num.size * 0.5
+	num.position = Vector2(side * 0.5, side - (18.0 if side < LOCK_SIDE else 22.0)) \
+			- num.size * 0.5
 
 
 ## Vacia una ranura SIN cargarse su fondo: el "Back" es el marco que pone

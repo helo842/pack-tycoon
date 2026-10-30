@@ -93,8 +93,11 @@ const BANK_LABEL_GAP := 16.0
 ## cifras.
 const PRIZE_CENTER := Vector2(1010, ROW_BANK)
 const PRIZE_X := 1140.0
-const PRIZE_SCALE := 0.30
-const PRIZE_MAX_W := 56.0
+## Al mismo tamano que el numero de monedas de la izquierda: a 0,30 la cifra del
+## premio salia de la mitad de alto que la de la hucha, y es la que se mira para
+## decidir si se reinicia.
+const PRIZE_SCALE := 0.42
+const PRIZE_MAX_W := 72.0
 ## El bloque de texto de la izquierda: el estado y el aviso. De x 240 a 1210, que
 ## es donde empieza la chapa del REBIRTH (1216) menos 6 de aire. Son 970 px y no
 ## menos porque la fila del estado son DOS textos pegados -lo que falta y de que
@@ -130,12 +133,20 @@ const NODE_COST_Y := 146.0
 const NODE_COIN := Vector2(36, 36)
 const NODE_COIN_X := 50.0
 const NODE_COST_X := 76.0
-const NODE_COST_SCALE := 0.24
-const NODE_COST_MAX_W := 60.0
+## A 0,32 y no a 0,24: el precio es lo que dice si un nodo se puede comprar, y a
+## 0,24 la cifra media lo mismo que el cerdito pequeno de al lado y no se leia.
+const NODE_COST_SCALE := 0.32
+const NODE_COST_MAX_W := 64.0
 ## Y el rotulo del efecto, DEBAJO de la chapa (fuera de ella: dentro no cabe a un
 ## tamano legible).
 const NODE_TEXT_DY := 26.0
 const NODE_TEXT_BOX := Vector2(320, 30)
+## Hasta donde puede crecer la caja del rotulo antes de encoger la letra. Con 320
+## "+20 % DE VELOCIDAD" o "+2 HUECOS DE ARMARIO" no cabian a 21 y bajaban a 14,
+## la mitad de alto que los rotulos de al lado. Con 440 caben todos a 21, y los
+## nodos de una misma fila estan a 672 px (SkillTree.SEP): no se tocan. Los
+## cortos se quedan en 320 para no pisar a su vecino en la rama de abajo.
+const NODE_TEXT_MAX_W := 440.0
 ## Donde cae la MEJORA DEL CENTRO al abrir el arbol: con EL PRIMER ANILLO justo
 ## debajo de la barra. Antes se apoyaba en la barra la caja del dibujo entero, y
 ## daba lo mismo porque la caja ERA el primer anillo; ahora que el dano, la
@@ -173,11 +184,14 @@ const STATE_TINT := {
 	"poor": Color(0.72, 0.72, 0.80),
 	"locked": Color(0.42, 0.40, 0.50),
 }
+## El color del ROTULO segun el estado. Ya no se oscurece con la chapa (ver
+## _build_node), asi que el bloqueado lleva su propio tono apagado: mas oscuro que
+## el resto para que se vea que aun no toca, pero legible sobre el marron.
 const STATE_TEXT := {
 	"owned": Palette.GOLD_XL,
 	"ready": Palette.CREAM,
 	"poor": Palette.CREAM_D,
-	"locked": Palette.CREAM_D,
+	"locked": Color8(170, 150, 120),
 }
 
 ## El lienzo de las lineas. Es una clase aparte -y no un _draw() del panel-
@@ -302,15 +316,24 @@ func _build_node(node: Dictionary) -> Dictionary:
 	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_world.add_child(view)
 
-	view.add_child(UIKit.image("ui_slot", Vector2(NODE, NODE) * 0.5, Vector2(NODE, NODE)))
-	view.add_child(UIKit.fit_art(str(node["art"]), NODE_ART_CENTER, NODE_ART))
+	# LA CHAPA VA EN SU PROPIA CAPA, y es lo que se oscurece segun el estado (ver
+	# _paint_node). Antes se oscurecia el nodo entero, rotulo incluido, y un nodo
+	# bloqueado dejaba su texto a un 42 % de brillo: gris oscuro sobre marron, que
+	# no se leia. El rotulo cuelga de `view` y tiene su color propio.
+	var body := Control.new()
+	body.name = "Body"
+	body.size = view.size
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	view.add_child(body)
+	body.add_child(UIKit.image("ui_slot", Vector2(NODE, NODE) * 0.5, Vector2(NODE, NODE)))
+	body.add_child(UIKit.fit_art(str(node["art"]), NODE_ART_CENTER, NODE_ART))
 
 	# El coste es el cerdito y su numero, el mismo par que la barra de la partida:
 	# en este juego las monedas se leen siempre igual. El numero lo coloca
 	# _paint_node(), que es quien sabe cuantas cifras tiene (el control mide, el
 	# dibujo de la chapa no).
 	var coin := UIKit.image("currency_piggy", Vector2(NODE_COIN_X, NODE_COST_Y), NODE_COIN)
-	view.add_child(coin)
+	body.add_child(coin)
 	var cost := PixelNumber.new()
 	# El color va ANTES del texto: PixelNumber solo lo aplica al construir los
 	# glifos (ver pixel_number.gd, _rebuild), asi que cambiarlo despues no pinta
@@ -318,25 +341,31 @@ func _build_node(node: Dictionary) -> Dictionary:
 	cost.color = Palette.GOLD_XL
 	cost.scale_factor = NODE_COST_SCALE
 	cost.max_width = NODE_COST_MAX_W
-	view.add_child(cost)
+	body.add_child(cost)
 
 	# El centro va en x NODE/2 (el del nodo) y en y NODE_COST_Y (la fila del
 	# coste): "COMPRADO" va donde iria el precio, no en medio de la chapa.
+	# En crema y no en oro: va sobre el labio naranja de la chapa, y en oro sobre
+	# naranja no se distinguia.
 	var done := UIKit.label_at("COMPRADO", Vector2(NODE * 0.5, NODE_COST_Y),
-		Vector2(NODE, 30), 14, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
-	view.add_child(done)
+		Vector2(NODE, 30), 14, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+	body.add_child(done)
 
 	# El efecto, debajo de la chapa y a lo ancho de una caja mas grande que el
 	# nodo: "2 HUECOS DE ARMARIO" no cabe en 176 px y encogerlo hasta ahi lo
 	# dejaria ilegible. Los rotulos de dos nodos de la misma fila no se tocan
 	# porque la separacion (SkillTree.SEP) es mayor que esta caja.
-	var effect := UIKit.label_at(SkillTree.effect_text(id),
-		Vector2(NODE * 0.5, NODE + NODE_TEXT_DY), NODE_TEXT_BOX, 21, Palette.CREAM,
+	var texto := SkillTree.effect_text(id)
+	var caja := Vector2(clampf(UIKit.text_width(texto, TEXT_SIZE), NODE_TEXT_BOX.x,
+		NODE_TEXT_MAX_W), NODE_TEXT_BOX.y)
+	var effect := UIKit.label_at(texto,
+		Vector2(NODE * 0.5, NODE + NODE_TEXT_DY), caja, TEXT_SIZE, Palette.CREAM,
 		HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	view.add_child(effect)
 
 	return {
-		"id": id, "center": center, "view": view, "cost": cost, "done": done,
+		"id": id, "center": center, "view": view, "body": body, "cost": cost,
+		"done": done,
 		"coin": coin, "effect": effect,
 	}
 
@@ -648,13 +677,12 @@ func refresh() -> void:
 func _paint_node(id: String) -> void:
 	var node: Dictionary = _nodes[id]
 	var state := _state_of(id)
-	var view: Control = node["view"]
 	var cost: PixelNumber = node["cost"]
 	var done: Label = node["done"]
 	var coin: TextureRect = node["coin"]
 	var effect: Label = node["effect"]
 
-	view.modulate = STATE_TINT[state]
+	(node["body"] as Control).modulate = STATE_TINT[state]
 	effect.add_theme_color_override("font_color", STATE_TEXT[state])
 	var owned := state == "owned"
 	# Comprado se enseña COMPRADO y no su precio: un numero que ya no sirve para

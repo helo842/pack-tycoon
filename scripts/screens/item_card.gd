@@ -59,7 +59,10 @@ const SEPARATOR_Y := 540.0
 const LINE_STEP := 40.0
 const NOW_Y := 580.0
 const NEXT_Y := 620.0
-const TAG := Vector2(200, 64)
+## La chapa del precio de la ficha: la ficha tiene sitio de sobra, y a 200x64 con
+## las cifras a 0,34 el precio era lo mas pequeno de la pantalla siendo lo que
+## se mira antes de pulsar COMPRAR.
+const TAG := Vector2(256, 80)
 const TAG_Y := 690.0
 const BUY_CENTER := Vector2(1190, 830)
 const BUY_W := 384.0
@@ -127,7 +130,7 @@ func refresh() -> void:
 	# El nombre, de titulo, y debajo en que punto esta: el nivel que ya tiene de
 	# los que puede llegar a tener, o si es de una sola compra.
 	_add(UIKit.label_at(str(item["name"]), Vector2(960, TITLE_Y), Vector2(1200, 70),
-			48, Palette.GOLD, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
+			48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	var estado := "NIVEL %d DE %d" % [level, tope] if tope > 1 \
 			else ("COMPRADO" if level > 0 else "COMPRA UNICA")
 	_add(UIKit.label_at(estado, Vector2(960, LEVEL_Y), Vector2(1200, 44), 21,
@@ -178,8 +181,8 @@ func refresh() -> void:
 	# El color va antes del texto: PixelNumber solo lo aplica al construir los
 	# glifos (ver pixel_number.gd, _rebuild).
 	num.color = Palette.CREAM if Game.can_afford(cost) else Palette.RUST_L
-	num.scale_factor = 0.34
-	num.max_width = TAG.x - 24.0
+	num.scale_factor = 0.46
+	num.max_width = TAG.x - 40.0
 	num.set_number(cost)
 	_add(num)
 	num.position = Vector2(COL_MID, TAG_Y) - num.size * 0.5

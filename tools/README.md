@@ -14,6 +14,9 @@ Los sprites usan **Pillow**; los sonidos, solo la **libreria estandar** (`wave`,
 sprite_paths.py     DONDE VA CADA SPRITE. La fuente de verdad de la estructura
                     de carpetas; la importan todos los demas generadores
 make_sprites.py     el generador principal: el catalogo completo y el auditor
+pack_designs.py     los dibujos de los PAQUETES (cuatro tipos, tres escalones,
+                    cerrado, abierto y los tres tramos de dano). Lo enchufa
+                    make_sprites.py, que es quien los escribe y los audita
 font_patterns.py    los patrones 5x7 de cada glifo, aparte para poder retocar
                     una letra sin tocar el resto del generador
 make_font.py        la fuente del juego (hoja + .fnt) a partir de los patrones

@@ -3320,6 +3320,15 @@ for _familia, _escalones in PACK_TIERS.items():
             LOOT_ITEMS[f"{_familia}{_escalon}_d{_tramo}"] = _pack_damaged(
                 _cerrado, _tramo, _familia)
 
+# LOS DIBUJOS DE LOS PAQUETES VIVEN EN tools/pack_designs.py, y aqui solo se
+# enchufan: las sesenta claves de los cuatro tipos (tres escalones, cerrado,
+# abierto y los tres tramos de dano) se SUSTITUYEN por las de alli, con los
+# mismos nombres de fichero. Los de arriba se quedan como estaban porque el
+# paquete "misc" (que no esta en la columna) sigue saliendo de este fichero.
+# Ver la cabecera de pack_designs.py para el porque del rediseno.
+import pack_designs  # noqa: E402
+LOOT_ITEMS.update(pack_designs.install(sys.modules[__name__]))
+
 # Los diecisiete objetos que tienen una variante por nota PSA. Se registro de la nota
 # 10 a la 1 para que la hoja de contactos se lea como una degradacion de izquierda
 # a derecha. El objeto base sin nota desaparece del catalogo: seria el mismo

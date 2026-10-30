@@ -226,6 +226,20 @@ var _rng := RandomNumberGenerator.new()
 ## varios: ver _on_open_requested().
 var _worked: Array = []
 
+## LAS TARJETAS DE REVELADO VAN DE UNA EN UNA. Con varios paquetes cargando a la
+## vez, dos podian romperse mientras la primera tarjeta seguia abierta, y la
+## segunda se pintaba ENCIMA y le quitaba el sitio a la primera en `_reveal`: al
+## cerrar la de arriba la de abajo se quedaba sola, con la compra automatica y
+## los Pinchos otra vez en marcha por debajo. Lo que sale con una tarjeta abierta
+## espera aqui su turno.
+var _reveal_queue: Array = []
+## El objeto de la tarjeta abierta y su elemento en la mesa (null si no cabia).
+## Hacen falta para la foto de la mesa (ver _snapshot_table): un objeto que no
+## cabia en la mesa solo existe en la tarjeta, y cerrar el juego con ella abierta
+## no puede tirarlo.
+var _reveal_data: Dictionary = {}
+var _reveal_el: TableElement = null
+
 var _buy_timer := 0.0
 var _spike_timer := 0.0
 ## Cuanto lleva cada botin quieto en la mesa, en segundos, para la mejora MESA
@@ -269,9 +283,22 @@ func _ready() -> void:
 	Game.items_changed.connect(_refresh_packs)
 	Game.open_requested.connect(_on_open_requested)
 	Game.settings_changed.connect(_refresh_top)
+	Game.table_reset.connect(_clear_table)
 	_refresh_locker()
 	_refresh_top()
 	_on_money_changed(Game.money)
+	# La mesa de la ultima vez (ver Game.table) y, a partir de aqui, la foto de la
+	# mesa que se lleva cada guardado la saca esta pantalla.
+	_restore_table()
+	Game.table_provider = _snapshot_table
+
+
+func _exit_tree() -> void:
+	# La pantalla se va (al menu, o se cierra el juego): la ultima foto de la mesa
+	# se queda en Game y esta pantalla deja de ser quien la da.
+	Game.table = _snapshot_table()
+	if Game.table_provider.is_valid() and Game.table_provider.get_object() == self:
+		Game.table_provider = Callable()
 
 
 # --------------------------------------------------------------------------- #
@@ -470,9 +497,14 @@ func _pack_cell(list: Control, pack: Dictionary, index: int) -> Dictionary:
 	# GRATIS al mismo tamano que los numeros (35 de fuente son 35 px de tinta,
 	# frente a los 40 del numero): es un rotulo corto, y a 28 se leia mas pequeno
 	# que los precios de al lado.
-	var free_label := UIKit.label_at("GRATIS", tag,
-			PACK_TAG_SIZE - Vector2(24, 4), 35, Palette.GOLD_XL,
-			HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+	#
+	# EN OSCURO Y SIN CONTORNO, y no en oro con el contorno de la fuente: la cinta
+	# es crema, y el oro claro con su borde oscuro encima se leia como un borron
+	# (relleno casi del color de la cinta y solo el contorno a la vista). Es la
+	# MISMA fuente en su version sin contorno, la del titulo del menu.
+	var free_label := UIKit.title_label_at("GRATIS", tag,
+			PACK_TAG_SIZE - Vector2(24, 4), 35, Palette.NIGHT,
+			HORIZONTAL_ALIGNMENT_CENTER)
 	free_label.visible = false
 	list.add_child(free_label)
 
@@ -783,6 +815,59 @@ func _drop_element(el: TableElement) -> void:
 	_refresh_top()
 
 
+# --------------------------------------------------------------------------- #
+# La mesa guardada
+# --------------------------------------------------------------------------- #
+
+## La foto de la mesa para el guardado: cada sobre con la vida que le queda y cada
+## botin sin vender. Tambien entra lo que esta esperando tarjeta y el objeto de la
+## tarjeta abierta si no cabia en la mesa: los dos existen y no estan en ningun
+## otro sitio del guardado.
+func _snapshot_table() -> Array:
+	var out: Array = []
+	for el in _elements:
+		if not is_instance_valid(el):
+			continue
+		if el.is_loot():
+			out.append({"loot": (el.loot as Dictionary).duplicate(true)})
+		else:
+			out.append({"pack": str(el.pack.get("id", "cards")), "hp": maxf(1.0, el.hp)})
+	if not _reveal_data.is_empty() and (_reveal_el == null or not _elements.has(_reveal_el)):
+		out.append({"loot": _reveal_data.duplicate(true)})
+	for item in _reveal_queue:
+		out.append({"loot": (item as Dictionary).duplicate(true)})
+	return out
+
+
+## Vuelve a poner en la mesa lo que habia la ultima vez (ver Game.table).
+func _restore_table() -> void:
+	var saved: Array = Game.table.duplicate(true)
+	Game.table = []
+	for entry in saved:
+		var d: Dictionary = entry
+		if d.has("pack"):
+			var el := _spawn_pack(str(d["pack"]))
+			el.set_hp(float(d.get("hp", el.max_hp)))
+		elif d.has("loot"):
+			_spawn_loot(d["loot"])
+
+
+## La mesa se vacia sin cobrar nada: un rebirth o un reinicio (ver
+## Game.table_reset). Los elementos salen de la lista EN EL ACTO, antes de que se
+## borren de verdad, para que el guardado que viene detras ya no los vea y para
+## que una venta o una apertura a medias no pueda pagar en la partida nueva (ver
+## los guardas de _on_element_opened y _on_element_sold).
+func _clear_table() -> void:
+	for el in _elements:
+		if is_instance_valid(el):
+			el.queue_free()
+	_elements.clear()
+	_worked.clear()
+	_loot_age.clear()
+	_reveal_queue.clear()
+	_refresh_top()
+
+
 func _spawn_pack(pack_id: String) -> TableElement:
 	var el := TableElement.new()
 	el.setup_pack(LootDB.pack_by_id(pack_id))
@@ -881,6 +966,10 @@ func _buy_pack(pack_id: String) -> void:
 
 
 func _on_element_opened(pack_id: String, el: TableElement) -> void:
+	# Un sobre que ya no es de la mesa (se vacio con un rebirth mientras se rompia)
+	# no da botin: era de la partida anterior.
+	if not _elements.has(el):
+		return
 	_drop_element(el)
 	Game.packs_opened += 1
 	# La suerte (Trebol) engorda el botin no comun y el multiplicador del Armario
@@ -908,6 +997,10 @@ func _sell_quietly(item: Dictionary) -> void:
 
 
 func _reveal_item(item: Dictionary) -> void:
+	# Con una tarjeta abierta, este espera su turno (ver _reveal_queue).
+	if _reveal != null:
+		_reveal_queue.append(item)
+		return
 	# Primero el sonido de que se ha abierto, y ENCIMA el del premio si toca:
 	# en ese orden se entiende "algo ha salido" y luego "y es bueno".
 	Sound.play("sfx_open")
@@ -928,6 +1021,8 @@ func _reveal_item(item: Dictionary) -> void:
 	card.show_item(item)
 	card.resolved.connect(_on_reveal_resolved.bind(item, el))
 	_reveal = card
+	_reveal_data = item
+	_reveal_el = el
 	_main().push_overlay(card)
 
 
@@ -936,6 +1031,8 @@ func _on_reveal_resolved(action: String, item: Dictionary, el: TableElement) -> 
 	if _reveal != null:
 		_main().pop_overlay(_reveal)
 		_reveal = null
+	_reveal_data = {}
+	_reveal_el = null
 	if action == RevealCard.ACTION_STORE:
 		_store_revealed(item, el)
 	elif action == RevealCard.ACTION_SELL:
@@ -944,6 +1041,9 @@ func _on_reveal_resolved(action: String, item: Dictionary, el: TableElement) -> 
 		# Cerrada sin elegir y sin sitio en la mesa: se guarda, que es lo unico
 		# que no pierde el objeto. Con sitio, se queda en la mesa y ya esta.
 		_store_revealed(item, null)
+	# Y la siguiente que estuviera esperando.
+	if not _reveal_queue.is_empty():
+		_reveal_item(_reveal_queue.pop_front())
 
 
 ## Al inventario. El objeto DEJA la mesa: no puede estar en los dos sitios.
@@ -961,8 +1061,12 @@ func _sell_revealed(item: Dictionary, el: TableElement) -> void:
 	if el != null and is_instance_valid(el):
 		at = el.global_position + el.size * 0.5
 		# sell_instant() coge el valor del elemento y lo borra, pero no ingresa
-		# nada: el dinero lo lleva siempre _sell_revealed.
-		value = el.sell_instant()
+		# nada: el dinero lo lleva siempre _sell_revealed. Si devuelve 0 es que el
+		# objeto ya se estaba vendiendo solo, y esa venta es la que paga.
+		var instant := el.sell_instant()
+		if instant <= 0:
+			return
+		value = instant
 		_drop_element(el)
 	Game.add_money(value)
 	Sound.play("sfx_sell")
@@ -979,6 +1083,10 @@ func _remove_from_table(el: TableElement) -> void:
 
 
 func _on_element_sold(value: int, at: Vector2, el: TableElement) -> void:
+	# Lo que se vendia cuando la mesa se vacio (un rebirth) no paga en la partida
+	# nueva.
+	if not _elements.has(el):
+		return
 	_drop_element(el)
 	Game.add_money(value)
 	Sound.play("sfx_sell")
@@ -1005,13 +1113,24 @@ func _on_element_damaged(amount: float, crit: bool, el: TableElement) -> void:
 
 func _sell_all_table() -> void:
 	var total := 0
-	# Se suelta uno a uno con _drop_element() en vez de vaciar la lista de golpe:
-	# asi un paquete que se estuviera abriendo deja libre su hueco en el turno, que
-	# si no se queda ocupado por un elemento que ya no esta (ver _on_open_requested).
+	# Se suelta uno a uno con _drop_element() en vez de vaciar la lista de golpe.
+	#
+	# SOLO EL BOTIN. Antes se soltaban TODOS los elementos, tambien los sobres
+	# cerrados: sell_instant() no los vende (devuelve 0 y no los borra), asi que
+	# se quedaban dibujados en la mesa pero fuera de la lista. La mesa contaba
+	# huecos que no tenia, los Pinchos dejaban de golpearlos y la compra se podia
+	# pasar del tope. Y un botin que ya se estaba vendiendo tampoco se suelta: su
+	# venta paga sola al acabar (ver TableElement.sell_instant).
 	for el in _elements.duplicate():
-		if is_instance_valid(el):
-			total += el.sell_instant()
-		_drop_element(el)
+		if not is_instance_valid(el):
+			_drop_element(el)
+			continue
+		if not el.is_loot():
+			continue
+		var value: int = el.sell_instant()
+		if value > 0:
+			total += value
+			_drop_element(el)
 	if total > 0:
 		Game.add_money(total)
 		Sound.play("sfx_sell_all")
@@ -1057,7 +1176,7 @@ func _table_broom_step(delta: float) -> void:
 			_loot_age.erase(el)
 			continue
 		_loot_age[el] = float(_loot_age[el]) + delta
-		if float(_loot_age[el]) < LootDB.AUTO_SELL_TABLE_AFTER:
+		if float(_loot_age[el]) < LootDB.AUTO_SELL_TABLE_AFTER or el.is_busy():
 			continue
 		var at: Vector2 = el.global_position + el.size * 0.5
 		# Tipado a mano: `el` sale del diccionario y GDScript no sabe que es un
@@ -1142,8 +1261,12 @@ func _on_open_requested(el: Object) -> void:
 ## los doce marcados va subiendo de escalon sola segun se enriquece, y marcando
 ## solo los de arriba se apunta a lo caro.
 func _auto_buy_step() -> void:
+	# Tampoco con el REBIRTH abierto: alli se esta decidiendo si reiniciar con el
+	# dinero que hay, y el requisito y las monedas se miden en el contador. Antes la
+	# compra seguia gastando por debajo del panel y el numero bajaba mientras se
+	# leia. Ni con los ajustes, por lo mismo que con la tienda.
 	if not table_free() or _shop != null or _auto_buy_panel != null or _locker != null \
-			or _reveal != null:
+			or _reveal != null or _rebirth != null or _settings != null:
 		return
 	var best := ""
 	var best_price := 1 << 60
@@ -1359,12 +1482,14 @@ func _refresh_locker() -> void:
 		holder.add_child(UIKit.fit_art(str(item.get("art", "loot_vinyl")),
 				Vector2(LOCK_SIDE * 0.5, LOCK_SIDE * 0.5 - 8.0),
 				Vector2(LOCK_SIDE * 0.62, LOCK_SIDE * 0.62)))
+		# A 0,22 y no a 0,15: a 0,15 la cifra media 11 px y no se leia desde la
+		# silla. Un poco mas abajo que antes para no tocar el dibujo.
 		var num := PixelNumber.new()
-		num.scale_factor = 0.15
+		num.scale_factor = 0.22
 		num.max_width = LOCK_SIDE - 12.0
 		holder.add_child(num)
 		num.set_number(int(item.get("value", 0)))
-		num.position = Vector2(LOCK_SIDE * 0.5, LOCK_SIDE - 26.0) - num.size * 0.5
+		num.position = Vector2(LOCK_SIDE * 0.5, LOCK_SIDE - 22.0) - num.size * 0.5
 		b.tooltip_text = "Armario: %s expuesto" % str(item.get("name", ""))
 
 

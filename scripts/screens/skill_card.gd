@@ -53,7 +53,10 @@ const LINE_STEP := 40.0
 const NOW_Y := 580.0
 const NEXT_Y := 620.0
 ## La chapa del precio y el boton, en la misma fila que en la tienda.
-const TAG := Vector2(200, 64)
+## La chapa del precio de la ficha: la ficha tiene sitio de sobra, y a 200x64 con
+## las cifras a 0,34 el precio era lo mas pequeno de la pantalla siendo lo que
+## se mira antes de pulsar COMPRAR.
+const TAG := Vector2(256, 80)
 const TAG_Y := 690.0
 const BUY_CENTER := Vector2(1190, 830)
 const BUY_W := 384.0
@@ -139,7 +142,7 @@ func refresh() -> void:
 	# El titulo es el EFECTO y no un nombre: las mejoras del arbol no se llaman de
 	# ninguna otra forma, y "+20 % DE DANO" dice mas que "MEJORA DE DANO".
 	_add(UIKit.label_at(SkillTree.effect_text(_id), Vector2(960, TITLE_Y),
-			Vector2(1200, 70), 48, Palette.GOLD, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
+			Vector2(1200, 70), 48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	_add(UIKit.label_at(_state_text(cost), Vector2(960, STATE_Y), Vector2(1200, 44), 21,
 			Palette.GOLD_XL if cost < 0 or Game.can_buy_skill(_id) else Palette.RUST_L,
 			HORIZONTAL_ALIGNMENT_CENTER))
@@ -203,8 +206,8 @@ func refresh() -> void:
 	# El color va antes del texto: PixelNumber solo lo aplica al construir los
 	# glifos (ver pixel_number.gd, _rebuild).
 	num.color = Palette.CREAM if Game.can_buy_skill(_id) else Palette.RUST_L
-	num.scale_factor = 0.34
-	num.max_width = TAG.x - 24.0
+	num.scale_factor = 0.46
+	num.max_width = TAG.x - 40.0
 	num.set_number(cost)
 	_add(num)
 	num.position = Vector2(COL_MID, TAG_Y) - num.size * 0.5
