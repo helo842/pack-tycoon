@@ -51,10 +51,10 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
 
    | | escalón 1 | escalón 2 | escalón 3 |
    |---|---|---|---|
-   | **SOBRES** | gratis | 15.000 | 600.000 |
-   | **VINILOS** | 500 | 40.000 | 1.500.000 |
-   | **ZAPATILLAS** | 1.900 | 100.000 | 4.000.000 |
-   | **ELECTRÓNICA** | 6.000 | 250.000 | 10.000.000 |
+   | **SOBRES** | gratis | 9.500 | 600.000 |
+   | **VINILOS** | 500 | 24.000 | 1.500.000 |
+   | **ZAPATILLAS** | 1.400 | 60.000 | 4.000.000 |
+   | **ELECTRÓNICA** | 3.800 | 150.000 | 10.000.000 |
 
    La columna **tiene scroll**: doce filas de 232 px son 2784 px de lista en una
    ventana de 752, así que la columna es una ventana a la lista larga (rueda del
@@ -96,8 +96,11 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
    para no quedarse nunca sin poder abrir nada. Los tres escalones de un tipo dan
    **los mismos objetos**, multiplicados por el escalón (`vmult`), y el precio va
    en escalera de verdad: **ningún sobre de un escalón es más barato que los del
-   anterior**. El escalón 2 arranca en 15.000 (el 1 llega a 6.000) y el 3 en
-   600.000 (el 2 llega a 250.000). Cuando los escalones se cruzaban —SOBRES ORO a
+   anterior**. El escalón 2 arranca en 9.500 (el 1 llega a 3.800) y el 3 en
+   600.000 (el 2 llega a 150.000). Los dos primeros escalones van a ×2,5–×2,7 de un
+   sobre al siguiente: con la escalera vieja (500, 1.900, 6.000, 15.000…) el salto
+   de las zapatillas a la electrónica se comía siete minutos de partida sin
+   desbloquear nada. Cuando los escalones se cruzaban —SOBRES ORO a
    4.000, más barato que la ELECTRÓNICA del escalón 1— no había ninguna razón
    para comprar la electrónica ni las zapatillas del escalón 1: con el mismo
    precio por dinero y más botín arriba, lo racional era saltárselas, y se
@@ -106,12 +109,12 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
    (mueve más dinero por el mismo porcentaje), no rentabilidad, así que ni el de
    arriba es un chollo ni el de abajo una pérdida. Y aguantan más: la vida va con
 la **raíz** del precio (21,5 × √precio), así que los cuatro del escalón 1 son
-215 (el básico, que es gratis, va puesto a mano), 480, 937 y 1.665, los del 2
-son 2.633, 4.300, 6.799 y 10.750 y los del 3 son 16.654, 26.332, 43.000 y
+215 (el básico, que es gratis, va puesto a mano), 481, 804 y 1.325, los del 2
+son 2.096, 3.331, 5.266 y 8.327 y los del 3 son 16.654, 26.332, 43.000 y
 67.989. Un sobre que cuesta cuatro veces más no es
    cuatro veces más duro, es el doble: eso deja el ritmo de la partida en el
    **daño del jugador** —los items— y no en lo caro que sea el sobre, y es lo
-   que hace que una partida dure unos dieciséis minutos en vez de dos minutos. La
+   que hace que una partida dure unos quince minutos en vez de dos minutos. La
    **TIENDA** se ha quedado con los diez items.
 2. **Clic en el paquete** → arranca la carga. Sale un anillo que se llena **por
    detrás del paquete**, rodeándolo, y el paquete va temblando. Cada carga
@@ -213,8 +216,8 @@ algo.
 | **ELECTRÓNICA** | las monedas de rebirth |
 
 Cuánto aporta cada objeto lo decide **su nota PSA**: de un **2 % en la nota 1 a
-un 15 % en la 10**, repartido a partes iguales. Son porcentajes bajos a
-propósito: ocho vitrinas llenas de piezas de nota 10 son +120 % repartido entre
+un 25 % en la 10**, repartido a partes iguales. Son porcentajes bajos a
+propósito: ocho vitrinas llenas de piezas de nota 10 son +200 % repartido entre
 los cuatro stats, y con el armario lleno el jugador ya nota que trabaja.
 
 En la pantalla de partida **no hay inventario**: la tira de abajo es **la
@@ -263,7 +266,7 @@ es la otra cosa que se hace «cuando se para» (vender, entrar en la tienda y
 reiniciar la partida), y además es algo que se hace jugando, porque el requisito
 —el dinero— se junta dentro de la partida. El **menú no tiene nada de esto** —es
 la pantalla de empezar—: estuvo ahí con su hucha, su contador y su chapa, y en una
-partida nueva lo que se veía era una hucha con un cero y un «TE FALTAN 80.000» en
+partida nueva lo que se veía era una hucha con un cero y un «TE FALTAN 120.000» en
 rojo, o sea un sistema anunciado antes de que el jugador supiera que existe.
 
 La chapa **REBIRTH** se puede pulsar siempre, también cuando la partida todavía no
@@ -375,18 +378,21 @@ expuestas. Y **no se pierde al reiniciar**: es lo que hace que reiniciar signifi
 algo, porque las monedas se ganan reiniciando y se gastan aquí. Lo que se pierde
 es la partida: dinero, items, inventario y armario.
 
-El primer rebirth pide **80.000 en el contador**, que son **unos dieciocho minutos
-de partida** (dieciséis el jugador típico con el botín en su media, catorce el que
-juega rápido y compra bien, y trece con el PC y los Pinchos puestos): lo justo
-para subir los tres escalones de sobres, comprar media docena de mejoras y llegar
-con ganas de reiniciar. Ese número no es una esperanza, es una medida: lo dice
+El primer rebirth —la primera moneda— pide **120.000 en el contador**, que son
+**unos quince minutos de partida** (doce el que juega rápido y compra bien, y once
+con el PC y los Pinchos puestos): lo justo para subir los dos primeros escalones
+de sobres, comprar treinta y tantas mejoras y llegar con ganas de reiniciar. Y
+por el camino **se nota que se va mejorando**: la primera mejora cae antes del
+primer minuto, sale un escalón de sobres nuevo cada dos o tres minutos y el rato
+más largo sin nada que comprar ronda los dos minutos (antes eran casi cuatro de
+media, y en las partidas malas diez). Ese número no es una esperanza, es una medida: lo dice
 `dev/balance.gd`, que juega la partida entera con los datos de verdad (ver «Cambiar
 el equilibrio»). Cuando ese requisito se medía en **lo ganado en la partida** eran
 también unos dieciocho minutos, así que el ritmo es el mismo; lo que cambió es
 **qué** se mide.
 
 El **requisito** y el **premio** se cuentan sobre lo mismo: **el dinero que hay en
-el contador**. Se piden **80.000** para poder reiniciar y cada **1,5 millones** dan
+el contador**. Se piden **120.000** para poder reiniciar y cada **1,5 millones** dan
 una moneda, así que gastar en sobres y mejoras antes de reiniciar **aleja las dos
 cosas** y guardar el dinero las acerca. El número del requisito es bajo (en el
 contador de una partida se manejan miles, no millones) y **está medido**, no
@@ -445,12 +451,15 @@ por rareza. El cartón se desgasta distinto a una consola (roce, humedad, esquin
 doblada, pliegue, mancha de anillo), así que el desgaste de carta es otro código
 en el generador.
 
-**La nota PSA es una pirámide apoyada en la 2-4**, no un reparto hacia arriba:
-casi la mitad del botín sale tocado (nota 1-3), la 9 sale una de cada veintisiete
+**La nota PSA es una pirámide apoyada en la 3-5**, no un reparto hacia arriba:
+un tercio del botín sale tocado (nota 1-3), la 9 sale una de cada veintiocho
 y la **10 una de cada cuarenta**. Y lo que vale cada nota es lo que hace que mirar
-el número importe: la 1 vale un 0.61 del precio base, la 5 ya vale lo que antes
+el número importe: la 1 vale un 0.70 del precio base, la 5 ya vale lo que antes
 valía un 10 (1.25) y la 10 vale el doble que aquel 10 (2.50). O sea que un 10 no
 es "un poco mejor": es el objeto que se guarda y el que se expone en el armario.
+La base estuvo en la 1-2 (con la 1 a 0.61) y se subió: así la mitad de los sobres
+se vendía por menos de lo que costaba, y como el jugador se juega casi todo su
+dinero en cada sobre, la partida dependía más del dado que de lo que compraba.
 El **Trébol no toca la nota**, solo engorda el peso del botín raro, épico y
 legendario (y por eso un 10 sigue saliendo una vez de cada cuarenta con el
 Trébol al máximo).
@@ -460,7 +469,7 @@ Trébol al máximo).
 | Tecla | Qué hace |
 |---|---|
 | `ESPACIO` / `ENTER` | Cerrar la tarjeta sin elegir: el objeto se queda en la mesa |
-| `ESC` | Cierra el panel abierto; si no hay ninguno, vuelve al menú |
+| `ESC` | Cierra el panel abierto; si no hay ninguno, vuelve al menú (la mesa se guarda tal cual: sobres con la vida que les queda y botín sin vender) |
 
 La partida se guarda sola (cada 30 s si ha cambiado algo, y al salir) en
 `user://packtycoon.json`.
@@ -556,8 +565,10 @@ G=/ruta/a/Godot_v4.7.2-stable_linux.x86_64
 
 # Cuánto dura una partida hasta el primer rebirth. Juega la partida entera con
 # los datos de verdad y saca el informe (mediana, dispersión, lo que paga cada
-# sobre). Hoy: unos 18 minutos el jugador normal y 13 el que juega rápido,
-# compra bien y pone el PC y los Pinchos.
+# sobre) y el RITMO (cuándo se abre cada escalón y el rato más largo sin
+# comprar ninguna mejora). Hoy: unos 15 minutos el jugador normal y 11 el que
+# juega rápido, compra bien y pone el PC y los Pinchos. Con `trace buys` saca
+# además cada compra de una partida.
 $G --headless --path . res://dev/BalanceTest.tscn
 
 # Prueba de integración: recorre el bucle entero sin ratón y dice qué falla.
@@ -613,7 +624,7 @@ apertura apagada, que la compra automática compre solo lo marcado en su mini
 menú y coja el más barato de lo marcado, que arrastrar no venda el botín y que
 no se pueda sacar de la mesa, que **cada tipo de botín dé su bonus** (cartas el
 daño, vinilos el dinero, zapatillas la velocidad y electrónica el rebirth) y que
-ese bonus vaya de un **2 % en la nota 1 a un 15 % en la 10**, que la probabilidad
+ese bonus vaya de un **2 % en la nota 1 a un 25 % en la 10**, que la probabilidad
 de crítico sea de un **5 % por nivel** del Ojo verde, que el armario tenga
 **exactamente los huecos de su nivel** (con dos, el tercer objeto no entra) y que
 exponer **saque el objeto del inventario** y devolverlo lo devuelva, que el
@@ -687,13 +698,22 @@ Dos reglas mandan sobre el precio de los sobres, y las dos se comprueban en
    saltarse los baratos vuelve a ser lo racional si el de arriba paga más por
    dinero.
 
-   **Ese 15 % ES toda la progresión del juego**, y es el número que estaba roto.
-   Con el 350 % que había, el capital se multiplicaba por 4,5 en cada sobre, no
-   había forma de gastarlo (la tienda no da para tanto) y la partida se
+   **Ese margen ES toda la progresión del juego**, y es el número que estaba
+   roto. Con el 350 % que había, el capital se multiplicaba por 4,5 en cada
+   sobre, no había forma de gastarlo (la tienda no da para tanto) y la partida se
    terminaba en dos minutos: un PSA 10, o cualquier golpe de suerte, **era** la
-   partida, y el resto de los objetos no valían para nada. Con el 15 % el dinero
-   crece despacio, cada sobre cuenta y la tienda compite de verdad con la
+   partida, y el resto de los objetos no valían para nada. Con un 39 % (un 44 %
+   en los tres de pago del escalón 1, que es donde más se nota al empezar) el
+   dinero crece despacio, cada sobre cuenta y la tienda compite de verdad con la
    columna por el mismo dinero.
+
+   **Ojo: la media no es lo que nota el jugador.** Como compra el sobre más caro
+   que le llega, se juega casi todo su dinero en cada uno, y lo que cuenta es el
+   sobre *típico*. Si la tabla de notas o de botín está muy cargada en las
+   colas, la media puede pagar un 39 % mientras la mitad de los sobres dan
+   pérdidas: eso pasaba, y eran minutos enteros sin avanzar. Los `vmult` se
+   calculan con la tabla de notas de ahora, así que tocar `GRADE_WEIGHTS` o
+   `GRADE_MULT` obliga a recalcularlos.
 3. **La resistencia va con la raíz del precio** (`hp = 21,5 × √precio`), que es
    la otra mitad de lo mismo: el rato que dura una partida es la vida de los
    sobres partida por el daño del jugador, así que subir la vida es alargar la
@@ -714,11 +734,21 @@ $G --headless --path . res://dev/BalanceTest.tscn
 
 Hoy dice que un jugador normal (un clic cada 0,35 s, la tarjeta leída, y pagando
 mejoras cuando le caben en el bolsillo) llega al primer rebirth en **unos
-dieciocho minutos**; que el que juega rápido y compra bien —gastando a tirones
+quince minutos**; que el que juega rápido y compra bien —gastando a tirones
 de una quinta parte del dinero en vez de vaciarse en cada mejora— lo hace en
-**unos catorce**; y que con el PC y los Pinchos, en **unos trece**. Esos son los
-números **sin dado**, que es con lo que se mide el test; con dado la mediana de
-veinticinco partidas sale 16,8 / 15,8 / 14,6. Desde que la barra va a 1,65 s por
+**unos doce**; y que con el PC y los Pinchos, en **unos once**. Esos son los
+números **sin dado**, que es con lo que se mide el test (que exige al normal
+entre 12 y 19); con dado la mediana de veinticinco partidas sale 14,9 / 12,0 /
+11,1, y el 80 % central del normal va de 10,8 a 19,4.
+
+El informe dice también **el ritmo**, que es lo que el minuto final no enseña: en
+qué minuto se abre por primera vez cada sobre (hoy zapatillas al 3,3, electrónica
+al 5,4, SOBRES ORO al 8, VINILOS ORO al 10,2 y ZAPATILLAS ORO al 13,1), cuándo
+cae la primera mejora (a los 40 segundos) y el rato más largo sin comprar ninguna
+(1,9 minutos de mediana). Una partida de quince minutos con diez seguidos sin
+nada que comprar se hace larga aunque el total salga en la banda, y eso era lo
+que pasaba antes: la electrónica llegaba al minuto 10 y había partidas con 10
+minutos sin una sola mejora. Desde que la barra va a 1,65 s por
 golpe cada golpe pesa más, así que el clic ya no decide la partida —el que juega
 rápido gana un par de minutos, no cinco— y lo que manda es subir el daño pronto
 sin comerse el dinero que hace falta para sobres: por eso el óptimo de gasto se
