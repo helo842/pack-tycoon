@@ -468,7 +468,7 @@ func _run() -> void:
 	# Y LA V VACIA LA MESA DE VERDAD, por el mismo camino que el boton: el dinero
 	# entra y el objeto desaparece.
 	game._spawn_loot({"id": "card_c", "name": "CARTA COMUN",
-		"art": "loot_card_common", "rarity": "common", "grade": 5, "value": 600,
+		"art": "loot_card_common_psa5", "rarity": "common", "grade": 5, "value": 600,
 		"kind": "cards"})
 	await _wait(0.9)
 	var dinero_antes: int = Game.money

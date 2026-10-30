@@ -21,6 +21,10 @@ signal settings_changed()
 signal skills_changed()
 ## Aviso corto para la parte de arriba de la pantalla.
 signal notice(text: String, color: Color)
+## La mesa se ha vaciado por decreto: un rebirth (lo que habia en ella era de la
+## partida que se va) o un reinicio de los tests. Lo escucha la pantalla de juego,
+## que es la que tiene los elementos dibujados y tiene que quitarlos.
+signal table_reset()
 
 const SAVE_PATH := "user://packtycoon.json"
 const AUTOSAVE_EVERY := 30.0
@@ -94,6 +98,19 @@ var packs_opened: int = 0
 var items_found: int = 0
 var best_grade: int = 0
 
+## LO QUE HAY ENCIMA DE LA MESA: los sobres comprados (con la vida que les queda)
+## y el botin sin vender. Cada entrada es {"pack": id, "hp": vida} o
+## {"loot": objeto}.
+##
+## ANTES NO SE GUARDABA, y era un agujero: salir al menu (ESC) o cerrar el juego
+## tiraba los sobres que ya se habian pagado y el botin que no se habia vendido.
+## La mesa la dibuja la pantalla de juego, asi que es ella la que sabe lo que hay:
+## mientras esta abierta deja aqui `table_provider`, y cada guardado le pide la
+## foto de la mesa. Al cerrarse deja la ultima foto en `table`, y la siguiente
+## pantalla de juego la vuelve a poner en la mesa (ver game.gd, _restore_table).
+var table: Array = []
+var table_provider: Callable = Callable()
+
 var _dirty := false
 var _autosave_left := AUTOSAVE_EVERY
 
@@ -111,6 +128,11 @@ func _ready() -> void:
 	# golpe en cuanto llega el aviso de la ventana.
 	get_tree().auto_accept_quit = false
 	load_game()
+	# La pantalla completa se GUARDABA pero no se aplicaba al arrancar: la casilla
+	# de los ajustes salia marcada y la ventana se abria igual en ventana. Sin
+	# ventana (los tests van en headless) no hay modo que poner.
+	if fullscreen and DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
@@ -504,6 +526,13 @@ func do_rebirth() -> int:
 		return 0
 	var coins := pending_rebirth_coins()
 	rebirth_coins += coins
+	# LA MESA SE VACIA, y lo primero: lo que hay encima es de la partida que se va.
+	# Antes se quedaba puesta, y el botin sin vender se cobraba DESPUES del rebirth,
+	# o sea que se podia pasar dinero de una partida a la siguiente dejando la mesa
+	# llena antes de reiniciar. Se avisa ANTES del save_game() de abajo: el
+	# guardado le pide la foto de la mesa a la pantalla, y tiene que salir vacia.
+	table = []
+	table_reset.emit()
 	money = START_MONEY
 	items = []
 	while items.size() < LootDB.item_count():
@@ -735,6 +764,31 @@ func request_open(element: Object) -> void:
 	open_requested.emit(element)
 
 
+## La mesa que trae un guardado, limpia: fuera los sobres que ya no existan, las
+## vidas sin sentido y el botin sin valor. Un guardado de antes de que se guardara
+## la mesa no trae la clave y sale vacia, que es lo que habia.
+static func _clean_table(raw) -> Array:
+	var out: Array = []
+	if typeof(raw) != TYPE_ARRAY:
+		return out
+	for entry in raw:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var d: Dictionary = entry
+		if d.has("pack"):
+			var pack_id := str(d["pack"])
+			if LootDB.pack_index(pack_id) == 0 and pack_id != str(LootDB.pack_at(0)["id"]):
+				continue
+			var max_hp := float(LootDB.pack_hp(pack_id))
+			out.append({"pack": pack_id,
+				"hp": clampf(float(d.get("hp", max_hp)), 1.0, max_hp)})
+		elif d.has("loot") and typeof(d["loot"]) == TYPE_DICTIONARY:
+			var item: Dictionary = d["loot"]
+			if int(item.get("value", 0)) > 0:
+				out.append({"loot": item})
+	return out
+
+
 # --------------------------------------------------------------------------- #
 # Ajustes
 # --------------------------------------------------------------------------- #
@@ -821,12 +875,16 @@ func hard_reset() -> void:
 	packs_opened = 0
 	items_found = 0
 	best_grade = 0
+	table = []
+	table_reset.emit()
 	_dirty = true
 	if FileAccess.file_exists(SAVE_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 	money_changed.emit(money)
 	inventory_changed.emit()
+	locker_changed.emit()
 	items_changed.emit()
+	skills_changed.emit()
 	settings_changed.emit()
 
 
@@ -850,11 +908,15 @@ func to_dict() -> Dictionary:
 		"packs_opened": packs_opened,
 		"items_found": items_found,
 		"best_grade": best_grade,
+		"table": table,
 	}
 
 
 func save_game() -> void:
 	_dirty = false
+	# La foto de la mesa, si hay una partida en pantalla (ver `table`).
+	if table_provider.is_valid():
+		table = table_provider.call()
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
 		push_warning("No se pudo guardar en %s: %s" % [SAVE_PATH, error_string(FileAccess.get_open_error())])
@@ -928,6 +990,7 @@ func _apply(d: Dictionary) -> void:
 	packs_opened = int(d.get("packs_opened", 0))
 	items_found = int(d.get("items_found", 0))
 	best_grade = int(d.get("best_grade", 0))
+	table = _clean_table(d.get("table", []))
 	# Y cada automatizacion se cae si no esta SU pieza: un guardado que venga con
 	# ellas encendidas y sin Pinchos o sin PC (de una version anterior, o de haber
 	# tocado el fichero) no puede dejar la mesa abriendose o comprando sola.

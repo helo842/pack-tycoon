@@ -102,6 +102,17 @@ func setup_loot(item: Dictionary) -> void:
 	state = State.LOOT
 
 
+## La vida de un sobre que vuelve a la mesa desde un guardado (ver
+## Game.table): se pone despues de montarlo, con el dibujo ya hecho, para que la
+## caja salga agrietada como estaba. Nunca baja de 1: un sobre guardado a cero
+## estaba rompiendose, y lo que tiene que pasar es que el siguiente golpe lo abra.
+func set_hp(value: float) -> void:
+	if state == State.LOOT:
+		return
+	hp = clampf(value, 1.0, max_hp)
+	_refresh_damage_art()
+
+
 func _build_pack() -> void:
 	# El ANILLO VA DELANTE DE TODO MENOS DEL PAQUETE, y es justo lo que hace que
 	# no lo tape. El sprite ui_timer_track es un disco con un agujero en medio:
@@ -460,8 +471,13 @@ func _emit_sold(value: int, at: Vector2) -> void:
 
 
 ## Para el boton de "vender todo": devuelve el valor y se borra.
+##
+## Un botin que YA se esta vendiendo (el clic arranca una animacion corta y paga
+## al final, ver _sell) devuelve 0 y no se toca: su venta ya esta en marcha y la
+## paga ella. Antes lo cobraba otra vez aqui, y si la animacion acababa en el
+## mismo frame el objeto se pagaba dos veces.
 func sell_instant() -> int:
-	if state != State.LOOT:
+	if state != State.LOOT or _busy:
 		return 0
 	var value := int(loot.get("value", 0))
 	queue_free()
@@ -478,3 +494,9 @@ func is_opening() -> bool:
 
 func is_loot() -> bool:
 	return state == State.LOOT
+
+
+## ¿Esta a mitad de algo que ya no se puede parar? (abriendose del todo o
+## vendiendose). Quien vende a granel lo mira para no pisar esa venta.
+func is_busy() -> bool:
+	return _busy

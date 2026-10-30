@@ -1175,8 +1175,8 @@ func _run() -> void:
 		if str(LootDB.pack_at(i)["id"]) == "vinyls":
 			i_vinyls = i
 	var base_vinyls := int(LootDB.pack_by_id("vinyls")["price"])
-	_check("el Dolar cuesta 1.500 en su primer nivel",
-		LootDB.item_cost(i_dolar, 0) == 1500)
+	_check("el Dolar cuesta 900 en su primer nivel",
+		LootDB.item_cost(i_dolar, 0) == 900)
 	# La escalera: las tres primeras baratas y despues el salto, con la ultima
 	# MUY cara (el descuento se nota en todo lo que compres).
 	var escalera: Array = []
@@ -1308,14 +1308,19 @@ func _run() -> void:
 		_check_sin_encimarse("la ficha no pone texto encima de una chapa", ficha)
 		var comprar := _boton_de(ficha, "COMPRAR")
 		_check("la ficha trae el boton de comprar", comprar != null)
-		# Y con el dinero de una partida nueva (500) no llega para las Tijeras
-		# (540): la ficha pide la compra a la tienda, que es la que cobra, y por eso
-		# el nivel no sube ni se gasta nada.
+		# Y SIN DINERO no compra: la ficha pide la compra a la tienda, que es la que
+		# cobra, y por eso el nivel no sube ni se gasta nada. El dinero se pone a
+		# mano un punto por debajo del precio: desde que las Tijeras cuestan 300, el
+		# dinero de una partida nueva (500) SI llega, y esta prueba es de la ficha
+		# sin dinero, no de la partida nueva.
 		_check("y el item no esta comprado todavia", Game.item_level(tijeras) == 0)
+		var dinero_ficha: int = Game.money
+		Game.money = LootDB.item_cost(tijeras, 0) - 1
 		if comprar != null:
 			comprar.pressed.emit()
 		await get_tree().process_frame
 		_check("sin dinero la ficha no compra", Game.item_level(tijeras) == 0)
+		Game.money = dinero_ficha
 	shop._close_card()
 	await get_tree().process_frame
 	_check("cerrar la ficha deja la tienda abierta y sin nada encima",
@@ -1701,10 +1706,17 @@ func _run() -> void:
 	g._on_open_requested(a_medias)
 	_check("un paquete a medias ocupa su hueco del turno", g._worked.size() == 1)
 	g._sell_all_table()
-	_check("y vender todo lo suelta", g._worked.is_empty())
-	# VENDER TODO no paga un paquete a medio abrir (solo vende botin), asi que se
-	# quita de la mesa a mano para que no siga cargando por detras.
+	# VENDER solo vende BOTIN: un sobre (cerrado o a medio abrir) se queda en la
+	# mesa, en la lista y con su turno. Antes se soltaba de la lista pero seguia
+	# dibujado, y la mesa contaba un hueco libre que no tenia.
+	_check("vender todo no toca los sobres de la mesa",
+		g._elements.has(a_medias) and g.table_count() == 1)
+	_check("y el que se estaba abriendo conserva su turno", g._worked.has(a_medias))
+	# Se quita de la mesa a mano, por el camino de siempre, para que no siga
+	# cargando por detras.
+	g._drop_element(a_medias)
 	a_medias.queue_free()
+	_check("y al salir de la mesa suelta el turno", g._worked.is_empty())
 	Game.items[LootDB.item_index("tijeras")] = 0
 	await get_tree().process_frame
 
@@ -2152,6 +2164,7 @@ func _run() -> void:
 	var carta10 := LootDB.roll_item(rng_arm, "cards")
 	carta10["grade"] = LootDB.GRADE_MAX
 	carta10["value"] = LootDB.final_value(carta10, LootDB.GRADE_MAX)
+	carta10["art"] = LootDB.art_for(carta10, LootDB.GRADE_MAX)
 	Game.store(carta10)
 	# DOS objetos mas, para poder llenar los dos huecos y comprobar que el tercero
 	# NO entra: los huecos son la unica razon de subir el armario de nivel.
@@ -2159,6 +2172,7 @@ func _run() -> void:
 		var extra := LootDB.roll_item(rng_arm, "vinyls")
 		extra["grade"] = LootDB.PSA_MIN
 		extra["value"] = LootDB.final_value(extra, LootDB.PSA_MIN)
+		extra["art"] = LootDB.art_for(extra, LootDB.PSA_MIN)
 		Game.store(extra)
 	_check("el armario empieza con los huecos que dice su nivel", Game.locker_slots() == 2)
 	g._open_locker()
@@ -2225,9 +2239,11 @@ func _run() -> void:
 		var rico := LootDB.roll_item(rng_arm, "cards")
 		rico["grade"] = LootDB.GRADE_MAX
 		rico["value"] = LootDB.final_value(rico, LootDB.GRADE_MAX)
+		rico["art"] = LootDB.art_for(rico, LootDB.GRADE_MAX)
 		var barato := LootDB.roll_item(rng_arm, "vinyls")
 		barato["grade"] = LootDB.PSA_MIN
 		barato["value"] = LootDB.final_value(barato, LootDB.PSA_MIN)
+		barato["art"] = LootDB.art_for(barato, LootDB.PSA_MIN)
 		Game.store(rico)
 		Game.store(barato)
 		await get_tree().process_frame
@@ -3082,11 +3098,11 @@ func _run() -> void:
 	while Game.items.size() < LootDB.item_count():
 		Game.items.append(0)
 	Game.skills = {SkillTree.QOL_LOCKER: 1, "locker": 1}
-	var flojo := {"kind": "cards", "grade": 2, "value": 100}
-	var otro := {"kind": "vinyls", "grade": 2, "value": 100}
+	var flojo := {"kind": "cards", "grade": 2, "value": 100, "art": "loot_card_common_psa2"}
+	var otro := {"kind": "vinyls", "grade": 2, "value": 100, "art": "loot_vinyl_psa2"}
 	Game.locker = [flojo.duplicate(), otro.duplicate()]
-	Game.inventory = [{"kind": "cards", "grade": 9, "value": 900},
-		{"kind": "cards", "grade": 1, "value": 50}]
+	Game.inventory = [{"kind": "cards", "grade": 9, "value": 900, "art": "loot_card_common_psa9"},
+		{"kind": "cards", "grade": 1, "value": 50, "art": "loot_card_common_psa1"}]
 	Game.locker_put(0)
 	_check("con ARMARIO SOLO, una pieza mejor entra en el armario lleno",
 		LootDB.bonus_for(Game.locker[0]) > LootDB.bonus_for(flojo)
@@ -3108,7 +3124,7 @@ func _run() -> void:
 	# precio que el clic. Se prueba con un objeto puesto de verdad en la mesa, no
 	# con el reloj a mano, porque lo que hay que comprobar es que pasa por el
 	# camino de la venta de siempre (dinero, sonido y aviso).
-	var botin := {"id": "card_c", "name": "CARTA COMUN", "art": "loot_card_common",
+	var botin := {"id": "card_c", "name": "CARTA COMUN", "art": "loot_card_common_psa5",
 		"rarity": "common", "grade": 5, "value": 500, "kind": "cards"}
 	Game.skills = {}
 	var esperando: TableElement = g._spawn_loot(botin.duplicate())
@@ -3134,6 +3150,95 @@ func _run() -> void:
 	if is_instance_valid(recien):
 		g._remove_from_table(recien)
 	Game.skills = {}
+
+	# --- los fallos de la mesa que se arreglaron -------------------------- #
+	#
+	# LAS TARJETAS DE REVELADO VAN DE UNA EN UNA. Con dos paquetes rompiendose
+	# mientras la primera tarjeta seguia abierta, la segunda se pintaba encima y
+	# la primera se quedaba huerfana al cerrar la de arriba.
+	await _empty_table(g)
+	Game.set_auto_sell(false)
+	var capas_cola: int = _main._overlay_host.get_child_count()
+	var roto_a: TableElement = g._spawn_pack("cards")
+	var roto_b: TableElement = g._spawn_pack("cards")
+	g._on_element_opened("cards", roto_a)
+	g._on_element_opened("cards", roto_b)
+	await get_tree().process_frame
+	_check("dos sobres rotos a la vez sacan UNA tarjeta",
+		g._reveal != null and _main._overlay_host.get_child_count() == capas_cola + 1)
+	_check("y el segundo espera su turno", g._reveal_queue.size() == 1)
+	if g._reveal != null:
+		g._reveal._finish(RevealCard.ACTION_SELL)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("al cerrar la primera sale la segunda, sola",
+		g._reveal != null and g._reveal_queue.is_empty()
+		and _main._overlay_host.get_child_count() == capas_cola + 1)
+	if g._reveal != null:
+		g._reveal._finish(RevealCard.ACTION_SELL)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("y al cerrar la segunda no queda ninguna",
+		g._reveal == null and _main._overlay_host.get_child_count() == capas_cola)
+	for cola_el in [roto_a, roto_b]:
+		if is_instance_valid(cola_el):
+			cola_el.queue_free()
+	await _empty_table(g)
+
+	# UN BOTIN QUE YA SE ESTA VENDIENDO no se vuelve a cobrar con VENDER: el clic
+	# arranca una animacion que paga al final, y VENDER lo pagaba otra vez.
+	var vendiendo: TableElement = g._spawn_loot(botin.duplicate())
+	await get_tree().process_frame
+	var dinero_venta: int = Game.money
+	vendiendo._sell()
+	_check("un botin a medio vender no se vende otra vez de golpe",
+		vendiendo.sell_instant() == 0 and is_instance_valid(vendiendo))
+	g._sell_all_table()
+	await _wait(0.6)
+	_check("y se cobra una sola vez",
+		Game.money == dinero_venta + int(botin["value"]) and g.table_count() == 0)
+
+	# EL REBIRTH VACIA LA MESA. Antes la mesa se quedaba puesta y el botin sin
+	# vender se cobraba en la partida nueva: se podia pasar dinero de una partida a
+	# la siguiente dejando la mesa llena antes de reiniciar.
+	await _empty_table(g)
+	var monedas_mesa: int = Game.rebirth_coins
+	var en_mesa: TableElement = g._spawn_loot(botin.duplicate())
+	g._spawn_pack("vinyls")
+	Game.money = LootDB.REBIRTH_REQUIRE
+	Game.do_rebirth()
+	_check("el rebirth vacia la mesa", g.table_count() == 0 and Game.table.is_empty())
+	var dinero_nuevo: int = Game.money
+	if is_instance_valid(en_mesa):
+		en_mesa._emit_sold(int(botin["value"]), Vector2.ZERO)
+	_check("y lo que quedaba en ella no paga en la partida nueva",
+		Game.money == dinero_nuevo)
+	Game.rebirth_coins = monedas_mesa
+	await get_tree().process_frame
+
+	# LA MESA SE GUARDA. Salir al menu tiraba los sobres ya pagados y el botin sin
+	# vender; ahora vuelven al entrar, el sobre con la vida que le quedaba.
+	var guardado_sobre: TableElement = g._spawn_pack("sneakers")
+	guardado_sobre.set_hp(300.0)
+	g._spawn_loot(botin.duplicate())
+	_main.show_menu()
+	await get_tree().process_frame
+	_check("al salir al menu la mesa queda guardada", Game.table.size() == 2)
+	_main.show_game()
+	await get_tree().process_frame
+	g = _screen()
+	var vuelto_sobre := false
+	var vuelto_botin := false
+	for mesa_vuelta in g._elements:
+		if mesa_vuelta.is_loot() and int(mesa_vuelta.loot.get("value", 0)) == int(botin["value"]):
+			vuelto_botin = true
+		elif not mesa_vuelta.is_loot() and str(mesa_vuelta.pack.get("id", "")) == "sneakers" \
+				and is_equal_approx(mesa_vuelta.hp, 300.0):
+			vuelto_sobre = true
+	_check("y al volver estan los dos: el sobre con su vida y el botin",
+		g.table_count() == 2 and vuelto_sobre and vuelto_botin)
+	await _empty_table(g)
+	Game.table = []
 
 	# Y EL MENU NO SABE NADA DE ESTO. El menu que se ve al arrancar (y al salir de
 	# la partida) no tiene hucha ni forma de abrirla: el rebirth se hace jugando, y
