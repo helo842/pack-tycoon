@@ -45,7 +45,10 @@ var _name_size := 21
 ## La chapita del precio, mas ancha que la de la tienda: aqui el sobre mas caro
 ## cuesta diez millones, y "10.000.000" son once glifos. Con 140 px el numero
 ## tenia que encogerse tanto que dejaba de leerse.
-const PACK_TAG := Vector2(168, 44)
+## 192x56 y no 168x44: con la chapa baja las cifras iban a 0,22 (16 px de alto) y
+## "10.000.000" se salia de la cinta. Ahora la cinta llega hasta el borde de la
+## fila y el numero va a 0,28.
+const PACK_TAG := Vector2(192, 56)
 
 var _box: TextureRect
 var _cells: Array = []
@@ -56,7 +59,7 @@ func _ready() -> void:
 	add_child(UIKit.panel("ui_panel_shop"))
 
 	add_child(UIKit.label_at("COMPRA AUTOMATICA", Vector2(960, TITLE_Y),
-			Vector2(1400, 70), 48, Palette.GOLD, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
+			Vector2(1400, 70), 48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 	var close := UIKit.close_button(Vector2(1650, TITLE_Y), 96.0)
 	close.pressed.connect(_close)
@@ -152,12 +155,12 @@ func _pack_row(pack: Dictionary, price: int, top_left: Vector2) -> Dictionary:
 			HORIZONTAL_ALIGNMENT_LEFT, 0, true)
 	add_child(label)
 
-	var tag := Vector2(x + 576.0, y)
+	var tag := Vector2(x + COL_W - PACK_TAG.x * 0.5, y)
 	var tag_node := UIKit.image("ui_tag_price", tag, PACK_TAG)
 	add_child(tag_node)
 	var num := PixelNumber.new()
-	num.scale_factor = 0.22
-	num.max_width = PACK_TAG.x - 20.0
+	num.scale_factor = 0.28
+	num.max_width = PACK_TAG.x - 40.0
 	add_child(num)
 	num.set_number(price)
 	num.position = tag - num.size * 0.5

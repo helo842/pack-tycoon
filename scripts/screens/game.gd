@@ -497,9 +497,14 @@ func _pack_cell(list: Control, pack: Dictionary, index: int) -> Dictionary:
 	# GRATIS al mismo tamano que los numeros (35 de fuente son 35 px de tinta,
 	# frente a los 40 del numero): es un rotulo corto, y a 28 se leia mas pequeno
 	# que los precios de al lado.
-	var free_label := UIKit.label_at("GRATIS", tag,
-			PACK_TAG_SIZE - Vector2(24, 4), 35, Palette.GOLD_XL,
-			HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+	#
+	# EN OSCURO Y SIN CONTORNO, y no en oro con el contorno de la fuente: la cinta
+	# es crema, y el oro claro con su borde oscuro encima se leia como un borron
+	# (relleno casi del color de la cinta y solo el contorno a la vista). Es la
+	# MISMA fuente en su version sin contorno, la del titulo del menu.
+	var free_label := UIKit.title_label_at("GRATIS", tag,
+			PACK_TAG_SIZE - Vector2(24, 4), 35, Palette.NIGHT,
+			HORIZONTAL_ALIGNMENT_CENTER)
 	free_label.visible = false
 	list.add_child(free_label)
 
@@ -1477,12 +1482,14 @@ func _refresh_locker() -> void:
 		holder.add_child(UIKit.fit_art(str(item.get("art", "loot_vinyl")),
 				Vector2(LOCK_SIDE * 0.5, LOCK_SIDE * 0.5 - 8.0),
 				Vector2(LOCK_SIDE * 0.62, LOCK_SIDE * 0.62)))
+		# A 0,22 y no a 0,15: a 0,15 la cifra media 11 px y no se leia desde la
+		# silla. Un poco mas abajo que antes para no tocar el dibujo.
 		var num := PixelNumber.new()
-		num.scale_factor = 0.15
+		num.scale_factor = 0.22
 		num.max_width = LOCK_SIDE - 12.0
 		holder.add_child(num)
 		num.set_number(int(item.get("value", 0)))
-		num.position = Vector2(LOCK_SIDE * 0.5, LOCK_SIDE - 26.0) - num.size * 0.5
+		num.position = Vector2(LOCK_SIDE * 0.5, LOCK_SIDE - 22.0) - num.size * 0.5
 		b.tooltip_text = "Armario: %s expuesto" % str(item.get("name", ""))
 
 

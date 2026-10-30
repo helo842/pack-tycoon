@@ -57,7 +57,9 @@ const ICON_BOX := Vector2(112, 112)
 const ICON_DY := 68.0
 const NAME_DY := 150.0
 const LEVEL_DY := 188.0
-const TAG := Vector2(160, 56)
+## La chapa del precio, ancha y alta lo justo para que las cifras vayan a 0,38:
+## a 160x56 y 0,34 un precio de seis cifras ya se encogia por el ancho.
+const TAG := Vector2(208, 64)
 const TAG_DY := 230.0
 ## El fondo de la caja y su filete. La comprada se marca con el filete en dorado
 ## claro, que es lo que se ve de un vistazo al mirar la rejilla entera.
@@ -122,7 +124,7 @@ func _on_money_changed(_v: int) -> void:
 
 func _build_items() -> void:
 	add_child(UIKit.label_at("ITEMS - MEJORAN LA APERTURA",
-			Vector2(960, ITEMS_TITLE_Y), Vector2(1200, 60), 42, Palette.GOLD,
+			Vector2(960, ITEMS_TITLE_Y), Vector2(1200, 60), 42, Palette.GOLD_XL,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 	# Un solo tamaño de nombre para las diez cajas, como en la lista de sobres:
@@ -191,15 +193,15 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	else:
 		una_vez = UIKit.label_at("COMPRA UNICA",
 				Vector2(x + BOX.x * 0.5, y + LEVEL_DY), Vector2(BOX.x - 40.0, 24), 14,
-				Palette.GOLD, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+				Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 		add_child(una_vez)
 
 	var tag := Vector2(x + BOX.x * 0.5, y + TAG_DY)
 	var tag_node := UIKit.image("ui_tag_price", tag, TAG)
 	add_child(tag_node)
 	var cost := PixelNumber.new()
-	cost.scale_factor = 0.34
-	cost.max_width = TAG.x - 24.0
+	cost.scale_factor = 0.38
+	cost.max_width = TAG.x - 28.0
 	add_child(cost)
 	cost.set_number(int(item["base_cost"]))
 	cost.position = tag - cost.size * 0.5
