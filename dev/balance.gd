@@ -135,6 +135,14 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	var locker: Array = []
 	var table: Array = []
 	var buy_left := 0.0
+	# EL RITMO, ademas del minuto final: cuando se abre por primera vez cada sobre
+	# (los escalones que se van desbloqueando) y el rato mas largo que pasa sin
+	# comprar ninguna mejora. Es lo que dice si "se nota que vas mejorando": una
+	# partida de quince minutos con diez minutos seguidos sin comprar nada es una
+	# partida de quince minutos que se hace larga.
+	var first_open: Dictionary = {}
+	var last_buy := 0.0
+	var max_gap := 0.0
 	# SE PARA CUANDO EL CONTADOR LLEGA AL REQUISITO, que es la regla del rebirth
 	# desde que su requisito se mide en el dinero que TIENES y no en lo ganado (ver
 	# Game.can_rebirth). El requisito de la partida no es "hacer tal cosa": es
@@ -169,14 +177,21 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 			paid += price
 			income += gain
 			rungs[pack_id] = int(rungs.get(pack_id, 0)) + 1
+			if not first_open.has(pack_id):
+				first_open[pack_id] = t
 		var buy := _shop(st, levels, money)
 		money = int(buy["money"])
 		spent += int(buy["spent"])
+		if int(buy["spent"]) > 0:
+			max_gap = maxf(max_gap, t - last_buy)
+			last_buy = t
 	if money < LootDB.REBIRTH_REQUIRE:
 		return {"minutes": INF, "packs": opened, "spent": spent, "levels": 0}
+	max_gap = maxf(max_gap, t - last_buy)
 	var roi := float(income) / float(paid) if paid > 0 else 0.0
 	return {"minutes": t / 60.0, "packs": opened, "spent": spent,
-		"levels": LootDB.total_levels(levels), "roi": roi, "rungs": rungs}
+		"levels": LootDB.total_levels(levels), "roi": roi, "rungs": rungs,
+		"first_open": first_open, "max_gap": max_gap / 60.0}
 
 
 ## Los paquetes de una partida automatica: los Pinchos reparten su dano entre los
@@ -361,6 +376,7 @@ func report(runs: int = 25) -> void:
 				spent / times.size()])
 	if runs >= 25:
 		_rungs_report(0, runs)
+		_pace_report(0, runs)
 	# La misma partida con el botin puesto en su MEDIA, sin dado. Lo que se separa
 	# de la mediana de arriba es lo que decide la suerte, y estas son las cifras
 	# que puede comprobar un test sin volverse loco (ver fixed_minutes()).
@@ -415,6 +431,37 @@ func _rungs_report(strategy: int, runs: int) -> void:
 	for row in rows.slice(0, 6):
 		line += "%s %d%%   " % [row[0], roundi(100.0 * float(row[1]) / float(maxi(1, packs)))]
 	print(line)
+
+
+## EL RITMO del jugador normal: en que minuto abre por primera vez cada sobre
+## (la mediana de las partidas que llegan a abrirlo) y el rato mas largo que se
+## pasa sin comprar ninguna mejora. El minuto final dice cuanto dura la partida;
+## esto dice si se hace larga. Un escalon que tarda diez minutos en llegar despues
+## del anterior, o cinco minutos seguidos sin nada que comprar, es una partida que
+## se atasca aunque el total salga en la banda.
+func _pace_report(strategy: int, runs: int) -> void:
+	var firsts: Dictionary = {}
+	var gaps: Array = []
+	for seed_value in runs:
+		var r := simulate(strategy, seed_value)
+		if float(r["minutes"]) >= INF:
+			continue
+		gaps.append(float(r["max_gap"]))
+		var fo: Dictionary = r["first_open"]
+		for key in fo:
+			if not firsts.has(key):
+				firsts[key] = []
+			(firsts[key] as Array).append(float(fo[key]) / 60.0)
+	var line := "  primer sobre de cada escalon (mediana, min): "
+	for i in LootDB.pack_count():
+		var pack_id := str(LootDB.pack_at(i)["id"])
+		if not firsts.has(pack_id) or (firsts[pack_id] as Array).size() * 2 < runs:
+			continue
+		line += "%s %.1f   " % [pack_id, _median(firsts[pack_id])]
+	print(line)
+	gaps.sort()
+	print("  rato mas largo sin comprar una mejora: mediana %.1f min, el peor %.1f"
+		% [_median(gaps), _quantile(gaps, 1.0) if not gaps.is_empty() else INF])
 
 
 ## Cuanto gasta en mejoras el jugador de cada vuelta, y cuanto le cuesta. Es la
