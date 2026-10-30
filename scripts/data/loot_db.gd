@@ -48,7 +48,15 @@ extends RefCounted
 # elegida a ojo: subir la vida es alargar el rato que estas dandole al boton, y
 # bajar el exponente (vida mas cerca del precio) hace que los sobres caros paguen
 # mas por segundo y la partida se acorta. Cuanto se sube lo dice dev/balance.gd,
-# que simula la partida entera: hoy el primer rebirth cae sobre los 17 minutos.
+# que simula la partida entera: hoy el primer rebirth cae sobre los 15 minutos.
+#
+# LA ESCALERA DE PRECIOS ES MAS TUPIDA ABAJO (500, 1.400, 3.800, 9.500, 24.000,
+# 60.000, 150.000; el escalon 3 no se ha tocado). Antes iba 500, 1.900, 6.000,
+# 15.000, 40.000, 100.000, 250.000, y el salto de las zapatillas a la electronica
+# se comia SIETE minutos de partida en los que no se desbloqueaba nada: el
+# jugador giraba en el mismo sobre con el dinero justo para el y sin que le
+# llegara ninguna mejora. Con la escalera a x2,5-x2,7 sale un escalon nuevo cada
+# dos o tres minutos (lo mide dev/balance.gd, "primer sobre de cada escalon").
 #
 # SON DOCE: CUATRO TIPOS x TRES ESCALONES. Primero van los cuatro de siempre
 # -SOBRES, VINILOS, ZAPATILLAS, ELECTRONICA- y luego se repiten dos veces mas,
@@ -83,7 +91,7 @@ const PACKS: Array = [
 		],
 	},
 	{
-		"id": "vinyls", "name": "VINILOS", "price": 500, "hp": 480, "vmult": 1.2,
+		"id": "vinyls", "name": "VINILOS", "price": 500, "hp": 481, "vmult": 1.132,
 		"art": "pack_vinyls", "art_open": "pack_vinyls_open",
 		"loot": [
 			{"id": "vinyl_c", "name": "VINILO", "art": "loot_vinyl", "graded": true,
@@ -97,7 +105,7 @@ const PACKS: Array = [
 		],
 	},
 	{
-		"id": "sneakers", "name": "ZAPATILLAS", "price": 1900, "hp": 937, "vmult": 1.2,
+		"id": "sneakers", "name": "ZAPATILLAS", "price": 1400, "hp": 804, "vmult": 0.8328,
 		"art": "pack_sneakers", "art_open": "pack_sneakers_open",
 		"loot": [
 			{"id": "shoe_c", "name": "ZAPATILLA BLANCA", "art": "loot_sneaker", "graded": true,
@@ -112,7 +120,7 @@ const PACKS: Array = [
 		],
 	},
 	{
-		"id": "electronics", "name": "ELECTRONICA", "price": 6000, "hp": 1665, "vmult": 1.2,
+		"id": "electronics", "name": "ELECTRONICA", "price": 3800, "hp": 1325, "vmult": 0.7197,
 		"art": "pack_electronics", "art_open": "pack_electronics_open",
 		"loot": [
 			{"id": "cons_c", "name": "CONSOLA", "art": "loot_console", "graded": true,
@@ -187,35 +195,41 @@ const PACKS: Array = [
 	#    MAS CARO. El escalon de arriba multiplica el botin, asi que lo racional era
 	#    saltarse la electronica y las zapatillas del escalon 1 -que no se compraban
 	#    nunca- y esperar al sobre de arriba. Cada escalon empieza por encima del
-	#    techo del anterior: el 2 empieza en 15.000 (el 1 llega a 6.000) y el 3 en
-	#    600.000 (el 2 llega a 250.000).
+	#    techo del anterior: el 2 empieza en 9.500 (el 1 llega a 3.800) y el 3 en
+	#    600.000 (el 2 llega a 150.000).
 	#
 	# 2. CADA SOBRE PAGA UN POCO MAS DE LO QUE CUESTA: entre un 30 y un 45 %, en cualquier
 	#    escalon. De ahi salen los vmult de abajo, que NO son el mismo numero para
 	#    los doce: lo que paga un sobre es lo que valen los objetos de su tabla, y
 	#    el escalon multiplica ese total. Un sobre que cuesta tres veces mas que
 	#    otro del mismo escalon tiene que multiplicar tres veces menos para pagar
-	#    lo mismo por dinero. Ese 15 % es TODO el margen de la partida, y esta
+	#    lo mismo por dinero. Ese margen es TODO el margen de la partida, y esta
 	#    medido: con un 350 % (que es lo que habia) la partida se terminaba en dos
 	#    minutos, porque el capital se multiplicaba por 4,5 en cada sobre y no
 	#    habia forma de gastarlo. Ver dev/balance.gd y LootDB.pack_payout().
+	#
+	#    Los tres de pago del escalon 1 van al 44 % y los demas al 39 %: el
+	#    principio de partida es donde mas se nota un sobre que no rinde, y un
+	#    punto mas de margen ahi es lo que deja comprar la primera mejora antes del
+	#    primer minuto. Los vmult se recalculan con la tabla de notas de ahora
+	#    (si se toca GRADE_WEIGHTS o GRADE_MULT, cambia lo que paga cada sobre).
 	#
 	# El SOBRES es el que mas multiplica de su escalon, y no es un capricho: su
 	# tabla es la que menos vale (cartas de 60 a 210) y su precio no puede bajar
 	# del techo del escalon de abajo, asi que sin un vmult mucho mas alto pagaria
 	# una decima parte de lo que cuesta. El ELECTRONICA hace lo contrario: su tabla
 	# es la mas cara y su vmult es el mas bajo.
-	{"id": "cards2", "name": "SOBRES ORO", "price": 15000, "hp": 2633, "vmult": 103.0,
+	{"id": "cards2", "name": "SOBRES ORO", "price": 9500, "hp": 2096, "vmult": 59.59,
 		"loot_id": "cards", "art": "pack_cards2", "art_open": "pack_cards2_open"},
-	{"id": "vinyls2", "name": "VINILOS ORO", "price": 40000, "hp": 4300, "vmult": 96.0,
+	{"id": "vinyls2", "name": "VINILOS ORO", "price": 24000, "hp": 3331, "vmult": 52.46,
 		"loot_id": "vinyls", "art": "pack_vinyls2", "art_open": "pack_vinyls2_open"},
-	{"id": "sneakers2", "name": "ZAPATILLAS ORO", "price": 100000, "hp": 6799, "vmult": 62.0,
-		"loot_id": "sneakers", "art": "pack_sneakers2", "art_open": "pack_sneakers2_open"},{"id": "electronics2", "name": "ELECTRONICA ORO", "price": 250000, "hp": 10750, "vmult": 50.0, "loot_id": "electronics",
+	{"id": "sneakers2", "name": "ZAPATILLAS ORO", "price": 60000, "hp": 5266, "vmult": 34.45,
+		"loot_id": "sneakers", "art": "pack_sneakers2", "art_open": "pack_sneakers2_open"},{"id": "electronics2", "name": "ELECTRONICA ORO", "price": 150000, "hp": 8327, "vmult": 27.42, "loot_id": "electronics",
 		"art": "pack_electronics2", "art_open": "pack_electronics2_open"},
-	{"id": "cards3", "name": "SOBRES LUJO", "price": 600000, "hp": 16654, "vmult": 4080.0,
-		"loot_id": "cards", "art": "pack_cards3", "art_open": "pack_cards3_open"},{"id": "vinyls3", "name": "VINILOS LUJO", "price": 1500000, "hp": 26332, "vmult": 3600.0, "loot_id": "vinyls",
-		"art": "pack_vinyls3", "art_open": "pack_vinyls3_open"},{"id": "sneakers3", "name": "ZAPATILLAS LUJO", "price": 4000000, "hp": 43000, "vmult": 2520.0, "loot_id": "sneakers",
-		"art": "pack_sneakers3", "art_open": "pack_sneakers3_open"},{"id": "electronics3", "name": "ELECTRONICA LUJO", "price": 10000000, "hp": 67989, "vmult": 1980.0, "loot_id": "electronics",
+	{"id": "cards3", "name": "SOBRES LUJO", "price": 600000, "hp": 16654, "vmult": 3763.0,
+		"loot_id": "cards", "art": "pack_cards3", "art_open": "pack_cards3_open"},{"id": "vinyls3", "name": "VINILOS LUJO", "price": 1500000, "hp": 26332, "vmult": 3278.0, "loot_id": "vinyls",
+		"art": "pack_vinyls3", "art_open": "pack_vinyls3_open"},{"id": "sneakers3", "name": "ZAPATILLAS LUJO", "price": 4000000, "hp": 43000, "vmult": 2297.0, "loot_id": "sneakers",
+		"art": "pack_sneakers3", "art_open": "pack_sneakers3_open"},{"id": "electronics3", "name": "ELECTRONICA LUJO", "price": 10000000, "hp": 67989, "vmult": 1828.0, "loot_id": "electronics",
 		"art": "pack_electronics3", "art_open": "pack_electronics3_open"},
 ]
 
@@ -234,12 +248,21 @@ const CONDITIONS: Array = [
 # Nota PSA: la graduacion de 1 a 10 que se enseña en el badge
 # --------------------------------------------------------------------------- #
 # LA MAYORIA DEL BOTIN VIENE TOCADO, y el 10 es el premio gordo de verdad. La
-# tabla es una piramide que se apoya en la 2-4 y se afila hacia arriba, con la
+# tabla es una piramide que se apoya en la 3-5 y se afila hacia arriba, con la
 # probabilidad de cada nota escrita debajo:
 #
 #     nota   1     2     3     4     5     6    7     8    9    10
-#     peso  11    13    13    12    10     8    6     4    3     2     (de 82)
-#     %   13,4  15,9  15,9  14,6  12,2   9,8  7,3   4,9  3,7   2,4
+#     peso   6     9    13    15    14    10    7     4    3     2     (de 83)
+#     %    7,2  10,8  15,7  18,1  16,9  12,0  8,4   4,8  3,6   2,4
+#
+# LA BASE SE SUBIO DE LA 1-2 A LA 3-5, y la cola de arriba no se ha tocado (el 10
+# sigue saliendo el 2,4 % y las 9-10 el 6 %). Con la base en la 1-2 casi la
+# mitad de los sobres se vendian por menos de lo que costaban: la MEDIA pagaba un
+# 39 % de mas, pero la mediana se quedaba en un 4 %, y como el jugador se juega
+# casi todo su dinero en cada sobre (compra el mas caro que le llega), lo que
+# cuenta es el sobre tipico y no la media. Eso eran minutos enteros girando en el
+# mismo sobre sin que entrara dinero, y partidas que duraban 12 minutos o 27
+# segun el dado. Ver dev/balance.gd, "rato mas largo sin comprar una mejora".
 #
 # ANTES ERA AL REVES: la tabla iba de 1 a 16, con el 10 como la nota MAS
 # probable (el 22,9 %) y casi la mitad del botin saliendo en 9 o 10. Se pidio
@@ -247,18 +270,18 @@ const CONDITIONS: Array = [
 # dado la vuelta. El 10 sale una vez de cada cuarenta y pico; el 9, una de cada
 # veintisiete. La cola no se aplana: cada nota alta es mas rara que la de abajo.
 #
-# LA FORMA NO ES CAPRICHO: es la que deja el valor MEDIO del sobre donde estaba.
-# Las notas 5 y 10 valen ahora mucho mas (ver GRADE_MULT), asi que si la tabla
-# siguiera cargada por arriba cada sobre pagaria un 20 % mas de lo que cuesta y
-# el margen de la partida se iria por la ventana. Con esta piramide la nota media
-# baja de 7,6 a 4,2 y la media de valor se queda en 1,136 (antes 1,131): medio
-# punto de mas, que es lo que el test de los sobres mide como margen (1,39 contra
-# 1,38) y lo que deja las partidas donde estaban.
+# LA FORMA NO ES CAPRICHO. Las notas 5 y 10 valen mucho (ver GRADE_MULT), asi
+# que una tabla cargada por arriba haria que cada sobre pagara de mas y el margen
+# de la partida se iria por la ventana. Con esta piramide la nota media es 4,6 y
+# la media de valor 1,24; lo que paga cada sobre ya lo lleva dentro (los vmult de
+# PACKS estan calculados con ESTA tabla, y el test de los sobres mide el margen
+# con ella), asi que tocar un peso sin recalcular los vmult descuadra el
+# equilibrio.
 #
 # LA SUERTE DEL TREBOL NO ENTRA AQUI. La tabla es fija: el Trebol solo engorda el
 # peso del botin raro, epico y legendario (ver _lucky_weight), nunca la nota. Un
 # 10 con el Trebol al maximo sigue saliendo una vez de cada cuarenta.
-const GRADE_WEIGHTS: Array = [11, 13, 13, 12, 10, 8, 6, 4, 3, 2]
+const GRADE_WEIGHTS: Array = [6, 9, 13, 15, 14, 10, 7, 4, 3, 2]
 const PSA_MIN := 1
 const GRADE_MAX := 10
 
@@ -269,9 +292,9 @@ const GRADE_MAX := 10
 # el dia que la chatarra sea otra, se toca este numero y ya esta.
 
 ## Hasta que nota un objeto cuenta como CHATARRA para la mejora SIN FICHA, que
-## lo vende sin abrir su tarjeta. Tres y no cuatro porque la nota 4 ya vale lo
-## mismo que la media (grade_mult 1.02): vender eso sin preguntar es tirar dinero
-## del jugador, y con la 3 (0.86) se vende el 45 % de lo que sale -los pesos de
+## lo vende sin abrir su tarjeta. Tres y no cuatro porque la nota 4 ya ronda la
+## media (grade_mult 1.08): vender eso sin preguntar es tirar dinero del jugador,
+## y con la 3 (0.94) se vende un tercio de lo que sale -los pesos de
 ## GRADE_WEIGHTS- que es justo el trozo que nadie mira.
 const AUTO_SELL_GRADE := 3
 
@@ -319,9 +342,9 @@ const TIJERAS_COST_GROWTH := 2.8
 ## Cuanto sube cada una de las tres primeras mejoras sobre la anterior. Antes las
 ## tres costaban EXACTAMENTE lo mismo, y eso se leia como que el segundo y el
 ## tercer nivel salian gratis: se pidio que cada una cueste mas que la de antes,
-## pero sin que el principio de partida se vuelva lento (de ahi el x1,3 y no el
+## pero sin que el principio de partida se vuelva lento (de ahi el x1,4 y no el
 ## x1,6 de la tienda, ni el x2,8 del tramo caro).
-const SOFT_COST_GROWTH := 1.3
+const SOFT_COST_GROWTH := 1.4
 ## LOS GUANTES tienen la MISMA escalera que las Tijeras -tres mejoras baratas que
 ## suben poco y despues x2,8- pero un poco mas caros: son el segundo item que se
 ## paga en una partida, cuando el dano ya esta encarrilado y lo que se nota es
@@ -329,9 +352,9 @@ const SOFT_COST_GROWTH := 1.3
 const GLOVES_SOFT_LEVELS := 3
 const GLOVES_COST_GROWTH := 2.8
 ## EL DOLAR (el item que ABASTA los sobres) usa la misma escalera en dos tramos,
-## pero con un salto mas suave: tres mejoras baratas que suben poco (x1,3) y a
-## partir de la cuarta x2,3 sobre lo que costaba la tercera. Son 1.500 la primera
-## y unas 163.000 la octava: el descuento se nota en TODO lo que compres, asi que
+## pero con un salto mas suave: tres mejoras baratas que suben poco (x1,4) y a
+## partir de la cuarta x2,3 sobre lo que costaba la tercera. Son 900 la primera
+## y unas 113.000 la octava: el descuento se nota en TODO lo que compres, asi que
 ## el ultimo nivel es de los mas caros de la tienda A PROPOSITO, y aun asi se
 ## paga solo en una partida larga.
 
@@ -339,25 +362,33 @@ const DOLAR_SOFT_LEVELS := 3
 const DOLAR_COST_GROWTH := 2.3
 
 ## LOS PRECIOS DE LA TIENDA SE DOBLARON de golpe cuando el margen de los sobres
-## bajo del 350 % al 15 %. Con la partida nueva (unos dieciseis minutos hasta el
-## primer rebirth, un millon ganado) estos numeros son los que hacen que una mejora sea
-## una decision -unos miles al principio, decenas de miles a mitad de partida- y
-## no un tramite: la tienda es el otro sitio donde se va el dinero, junto con los
-## sobres, y las dos cosas compiten.
+## bajo del 350 % al 15 %. Con la partida de ahora (unos quince minutos hasta el
+## primer rebirth) estos numeros son los que hacen que una mejora sea una
+## decision -cientos al principio, miles a mitad de partida y decenas de miles al
+## final- y no un tramite: la tienda es el otro sitio donde se va el dinero, junto
+## con los sobres, y las dos cosas compiten.
+##
+## LAS PRIMERAS MEJORAS SON BARATAS A PROPOSITO (Tijeras 300, Guantes 400, Trebol
+## 600...). Con la Tijera a 540 y el jugador empezando con 500, los tres primeros
+## minutos eran clics sin nada que comprar, y la partida se atascaba despues en
+## mejoras de 2.500-4.000 con 5.000 en el bolsillo. Ahora la primera cae antes del
+## primer minuto y siempre hay alguna a tiro: es lo que hace que se note que se
+## va mejorando. Los niveles altos siguen siendo caros (x1,6 por nivel, y x2,8 en
+## las Tijeras y los Guantes a partir del cuarto).
 const ITEMS: Array = [
-	{"id": "tijeras", "name": "TIJERAS", "art": "item_tijeras", "base_cost": 540,
+	{"id": "tijeras", "name": "TIJERAS", "art": "item_tijeras", "base_cost": 300,
 		"desc": "MAS DANO POR GOLPE",
 		"detail": "SUBE EL DANO DE CADA GOLPE UN 15 % POR NIVEL. LAS TRES PRIMERAS MEJORAS SON BARATAS Y SUBEN POCO; DESPUES EL PRECIO SE DISPARA."},
-	{"id": "trebol", "name": "TREBOL", "art": "item_trebol", "base_cost": 840,
+	{"id": "trebol", "name": "TREBOL", "art": "item_trebol", "base_cost": 600,
 		"desc": "MAS BOTIN RARO",
 		"detail": "SUBE LAS PROBABILIDADES DE QUE SALGA BOTIN RARO, EPICO O LEGENDARIO. LA NOTA PSA NO CAMBIA. VALE PARA TODOS LOS SOBRES."},
-	{"id": "cajon", "name": "CAJON", "art": "item_cajon", "base_cost": 1560,
+	{"id": "cajon", "name": "CAJON", "art": "item_cajon", "base_cost": 1100,
 		"desc": "MAS ESPACIO EN LA MESA",
 		"detail": "MAS HUECOS EN LA MESA PARA DEJAR PAQUETES Y OBJETOS A LA VEZ. A PARTIR DEL NIVEL 5 CADA NIVEL DA CINCO HUECOS EN VEZ DE DOS."},
-	{"id": "ojo_verde", "name": "OJO VERDE", "art": "item_ojo_verde", "base_cost": 2520,
+	{"id": "ojo_verde", "name": "OJO VERDE", "art": "item_ojo_verde", "base_cost": 1800,
 		"desc": "PROBABILIDAD DE CRITICO",
 		"detail": "CADA GOLPE TIENE ESTA PROBABILIDAD DE SER CRITICO, Y UN CRITICO HACE EL DOBLE DE DANO Y SALE EN AMARILLO."},
-	{"id": "laser", "name": "LASER", "art": "item_laser", "base_cost": 3600,
+	{"id": "laser", "name": "LASER", "art": "item_laser", "base_cost": 2600,
 		"desc": "MAS DANO CRITICO",
 		"detail": "SUBE EL DANO QUE HACE CADA GOLPE CRITICO. SIN CRITICOS NO HACE NADA, ASI QUE VA DETRAS DEL OJO VERDE."},
 	{"id": "pc", "name": "PC", "art": "item_pc", "base_cost": 24000,
@@ -368,18 +399,18 @@ const ITEMS: Array = [
 		"detail": "CON LA APERTURA AUTOMATICA ENCENDIDA GOLPEAN TODOS LOS PAQUETES DE LA MESA A LA VEZ, SIN QUE LES HAGAS CLIC. SE PAGAN UNA SOLA VEZ."},
 	{"id": "armario", "name": "ARMARIO", "art": "item_armario", "base_cost": 35000,
 		"desc": "EXPONE BOTIN Y DA SUS BONUS",
-		"detail": "CADA OBJETO EXPUESTO DA EL BONUS DE SU TIPO SEGUN SU NOTA PSA (DEL 2 % AL 15 %): CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO Y ELECTRONICA REBIRTH."},
+		"detail": "CADA OBJETO EXPUESTO DA EL BONUS DE SU TIPO SEGUN SU NOTA PSA (DEL 2 % AL 25 %): CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO Y ELECTRONICA REBIRTH."},
 	# EL NOVENO, Y VA AL FINAL A PROPOSITO: los niveles de un guardado se leen
 	# por POSICION, asi que anadir un item en medio muda de sitio los niveles de
 	# todos los que vienen detras y una partida vieja se encontraria el dano
 	# donde tenia la suerte. Al final no mueve a nadie.
-	{"id": "guantes", "name": "GUANTES", "art": "item_guantes", "base_cost": 720,
+	{"id": "guantes", "name": "GUANTES", "art": "item_guantes", "base_cost": 400,
 		"desc": "MAS VELOCIDAD DE GOLPE",
 		"detail": "ACELERA LA CARGA UN 15 % POR NIVEL: LOS GOLPES SALEN MAS SEGUIDOS. LAS TRES PRIMERAS SON BARATAS Y SUBEN POCO; DESPUES EL PRECIO SE DISPARA."},
 	# EL DECIMO, TAMBIEN AL FINAL y por lo mismo: los niveles de una partida
 	# guardada se leen por POSICION (ver game_state.gd), asi que meterlo en medio
 	# le cambiaria el item a los niveles de todo el que viniera detras.
-	{"id": "dolar", "name": "DOLAR", "art": "item_dolar", "base_cost": 1500,
+	{"id": "dolar", "name": "DOLAR", "art": "item_dolar", "base_cost": 900,
 		"desc": "SOBRES MAS BARATOS",
 		"detail": "BAJA EL PRECIO DE TODOS LOS SOBRES UN 5 % POR NIVEL, HASTA UN 40 % CON LOS OCHO. LAS TRES PRIMERAS SON BARATAS Y LAS ULTIMAS MUY CARAS."},
 ]
@@ -514,11 +545,11 @@ const LOOT_KINDS: Array = [
 	{"id": "electronics", "name": "ELECTRONICA", "stat": "REBIRTH", "art": "pack_electronics"},
 ]
 ## Lo que aporta UN objeto expuesto segun su nota PSA: de un 2 % en la nota 1 a un
-## 15 % en la nota 10, repartido a partes iguales (ver kind_bonus).
+## 25 % en la nota 10, repartido a partes iguales (ver kind_bonus).
 ##
 ## Son porcentajes bajos a proposito: un armario lleno de piezas de nota 10 son
 ## ocho objetos y cada categoria cuenta los suyos, asi que con cuatro categorias
-## llenas se llega a un +120 % repartido entre dano, velocidad, dinero y rebirth,
+## llenas se llega a un +200 % repartido entre dano, velocidad, dinero y rebirth,
 ## que ya es una barbaridad sin romper el juego por el camino.
 const KIND_BONUS_MIN := 0.02
 const KIND_BONUS_MAX := 0.25
@@ -532,11 +563,12 @@ const KIND_BONUS_MAX := 0.25
 ## LA CIFRA SALE DE MEDIR (dev/balance.gd), no de elegir un numero redondo: en el
 ## contador de una partida normal hay MILES, no millones -el dinero entra y sale
 ## comprando sobres-, asi que el millon que pedia el requisito viejo no se junta
-## "en el contador" ni en horas. Con 80.000 (0,8 M), el jugador normal llega al
-## primer rebirth en ~18 minutos, que es lo que tardaba con el requisito en lo
-## ganado: barrer dio 16,3 min con 50.000 y 22,0 con 120.000, y 80.000 es el que
-## conserva el ritmo.
-const REBIRTH_REQUIRE := 80000
+## "en el contador" ni en horas. Con 120.000 el jugador normal llega al primer
+## rebirth -la primera moneda- sobre los 15 minutos. Estuvo en 80.000 con la
+## escalera de sobres y de tienda de antes (~18 minutos); al abaratar las primeras
+## mejoras y tupir la escalera la partida se quedaba en 13, y barrer dio 14,9 min
+## con 120.000 y 15,5 con 130.000.
+const REBIRTH_REQUIRE := 120000
 ## Cada cuanto DINERO EN EL CONTADOR sale UNA moneda de rebirth. Se cuenta lo que
 ## tengas EN EL MOMENTO de pulsar REBIRTH, no lo ganado en la partida: el cerdo
 ## se lleva el dinero que hay dentro, asi que gastarlo antes de reiniciar cuesta
@@ -923,7 +955,7 @@ static func kind_of(item: Dictionary) -> String:
 
 
 ## Lo que aporta un objeto expuesto al bonus de su tipo, segun su nota PSA: del
-## 2 % de la nota 1 al 15 % de la nota 10.
+## 2 % de la nota 1 al 25 % de la nota 10.
 static func kind_bonus(kind_id: String, grade: int) -> float:
 	var t := clampf(float(grade - PSA_MIN) / float(GRADE_MAX - PSA_MIN), 0.0, 1.0)
 	return lerpf(KIND_BONUS_MIN, KIND_BONUS_MAX, t)
@@ -1005,8 +1037,8 @@ static func roll_grade(rng: RandomNumberGenerator) -> int:
 	return GRADE_MAX
 
 
-## Cuanto vale la nota, de 0.61 (nota 1) a 2.50 (nota 10): la 10 vale cuatro
-## veces lo que la 1. La curva se dispara hacia arriba porque la nota alta tiene
+## Cuanto vale la nota, de 0.70 (nota 1) a 2.50 (nota 10): la 10 vale tres veces
+## y media lo que la 1. La curva se dispara hacia arriba porque la nota alta tiene
 ## que ser un PREMIO: antes iba de 0.80 a 1.25 (un 56 %, casi plano) y el 10 no
 ## se notaba en el bolsillo.
 ##
@@ -1015,8 +1047,11 @@ static func roll_grade(rng: RandomNumberGenerator) -> int:
 ##   - la 5 vale 1.25, que es EXACTAMENTE lo que valia la 10 de antes;
 ##   - la 10 vale 2.50, el DOBLE que valia la 10 de antes.
 ## Y las de abajo, un poco por debajo de lo que valian antes (la 1 baja de 0.80 a
-## 0.61), que es lo que hace que ensenar una nota baja se note: el botin tocado
-## se vende por menos y el 10 se guarda siempre.
+## 0.70), que es lo que hace que ensenar una nota baja se note: el botin tocado
+## se vende por menos y el 10 se guarda siempre. Estuvieron mas abajo (la 1 en
+## 0.61, la 4 en 1.02) y se subieron un poco junto con los pesos de GRADE_WEIGHTS:
+## con la nota baja tan castigada, la mitad de los sobres daba perdidas y la
+## partida dependia mas del dado que de lo que se compraba.
 ##
 ## La curva es convexa (cada tramo sube mas que el anterior) para que la 9 tampoco
 ## sea "casi un 10": la 8 ya vale casi el doble que la 4.
@@ -1025,7 +1060,7 @@ static func roll_grade(rng: RandomNumberGenerator) -> int:
 ## LootDB.pack_payout(), que es lo que usa el smoke test para saber que un sobre
 ## paga lo que tiene que pagar), asi que tocar un solo numero sin volver a mirar
 ## GRADE_WEIGHTS descuadra el equilibrio.
-const GRADE_MULT: Array = [0.61, 0.72, 0.86, 1.02, 1.25, 1.45, 1.68, 1.95, 2.22, 2.50]
+const GRADE_MULT: Array = [0.70, 0.82, 0.94, 1.08, 1.25, 1.45, 1.68, 1.95, 2.22, 2.50]
 
 
 static func grade_mult(grade: int) -> float:

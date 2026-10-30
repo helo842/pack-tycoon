@@ -1542,9 +1542,9 @@ func _run() -> void:
 	var normal: float = bal.fixed_minutes(0)
 	var optimo: float = bal.fixed_minutes(1)
 	var automatico: float = bal.fixed_minutes(2)
-	_check("el jugador normal llega al primer rebirth en la banda (de 15 a 25 min): %.1f"
+	_check("el jugador normal llega al primer rebirth en la banda (de 12 a 19 min): %.1f"
 			% normal,
-		normal >= 15.0 and normal <= 25.0)
+		normal >= 12.0 and normal <= 19.0)
 	# El margen era de TRES minutos cuando el ritmo lo ponia el clic; con la barra
 	# a 1,65 s el cuello de botella pasa a ser la CARGA, que la pagan los dos
 	# igual (los Guantes son para todos), asi que la diferencia se queda en algo

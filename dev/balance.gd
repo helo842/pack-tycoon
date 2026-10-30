@@ -10,11 +10,11 @@
 # jugador de verdad, al ver lo que le falta, deja de comprar y llega ANTES de lo
 # que dice esta herramienta.
 #
-# LA CIFRA DEL REQUISITO (80.000) SALIO DE AQUI, barriendo: con 50.000 el normal
-# llegaba en 16,3 min y con 120.000 en 22,0, asi que 80.000 es lo que deja el
-# primer rebirth en los mismos ~18 minutos que daba el requisito viejo (lo
-# ganado: era un millon). Menos de 50.000 se sale de la banda por abajo y mas de
-# 120.000 alarga la partida de mas.
+# LA CIFRA DEL REQUISITO (120.000) SALIO DE AQUI, barriendo: con 100.000 el
+# normal llegaba en 14,2 min, con 120.000 en 14,9 y con 130.000 en 15,5. El
+# objetivo es que la PRIMERA MONEDA de rebirth caiga sobre los quince minutos y
+# que por el camino se note que se va comprando: eso lo mide el informe del
+# RITMO (cuando se abre cada escalon y el rato mas largo sin comprar nada).
 # ESTE FICHERO ES LA HERRAMIENTA DE MEDIDA DEL EQUILIBRIO, no un adorno. Que la
 # partida dure lo que tiene que durar (un cuarto de hora largo hasta poder
 # menos si se juega bien) no se comprueba mirando capturas: se comprueba
@@ -82,7 +82,12 @@ const CAP := 7200.0
 ## los sobres volvio a subir (la curva paso de 14,3 a 21,5 x raiz(precio), ver
 ## loot_db) hasta devolver al normal a ~17 min dentro de la banda: es la palanca
 ## que el README manda tocar cuando la partida dura demasiado poco.
-const BAND := Vector2(15.0, 25.0)
+##
+## Y SE CENTRO EN LOS QUINCE MINUTOS: se pidio que la primera moneda de rebirth
+## caiga sobre el cuarto de hora y que por el camino se note que se va
+## comprando. La banda es de 12 a 19 (quince con margen por los dos lados): por
+## debajo la primera moneda llega sin haber jugado, y por encima vuelve el atasco.
+const BAND := Vector2(12.0, 19.0)
 ## Paso de la simulacion automatica (segundos). Con la mesa abriendose sola el
 ## tiempo va en tirones: mas fino no cambia nada y multiplica el rato de espera.
 const AUTO_STEP := 0.25
@@ -143,13 +148,14 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	var first_open: Dictionary = {}
 	var last_buy := 0.0
 	var max_gap := 0.0
+	var first_buy := -1.0
 	# SE PARA CUANDO EL CONTADOR LLEGA AL REQUISITO, que es la regla del rebirth
 	# desde que su requisito se mide en el dinero que TIENES y no en lo ganado (ver
 	# Game.can_rebirth). El requisito de la partida no es "hacer tal cosa": es
 	# "tener tanto dinero a la vez" (LootDB.REBIRTH_REQUIRE), asi que este bucle
 	# mira `money` y no `earned`, que se sigue llevando solo para el informe.
 	while money < LootDB.REBIRTH_REQUIRE and t < CAP:
-		if trace and opened % 20 == 0:
+		if trace and opened % 10 == 0:
 			print("    %6.1f min  dinero %9d  niveles %2d  sobres %4d  ahora %s"
 				% [t / 60.0, money, LootDB.total_levels(levels), opened,
 					_best_pack(money)])
@@ -183,6 +189,8 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 		money = int(buy["money"])
 		spent += int(buy["spent"])
 		if int(buy["spent"]) > 0:
+			if first_buy < 0.0:
+				first_buy = t
 			max_gap = maxf(max_gap, t - last_buy)
 			last_buy = t
 	if money < LootDB.REBIRTH_REQUIRE:
@@ -191,7 +199,8 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	var roi := float(income) / float(paid) if paid > 0 else 0.0
 	return {"minutes": t / 60.0, "packs": opened, "spent": spent,
 		"levels": LootDB.total_levels(levels), "roi": roi, "rungs": rungs,
-		"first_open": first_open, "max_gap": max_gap / 60.0}
+		"first_open": first_open, "max_gap": max_gap / 60.0,
+		"first_buy": first_buy / 60.0}
 
 
 ## Los paquetes de una partida automatica: los Pinchos reparten su dano entre los
@@ -324,6 +333,8 @@ func _shop(st: Dictionary, levels: Array, money: int) -> Dictionary:
 		if cost < 0 or float(cost) > float(money) * float(st["share"]):
 			continue
 		levels[idx] = int(levels[idx]) + 1
+		if OS.get_cmdline_args().has("buys"):
+			print("      compra %-9s nv%d  %7d  (dinero %d)" % [item_id, int(levels[idx]), cost, money])
 		return {"money": money - cost, "spent": cost}
 	return {"money": money, "spent": 0}
 
@@ -338,6 +349,11 @@ func _ready() -> void:
 	# pierde el rato. Es lo que se mira cuando un jugador sale mas lento de lo que
 	# deberia -el optimizado, sin ir mas lejos-: el informe da el minuto final,
 	# esto da el camino.
+	#
+	# Con "buys" la traza dice ademas CADA mejora que compra el jugador (que, que
+	# nivel, cuanto y con cuanto dinero en el bolsillo): es lo que se mira cuando
+	# el informe del ritmo dice que hay un rato largo sin comprar nada.
+	#   $G --headless --path . res://dev/BalanceTest.tscn trace buys
 	var args := OS.get_cmdline_args()
 	if args.has("trace"):
 		for i in STRATEGIES.size():
@@ -442,11 +458,13 @@ func _rungs_report(strategy: int, runs: int) -> void:
 func _pace_report(strategy: int, runs: int) -> void:
 	var firsts: Dictionary = {}
 	var gaps: Array = []
+	var first_buys: Array = []
 	for seed_value in runs:
 		var r := simulate(strategy, seed_value)
 		if float(r["minutes"]) >= INF:
 			continue
 		gaps.append(float(r["max_gap"]))
+		first_buys.append(float(r["first_buy"]))
 		var fo: Dictionary = r["first_open"]
 		for key in fo:
 			if not firsts.has(key):
@@ -460,6 +478,7 @@ func _pace_report(strategy: int, runs: int) -> void:
 		line += "%s %.1f   " % [pack_id, _median(firsts[pack_id])]
 	print(line)
 	gaps.sort()
+	print("  primera mejora comprada: mediana %.1f min" % _median(first_buys))
 	print("  rato mas largo sin comprar una mejora: mediana %.1f min, el peor %.1f"
 		% [_median(gaps), _quantile(gaps, 1.0) if not gaps.is_empty() else INF])
 
