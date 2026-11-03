@@ -158,6 +158,19 @@ func _run() -> void:
 		await _shot("03h_arbol_fondo")
 		hucha._set_offset(hucha._centered_offset())
 		await _frames(2)
+		# EL ZOOM: alejado del todo (el arbol casi entero de un vistazo) y
+		# acercado un paso, con las dos lupas de la esquina.
+		hucha.set_zoom_step(0)
+		hucha._set_offset(hucha._centered_offset())
+		await _frames(3)
+		await _shot("03j_arbol_alejado")
+		hucha.set_zoom_step(hucha.ZOOM_DEFAULT + 1)
+		hucha._set_offset(hucha._centered_offset())
+		await _frames(3)
+		await _shot("03k_arbol_acercado")
+		hucha.set_zoom_step(hucha.ZOOM_DEFAULT)
+		hucha._set_offset(hucha._centered_offset())
+		await _frames(2)
 	# Y CON MEJORAS COMPRADAS: los dos estados del nodo (dorado y pendiente), las
 	# lineas encendidas y las cifras de la barra mas bajitas. Se compra por el
 	# mismo camino que el jugador (Game.buy_skill) para que la captura no enseñe

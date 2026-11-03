@@ -175,6 +175,22 @@ const KEEP := 160.0
 ## lo que tiembla una mano al pulsar.
 const DRAG_SLOP := 12.0
 
+## EL ZOOM DEL ARBOL: las lupas + y - de la esquina de abajo a la derecha (y la
+## rueda del raton sobre el arbol). Los pasos van en TERCIOS a proposito: la
+## letra de los rotulos es de 21 px (3 px de pantalla por pixel de arte), asi que
+## a 2/3, 4/3 o 5/3 cada pixel de arte sigue siendo un numero entero de pixeles
+## (2, 4, 5) y el texto no se deforma. El 1/3 es el arbol ENTERO de un vistazo
+## (1 px de pantalla por pixel de arte: pequeno pero nitido). El 1/2 es la
+## excepcion: entre los dos, con el texto un poco irregular a cambio de ver los
+## tres anillos de los caminos con la letra mas grande.
+const ZOOM_STEPS: Array[float] = [1.0 / 3.0, 0.5, 2.0 / 3.0, 1.0, 4.0 / 3.0, 5.0 / 3.0]
+const ZOOM_DEFAULT := 3
+## Las dos lupas: una encima de la otra, en la esquina de abajo a la derecha de
+## la vista, que es la unica que no tapa ni la barra ni la cruz de cerrar.
+const ZOOM_SIDE := 72.0
+const ZOOM_IN_CENTER := Vector2(1612, 780)
+const ZOOM_OUT_CENTER := Vector2(1612, 866)
+
 ## El color de un nodo segun lo que se puede hacer con el. El "ready" va mas
 ## claro que los demas a proposito: el nodo que se puede comprar ahora mismo es
 ## lo unico que hay que encontrar de un vistazo.
@@ -233,6 +249,10 @@ var _hint_label: Label
 var _go: Button
 ## Donde esta el arbol ahora mismo, en coordenadas de la vista.
 var _offset := Vector2.ZERO
+## El zoom: el paso de ZOOM_STEPS en el que esta la vista, y las dos lupas.
+var _zoom_i := ZOOM_DEFAULT
+var _zoom_in: Button = null
+var _zoom_out: Button = null
 ## El arrastre en curso: donde empezo (en coords de la vista), de donde salio el
 ## arbol y cuanto se ha movido de verdad. Null es "no hay arrastre".
 var _drag_start = null
@@ -255,6 +275,7 @@ func _ready() -> void:
 	# el arbol tiene que colarse por DEBAJO de la barra.
 	_build_view()
 	_build_bar()
+	_build_zoom()
 	_set_offset(_centered_offset())
 
 	# El arbol cambia al comprar, y los numeros de la barra cambian con el
@@ -468,6 +489,12 @@ func _build_bar() -> void:
 ## (los nodos y los rotulos son IGNORE) y el clic no tiene a donde ir.
 func _on_view_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
+	# La rueda acerca y aleja, con el punto que hay debajo del raton quieto.
+	if mb != null and mb.pressed and (mb.button_index == MOUSE_BUTTON_WHEEL_UP
+			or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		set_zoom_step(_zoom_i + (1 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else -1),
+			mb.position)
+		return
 	if mb != null and mb.button_index == MOUSE_BUTTON_LEFT:
 		if mb.pressed:
 			_drag_start = mb.position
@@ -477,7 +504,7 @@ func _on_view_input(event: InputEvent) -> void:
 		elif _drag_start != null:
 			_drag_start = null
 			if _dragged <= DRAG_SLOP:
-				_tap(_node_at(mb.position - _offset))
+				_tap(_node_at((mb.position - _offset) / zoom()))
 		return
 	var mm := event as InputEventMouseMotion
 	if mm == null or _drag_start == null:
@@ -572,7 +599,60 @@ func _on_buy_skill(id: String) -> void:
 func _set_offset(value: Vector2) -> void:
 	_offset = _clamp_offset(value)
 	_world.position = _offset
+	_world.scale = Vector2(zoom(), zoom())
 	_update_covers()
+
+
+# --------------------------------------------------------------------------- #
+# El zoom
+# --------------------------------------------------------------------------- #
+
+## Lo que se agranda el arbol ahora mismo (1.0 es su tamano de siempre).
+func zoom() -> float:
+	return ZOOM_STEPS[_zoom_i]
+
+
+func _build_zoom() -> void:
+	_zoom_in = UIKit.icon_button("ui_icon_zoom_in", ZOOM_IN_CENTER, ZOOM_SIDE,
+		"Acercar el arbol (o la rueda del raton)")
+	_zoom_in.pressed.connect(func() -> void: _zoom_button(1))
+	add_child(_zoom_in)
+	_zoom_out = UIKit.icon_button("ui_icon_zoom_out", ZOOM_OUT_CENTER, ZOOM_SIDE,
+		"Alejar el arbol para verlo entero")
+	_zoom_out.pressed.connect(func() -> void: _zoom_button(-1))
+	add_child(_zoom_out)
+	_paint_zoom()
+
+
+func _zoom_button(step: int) -> void:
+	Sound.click()
+	set_zoom_step(_zoom_i + step)
+
+
+## Cambia el zoom dejando QUIETO el punto `anchor` de la vista (en coordenadas de
+## la vista): el que esta debajo del raton al girar la rueda, o el centro de la
+## zona del arbol (debajo de la barra) con las lupas. Sin esto, acercar empujaria
+## lo que se esta mirando fuera de la ventana.
+func set_zoom_step(index: int, anchor = null) -> void:
+	var nuevo := clampi(index, 0, ZOOM_STEPS.size() - 1)
+	if nuevo == _zoom_i:
+		return
+	var punto: Vector2 = anchor if anchor != null else Vector2(VIEW_SIZE.x * 0.5,
+		(BAR_H + EDGE + VIEW_SIZE.y) * 0.5)
+	var antes := zoom()
+	var en_arbol := (punto - _offset) / antes
+	_zoom_i = nuevo
+	_set_offset(punto - en_arbol * zoom())
+	_paint_zoom()
+
+
+## Las lupas se apagan en los topes: una lupa que no hace nada al pulsarla se lee
+## como un fallo, y apagada se ve que ya no hay mas zoom por ese lado.
+func _paint_zoom() -> void:
+	if _zoom_in != null:
+		UIKit.dim_icon_button(_zoom_in, _zoom_i >= ZOOM_STEPS.size() - 1)
+	if _zoom_out != null:
+		UIKit.dim_icon_button(_zoom_out, _zoom_i <= 0)
 
 
 ## El rotulo de un nodo que esta ENTERO detras de la barra no se pinta.
@@ -587,8 +667,8 @@ func _update_covers() -> void:
 	var fondo := VIEW_POS.y + BAR_H + EDGE
 	for id in _nodes:
 		var view: Control = _nodes[id]["view"]
-		var arriba := VIEW_POS.y + _offset.y + view.position.y
-		(_nodes[id]["effect"] as Label).visible = arriba + NODE > fondo
+		var arriba := VIEW_POS.y + _offset.y + view.position.y * zoom()
+		(_nodes[id]["effect"] as Label).visible = arriba + NODE * zoom() > fondo
 
 
 ## El tope del arrastre, por eje y a partir del dibujo del arbol (SkillTree.bounds):
@@ -601,7 +681,9 @@ func _update_covers() -> void:
 ## ni dejando KEEP): entonces no hay nada permitido y lo unico sensato es
 ## centrarlo. Hoy no pasa, y con cinco nodos tampoco hace falta que pase.
 func _clamp_offset(value: Vector2) -> Vector2:
-	var b := SkillTree.bounds()
+	# La caja del dibujo, al tamano al que se ve ahora (el zoom la escala).
+	var caja := SkillTree.bounds()
+	var b := Rect2(caja.position * zoom(), caja.size * zoom())
 	var lo := Vector2(KEEP - b.end.x, KEEP - b.end.y)
 	var hi := VIEW_SIZE - Vector2(KEEP, KEEP) - b.position
 	return Vector2(_axis(value.x, lo.x, hi.x), _axis(value.y, lo.y, hi.y))
@@ -618,9 +700,17 @@ func _axis(value: float, lo: float, hi: float) -> float:
 ## otro) y con la mejora del centro en CENTER_Y, que deja el primer anillo
 ## apoyado debajo de la barra. Lo que asoma del dibujo por los lados y por abajo
 ## se alcanza arrastrando, que es lo que hace un arbol mas grande que la ventana.
+##
+## ALEJADO (zoom menor que 1) se centra el dibujo entero en la zona de debajo de
+## la barra: es la vista de conjunto, y apoyar la mejora del centro arriba dejaria
+## media pantalla vacia abajo.
 func _centered_offset() -> Vector2:
 	var b := SkillTree.bounds()
-	return _clamp_offset(Vector2(VIEW_SIZE.x * 0.5 - b.get_center().x, CENTER_Y))
+	var x := VIEW_SIZE.x * 0.5 - b.get_center().x * zoom()
+	if zoom() < 1.0:
+		var medio := (BAR_H + EDGE + VIEW_SIZE.y) * 0.5
+		return _clamp_offset(Vector2(x, medio - b.get_center().y * zoom()))
+	return _clamp_offset(Vector2(x, CENTER_Y))
 
 
 # --------------------------------------------------------------------------- #
@@ -787,7 +877,7 @@ func node_point(id: String) -> Vector2:
 	if node.is_empty():
 		return Vector2.ZERO
 	var center: Vector2 = node["center"]
-	return VIEW_POS + _offset + center
+	return VIEW_POS + _offset + center * zoom()
 
 
 ## La caja de un nodo en la pantalla (para comprobar que cabe en la vista).
@@ -796,8 +886,8 @@ func node_rect(id: String) -> Rect2:
 	if node.is_empty():
 		return Rect2()
 	var center: Vector2 = node["center"]
-	return Rect2(VIEW_POS + _offset + center - Vector2(NODE, NODE) * 0.5,
-		Vector2(NODE, NODE))
+	return Rect2(VIEW_POS + _offset + (center - Vector2(NODE, NODE) * 0.5) * zoom(),
+		Vector2(NODE, NODE) * zoom())
 
 
 # --------------------------------------------------------------------------- #

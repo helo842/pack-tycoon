@@ -364,6 +364,8 @@ ui_icon_settings	ui/icons/ui_icon_settings.png
 ui_icon_shop	ui/icons/ui_icon_shop.png
 ui_icon_sound	ui/icons/ui_icon_sound.png
 ui_icon_vitrine	ui/icons/ui_icon_vitrine.png
+ui_icon_zoom_in	ui/icons/ui_icon_zoom_in.png
+ui_icon_zoom_out	ui/icons/ui_icon_zoom_out.png
 ui_panel_reveal	ui/panels/ui_panel_reveal.png
 ui_panel_settings	ui/panels/ui_panel_settings.png
 ui_panel_shop	ui/panels/ui_panel_shop.png

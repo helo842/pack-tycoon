@@ -498,13 +498,15 @@ func _pack_cell(list: Control, pack: Dictionary, index: int) -> Dictionary:
 	# frente a los 40 del numero): es un rotulo corto, y a 28 se leia mas pequeno
 	# que los precios de al lado.
 	#
-	# EN OSCURO Y SIN CONTORNO, y no en oro con el contorno de la fuente: la cinta
-	# es crema, y el oro claro con su borde oscuro encima se leia como un borron
-	# (relleno casi del color de la cinta y solo el contorno a la vista). Es la
-	# MISMA fuente en su version sin contorno, la del titulo del menu.
-	var free_label := UIKit.title_label_at("GRATIS", tag,
-			PACK_TAG_SIZE - Vector2(24, 4), 35, Palette.NIGHT,
-			HORIZONTAL_ALIGNMENT_CENTER)
+	#
+	# CON LA LETRA DE SIEMPRE (la de SOBRES, VINILOS...) y en el naranja de las
+	# cifras del precio, con su contorno oscuro: asi GRATIS se lee como un precio
+	# mas de la columna. Estuvo con la fuente del titulo (sin contorno) y se veia
+	# como otra tipografia; y antes en oro claro, que sobre la cinta crema era un
+	# borron.
+	var free_label := UIKit.label_at("GRATIS", tag,
+			PACK_TAG_SIZE - Vector2(24, 4), 35, Palette.GOLD,
+			HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	free_label.visible = false
 	list.add_child(free_label)
 

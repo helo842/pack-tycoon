@@ -674,7 +674,8 @@ func _uno_dentro_de(n: Node, de: Node) -> bool:
 ## arbol sigue a la vista (el tope del arrastre se calcula sobre esta caja).
 func _caja_del_arbol(arbol: RebirthPanel) -> Rect2:
 	var b := SkillTree.bounds()
-	return Rect2(b.position + arbol._offset + arbol.VIEW_POS, b.size)
+	return Rect2(b.position * arbol.zoom() + arbol._offset + arbol.VIEW_POS,
+		b.size * arbol.zoom())
 
 
 ## Que un numero quepa dentro del nodo que lo envuelve (la chapita del precio).
@@ -3058,6 +3059,45 @@ func _run() -> void:
 		arbol._set_offset(arbol._offset + Vector2(-160, 120))
 		_check("y la barra no se mueve con el arbol",
 			arbol._go.get_global_rect().get_center() == punto_go)
+
+		# EL ZOOM: las lupas agrandan y achican el arbol, con topes, y el clic en
+		# un nodo sigue cayendo en su nodo a cualquier tamano (el punto de la
+		# pantalla se pasa al arbol dividiendo por el zoom).
+		arbol._set_offset(arbol._centered_offset())
+		_check("el arbol trae las dos lupas",
+			arbol._zoom_in != null and arbol._zoom_out != null
+			and PANEL.encloses(arbol._zoom_in.get_global_rect())
+			and PANEL.encloses(arbol._zoom_out.get_global_rect()))
+		var lado_1: float = arbol.node_rect("money").size.x
+		arbol._zoom_out.pressed.emit()
+		_check("la lupa - hace el arbol mas pequeno",
+			arbol.zoom() < 1.0 and arbol.node_rect("money").size.x < lado_1)
+		for i in 6:
+			arbol._zoom_out.pressed.emit()
+		_check("y se para en el tope", is_equal_approx(arbol.zoom(), arbol.ZOOM_STEPS[0]))
+		arbol._set_offset(arbol._centered_offset())
+		var dentro_lejos: Rect2 = _caja_del_arbol(arbol).intersection(vista)
+		_check("alejado del todo el arbol sigue en la vista",
+			dentro_lejos.size.x >= arbol.KEEP - 1.0 and dentro_lejos.size.y >= arbol.KEEP - 1.0)
+		var vista_arbol := Rect2(arbol.VIEW_POS + Vector2(0, arbol.BAR_H + arbol.EDGE),
+			arbol.VIEW_SIZE - Vector2(0, arbol.BAR_H + arbol.EDGE))
+		var a_la_vista := 0
+		for id in arbol._nodes:
+			if vista_arbol.encloses(arbol.node_rect(str(id))):
+				a_la_vista += 1
+		_check("y alejado del todo se ve el arbol entero (%d de %d nodos)" % [a_la_vista, arbol._nodes.size()], a_la_vista == arbol._nodes.size())
+		for i in 9:
+			arbol._zoom_in.pressed.emit()
+		_check("la lupa + lo agranda hasta su tope",
+			is_equal_approx(arbol.zoom(), arbol.ZOOM_STEPS[arbol.ZOOM_STEPS.size() - 1])
+			and arbol.node_rect("money").size.x > lado_1)
+		arbol.set_zoom_step(1)
+		arbol._set_offset(arbol._centered_offset())
+		var punto_money: Vector2 = arbol.node_point("money")
+		_check("con zoom, el clic en un nodo es de ese nodo",
+			arbol._node_at((punto_money - arbol.VIEW_POS - arbol._offset) / arbol.zoom())
+				== "money")
+		arbol.set_zoom_step(arbol.ZOOM_DEFAULT)
 		arbol._close()
 		await get_tree().process_frame
 	_check("y el cerrar quita el arbol", g._rebirth == null)

@@ -2538,6 +2538,34 @@ def draw_icon_plus(s: Sprite) -> None:
     s.rect(8, 8, 13, 9, GOLD_D)
 
 
+def _draw_magnifier(s: Sprite, plus: bool) -> None:
+    """Lupa de oro con un + o un - en el cristal: el zoom del arbol de mejoras.
+
+    El cristal es oscuro a proposito: el signo de dentro es lo que distingue una
+    lupa de la otra, y en crema sobre oscuro se lee a 64 px de lado.
+    """
+    s.ellipse(1, 1, 11, 11, GOLD_D)          # aro
+    s.ellipse(1, 1, 10, 10, GOLD)
+    s.arc(1, 1, 10, 10, 180, 270, GOLD_HI, 1)
+    s.ellipse(3, 3, 9, 9, NIGHT_L)           # cristal
+    s.dots([(4, 4), (5, 4), (4, 5)], NIGHT_LL)
+    s.rect(4, 6, 8, 6, CREAM)                # el signo
+    if plus:
+        s.rect(6, 4, 6, 8, CREAM)
+    # mango (hasta 13: el contorno necesita el ultimo pixel del lienzo libre)
+    s.line([(10, 10), (13, 13)], BROWN, 2)
+    s.line([(10, 11), (12, 13)], BROWN_D, 1)
+    s.px(11, 10, GOLD_D)
+
+
+def draw_icon_zoom_in(s: Sprite) -> None:
+    _draw_magnifier(s, True)
+
+
+def draw_icon_zoom_out(s: Sprite) -> None:
+    _draw_magnifier(s, False)
+
+
 # --------------------------------------------------------------------------- #
 # Iconos de interfaz de segunda generacion
 #
@@ -3417,6 +3445,8 @@ UI_ITEMS: Dict[str, UiSpec] = {
     "icon_sound": UiSpec(16, 16, draw_icon_sound),
     "icon_music": UiSpec(16, 16, draw_icon_music),
     "icon_plus": UiSpec(16, 16, draw_icon_plus),
+    "icon_zoom_in": UiSpec(16, 16, draw_icon_zoom_in),
+    "icon_zoom_out": UiSpec(16, 16, draw_icon_zoom_out),
 
     # --- insignias de estado de conservacion ---
     # Las claves van sin "condition_" porque el prefijo ya lo pone UiSpec.
