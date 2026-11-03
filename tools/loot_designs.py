@@ -73,15 +73,29 @@ def draw_vinyl(s) -> None:
 
 
 def draw_vinyl_double(s) -> None:
-    """Doble LP: la funda abierta en libro y dos discos asomando."""
-    s.rect(2, 9, 17, 29, P("CARD"))                 # funda abierta
-    s.rect(2, 9, 17, 9, P("CARD_L"))
-    s.rect(9, 9, 10, 29, P("BROWN_D"))              # el lomo
-    s.rect(3, 11, 8, 27, P("CARD_L"))
-    s.rect(4, 13, 7, 16, P("GOLD_L"))               # el arte de la portada
-    s.rect(4, 18, 7, 19, P("CREAM_D"))
-    _disc(s, 22, 10, 8, P("DARK"), P("DARK_SOFT"), P("RED"), P("RED_L"))
-    _disc(s, 20, 21, 9, P("DARK"), P("DARK_SOFT"), P("TEAL"), P("TEAL_L"))
+    """Doble LP: la funda con su arte y los DOS discos asomando por arriba a la
+    derecha, en abanico. Es la forma de un doble disco que se reconoce de un
+    vistazo (antes era una funda abierta en libro y no se leia)."""
+    # los dos discos, detras de la funda
+    _disc(s, 20, 9, 8, P("DARK"), P("DARK_SOFT"), P("RED"), P("RED_L"))
+    _disc(s, 22, 16, 8, P("DARK"), P("DARK_SOFT"), P("GOLD"), P("GOLD_XL"))
+    # la funda
+    x0, y0, x1, y1 = 2, 9, 21, 29
+    s.rect(x0, y0, x1, y1, P("CREAM_D"))
+    s.rect(x0, y0, x1, y0, P("CREAM_L"))
+    s.rect(x0, y0, x0, y1, P("CREAM_L"))
+    s.rect(x1, y0, x1, y1, P("CRINKLE"))
+    s.rect(x0, y1, x1, y1, P("CRINKLE"))
+    # el arte: dos circulos que se cruzan (los dos discos) sobre azul
+    s.rect(x0 + 2, y0 + 2, x1 - 2, y1 - 2, P("TEAL_D"))
+    s.rect(x0 + 2, y0 + 2, x1 - 2, y0 + 3, P("TEAL"))
+    s.ellipse(5, 14, 14, 23, P("RED_L"))
+    s.ellipse(9, 14, 18, 23, P("GOLD_XL"))
+    s.ellipse(9, 16, 12, 21, P("GOLD_L"))
+    # la pegatina "2 LP" de la esquina
+    s.rect(4, 24, 9, 27, P("CREAM_L"))
+    s.dots([(5, 25), (6, 25), (6, 26), (5, 26)], P("RED"))
+    s.dots([(8, 25), (8, 26)], P("OUTLINE"))
 
 
 def draw_vinyl_numbered(s) -> None:
@@ -110,32 +124,48 @@ def draw_vinyl_color(s) -> None:
 # --------------------------------------------------------------------------- #
 
 def _sneaker(s, upper, upper_l, upper_d, sole, sole_d, swoosh, lace, toe=None,
-             sole_l=None) -> None:
-    """Zapatilla de perfil, mirando a la derecha, con suela, cordones y marca.
+             sole_l=None, tab=None) -> None:
+    """Zapatilla BAJA de perfil, mirando a la derecha.
+
+    La silueta es lo que la hace zapatilla: puntera redonda que se levanta, la
+    lengueta asomando por encima de los cordones, el cuello bajo junto al tobillo,
+    la pestana del talon y una suela gorda (media suela clara y goma debajo).
+    La version de antes era un bloque con el talon alto y se leia como una bota.
 
     Todos los tonos son de la paleta y no derivados: el desgaste de las notas
     bajas ya oscurece y aclara, y un derivado de un derivado se sale de lo que
     acepta el auditor."""
-    # suela
-    s.rect(2, 23, 30, 26, sole)
-    s.rect(2, 26, 30, 27, sole_d)
-    s.rect(2, 23, 30, 23, sole_l or P("WHITE"))
-    s.dots([(x, 27) for x in range(4, 30, 3)], P("STEEL_DD"))   # la goma
-    # empeine
-    s.poly([(3, 23), (3, 13), (6, 9), (11, 9), (13, 12), (19, 14), (26, 17),
-            (30, 20), (30, 23)], upper)
-    s.poly([(3, 13), (6, 9), (11, 9), (11, 12), (4, 15)], upper_l)   # luz del talon
-    s.line([(19, 22), (30, 22)], upper_d)
-    s.rect(3, 20, 7, 22, upper_d)                                    # el talon
-    if toe is not None:
-        s.poly([(22, 16), (26, 17), (30, 20), (30, 22), (22, 22)], toe)
-    # la marca: una curva rapida de punta a talon
-    s.line([(7, 19), (13, 20), (20, 18), (25, 16)], swoosh, 2)
-    # cordones y lengueta
-    s.poly([(11, 9), (14, 8), (15, 12), (13, 12)], upper_l)
-    for i, x in enumerate((13, 15, 17, 19)):
-        s.line([(x, 12 + i // 2), (x + 2, 11 + i // 2)], lace)
-    s.px(5, 11, P("WHITE"))
+    # --- la suela: media suela y goma, con la puntera curvada hacia arriba
+    s.poly([(2, 20), (26, 20), (29, 21), (30, 23), (29, 25), (3, 25), (2, 24)], sole)
+    s.line([(3, 20), (26, 20)], sole_l or P("WHITE"))
+    s.poly([(3, 24), (29, 24), (28, 26), (4, 26)], sole_d)          # la goma
+    s.dots([(x, 25) for x in range(6, 28, 3)], P("OUTLINE"))      # el dibujo de la goma
+    # --- el empeine
+    s.poly([(3, 20), (3, 13), (4, 11), (7, 11), (9, 13), (11, 13), (12, 10),
+            (14, 8), (16, 9), (17, 11), (21, 13), (25, 15), (28, 17), (29, 19),
+            (28, 20)], upper)
+    s.poly([(4, 13), (4, 11), (7, 11), (9, 13), (12, 13), (16, 14), (16, 15),
+            (5, 15)], upper_l)                                     # la luz de arriba
+    s.line([(4, 19), (27, 19)], upper_d)                            # sombra junto a la suela
+    # la puntera, de otro tono: es lo que redondea la punta
+    s.poly([(23, 14), (25, 15), (28, 17), (29, 19), (28, 19), (23, 19)],
+           toe if toe is not None else upper_l)
+    # el cuello, por dentro: oscuro, que se vea que hay un hueco para el pie
+    s.rect(7, 12, 10, 12, P("NIGHT"))
+    s.px(8, 13, P("NIGHT"))
+    # la pestana del talon
+    s.rect(3, 12, 4, 16, tab if tab is not None else swoosh)
+    # la lengueta, asomando por encima
+    s.poly([(12, 11), (12, 9), (13, 8), (16, 8), (17, 9), (17, 11)], upper_l)
+    s.rect(13, 8, 15, 8, upper)
+    # los cordones: cruces en diagonal por el empeine
+    for i, (x, y) in enumerate([(14, 10), (16, 11), (18, 12), (20, 13), (22, 14)]):
+        s.px(x, y, lace)
+        s.px(x + 1, y + (1 if i % 2 == 0 else 0), lace)
+        s.px(x, y + 1, P("NIGHT"))                                  # el ojal
+    # el logo del lateral: una curva rapida de talon a puntera
+    s.line([(6, 18), (10, 17), (15, 16), (20, 14)], swoosh, 2)
+    s.px(5, 17, swoosh)
 
 
 def draw_sneaker(s) -> None:
@@ -259,24 +289,42 @@ def draw_headphones(s) -> None:
 
 
 def draw_watch(s) -> None:
-    """Reloj de pulsera de oro con correa de piel."""
-    s.rect(12, 1, 19, 8, P("LEATHER"))                      # correa
-    s.rect(12, 23, 19, 30, P("LEATHER"))
-    s.rect(12, 1, 13, 8, P("LEATHER_L"))
-    s.rect(12, 23, 13, 30, P("LEATHER_L"))
-    s.dots([(15, 27), (16, 27), (15, 28)], P("LEATHER_D"))  # agujeros
-    s.ellipse(7, 7, 24, 24, P("GOLD_D"))                    # la caja
-    s.ellipse(7, 7, 23, 23, P("GOLD"))
-    s.arc(7, 7, 23, 23, 190, 260, P("GOLD_HI"), 2)
-    s.ellipse(9, 9, 21, 21, P("CREAM"))                     # la esfera
-    s.ellipse(10, 10, 20, 20, P("CREAM_L"))
-    for x, y in ((15, 10), (20, 15), (15, 20), (10, 15)):
-        s.px(x, y, P("BROWN_D"))                            # las horas
-    s.line([(15, 15), (15, 11)], P("OUTLINE"))
-    s.line([(15, 15), (18, 17)], P("OUTLINE"))
-    s.px(15, 15, P("RED"))
-    s.rect(24, 14, 25, 16, P("GOLD_L"))                     # la corona
-    s.dots([(11, 11), (12, 11)], P("WHITE"))
+    """Reloj de pulsera: caja cuadrada de oro con la esfera azul de noche, los
+    indices dorados y la correa de piel con su hebilla. Cuadrado y oscuro a
+    proposito: redondo y crema se confundia con el reloj de bolsillo."""
+    # la correa: mas ancha junto a la caja, con su costura
+    s.rect(11, 1, 20, 7, P("LEATHER"))
+    s.rect(11, 1, 12, 7, P("LEATHER_L"))
+    s.rect(19, 1, 20, 7, P("LEATHER_D"))
+    s.rect(11, 22, 20, 30, P("LEATHER"))
+    s.rect(11, 22, 12, 30, P("LEATHER_L"))
+    s.rect(19, 22, 20, 30, P("LEATHER_D"))
+    s.dots([(14, y) for y in (2, 4, 6)] + [(17, y) for y in (2, 4, 6)], P("LEATHER_D"))
+    s.dots([(15, 24), (16, 24)], P("LEATHER_D"))         # el agujero de la hebilla
+    s.rect(10, 26, 21, 28, P("STEEL_D"))                 # la hebilla
+    s.rect(11, 27, 20, 27, P("LEATHER"))
+    s.rect(10, 26, 21, 26, P("STEEL"))
+    # la caja: cuadrada con las esquinas redondeadas
+    s.rect(6, 7, 25, 22, P("GOLD_D"))
+    s.rect(6, 7, 24, 21, P("GOLD"))
+    s.rect(6, 7, 24, 8, P("GOLD_HI"))
+    s.rect(6, 7, 7, 20, P("GOLD_L"))
+    for x, y in ((6, 7), (25, 7), (6, 22), (25, 22)):
+        s.img.putpixel((x, y), (0, 0, 0, 0))
+    # la esfera
+    s.rect(9, 10, 22, 19, P("NIGHT_LL"))
+    s.rect(9, 10, 22, 10, P("TEAL_D"))
+    s.rect(9, 10, 9, 19, P("TEAL_D"))
+    for x, y in ((15, 11), (16, 11), (21, 14), (21, 15), (15, 18), (16, 18),
+                 (10, 14), (10, 15)):
+        s.px(x, y, P("GOLD_XL"))                        # los indices
+    s.line([(15, 15), (15, 12)], P("CREAM"))            # las agujas
+    s.line([(16, 15), (19, 16)], P("CREAM"))
+    s.dots([(15, 15), (16, 15)], P("GOLD_HI"))
+    s.px(18, 12, P("RED_L"))                            # el segundero
+    s.dots([(11, 12), (12, 12)], P("TEAL_L"))           # el reflejo del cristal
+    s.rect(26, 13, 27, 16, P("GOLD_L"))                 # la corona
+    s.px(27, 13, P("GOLD_HI"))
 
 
 def draw_pocket_watch(s) -> None:

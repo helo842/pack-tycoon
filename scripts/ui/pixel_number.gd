@@ -24,6 +24,9 @@ const GLYPHS := {
 	"5": "num_5", "6": "num_6", "7": "num_7", "8": "num_8", "9": "num_9",
 	",": "num_comma", ".": "num_period", "-": "num_minus",
 	"+": "num_plus", "%": "num_percent",
+	# Las letras de GRATIS, dibujadas como las cifras (ver tools/make_sprites.py,
+	# NUM_LETTERS): asi el sobre gratuito se lee igual que los precios.
+	"G": "num_G", "R": "num_R", "A": "num_A", "T": "num_T", "I": "num_I", "S": "num_S",
 }
 
 const CELL := Vector2(64.0, 96.0)     # tamaño de cada num_*.png

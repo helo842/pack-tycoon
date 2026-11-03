@@ -31,7 +31,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from font_patterns import DOLLAR_S, FONT_ORDER, GLYPH_H, GLYPH_W, GLYPHS  # noqa: E402
+from font_patterns import DOLLAR_S, FONT_ORDER, GLYPH_H, GLYPH_W, GLYPHS, LETTERS  # noqa: E402
 from sprite_paths import folder_for, read_index  # noqa: E402
 
 RGBA = Tuple[int, int, int, int]
@@ -3495,6 +3495,18 @@ for _key in GLYPHS:
                             prefix="num", scale=FONT_SCALE)
 UI_ITEMS["sheet"] = UiSpec(len(FONT_ORDER) * FONT_CELL_W, FONT_CELL_H,
                            draw_font_sheet, prefix="num", scale=FONT_SCALE)
+
+# Y las LETRAS QUE HACEN FALTA EN LAS CIFRAS, con el mismo bisel dorado y el
+# mismo contorno que los numeros: hoy solo las de GRATIS, que va en la chapita
+# del precio del sobre gratuito y tiene que verse igual que los precios de al
+# lado (con la fuente de texto se veia como otra letra). No van todas las letras
+# a proposito: serian veintiseis sprites que nadie pide. Salen de LETTERS, la
+# misma tabla de la fuente de texto, asi que las formas son las de siempre.
+NUM_LETTERS = "GRATIS"
+for _letra in sorted(set(NUM_LETTERS)):
+    UI_ITEMS[_letra] = UiSpec(FONT_CELL_W, FONT_CELL_H,
+                              partial(lambda s, k: stamp_glyph(s, LETTERS[k]), k=_letra),
+                              prefix="num", scale=FONT_SCALE)
 
 RARITY_PREFIX = {"gem": "rarity", "glow": "rarity"}
 
