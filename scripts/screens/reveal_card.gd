@@ -74,27 +74,92 @@ func show_item(data: Dictionary) -> void:
 
 
 # --------------------------------------------------------------------------- #
+# El diseno
+# --------------------------------------------------------------------------- #
+#
+# El interior del panel va de x 288 a 1632 y de y 188 a 952. Se reparte asi:
+#
+#   y 208..296   la FRANJA del color de la rareza, con el NOMBRE del objeto: es
+#                lo primero que se lee (antes era un "REVELADO" que no decia nada
+#                y el nombre iba pequeno debajo del dibujo)
+#   izquierda    la VITRINA: el objeto grande sobre su pedestal, con el brillo de
+#                la rareza detras y el borde de su color; debajo, la gema y la
+#                rareza
+#   derecha      la FUNDA PSA, como las de verdad: la etiqueta crema con la nota
+#                enorme y el estado, y las diez estrellas dentro de la funda (antes
+#                iban sobre una cinta roja que se comia las estrellas vacias)
+#   abajo dcha.  el VALOR y los dos botones
+#
+# Todas las cajas son StyleBoxFlat en colores de la paleta y medidas multiplo de
+# 8, para que no desentonen con el pixel art de los sprites.
+
+const BAND := Rect2(288, 208, 1344, 88)
+const SHOWCASE := Rect2(336, 328, 560, 456)
+const SHOWCASE_ART := 336.0
+const SLAB := Rect2(952, 328, 632, 320)
+const SLAB_LABEL := Rect2(976, 352, 584, 152)
+const SLAB_STARS_Y := 584.0
+const VALUE_Y := 704.0
+const BUTTONS_Y := 856.0
+
+
+## Una caja plana con borde, en coordenadas de la tarjeta.
+func _box(rect: Rect2, bg: Color, border: Color, width: int = 4) -> Panel:
+	var p := Panel.new()
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.position = rect.position
+	p.size = rect.size
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = border
+	sb.set_border_width_all(width)
+	p.add_theme_stylebox_override("panel", sb)
+	_card.add_child(p)
+	return p
+
 
 func _build_title() -> void:
-	# y=240 y no 140: el interior del panel empieza en y=188 (1600x960 con margen
-	# de 9-slice de 8 px de arte = 128 px). A 140 el titulo se salia por arriba y
-	# ademas se cruzaba con "NOTA PSA", que estaba a y=200.
-	_card.add_child(UIKit.label_at("REVELADO", Vector2(960, 240), Vector2(1200, 90),
-			64, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0))
+	var rarity_id := str(item.get("rarity", "common"))
+	var c := Palette.rarity(rarity_id)
+	# La franja: el color de la rareza oscurecido de fondo y el puro en los
+	# filos, de lado a lado del interior del panel.
+	# El oro oscurecido sale verde oliva, asi que el legendario lleva el naranja
+	# oscuro del marco del panel.
+	var fondo := Palette.GOLD_D if rarity_id == "legendary" else c.darkened(0.55)
+	_box(BAND, fondo, c, 0)
+	for y in [BAND.position.y, BAND.end.y - 4.0]:
+		var filo := ColorRect.new()
+		filo.color = c
+		filo.position = Vector2(BAND.position.x, y)
+		filo.size = Vector2(BAND.size.x, 4)
+		filo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_card.add_child(filo)
+	# shrink: "CARTA EDICION LIMITADA" son 22 letras; a 49 no caben en 1200.
+	_card.add_child(UIKit.label_at(str(item.get("name", "OBJETO")),
+			BAND.get_center(), Vector2(1200, 70), 49, Palette.CREAM,
+			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 
 func _build_object_column(rarity_id: String) -> void:
-	# El interior del panel va de x=288 a x=1632. Con la columna en 500 la
-	# gema se salia 60 px por la izquierda y el aviso se iba 82 px del marco.
-	var centre := Vector2(560, 430)
-	# Modulado en BLANCO (solo el alfa): el color de la rareza ya esta en el
-	# sprite, y multiplicarlo por si mismo lo apagaba.
-	var glow := UIKit.image("rarity_glow_" + rarity_id, centre, Vector2(512, 512),
-			Color(1, 1, 1, 0.85))
+	var c := Palette.rarity(rarity_id)
+	# La vitrina: fondo de noche y el borde de la rareza.
+	_box(SHOWCASE, Palette.NIGHT_D, c, 4)
+	var centre := SHOWCASE.get_center() + Vector2(0, -16)
+	# El brillo de la rareza detras del objeto, latiendo despacio.
+	var glow := UIKit.image("rarity_glow_" + rarity_id, centre, Vector2(480, 480),
+			Color(1, 1, 1, 0.9))
 	_card.add_child(glow)
+	var gt := create_tween().set_loops()
+	gt.tween_property(glow, "modulate:a", 0.45, 1.1)
+	gt.tween_property(glow, "modulate:a", 0.9, 1.1)
+	# El pedestal: una peana de dos escalones bajo el objeto.
+	var peana_y := SHOWCASE.end.y - 64.0
+	_box(Rect2(centre.x - 136, peana_y, 272, 24), c.darkened(0.45), Palette.OUTLINE, 4)
+	_box(Rect2(centre.x - 132, peana_y + 4, 264, 4), c.lightened(0.15), c, 0)
+	_box(Rect2(centre.x - 168, peana_y + 20, 336, 32), c.darkened(0.65), Palette.OUTLINE, 4)
 
 	var art := UIKit.image(str(item.get("art", "loot_vinyl")), centre,
-			Vector2(384, 384))
+			Vector2(SHOWCASE_ART, SHOWCASE_ART))
 	_card.add_child(art)
 	art.scale = Vector2(0.7, 0.7)
 	art.pivot_offset = art.size * 0.5
@@ -109,132 +174,90 @@ func _build_object_column(rarity_id: String) -> void:
 	st.tween_interval(0.18)
 	st.tween_property(shine, "modulate:a", 0.85, 0.18)
 	st.tween_property(shine, "modulate:a", 0.0, 0.35)
-
-	# shrink: el nombre depende del botin, y "CARTA EDICION LIMITADA" son 22
-	# caracteres (924 px a tamano 42) en una caja de 620. Sin encogerlo se sale.
-	_card.add_child(UIKit.label_at(str(item.get("name", "OBJETO")),
-			Vector2(560, 660), Vector2(560, 60), 42, Palette.CREAM,
-			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
-
-	# --- fila de rareza ---
-	# La gema a 0,25 son 128 px: a 0,28 eran 143 y se comia el primer caracter
-	# del rotulo, que empezaba en 360 y la gema acababa en 372.
-	_card.add_child(UIKit.square("rarity_gem_" + rarity_id, Vector2(390, 750),
-			0.25))
-	_card.add_child(UIKit.label_at(Palette.RARITY_NAME.get(rarity_id, "COMUN"),
-			Vector2(655, 750), Vector2(380, 60), 35,
-			Palette.rarity(rarity_id), HORIZONTAL_ALIGNMENT_LEFT, 0, true))
-
-	# --- fila de conservacion ---
-	var cond: Dictionary = item.get("condition", {})
-	var cond_art := str(cond.get("art", "condition_good"))
-	_card.add_child(UIKit.art(cond_art, Vector2(390, 818), 0.25))
-	# Solo el nombre: el estado se deduce de la nota y ya no multiplica por su
-	# cuenta, asi que poner un "x1.25" aqui seria mentir sobre como se calcula el
-	# valor. El premio de la nota se ve en el escudo de al lado.
-	# shrink: el nombre del estado va de "COMO NUEVO" a "COMO NUEVO" (10 ch,
-	# 350 px a tamano 35) en una caja de 440. Encogido por si se alarga.
-	# y=818 y no 845: la fila de estado se sube para dejarle sitio al aviso de
-	# abajo. Con las dos a 845 el texto se leia encima del "BUEN ESTADO".
-	_card.add_child(UIKit.label_at(str(cond.get("name", "BUEN ESTADO")),
-			Vector2(655, 818), Vector2(420, 60), 35,
-			Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
+	# La rareza, debajo de la vitrina: la gema y el nombre, juntos y centrados.
+	var fila_y := SHOWCASE.end.y + 52.0
+	var nombre := str(Palette.RARITY_NAME.get(rarity_id, "COMUN"))
+	var ancho := 72.0 + 16.0 + UIKit.text_width(nombre, 35)
+	var x0 := SHOWCASE.get_center().x - ancho * 0.5
+	_card.add_child(UIKit.square("rarity_gem_" + rarity_id, Vector2(x0 + 36, fila_y),
+			0.14))
+	_card.add_child(UIKit.label_at(nombre, Vector2(x0 + 88 + UIKit.text_width(nombre, 35)
+			* 0.5, fila_y), Vector2(UIKit.text_width(nombre, 35), 50), 35, c,
+			HORIZONTAL_ALIGNMENT_CENTER, 0))
 
 
-## La columna derecha. Todas las medidas estan dentro del recuadro interior del
-## panel, que en un panel de 1600x960 con margen de 8 arte-px va de x 288 a
-## 1632 y de y 188 a 952. Pasarse se ve: el boton se salia por abajo.
+## La funda PSA: una caja de plastico (gris claro) con la etiqueta crema arriba y
+## las estrellas dentro.
 func _build_grade_column() -> void:
-	# cx=1240 y no 1290: con diez estrellas de 62 la fila media 692 px y
-	# centrada en 1290 llegaba a 1636, cuatro pixeles por fuera del interior
-	# (1632). A 1240 y con 58 de estrella la fila ocupa 652 y entra de sobra.
-	var cx := 1240.0
-	# La columna derecha se reparte entre 188 y 892, que es donde llega el
-	# interior del panel. Antes el boton estaba en y=860 con 160 de alto, o sea
-	# de 780 a 940: salia por debajo del marco y ademas tapaba el valor.
-	_card.add_child(UIKit.label_at("NOTA PSA", Vector2(cx, 300), Vector2(700, 50),
-			35, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
-
-	# El escudo (grade_badge) viene vacio a proposito: el numero se pinta encima
-	# con la fuente de numeros del juego.
-	_card.add_child(UIKit.art("grade_badge", Vector2(cx, 420), 0.74))
 	var grade := int(item.get("grade", 1))
+	_box(SLAB, Color(Palette.NIGHT_LL), Palette.CREAM_D, 4)
+	_box(SLAB.grow(-12), Palette.NIGHT_L, Palette.NIGHT, 4)
+	# La etiqueta: roja con el filo claro, como la de las fundas de verdad. Roja
+	# y no crema porque la letra del juego lleva su contorno oscuro: en oscuro
+	# sobre crema se empastaba, y en crema sobre rojo se lee con la misma letra.
+	_box(SLAB_LABEL, Color8(132, 52, 36), Palette.RUST_L, 8)
+	var lx := SLAB_LABEL.position.x + 32.0
+	_card.add_child(UIKit.label_at("PSA", Vector2(lx + 63, SLAB_LABEL.position.y + 46),
+			Vector2(126, 50), 42, Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 0))
+	var cond: Dictionary = item.get("condition", {})
+	_card.add_child(UIKit.art(str(cond.get("art", "condition_good")),
+			Vector2(lx + 28, SLAB_LABEL.position.y + 108), 0.16))
+	_card.add_child(UIKit.label_at(str(cond.get("name", "BUEN ESTADO")),
+			Vector2(lx + 72 + 140, SLAB_LABEL.position.y + 108), Vector2(280, 40), 28,
+			Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
+	# La nota, ENORME, en su recuadro rojo a la derecha de la etiqueta.
+	var nota_box := Rect2(SLAB_LABEL.end.x - 176, SLAB_LABEL.position.y + 16, 152, 120)
+	_box(nota_box, Palette.CREAM_L, Palette.OUTLINE, 4)
 	var num := PixelNumber.new()
-	num.scale_factor = 0.55
-	num.max_width = 150.0
+	num.scale_factor = 0.9
+	num.max_width = nota_box.size.x - 24.0
 	_card.add_child(num)
 	num.set_number(grade)
-	# El numero va CENTRADO en el escudo, que ahora esta en y=420.
-	num.position = Vector2(cx, 420) - num.size * 0.5
+	num.position = nota_box.get_center() - num.size * 0.5
 
-	# La cinta va detras y a todo lo ancho: el sprite sangra por los dos lados
-	# para eso, como banda sobre la que seLean las estrellas.
-	_card.add_child(UIKit.image("grade_ribbon", Vector2(cx, 570), Vector2(680, 130)))
-
-	# Diez estrellas: llenas hasta la nota y vacias detras. Asi se ve de un
-	# vistazo cuanto falta para el 10.
+	# Las diez estrellas, dentro de la funda y sobre su fondo oscuro.
 	var stars := LootDB.grade_stars(grade)
-	var size := 58.0
+	var size := 48.0
 	var gap := 8.0
 	var total := 10.0 * size + 9.0 * gap
-	var x := cx - total * 0.5
+	var x := SLAB.get_center().x - total * 0.5
 	for i in 10:
 		var tex := "grade_star_full" if i < stars else "grade_star_empty"
-		_card.add_child(UIKit.image(tex, Vector2(x + size * 0.5, 570),
+		_card.add_child(UIKit.image(tex, Vector2(x + size * 0.5, SLAB_STARS_Y),
 				Vector2(size, size)))
 		x += size + gap
 
 
 func _build_value() -> void:
-	var cx := 1290.0
-	_card.add_child(UIKit.label_at("VALOR", Vector2(cx, 680), Vector2(700, 50), 35,
-			Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0))
-	# y=725: el numero mide 45 de alto, asi que a 740 llegaba hasta 762 y el
-	# boton de GUARDAR empieza en 774. Quedaban 12 px, que en pantalla son 4 y
-	# se leen como pegados. A 725 el hueco es de 27.
-	var y := 725.0
-	# La moneda a cx-200 y el numero a cx+30 dejaban el par descentrado: el
-	# ojo iba a la moneda y el numero parecia algo suelto a su derecha.
-	_card.add_child(UIKit.square("currency_coin", Vector2(cx - 150, y), 0.20))
+	var cx := SLAB.get_center().x
+	_card.add_child(UIKit.label_at("VALOR", Vector2(SLAB.position.x + 72, VALUE_Y),
+			Vector2(144, 50), 35, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT, 0))
+	_card.add_child(UIKit.square("currency_coin", Vector2(cx - 40, VALUE_Y), 0.18))
 	var num := PixelNumber.new()
 	num.scale_factor = 0.62
-	num.max_width = 420.0
+	num.max_width = 360.0
 	_card.add_child(num)
 	num.set_number(int(item.get("value", 0)))
-	# set_number() ya deja el size puesto, asi que se puede centrar sin adivinar.
-	num.position = Vector2(cx + 60, y) - num.size * 0.5
+	num.position = Vector2(cx + 16, VALUE_Y - num.size.y * 0.5)
 
 
-## Los dos botones de decision: GUARDAR (al inventario) y VENDER (dinero ahora).
-##
-## Van sin icono a proposito. Las chapas son de 340x170 y el icono de
-## plate_button mide el 58 % del alto (unos 99 px), asi que con icono el hueco
-## del texto bajaba a 181 px y "GUARDAR" salia a 21 px. Sin el, el texto sube a
-## 35 px, que es lo que estas dos acciones se merecen: son LA decision de la
-## pantalla, no un boton secundario.
-##
-## Los dos empiezan en x=920 para no tocar la columna izquierda: el rotulo del
-## estado llega hasta x=865 y el aviso de abajo hasta x=900.
+## Los dos botones de decision: GUARDAR (al inventario) y VENDER (dinero ahora),
+## sin icono para que el texto salga grande: son LA decision de la pantalla.
 func _build_buttons() -> void:
-	var guardar := UIKit.plate_button("GUARDAR", "", Vector2(1090, 845),
-			Vector2(340, 170), 40)
+	var guardar := UIKit.plate_button("GUARDAR", "", Vector2(SLAB.position.x + 152,
+			BUTTONS_Y), Vector2(304, 152), 35)
 	guardar.pressed.connect(_store)
 	_card.add_child(guardar)
 
-	var vender := UIKit.plate_button("VENDER", "", Vector2(1462, 845),
-			Vector2(340, 170), 40)
+	var vender := UIKit.plate_button("VENDER", "", Vector2(SLAB.end.x - 152, BUTTONS_Y),
+			Vector2(304, 152), 35)
 	vender.pressed.connect(_sell)
 	_card.add_child(vender)
 
-	# El aviso va en la columna izquierda, no debajo de la tarjeta: a y=920
-	# estaba fuera del panel y se leia sobre el fondo. Y va como hijo de _card,
-	# no de este nodo: sus coordenadas son las del panel, y colgado de aqui
-	# caia en otro sitio y se leia encima de la fila de estado.
-	# Dice lo que hace la TERCERA salida (cerrar sin elegir), que es el aviso
-	# que hace falta ahora: antes bastaba un "continuar" porque cerrar guardaba
-	# el objeto solo, y ahora ya no.
-	var hint := UIKit.label_at("ESPACIO O CLIC PARA DEJARLO", Vector2(590, 880),
-			Vector2(620, 40), 21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+	# La tercera salida (cerrar sin elegir), debajo de la rareza.
+	var hint := UIKit.label_at("ESPACIO O CLIC PARA DEJARLO EN LA MESA",
+			Vector2(SHOWCASE.get_center().x, SHOWCASE.end.y + 112), Vector2(560, 32),
+			21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	_card.add_child(hint)
 
 

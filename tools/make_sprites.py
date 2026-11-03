@@ -3357,6 +3357,12 @@ for _familia, _escalones in PACK_TIERS.items():
 import pack_designs  # noqa: E402
 LOOT_ITEMS.update(pack_designs.install(sys.modules[__name__]))
 
+# LOS DIBUJOS DEL BOTIN VIVEN EN tools/loot_designs.py: se SUSTITUYEN aqui los
+# veintiun dibujos base (diecisiete objetos y cuatro cartas) antes de montar sus
+# diez notas, asi que el desgaste de abajo se pone encima de los dibujos nuevos.
+import loot_designs  # noqa: E402
+LOOT_ITEMS.update(loot_designs.install(sys.modules[__name__]))
+
 # Los diecisiete objetos que tienen una variante por nota PSA. Se registro de la nota
 # 10 a la 1 para que la hoja de contactos se lea como una degradacion de izquierda
 # a derecha. El objeto base sin nota desaparece del catalogo: seria el mismo
