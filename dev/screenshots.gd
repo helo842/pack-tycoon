@@ -456,6 +456,76 @@ func _run() -> void:
 	await _shot("21_auto_compra")
 	await _frames(1)
 
+	# EL GAMEPLAY NUEVO: la franja de eventos (VIP y hora feliz) con el sobre
+	# dorado en la mesa, un sobre cargando dentro de la zona del golpe perfecto
+	# (el anillo en oro) y la barra de habilidades compradas, una recargando.
+	g = _screen()
+	if g != null:
+		g._close_auto_buy()
+		Game.auto_buy = false
+		Game.auto_open = false
+		Game.auto_sell = false
+		await _frames(3)
+		for e in g._elements.duplicate():
+			g._remove_from_table(e)
+		await _frames(2)
+		Game.money = 60000
+		Game.note_pack_bought("electronics", 3800)
+		for id in [Gameplay.ABIL_CHARGE, Gameplay.ABIL_FRENZY, Gameplay.ABIL_APPRAISE]:
+			Game.skills[id] = 1
+		Game.cooldowns = {Gameplay.ABIL_FRENZY: 52.0}
+		Game.abilities_changed.emit()
+		Game.buyer = {"kind": "vinyls", "grade": 6, "left": 38.0}
+		Game.happy = {"kind": "cards", "left": 21.0}
+		Game.events_changed.emit()
+		g.spawn_golden()
+		var cargando: TableElement = g._spawn_pack("electronics")
+		g._spawn_pack("sneakers")
+		for i in 3:
+			g._spawn_loot(LootDB.roll_pack(RandomNumberGenerator.new(), "vinyls"))
+		await _wait(0.8)
+		cargando.start_opening()
+		# A mano en el 90 % del anillo, que es donde se ve en oro (la zona del golpe
+		# perfecto): esperar el rato justo con el reloj se pasaba de largo.
+		# Y se CONGELA ahi: con el render por software un fotograma tarda tanto que
+		# el anillo se cerraba antes de la foto.
+		cargando.set_process(false)
+		cargando._charge = cargando._total * 0.88
+		cargando._process(0.0)
+		Game.money_changed.emit(Game.money)
+		await _shot("24_eventos")
+		cargando.set_process(true)
+
+		# LA LIBRETA: un album a medias (una coleccion completa, en oro) y tres
+		# encargos con su progreso.
+		await _wait(1.0)
+		Game.album = {}
+		for key in ["loot_card_common", "loot_card_edited", "loot_card_vintage",
+				"loot_card_foil", "loot_vinyl", "loot_vinyl_color", "loot_sneaker",
+				"loot_console", "loot_cartridge", "loot_watch"]:
+			Game.album[key] = 3 + (key.length() % 8)
+		Game.missions = [
+			{"type": "open_any", "goal": 25, "progress": 17, "reward": 1140, "kind": ""},
+			{"type": "open_kind", "goal": 10, "progress": 3, "reward": 1140, "kind": "vinyls"},
+			{"type": "perfect", "goal": 40, "progress": 26, "reward": 1140, "kind": ""},
+		]
+		Game.album_changed.emit()
+		Game.missions_changed.emit()
+		g._open_libreta()
+		await _wait(0.6)
+		await _shot("25_libreta")
+		g._close_libreta()
+		await _frames(3)
+
+		# LA LUPA DEL TASADOR en la tarjeta de revelado.
+		var tasable: Dictionary = LootDB.roll_pack(RandomNumberGenerator.new(), "vinyls")
+		g._show_card(tasable, null)
+		await _wait(0.9)
+		await _shot("26_tasador")
+		if g._reveal != null:
+			g._reveal._dismiss()
+		await _frames(3)
+
 	print("capturas listas")
 	# Ver Sound.stop_all(): al parar una voz, quien suelta su WAV es el hilo de
 	# audio. Salir en el mismo frame da un aviso de recursos sin soltar al salir, y

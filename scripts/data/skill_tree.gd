@@ -312,6 +312,40 @@ const NODES: Array = [
 			+ " MEJOR. LA PEOR VUELVE AL INVENTARIO.",
 		"effect": "ARMARIO SOLO",
 	},
+
+	# --- LAS HABILIDADES (la rama de arriba) ------------------------------ #
+	#
+	# Tres botones con recarga que aparecen en la barra de abajo a la derecha
+	# (ver Gameplay.ABILITIES y game.gd). Son interruptores como los de calidad
+	# de vida -se tienen o no- pero de accion: se pulsan en mitad de la partida.
+	# Suben desde el centro, al contrario que la calidad de vida, y el golpe
+	# cargado es la puerta de las otras dos.
+	{
+		"id": "abil_charge", "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_CHAFF,
+		"pos": Vector2(0, -QOL_STEP), "art": "item_guantes", "req": "money",
+		"desc": "UN GOLPE QUE VALE POR CINCO",
+		"detail": "HABILIDAD (TECLA 1): EL SIGUIENTE GOLPE QUE DES HACE X5 DE"
+			+ " DANO. SE RECARGA EN 40 S.",
+		"effect": "GOLPE CARGADO",
+	},
+	{
+		"id": "abil_frenzy", "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_TABLE,
+		"pos": Vector2(-QOL_SIDE, -QOL_STEP * 2.0), "art": "skill_lightning",
+		"req": "abil_charge",
+		"desc": "LA MESA SE GOLPEA SOLA",
+		"detail": "HABILIDAD (TECLA 2): DURANTE 8 S TODOS LOS SOBRES DE LA MESA"
+			+ " SE GOLPEAN SOLOS, SIN CLICS. SE RECARGA EN 90 S.",
+		"effect": "FRENESI",
+	},
+	{
+		"id": "abil_appraise", "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_TABLE,
+		"pos": Vector2(QOL_SIDE, -QOL_STEP * 2.0), "art": "ui_icon_zoom_in",
+		"req": "abil_charge",
+		"desc": "OTRA OPORTUNIDAD PARA LA NOTA",
+		"detail": "HABILIDAD: EN LA TARJETA DEL OBJETO, LA LUPA VUELVE A TIRAR"
+			+ " SU NOTA. PUEDE SUBIR O BAJAR. SE RECARGA EN 75 S.",
+		"effect": "TASADOR",
+	},
 ]
 
 

@@ -568,7 +568,13 @@ const KIND_BONUS_MAX := 0.25
 ## escalera de sobres y de tienda de antes (~18 minutos); al abaratar las primeras
 ## mejoras y tupir la escalera la partida se quedaba en 13, y barrer dio 14,9 min
 ## con 120.000 y 15,5 con 130.000.
-const REBIRTH_REQUIRE := 120000
+##
+## Y SUBIO A 150.000 CON EL GAMEPLAY NUEVO (sobre dorado, VIP, hora feliz,
+## encargos, album y golpe perfecto, ver Gameplay): todo eso mete dinero por fuera
+## del bucle y con 120.000 el normal llegaba en menos de doce minutos. Se bajo un
+## poco el margen de los sobres (VALUE_SCALE) y se subio esto hasta devolverlo a
+## los ~15.
+const REBIRTH_REQUIRE := 150000
 ## Cada cuanto DINERO EN EL CONTADOR sale UNA moneda de rebirth. Se cuenta lo que
 ## tengas EN EL MOMENTO de pulsar REBIRTH, no lo ganado en la partida: el cerdo
 ## se lleva el dinero que hay dentro, asi que gastarlo antes de reiniciar cuesta
@@ -1076,7 +1082,11 @@ static func art_for(item: Dictionary, grade: int) -> String:
 
 ## Multiplicador global de lo que valen los objetos. Es la palanca para subir o
 ## bajar TODAS las ganancias de golpe cuando la partida se atasca por ganar poco.
-const VALUE_SCALE := 2.2
+##
+## Bajo de 2,2 a 2,06 con el gameplay nuevo: los eventos y los encargos pagan
+## aparte, asi que cada sobre deja un poco menos (de un 39 a un 30-35 % de margen,
+## todavia dentro de lo que pide el test) para que la suma siga dando lo mismo.
+const VALUE_SCALE := 2.06
 
 
 static func final_value(item: Dictionary, grade: int) -> int:

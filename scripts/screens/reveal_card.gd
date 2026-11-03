@@ -24,6 +24,9 @@ const PANEL := "ui_panel_reveal"
 const ACTION_STORE := "store"
 const ACTION_SELL := "sell"
 const ACTION_LATER := "later"
+## La lupa del tasador: volver a tirar la nota (ver game.gd, _reroll_revealed).
+const ACTION_REROLL := "reroll"
+const LUPA_CENTER := Vector2(1456, 448)
 
 var item: Dictionary = {}
 
@@ -219,6 +222,18 @@ func _build_grade_column() -> void:
 	num.set_number(grade)
 	num.position = Vector2(cx, BADGE_Y) - num.size * 0.5
 
+	# LA LUPA DEL TASADOR, al lado del escudo: solo si esta comprada en el arbol.
+	# Recargando sale apagada con los segundos que le faltan.
+	if Game.ability_unlocked(Gameplay.ABIL_APPRAISE):
+		var lupa := UIKit.icon_button("ui_icon_zoom_in", LUPA_CENTER, 80.0,
+				"Lupa del tasador: vuelve a tirar la nota (puede subir o bajar)")
+		lupa.name = "Lupa"
+		UIKit.dim_icon_button(lupa, not Game.ability_ready(Gameplay.ABIL_APPRAISE))
+		lupa.pressed.connect(_reroll)
+		_card.add_child(lupa)
+		_card.add_child(UIKit.label_at("TASAR", LUPA_CENTER + Vector2(0, 62),
+				Vector2(120, 30), 21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0))
+
 	# La cinta va detras de las estrellas y a todo lo ancho de la columna.
 	_card.add_child(UIKit.image("grade_ribbon", Vector2(cx, RIBBON_Y), Vector2(680, 130)))
 	var stars := LootDB.grade_stars(grade)
@@ -242,8 +257,15 @@ func _build_value() -> void:
 	num.scale_factor = 0.62
 	num.max_width = 360.0
 	_card.add_child(num)
-	num.set_number(int(item.get("value", 0)))
+	# El valor que se COBRARIA ahora: con la hora feliz o el comprador VIP ya
+	# dentro, y una nota que dice por que es mas.
+	var cobro := Game.payout_preview(item)
+	num.set_number(cobro)
 	num.position = Vector2(cx + 16, VALUE_Y - num.size.y * 0.5)
+	if cobro > int(item.get("value", 0)):
+		var por := "EL COMPRADOR VIP LO QUIERE" if Game.buyer_wants(item) else "HORA FELIZ"
+		_card.add_child(UIKit.label_at(por, Vector2(cx, VALUE_Y + 46), Vector2(600, 30),
+				21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 
 ## Los dos botones de decision: GUARDAR (al inventario) y VENDER (dinero ahora),
@@ -271,6 +293,16 @@ func _build_buttons() -> void:
 ## Al inventario. Si esta lleno, Game.store() lo vende y avisa el solo.
 func _store() -> void:
 	_finish(ACTION_STORE)
+
+
+## La lupa: solo si esta lista. Si recarga, avisa y no cierra la tarjeta.
+func _reroll() -> void:
+	if not Game.ability_ready(Gameplay.ABIL_APPRAISE):
+		Sound.play("sfx_error")
+		Game.notice.emit("LA LUPA SE ESTA RECARGANDO: %d S"
+			% ceili(Game.ability_left(Gameplay.ABIL_APPRAISE)), Palette.RUST_L)
+		return
+	_finish(ACTION_REROLL)
 
 
 ## Dinero ahora.

@@ -10,8 +10,10 @@
 # jugador de verdad, al ver lo que le falta, deja de comprar y llega ANTES de lo
 # que dice esta herramienta.
 #
-# LA CIFRA DEL REQUISITO (120.000) SALIO DE AQUI, barriendo: con 100.000 el
-# normal llegaba en 14,2 min, con 120.000 en 14,9 y con 130.000 en 15,5. El
+# LA CIFRA DEL REQUISITO (hoy 150.000) SALIO DE AQUI, barriendo: con 100.000 el
+# normal llegaba en 14,2 min, con 120.000 en 14,9 y con 130.000 en 15,5. Con el
+# gameplay nuevo (ver _gp_events y "clasico") bajaba a menos de doce y se volvio
+# a barrer: margen de los sobres a 2,06 y requisito a 150.000 dan 14,7. El
 # objetivo es que la PRIMERA MONEDA de rebirth caiga sobre los quince minutos y
 # que por el camino se note que se va comprando: eso lo mide el informe del
 # RITMO (cuando se abre cada escalon y el rato mas largo sin comprar nada).
@@ -95,19 +97,19 @@ const AUTO_STEP := 0.25
 const STRATEGIES: Array = [
 	{
 		"id": "normal", "click": 0.35, "card": 1.6, "share": 0.30, "auto": false,
-		"locker": false,
+		"locker": false, "perfect": 0.30, "catch": 0.8,
 		"order": ["tijeras", "guantes", "trebol", "cajon", "ojo_verde", "laser",
 			"pc", "pinchos", "armario"],
 	},
 	{
 		"id": "optimizado", "click": 0.20, "card": 1.1, "share": 0.20, "auto": false,
-		"locker": true,
+		"locker": true, "perfect": 0.60, "catch": 1.0,
 		"order": ["tijeras", "guantes", "trebol", "cajon", "ojo_verde", "laser",
 			"pc", "pinchos", "armario"],
 	},
 	{
 		"id": "automatico", "click": 0.20, "card": 0.0, "share": 0.20, "auto": true,
-		"locker": true,
+		"locker": true, "perfect": 0.60, "catch": 1.0,
 		"order": ["tijeras", "guantes", "trebol", "cajon", "ojo_verde", "laser",
 			"pc", "pinchos", "armario"],
 	},
@@ -115,6 +117,26 @@ const STRATEGIES: Array = [
 ## Lo que tarda la compra automatica entre sobre y sobre (LootDB.AUTO_BUY_INTERVAL)
 ## y los sobres que caben en la mesa sin Cajon.
 const AUTO_BUY := 0.75
+
+## EL GAMEPLAY DE LA RAMA "gameplay" (ver scripts/data/gameplay.gd): golpes
+## perfectos, sobre dorado, comprador VIP, hora feliz, encargos y album. Todo eso
+## mete dinero o dano por fuera del bucle de siempre, asi que la partida se
+## simula CON ello (es lo que va a jugar la gente) y la banda se mide asi. Con
+## "clasico" en la linea de comandos se apaga, para comparar con la de antes.
+##
+## Cada jugador lleva dos cifras mas: "perfect" es la parte de sus golpes que
+## caen en el ultimo trozo del anillo (el normal acierta uno de cada tres, el
+## optimizado mas de la mitad, y el automatico igual mientras juega a mano: los
+## Pinchos no aciertan nunca) y "catch" la parte
+## de los sobres dorados que llega a coger antes de que se vayan.
+## Las habilidades no entran: se compran en el arbol del rebirth, asi que en la
+## primera partida no hay ninguna.
+var gameplay := true
+var _gp: Dictionary = {}
+## Para medir cada pieza por separado: "sin_dorado", "sin_vip", "sin_feliz",
+## "sin_encargos", "sin_perfecto" y "sin_album" en la linea de comandos apagan
+## esa sola cosa.
+var _off: Array = []
 
 
 ## Una partida entera: devuelve los minutos, los sobres abiertos, los niveles
@@ -149,6 +171,7 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	var last_buy := 0.0
 	var max_gap := 0.0
 	var first_buy := -1.0
+	_gp_reset(st, seed_value)
 	# SE PARA CUANDO EL CONTADOR LLEGA AL REQUISITO, que es la regla del rebirth
 	# desde que su requisito se mide en el dinero que TIENES y no en lo ganado (ver
 	# Game.can_rebirth). El requisito de la partida no es "hacer tal cosa": es
@@ -162,6 +185,7 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 		var price := 0
 		if bool(st["auto"]) and LootDB.item_level(levels, "pinchos") > 0 \
 				and LootDB.item_level(levels, "pc") > 0:
+			_gp["t"] = t
 			var spin := _step_auto(st, levels, locker, table, buy_left, AUTO_STEP,
 				money, earned, opened, rungs, rng, fixed_loot, paid, income)
 			t += AUTO_STEP
@@ -175,7 +199,9 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 			var pack_id := _best_pack(money)
 			price = int(LootDB.pack_by_id(pack_id)["price"])
 			money -= price
+			_gp_bought(pack_id, price)
 			t += _pack_seconds(levels, pack_id, st)
+			_gp["t"] = t
 			var gain := _loot(levels, locker, pack_id, st, rng, fixed_loot)
 			money += gain
 			earned += gain
@@ -185,6 +211,13 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 			rungs[pack_id] = int(rungs.get(pack_id, 0)) + 1
 			if not first_open.has(pack_id):
 				first_open[pack_id] = t
+		# Los eventos que han tocado en este rato y los encargos que se han cumplido.
+		var extra := _gp_events(st, levels, locker, rng, fixed_loot, t)
+		money += int(extra["money"])
+		earned += int(extra["money"])
+		income += int(extra["money"])
+		opened += int(extra["opened"])
+		t += float(extra["seconds"])
 		var buy := _shop(st, levels, money)
 		money = int(buy["money"])
 		spent += int(buy["spent"])
@@ -200,7 +233,7 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	return {"minutes": t / 60.0, "packs": opened, "spent": spent,
 		"levels": LootDB.total_levels(levels), "roi": roi, "rungs": rungs,
 		"first_open": first_open, "max_gap": max_gap / 60.0,
-		"first_buy": first_buy / 60.0}
+		"first_buy": first_buy / 60.0, "gp": _gp.duplicate()}
 
 
 ## Los paquetes de una partida automatica: los Pinchos reparten su dano entre los
@@ -235,6 +268,7 @@ func _step_auto(st: Dictionary, levels: Array, locker: Array, table: Array,
 			if price <= money:
 				money -= price
 				paid += price
+				_gp_bought(pack_id, price)
 				table.append([float(LootDB.pack_hp(pack_id)) / maxf(0.001, dps), pack_id])
 	return {"money": money, "earned": earned, "opened": opened,
 		"buy_left": buy_left, "paid": paid, "income": income}
@@ -263,9 +297,20 @@ func _best_pack(money: int) -> String:
 ## entre clic y clic, mas la tarjeta de revelado. El critico va dentro del dano
 ## medio, que es lo que se nota a lo largo de una partida.
 func _pack_seconds(levels: Array, pack_id: String, st: Dictionary) -> float:
-	var hit := _average_hit(levels)
+	var hit := _average_hit(levels) * _perfect_factor(st)
 	var hits := int(ceil(float(LootDB.pack_hp(pack_id)) / maxf(0.001, hit)))
+	if gameplay:
+		_gp["perfect_acc"] = float(_gp.get("perfect_acc", 0.0)) \
+				+ float(hits) * float(st.get("perfect", 0.0))
 	return float(hits) * _cycle(levels, st) + float(st["card"])
+
+
+## Lo que da de mas, de media, acertar el golpe perfecto: la parte de golpes que
+## caen en el ultimo trozo del anillo pegan PERFECT_MULT veces.
+func _perfect_factor(st: Dictionary) -> float:
+	if not gameplay or _off.has("perfecto"):
+		return 1.0
+	return 1.0 + float(st.get("perfect", 0.0)) * (Gameplay.PERFECT_MULT - 1.0)
 
 
 ## Segundos por golpe (un ciclo de carga + el clic que lo arranca), con el
@@ -283,18 +328,24 @@ func _pack_seconds(levels: Array, pack_id: String, st: Dictionary) -> float:
 ## el ciclo se queda con el MEJOR k que quepa en la mesa, no con el que tienes.
 func _cycle(levels: Array, st: Dictionary) -> float:
 	var charge := LootDB.charge_time(levels)
+	if gameplay and not _off.has("perfecto"):
+		# El golpe perfecto llega antes: se pulsa entre PERFECT_FROM y el final del anillo.
+		charge *= 1.0 - float(st.get("perfect", 0.0)) * (1.0 - (1.0 + Gameplay.PERFECT_FROM) * 0.5)
+		charge /= 1.0 + _album_bonus("speed")
 	var click := float(st["click"])
 	var best := charge + click
+	var slots := LootDB.table_slots(levels) + int(_album_bonus("table"))
 	var k := 2
-	while k <= LootDB.open_count(levels) and k <= LootDB.table_slots(levels):
+	while k <= slots:
 		best = minf(best, maxf(charge, float(k) * click))
 		k += 1
 	return best
 
 
 func _average_hit(levels: Array) -> float:
-	var crit := LootDB.crit_chance(levels) * (LootDB.crit_mult(levels) - 1.0)
-	return LootDB.damage_per_hit(levels) * (1.0 + crit)
+	var crit := (LootDB.crit_chance(levels) + _album_bonus("crit")) \
+			* (LootDB.crit_mult(levels) - 1.0)
+	return LootDB.damage_per_hit(levels) * (1.0 + crit) * (1.0 + _album_bonus("damage"))
 
 
 ## Lo que paga un sobre: el botin de verdad (roll_pack, con su rareza y su nota)
@@ -304,9 +355,16 @@ func _loot(levels: Array, locker: Array, pack_id: String, st: Dictionary,
 	var mult := 1.0
 	for item in locker:
 		mult += LootDB.bonus_for(item)
+	mult *= 1.0 + _album_bonus("money")
+	_gp_mission("open", 1, pack_id.rstrip("0123456789"))
 	if fixed_loot:
 		return int(round(LootDB.pack_payout(pack_id) * mult))
 	var loot := LootDB.roll_pack(rng, pack_id, LootDB.luck(levels), mult)
+	return _gp_sell(_keep(levels, locker, loot, st))
+
+
+## El armario (ver _loot): devuelve el objeto tal cual, para cobrarlo.
+func _keep(levels: Array, locker: Array, loot: Dictionary, st: Dictionary) -> Dictionary:
 	# El armario: el que lo mira expone los mejores vinilos que ha encontrado
 	# -los vinilos son el tipo que sube el DINERO-, hasta llenar sus huecos.
 	if bool(st["locker"]) and LootDB.item_level(levels, "armario") > 0 \
@@ -318,7 +376,221 @@ func _loot(levels: Array, locker: Array, pack_id: String, st: Dictionary,
 				if LootDB.bonus_for(locker[i]) < LootDB.bonus_for(locker[worst]):
 					worst = i
 			locker.remove_at(worst)
-	return int(loot["value"])
+	return loot
+
+
+# --------------------------------------------------------------------------- #
+# El gameplay nuevo (eventos, encargos, album y golpe perfecto)
+# --------------------------------------------------------------------------- #
+# Copia de las reglas de Game (payout, mission_event, _album_add...) en pequeno,
+# sin la interfaz: lo que pasa, cuando pasa y lo que paga. Lleva su propio dado
+# (semilla + 7777) para que encender o apagar esto no cambie el botin de los
+# sobres de siempre y las dos partidas se puedan comparar sobre la misma suerte.
+
+func _gp_reset(st: Dictionary, seed_value: int) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value + 7777
+	_gp = {"rng": r, "t": 0.0, "top_price": 0, "top_index": 0,
+		"golden_at": Gameplay.GOLDEN_FIRST, "vip_at": Gameplay.VIP_FIRST,
+		"happy_at": Gameplay.HAPPY_FIRST, "buyer": {}, "happy": {},
+		"missions": [], "pending": 0, "perfect_acc": 0.0, "perfect_done": 0,
+		"album": {}, "bonus": {}, "perfect10": false,
+		"golden_n": 0, "golden_money": 0, "vip_n": 0, "vip_money": 0,
+		"happy_money": 0, "missions_n": 0, "missions_money": 0, "sets": [],
+		"auto": bool(st["auto"])}
+	if gameplay:
+		_gp_fill_missions()
+
+
+func _gp_bought(pack_id: String, price: int) -> void:
+	if price > int(_gp.get("top_price", 0)):
+		_gp["top_price"] = price
+		_gp["top_index"] = LootDB.pack_index(pack_id)
+
+
+func _album_bonus(stat: String) -> float:
+	if not gameplay or _gp.is_empty() or _off.has("album"):
+		return 0.0
+	return float(_gp["bonus"].get(stat, 0.0))
+
+
+## Lo que cobra un objeto al venderlo, con la hora feliz y el VIP dentro, y lo
+## que eso cuenta para el album y los encargos.
+func _gp_sell(loot: Dictionary) -> int:
+	var value := int(loot["value"])
+	if not gameplay:
+		return value
+	_gp_album(loot)
+	var t := float(_gp["t"])
+	var kind := LootDB.kind_of(loot)
+	var happy: Dictionary = _gp["happy"]
+	if not _off.has("feliz") and not happy.is_empty() and t < float(happy["until"]) and str(happy["kind"]) == kind:
+		var extra := roundi(float(value) * (Gameplay.HAPPY_MULT - 1.0))
+		_gp["happy_money"] = int(_gp["happy_money"]) + extra
+		value += extra
+	var buyer: Dictionary = _gp["buyer"]
+	if not _off.has("vip") and not buyer.is_empty() and t < float(buyer["until"]) and str(buyer["kind"]) == kind \
+			and int(loot["grade"]) >= int(buyer["grade"]):
+		var extra := roundi(float(value) * (Gameplay.VIP_MULT - 1.0))
+		_gp["vip_money"] = int(_gp["vip_money"]) + extra
+		_gp["vip_n"] = int(_gp["vip_n"]) + 1
+		value += extra
+		_gp["buyer"] = {}
+		_gp_mission("vip", 1)
+	_gp_mission("grade", int(loot["grade"]))
+	return value
+
+
+func _gp_album(loot: Dictionary) -> void:
+	var album: Dictionary = _gp["album"]
+	album[Gameplay.album_key(loot)] = true
+	if int(loot["grade"]) >= 10:
+		_gp["perfect10"] = true
+	var bonus: Dictionary = {}
+	var sets: Array = []
+	for s in Gameplay.SETS:
+		var done := true
+		if (s["items"] as Array).is_empty():
+			done = bool(_gp["perfect10"])
+		for key in s["items"]:
+			if not album.has(str(key)):
+				done = false
+		if done:
+			sets.append(str(s["id"]))
+			bonus[str(s["stat"])] = float(bonus.get(str(s["stat"]), 0.0)) + float(s["value"])
+	_gp["bonus"] = bonus
+	_gp["sets"] = sets
+
+
+func _gp_fill_missions() -> void:
+	var missions: Array = _gp["missions"]
+	var r: RandomNumberGenerator = _gp["rng"]
+	while missions.size() < Gameplay.MISSION_SLOTS:
+		var usados: Array = []
+		for m in missions:
+			usados.append(str(m["type"]))
+		var libres: Array = []
+		for ty in Gameplay.MISSION_TYPES:
+			if not usados.has(str(ty["type"])):
+				libres.append(ty)
+		var ty: Dictionary = libres[r.randi_range(0, libres.size() - 1)]
+		var kinds := LootDB.kind_ids()
+		missions.append({"type": str(ty["type"]), "goal": int(ty["goal"]), "progress": 0,
+			"reward": maxi(Gameplay.REWARD_MIN,
+				roundi(float(_gp["top_price"]) * Gameplay.REWARD_PACKS)),
+			"kind": kinds[r.randi_range(0, kinds.size() - 1)]})
+
+
+## Game.mission_event en pequeno: lo cumplido se apunta en "pending" y lo cobra
+## la vuelta del bucle (ver _gp_events).
+func _gp_mission(type: String, value: int, kind: String = "") -> void:
+	if not gameplay or _gp.is_empty():
+		return
+	var missions: Array = _gp["missions"]
+	var hechos: Array = []
+	for m in missions:
+		var ty := str(m["type"])
+		if ty == "grade":
+			if type == "grade" and value >= int(m["goal"]):
+				m["progress"] = 1
+		elif ty == "open_kind":
+			if type == "open" and kind == str(m["kind"]):
+				m["progress"] = int(m["progress"]) + value
+		elif (ty == "open_any" and type == "open") or ty == type:
+			m["progress"] = int(m["progress"]) + value
+		if int(m["progress"]) >= (1 if ty == "grade" else int(m["goal"])):
+			hechos.append(m)
+	for m in hechos:
+		missions.erase(m)
+		_gp["pending"] = int(_gp["pending"]) + int(m["reward"])
+		_gp["missions_n"] = int(_gp["missions_n"]) + 1
+		_gp["missions_money"] = int(_gp["missions_money"]) + int(m["reward"])
+	if not hechos.is_empty():
+		_gp_fill_missions()
+
+
+## Lo que ha pasado hasta el segundo `t`: aparecen los eventos que tocan, se abre
+## el sobre dorado (si se llega a tiempo) y se cobran los encargos cumplidos.
+## Devuelve el dinero, los sobres y los segundos de mas.
+func _gp_events(st: Dictionary, levels: Array, locker: Array,
+		rng: RandomNumberGenerator, fixed_loot: bool, t: float) -> Dictionary:
+	var out := {"money": 0, "opened": 0, "seconds": 0.0}
+	if not gameplay:
+		return out
+	var r: RandomNumberGenerator = _gp["rng"]
+	# Los golpes perfectos de los sobres abiertos, de uno en uno al encargo.
+	var perfect := int(floor(float(_gp["perfect_acc"])))
+	if perfect > int(_gp["perfect_done"]):
+		_gp_mission("perfect", perfect - int(_gp["perfect_done"]))
+		_gp["perfect_done"] = perfect
+	var kinds := LootDB.kind_ids()
+	while t >= float(_gp["vip_at"]):
+		_gp["buyer"] = {"kind": kinds[r.randi_range(0, kinds.size() - 1)],
+			"grade": r.randi_range(Gameplay.VIP_GRADE.x, Gameplay.VIP_GRADE.y),
+			"until": float(_gp["vip_at"]) + Gameplay.VIP_LIFE}
+		_gp["vip_at"] = float(_gp["vip_at"]) + Gameplay.between(r, Gameplay.VIP_EVERY)
+	while t >= float(_gp["happy_at"]):
+		_gp["happy"] = {"kind": kinds[r.randi_range(0, kinds.size() - 1)],
+			"until": float(_gp["happy_at"]) + Gameplay.HAPPY_LIFE}
+		_gp["happy_at"] = float(_gp["happy_at"]) + Gameplay.between(r, Gameplay.HAPPY_EVERY)
+	while t >= float(_gp["golden_at"]):
+		_gp["golden_at"] = float(_gp["golden_at"]) + Gameplay.between(r, Gameplay.GOLDEN_EVERY)
+		if r.randf() >= float(st.get("catch", 1.0)) or _off.has("dorado"):
+			continue
+		var i := clampi(maxi(int(_gp["top_index"]) + Gameplay.GOLDEN_STEP, 1), 0,
+				LootDB.pack_count() - 1)
+		var pack_id := str(LootDB.pack_at(i)["id"])
+		if bool(st["auto"]) and LootDB.item_level(levels, "pinchos") > 0 \
+				and LootDB.item_level(levels, "pc") > 0:
+			out["seconds"] = float(out["seconds"]) + float(LootDB.pack_hp(pack_id)) \
+					/ maxf(0.001, LootDB.spike_dps(levels, float(LootDB.REBIRTH_REQUIRE) * 0.5))
+		else:
+			out["seconds"] = float(out["seconds"]) + _pack_seconds(levels, pack_id, st)
+		var gain := _gp_golden_loot(levels, locker, pack_id, rng, fixed_loot)
+		_gp_mission("golden", 1)
+		_gp["golden_n"] = int(_gp["golden_n"]) + 1
+		_gp["golden_money"] = int(_gp["golden_money"]) + gain
+		out["money"] = int(out["money"]) + gain
+		out["opened"] = int(out["opened"]) + 1
+	if not _off.has("encargos"):
+		out["money"] = int(out["money"]) + int(_gp["pending"])
+	_gp["pending"] = 0
+	return out
+
+
+## El botin del sobre dorado: el del sobre, con la nota subida al minimo dorado
+## a base de volver a tirarla (como hace game.gd con Game.regrade).
+func _gp_golden_loot(levels: Array, locker: Array, pack_id: String,
+		rng: RandomNumberGenerator, fixed_loot: bool) -> int:
+	var mult := 1.0
+	for item in locker:
+		mult += LootDB.bonus_for(item)
+	mult *= 1.0 + _album_bonus("money")
+	_gp_mission("open", 1, pack_id.rstrip("0123456789"))
+	if fixed_loot:
+		# La media de las notas del 7 al 10 contra la media de todas.
+		var top := 0.0
+		var top_w := 0.0
+		var all := 0.0
+		var all_w := 0.0
+		for g in range(1, LootDB.GRADE_WEIGHTS.size() + 1):
+			var w := float(LootDB.GRADE_WEIGHTS[g - 1])
+			all += w * LootDB.grade_mult(g)
+			all_w += w
+			if g >= Gameplay.GOLDEN_MIN_GRADE:
+				top += w * LootDB.grade_mult(g)
+				top_w += w
+		return roundi(LootDB.pack_payout(pack_id) * mult * (top / top_w) / (all / all_w))
+	var loot := LootDB.roll_pack(rng, pack_id, LootDB.luck(levels), mult)
+	var r: RandomNumberGenerator = _gp["rng"]
+	var vueltas := 0
+	while int(loot["grade"]) < Gameplay.GOLDEN_MIN_GRADE and vueltas < 200:
+		var g := LootDB.roll_grade(r)
+		loot["value"] = maxi(1, roundi(float(loot["value"]) * LootDB.grade_mult(g)
+				/ LootDB.grade_mult(int(loot["grade"]))))
+		loot["grade"] = g
+		vueltas += 1
+	return _gp_sell(loot)
 
 
 ## La tienda: una mejora por vuelta, la primera del orden que le llega al
@@ -355,6 +627,11 @@ func _ready() -> void:
 	# el informe del ritmo dice que hay un rato largo sin comprar nada.
 	#   $G --headless --path . res://dev/BalanceTest.tscn trace buys
 	var args := OS.get_cmdline_args()
+	if args.has("clasico"):
+		gameplay = false
+	for a in args:
+		if str(a).begins_with("sin_"):
+			_off.append(str(a).substr(4))
 	if args.has("trace"):
 		for i in STRATEGIES.size():
 			print("traza de %s (semilla 0):" % STRATEGIES[i]["id"])
@@ -393,6 +670,7 @@ func report(runs: int = 25) -> void:
 	if runs >= 25:
 		_rungs_report(0, runs)
 		_pace_report(0, runs)
+		_gameplay_report(0, runs)
 	# La misma partida con el botin puesto en su MEDIA, sin dado. Lo que se separa
 	# de la mediana de arriba es lo que decide la suerte, y estas son las cifras
 	# que puede comprobar un test sin volverse loco (ver fixed_minutes()).
@@ -501,6 +779,34 @@ func _sweep_shares(runs: int = 9) -> void:
 		print("  gasta hasta el %2d %% del dinero: mediana %5.1f min   niveles %2d"
 			% [roundi(float(share) * 100.0), _median(times),
 				levels / maxi(1, times.size())])
+
+
+## De donde sale el dinero de mas del gameplay nuevo en la partida del jugador
+## normal: cuantas veces pasa cada cosa y lo que mete, de media por partida.
+func _gameplay_report(strategy: int, runs: int) -> void:
+	if not gameplay:
+		print("  gameplay nuevo: APAGADO (clasico)")
+		return
+	var sum := {"golden_n": 0, "golden_money": 0, "vip_n": 0, "vip_money": 0,
+		"happy_money": 0, "missions_n": 0, "missions_money": 0}
+	var sets := 0
+	var earned := 0.0
+	var n := 0
+	for seed_value in runs:
+		var r := simulate(strategy, seed_value)
+		if float(r["minutes"]) >= INF:
+			continue
+		n += 1
+		var gp: Dictionary = r["gp"]
+		for key in sum:
+			sum[key] = int(sum[key]) + int(gp[key])
+		sets += (gp["sets"] as Array).size()
+	n = maxi(1, n)
+	print("  gameplay nuevo (normal, media por partida): %d dorados (%d), %d VIP (+%d), hora feliz (+%d), %d encargos (%d), %.1f colecciones"
+		% [int(sum["golden_n"]) / n, int(sum["golden_money"]) / n,
+			int(sum["vip_n"]) / n, int(sum["vip_money"]) / n,
+			int(sum["happy_money"]) / n, int(sum["missions_n"]) / n,
+			int(sum["missions_money"]) / n, float(sets) / float(n)])
 
 
 func _normal_median(runs: int) -> float:

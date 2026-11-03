@@ -20,6 +20,25 @@ const SETTINGS_SCENE := preload("res://scenes/SettingsPanel.tscn")
 const AUTO_BUY_SCENE := preload("res://scenes/AutoBuyPanel.tscn")
 const LOCKER_SCENE := preload("res://scenes/LockerPanel.tscn")
 const REBIRTH_SCENE := preload("res://scenes/RebirthPanel.tscn")
+const LIBRETA_SCENE := preload("res://scenes/LibretaPanel.tscn")
+
+## La LIBRETA (album y encargos): su chapa va al lado de la del armario.
+const LIBRETA_BTN_CENTER := Vector2(480, 1000)
+const LIBRETA_BTN_W := 200.0
+## La barra de HABILIDADES, abajo a la derecha (despues de la vitrina, que acaba
+## en x 1648). Tres botones de 72 con su numero de recarga encima.
+const ABIL_X0 := 1712.0
+const ABIL_STEP := 80.0
+const ABIL_Y := 1000.0
+const ABIL_SIDE := 72.0
+## La banda de los eventos, ABAJO de la mesa: una linea por evento en curso, la
+## primera pegada al borde y la segunda encima. Estuvo arriba y no valia: los
+## avisos (Main._toast) salen justo ahi, y un "SOBRE DORADO" encima de la linea
+## del VIP no se leia ni lo uno ni lo otro; ademas tapaba el borde de arriba de
+## los paquetes de la primera fila. Abajo solo queda el hueco que deja la caja
+## (BOX) por debajo del dibujo de la segunda fila, y por eso es fina (34 px).
+const EVENT_BAND_BOTTOM := 888.0
+const EVENT_LINE_H := 34.0
 
 ## La tira de abajo, debajo de la mesa: LA VITRINA. Antes eran los diez huecos
 ## del inventario, que ahora vive en su panel (ver LockerPanel) junto al armario.
@@ -242,6 +261,16 @@ var _reveal_el: TableElement = null
 
 var _buy_timer := 0.0
 var _spike_timer := 0.0
+## Los relojes que hacen APARECER los eventos (ver Gameplay). Solo corren con la
+## mesa a la vista (ver _events_step).
+var _golden_timer := Gameplay.GOLDEN_FIRST
+var _vip_timer := Gameplay.VIP_FIRST
+var _happy_timer := Gameplay.HAPPY_FIRST
+var _libreta: Control = null
+var _event_band: Control = null
+var _event_lines: Array = []
+## Los tres botones de habilidad: {id, button, num}.
+var _abil_buttons: Array = []
 ## Cuanto lleva cada botin quieto en la mesa, en segundos, para la mejora MESA
 ## LIMPIA. Se lleva por elemento y no se le pregunta al elemento porque el reloj
 ## es de la pantalla: el objeto no sabe si el jugador esta mirando su ficha o
@@ -269,6 +298,9 @@ func _ready() -> void:
 
 	_build_top_bar()
 	_build_locker()
+	_build_libreta_button()
+	_build_abilities()
+	_build_event_band()
 
 	Game.money_changed.connect(_on_money_changed)
 	# La tira de abajo se repinta con las DOS senales: con los objetos expuestos
@@ -284,6 +316,9 @@ func _ready() -> void:
 	Game.open_requested.connect(_on_open_requested)
 	Game.settings_changed.connect(_refresh_top)
 	Game.table_reset.connect(_clear_table)
+	Game.events_changed.connect(_refresh_event_band)
+	Game.abilities_changed.connect(_refresh_abilities)
+	Game.skills_changed.connect(_refresh_abilities)
 	_refresh_locker()
 	_refresh_top()
 	_on_money_changed(Game.money)
@@ -506,7 +541,6 @@ func _pack_cell(list: Control, pack: Dictionary, index: int) -> Dictionary:
 	free_label.set_text("GRATIS")
 	free_label.position = tag - free_label.size * 0.5
 	free_label.visible = false
-	list.add_child(free_label)
 
 	# La zona de clic es la fila ENTERA (nombre, ranura y chapita), no solo el
 	# dibujo del sobre: esto es un boton de compra, no un objeto que se arrastra.
@@ -799,6 +833,7 @@ func _add_element(el: TableElement) -> void:
 	el.opened.connect(_on_element_opened.bind(el))
 	el.sold.connect(_on_element_sold.bind(el))
 	el.damaged.connect(_on_element_damaged.bind(el))
+	el.perfect_hit.connect(_on_perfect_hit.bind(el))
 	_table.add_child(el)
 	# La caida la lleva el elemento: asi se puede cortar si el jugador lo agarra
 	# antes de que aterrice. Ver TableElement.play_drop().
@@ -960,6 +995,7 @@ func _buy_pack(pack_id: String) -> void:
 		Game.notice.emit("NO TE LLEGA", Palette.RUST_L)
 		return
 	Game.spend(price)
+	Game.note_pack_bought(pack_id, price)
 	Sound.play("sfx_buy")
 	_spawn_pack(pack_id)
 	_refresh_packs()
@@ -975,6 +1011,15 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 	# La suerte (Trebol) engorda el botin no comun y el multiplicador del Armario
 	# sube el valor de lo que sale.
 	var item := LootDB.roll_pack(_rng, pack_id, Game.luck(), Game.value_multiplier())
+	# EL SOBRE DORADO trae la nota alta: se vuelve a tirar hasta llegar al
+	# minimo (con la misma regla que la lupa del tasador, que escala el valor).
+	if el.golden:
+		var vueltas := 0
+		while int(item["grade"]) < Gameplay.GOLDEN_MIN_GRADE and vueltas < 200:
+			item = Game.regrade(item)
+			vueltas += 1
+		Game.mission_event("golden", 1)
+	Game.mission_event("open", 1, _pack_kind(pack_id))
 	# Encontrado es una cosa y guardado es otra: se apunta aqui, cuando sale,
 	# porque a partir de este punto puede venderse sin pasar por el inventario.
 	Game.register_found(item)
@@ -990,8 +1035,7 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 
 ## Venta automatica: el objeto se vende nada mas salir, sin tarjeta y sin mesa.
 func _sell_quietly(item: Dictionary) -> void:
-	var value := int(item.get("value", 0))
-	Game.add_money(value)
+	var value := Game.payout(item)
 	Sound.play("sfx_sell")
 	_float_text("+" + PixelNumber.format(value), _table_point(), Palette.GOLD_XL)
 
@@ -1016,7 +1060,13 @@ func _reveal_item(item: Dictionary) -> void:
 	var el: TableElement = null
 	if table_free():
 		el = _spawn_loot(item)
+	_show_card(item, el)
 
+
+## La tarjeta de un objeto que ya esta en la mesa (o que no cabia: `el` null).
+## Va aparte de _reveal_item para que la LUPA DEL TASADOR pueda volver a ensenar
+## el mismo objeto con la nota nueva sin dejar otro en la mesa.
+func _show_card(item: Dictionary, el: TableElement) -> void:
 	var card := REVEAL_SCENE.instantiate() as RevealCard
 	card.show_item(item)
 	card.resolved.connect(_on_reveal_resolved.bind(item, el))
@@ -1033,6 +1083,9 @@ func _on_reveal_resolved(action: String, item: Dictionary, el: TableElement) -> 
 		_reveal = null
 	_reveal_data = {}
 	_reveal_el = null
+	if action == RevealCard.ACTION_REROLL:
+		_reroll_revealed(item, el)
+		return
 	if action == RevealCard.ACTION_STORE:
 		_store_revealed(item, el)
 	elif action == RevealCard.ACTION_SELL:
@@ -1044,6 +1097,21 @@ func _on_reveal_resolved(action: String, item: Dictionary, el: TableElement) -> 
 	# Y la siguiente que estuviera esperando.
 	if not _reveal_queue.is_empty():
 		_reveal_item(_reveal_queue.pop_front())
+
+
+## LA LUPA DEL TASADOR: la nota del objeto se vuelve a tirar (puede subir o
+## bajar), el objeto de la mesa cambia de dibujo y la tarjeta se vuelve a abrir
+## con la nota nueva.
+func _reroll_revealed(item: Dictionary, el: TableElement) -> void:
+	if not Game.use_ability(Gameplay.ABIL_APPRAISE):
+		_show_card(item, el)
+		return
+	var nuevo := Game.regrade(item)
+	Game.note_regrade(nuevo)
+	Sound.play("sfx_rare" if int(nuevo["grade"]) > int(item["grade"]) else "sfx_open")
+	if el != null and is_instance_valid(el):
+		el.set_loot(nuevo)
+	_show_card(nuevo, el)
 
 
 ## Al inventario. El objeto DEJA la mesa: no puede estar en los dos sitios.
@@ -1066,9 +1134,8 @@ func _sell_revealed(item: Dictionary, el: TableElement) -> void:
 		var instant := el.sell_instant()
 		if instant <= 0:
 			return
-		value = instant
 		_drop_element(el)
-	Game.add_money(value)
+	value = Game.payout(item)
 	Sound.play("sfx_sell")
 	_float_text("+" + PixelNumber.format(value), at, Palette.GOLD_XL)
 	_refresh_top()
@@ -1088,7 +1155,10 @@ func _on_element_sold(value: int, at: Vector2, el: TableElement) -> void:
 	if not _elements.has(el):
 		return
 	_drop_element(el)
-	Game.add_money(value)
+	if is_instance_valid(el):
+		value = Game.payout(el.loot)
+	else:
+		Game.add_money(value)
 	Sound.play("sfx_sell")
 	_float_text("+" + PixelNumber.format(value), at, Palette.GOLD_XL)
 
@@ -1127,12 +1197,11 @@ func _sell_all_table() -> void:
 			continue
 		if not el.is_loot():
 			continue
-		var value: int = el.sell_instant()
-		if value > 0:
-			total += value
+		var loot: Dictionary = el.loot
+		if el.sell_instant() > 0:
+			total += Game.payout(loot)
 			_drop_element(el)
 	if total > 0:
-		Game.add_money(total)
 		Sound.play("sfx_sell_all")
 		_float_text("+" + PixelNumber.format(total), Vector2(960, 500), Palette.GOLD_XL)
 	_refresh_top()
@@ -1143,8 +1212,14 @@ func _sell_all_table() -> void:
 # --------------------------------------------------------------------------- #
 
 func _process(delta: float) -> void:
+	_refresh_event_band()
+	_refresh_abilities()
 	if _reveal != null:
 		return
+	_golden_step(delta)
+	_frenzy_step()
+	if _table_clear():
+		_events_step(delta)
 	if Game.auto_buy:
 		_buy_timer -= delta
 		if _buy_timer <= 0.0:
@@ -1266,7 +1341,7 @@ func _auto_buy_step() -> void:
 	# compra seguia gastando por debajo del panel y el numero bajaba mientras se
 	# leia. Ni con los ajustes, por lo mismo que con la tienda.
 	if not table_free() or _shop != null or _auto_buy_panel != null or _locker != null \
-			or _reveal != null or _rebirth != null or _settings != null:
+			or _reveal != null or _rebirth != null or _settings != null or _libreta != null:
 		return
 	var best := ""
 	var best_price := 1 << 60
@@ -1288,6 +1363,7 @@ func _auto_buy_step() -> void:
 	if best == "":
 		return
 	Game.spend(best_price)
+	Game.note_pack_bought(best, best_price)
 	_spawn_pack(best)
 	_refresh_packs()
 
@@ -1502,6 +1578,229 @@ func _count_table_loot() -> int:
 
 
 # --------------------------------------------------------------------------- #
+# El gameplay nuevo: eventos, golpe perfecto, habilidades y libreta
+# --------------------------------------------------------------------------- #
+
+## El tipo de un sobre (cards2 -> cards): lo que cuentan los encargos.
+static func _pack_kind(pack_id: String) -> String:
+	return pack_id.rstrip("0123456789")
+
+
+## Los relojes que hacen aparecer los eventos. Solo corren con la mesa a la vista.
+func _events_step(delta: float) -> void:
+	_golden_timer -= delta
+	if _golden_timer <= 0.0:
+		_golden_timer = Gameplay.between(_rng, Gameplay.GOLDEN_EVERY)
+		spawn_golden()
+	_vip_timer -= delta
+	if _vip_timer <= 0.0:
+		_vip_timer = Gameplay.between(_rng, Gameplay.VIP_EVERY)
+		if Game.buyer.is_empty():
+			Game.start_buyer()
+			Sound.play("sfx_rare")
+	_happy_timer -= delta
+	if _happy_timer <= 0.0:
+		_happy_timer = Gameplay.between(_rng, Gameplay.HAPPY_EVERY)
+		if Game.happy.is_empty():
+			Game.start_happy()
+			Sound.play("sfx_rare")
+
+
+## Pone un SOBRE DORADO en la mesa (si cabe). Devuelve el elemento o null.
+func spawn_golden() -> TableElement:
+	if not table_free():
+		return null
+	var el := TableElement.new()
+	el.setup_pack(LootDB.pack_by_id(Game.golden_pack_id()))
+	el.setup_golden()
+	_add_element(el)
+	Sound.play("sfx_rare")
+	Game.notice.emit("SOBRE DORADO: ABRELO ANTES DE QUE SE VAYA", Palette.GOLD_XL)
+	return el
+
+
+## El reloj de los sobres dorados que nadie ha empezado: parpadean los ultimos
+## tres segundos y despues se van sin dar nada.
+func _golden_step(delta: float) -> void:
+	for el in _elements.duplicate():
+		if not is_instance_valid(el) or not el.golden:
+			continue
+		if el.started():
+			el.golden_tick()
+			continue
+		el.golden_left -= delta
+		el.golden_tick()
+		if el.golden_left <= 3.0:
+			el.modulate.a = 0.45 if int(el.golden_left * 6.0) % 2 == 0 else 1.0
+		if el.golden_left <= 0.0:
+			_remove_from_table(el)
+
+
+## El FRENESI: mientras dura, todos los sobres quietos de la mesa se empiezan a
+## golpear solos (sin el cupo del turno: es la gracia de la habilidad).
+func _frenzy_step() -> void:
+	if Game.frenzy_left <= 0.0:
+		return
+	for el in _elements:
+		if is_instance_valid(el) and not el.is_loot() and el.can_open():
+			el.start_opening()
+
+
+## Un golpe perfecto: el rotulo encima del sobre, la cuenta y el encargo.
+func _on_perfect_hit(el: TableElement) -> void:
+	Game.perfect_hits += 1
+	Game.mission_event("perfect", 1)
+	if not is_instance_valid(el) or _fx == null:
+		return
+	var at: Vector2 = el.global_position + Vector2(TableElement.BOX.x * 0.5, 40.0)
+	var l := UIKit.label_at("PERFECTO!", at, Vector2(300, 40), 28, Palette.GOLD_XL,
+			HORIZONTAL_ALIGNMENT_CENTER, 0)
+	_fx.add_child(l)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(l, "position:y", l.position.y - 60.0, 0.7)
+	tw.tween_property(l, "modulate:a", 0.0, 0.7).set_delay(0.25)
+	tw.chain().tween_callback(l.queue_free)
+
+
+# --- la banda de los eventos --------------------------------------------------- #
+
+func _build_event_band() -> void:
+	_event_band = Control.new()
+	_event_band.name = "EventBand"
+	_event_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_event_band)
+	for i in 2:
+		var back := ColorRect.new()
+		back.color = Color(0.02, 0.015, 0.04, 0.82)
+		back.position = Vector2(TABLE_RECT.position.x + 16,
+				EVENT_BAND_BOTTOM - float(i + 1) * EVENT_LINE_H)
+		back.size = Vector2(TABLE_RECT.size.x - 32, EVENT_LINE_H - 4)
+		back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_event_band.add_child(back)
+		var l := UIKit.label_at("", back.position + back.size * 0.5,
+				back.size - Vector2(24, 0), 21, Palette.GOLD_XL,
+				HORIZONTAL_ALIGNMENT_CENTER, 0)
+		_event_band.add_child(l)
+		_event_lines.append({"back": back, "label": l})
+	_refresh_event_band()
+
+
+## Una linea por evento en curso, con lo que pide y los segundos que le quedan.
+func event_texts() -> Array:
+	var out: Array = []
+	if not Game.buyer.is_empty():
+		out.append("COMPRADOR VIP: %s CON NOTA %d O MAS PAGA %s  -  %d S" % [
+			str(LootDB.kind_row(str(Game.buyer["kind"]))["name"]),
+			int(Game.buyer["grade"]), Gameplay.mult_text(Gameplay.VIP_MULT),
+			ceili(float(Game.buyer["left"]))])
+	if not Game.happy.is_empty():
+		out.append("HORA FELIZ: LOS OBJETOS DE %s VALEN %s  -  %d S" % [
+			str(LootDB.kind_row(str(Game.happy["kind"]))["name"]),
+			Gameplay.mult_text(Gameplay.HAPPY_MULT), ceili(float(Game.happy["left"]))])
+	return out
+
+
+func _refresh_event_band() -> void:
+	if _event_lines.is_empty():
+		return
+	var textos := event_texts()
+	for i in _event_lines.size():
+		var linea: Dictionary = _event_lines[i]
+		var hay := i < textos.size()
+		(linea["back"] as ColorRect).visible = hay
+		(linea["label"] as Label).visible = hay
+		if hay and (linea["label"] as Label).text != textos[i]:
+			(linea["label"] as Label).text = textos[i]
+
+
+# --- la barra de habilidades --------------------------------------------------- #
+
+func _build_abilities() -> void:
+	for i in Gameplay.ABILITIES.size():
+		var a: Dictionary = Gameplay.ABILITIES[i]
+		var centro := Vector2(ABIL_X0 + float(i) * ABIL_STEP, ABIL_Y)
+		var b := UIKit.icon_button(str(a["art"]), centro, ABIL_SIDE,
+				"%s (tecla %d): %s" % [str(a["name"]).capitalize(), i + 1,
+					str(a["desc"]).to_lower()])
+		b.pressed.connect(_use_ability.bind(str(a["id"])))
+		add_child(b)
+		var num := PixelNumber.new()
+		num.scale_factor = 0.30
+		num.max_width = ABIL_SIDE - 8.0
+		num.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(num)
+		_abil_buttons.append({"id": str(a["id"]), "button": b, "num": num,
+			"center": centro})
+	_refresh_abilities()
+
+
+func _use_ability(id: String) -> void:
+	if not Game.ability_unlocked(id):
+		Sound.play("sfx_error")
+		Game.notice.emit("SE DESBLOQUEA EN EL ARBOL DEL REBIRTH", Palette.RUST_L)
+		return
+	# La lupa no se gasta desde aqui: se usa en la tarjeta del objeto.
+	if id == Gameplay.ABIL_APPRAISE:
+		Sound.play("sfx_error")
+		Game.notice.emit("LA LUPA SE USA EN LA TARJETA DEL OBJETO", Palette.CREAM_D)
+		return
+	if not Game.use_ability(id):
+		Sound.play("sfx_error")
+		Game.notice.emit("TODAVIA SE ESTA RECARGANDO", Palette.RUST_L)
+		return
+	Sound.play("sfx_tool")
+	Game.notice.emit(str(Gameplay.ability(id)["name"]) + "!", Palette.GOLD_XL)
+
+
+## Cada boton: apagado si no se tiene o si recarga (con los segundos encima) y
+## encendido mientras el golpe cargado espera o el frenesi dura.
+func _refresh_abilities() -> void:
+	for a in _abil_buttons:
+		var id := str(a["id"])
+		var b: Button = a["button"]
+		var num: PixelNumber = a["num"]
+		if not is_instance_valid(b):
+			continue
+		var tiene := Game.ability_unlocked(id)
+		var listo := Game.ability_ready(id)
+		UIKit.dim_icon_button(b, not listo)
+		var activo := (id == Gameplay.ABIL_CHARGE and Game.charged_next) \
+				or (id == Gameplay.ABIL_FRENZY and Game.frenzy_left > 0.0)
+		UIKit.set_icon_button_lit(b, activo)
+		var falta := ceili(Game.ability_left(id)) if tiene and not listo else 0
+		num.visible = falta > 0
+		if falta > 0:
+			num.set_number(falta)
+			num.position = (a["center"] as Vector2) - num.size * 0.5
+
+
+# --- la libreta ----------------------------------------------------------------- #
+
+func _build_libreta_button() -> void:
+	var b := UIKit.small_button("LIBRETA", "", LIBRETA_BTN_CENTER, LIBRETA_BTN_W, 21,
+			"ui_button_sell", "ui_button_sell")
+	b.tooltip_text = "Libreta: el album de colecciones y los encargos"
+	b.pressed.connect(_open_libreta)
+	add_child(b)
+
+
+func _open_libreta() -> void:
+	if _libreta != null:
+		return
+	Sound.click()
+	_libreta = LIBRETA_SCENE.instantiate()
+	_libreta.closed.connect(_close_libreta)
+	_main().push_veil(_libreta)
+
+
+func _close_libreta() -> void:
+	if _libreta != null:
+		_main().pop_veil(_libreta)
+		_libreta = null
+
+
+# --------------------------------------------------------------------------- #
 # Detalles de pantalla
 # --------------------------------------------------------------------------- #
 
@@ -1552,9 +1851,16 @@ func _hotkey(event: InputEvent) -> bool:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return false
+	var code := key.keycode if key.keycode != 0 else key.physical_keycode
+	# Las habilidades van con 1, 2 y 3 SIEMPRE (no son de la mejora de atajos:
+	# son botones que se pulsan en mitad de la accion).
+	if _table_clear():
+		var n := [KEY_1, KEY_2, KEY_3].find(code)
+		if n >= 0 and n < Gameplay.ABILITIES.size():
+			_use_ability(str(Gameplay.ABILITIES[n]["id"]))
+			return true
 	if not Game.skill_owned(SkillTree.QOL_KEYS) or not _table_clear():
 		return false
-	var code := key.keycode if key.keycode != 0 else key.physical_keycode
 	match code:
 		KEY_T:
 			_open_shop()
@@ -1572,7 +1878,8 @@ func _hotkey(event: InputEvent) -> bool:
 ## ¿No hay nada abierto encima de la mesa? Es la condicion de los atajos.
 func _table_clear() -> bool:
 	return _reveal == null and _settings == null and _locker == null \
-			and _shop == null and _rebirth == null and _auto_buy_panel == null
+			and _shop == null and _rebirth == null and _auto_buy_panel == null \
+			and _libreta == null
 
 
 ## "2.10" -> "2.1"
@@ -1598,6 +1905,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_settings = null
 	elif _locker != null:
 		_close_locker()
+	elif _libreta != null:
+		_close_libreta()
 	elif _auto_buy_panel != null:
 		_close_auto_buy()
 	elif _shop != null:

@@ -18,6 +18,9 @@ signal sold(value: int, at: Vector2)
 ## critico o no. Lo pinta quien tiene la capa de los avisos (ver game.gd,
 ## _on_element_damaged()), que es el mismo que pinta los avisos de venta.
 signal damaged(amount: float, crit: bool)
+## El jugador ha dado un GOLPE PERFECTO: ha pulsado el sobre en el ultimo trozo
+## del anillo (ver Gameplay.PERFECT_FROM). Lo pinta y lo cuenta game.gd.
+signal perfect_hit()
 
 enum State { CLOSED, OPENING, OPENED, LOOT }
 
@@ -71,6 +74,16 @@ var _drag_from_pos := Vector2.ZERO
 var _travelled := 0.0
 var _drop_tween: Tween = null
 
+## EL SOBRE DORADO: un sobre que aparece solo y se va si no se le da el primer
+## golpe en Gameplay.GOLDEN_LIFE segundos. Lo que trae (mejor nota) lo decide
+## game.gd al abrirse; aqui solo vive el brillo y el reloj.
+var golden := false
+var golden_left := 0.0
+var _golden_glow: TextureRect = null
+## El rotulo de debajo ("DORADO 7 S"): sin el, el reloj solo se ve en los tres
+## ultimos segundos (cuando parpadea) y el jugador no sabe que se le va a ir.
+var _golden_tag: Label = null
+
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
@@ -102,6 +115,18 @@ func setup_loot(item: Dictionary) -> void:
 	state = State.LOOT
 
 
+## Cambia el botin de un objeto que ya esta en la mesa (la lupa del tasador le
+## cambia la nota): el dibujo y el aviso del boton, con el valor nuevo.
+func set_loot(item: Dictionary) -> void:
+	if state != State.LOOT:
+		return
+	loot = item
+	if _art != null:
+		_art.texture = Sprites.tex(str(item.get("art", "loot_vinyl")))
+	if _hit != null:
+		_hit.tooltip_text = "Vender por " + PixelNumber.format(int(item.get("value", 0)))
+
+
 ## La vida de un sobre que vuelve a la mesa desde un guardado (ver
 ## Game.table): se pone despues de montarlo, con el dibujo ya hecho, para que la
 ## caja salga agrietada como estaba. Nunca baja de 1: un sobre guardado a cero
@@ -113,7 +138,49 @@ func set_hp(value: float) -> void:
 	_refresh_damage_art()
 
 
+## Lo convierte en sobre dorado. Va despues de setup_pack() y antes de entrar en
+## el arbol (el brillo se monta en _build_pack).
+func setup_golden() -> void:
+	golden = true
+	golden_left = Gameplay.GOLDEN_LIFE
+
+
+## Pone al dia el rotulo del sobre dorado. Empezado ya no se va, asi que el
+## reloj sobra: el rotulo se queda en "DORADO" y vuelve a verse entero (si se le
+## dio el primer golpe en mitad del parpadeo, se quedaba medio transparente).
+func golden_tick() -> void:
+	if not golden:
+		return
+	if started():
+		modulate.a = 1.0
+		if _golden_tag != null:
+			_golden_tag.text = "DORADO"
+		return
+	if _golden_tag != null:
+		_golden_tag.text = "DORADO  %d S" % ceili(maxf(0.0, golden_left))
+
+
+## ¿Se ha empezado ya? Un sobre dorado empezado no se va.
+func started() -> bool:
+	return state != State.CLOSED or hp < max_hp
+
+
 func _build_pack() -> void:
+	if golden:
+		# El brillo dorado detras de todo, latiendo: es lo que dice "este es
+		# distinto" en una mesa llena de sobres iguales.
+		# A 1,75 veces el dibujo: el brillo es un degradado suave y el paquete tapa
+		# su centro, asi que a 1,35 solo asomaba un borde que no se veia.
+		_golden_glow = UIKit.image("rarity_glow_legendary", ART_CENTER, ART_SIZE * 1.75,
+				Color(1.3, 1.15, 0.6, 1.0))
+		add_child(_golden_glow)
+		var gt := create_tween().set_loops()
+		gt.tween_property(_golden_glow, "modulate:a", 0.6, 0.45)
+		gt.tween_property(_golden_glow, "modulate:a", 1.0, 0.45)
+		_golden_tag = UIKit.label_at("", Vector2(BOX.x * 0.5, ART_CENTER.y + ART_SIZE.y * 0.5 + 12),
+				Vector2(BOX.x, 30), 21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0)
+		add_child(_golden_tag)
+		golden_tick()
 	# El ANILLO VA DELANTE DE TODO MENOS DEL PAQUETE, y es justo lo que hace que
 	# no lo tape. El sprite ui_timer_track es un disco con un agujero en medio:
 	# medido pixel a pixel, su banda pintada va de 2,3 a 8,5 celdas de radio (36
@@ -133,6 +200,8 @@ func _build_pack() -> void:
 
 	_art = UIKit.image(str(pack.get("art", "pack_cards")), ART_CENTER, ART_SIZE)
 	add_child(_art)
+	if golden:
+		_art.modulate = Color(1.25, 1.1, 0.55)
 	add_child(UIKit.image("shadow_small", SHADOW_CENTER, SHADOW_SIZE,
 			Color(1, 1, 1, 0.55)))
 
@@ -283,6 +352,10 @@ func _process(delta: float) -> void:
 	_charge += delta
 	var p := clampf(_charge / _total, 0.0, 1.0)
 	_ring.progress = p
+	# EL TRAMO DEL GOLPE PERFECTO: el anillo se enciende en dorado en el ultimo
+	# trozo, que es cuando pulsar el sobre da el golpe perfecto.
+	_ring.modulate = Color(1.7, 1.45, 0.5, 1.0) if p >= Gameplay.PERFECT_FROM \
+			else Color.WHITE
 	if p >= 1.0:
 		# Un ciclo completo es un golpe. La vida no baja de golpe, pero sube
 		# otra vez la carga: por eso hacen falta varios ciclos para abrir.
@@ -292,8 +365,14 @@ func _process(delta: float) -> void:
 
 ## Un golpe: resta a la resistencia el dano del jugador (con critico si toca) y,
 ## si llega a cero, la caja se rompe y sale el botin.
-func _strike() -> void:
-	var dmg := Game.damage_per_hit()
+func _strike(perfect: bool = false) -> void:
+	# El golpe cargado (habilidad) se gasta en el primer golpe del jugador, y el
+	# perfecto dobla: los dos son del dedo del jugador, por eso van aqui y no en
+	# take_damage() (que es de los Pinchos).
+	var dmg := Game.damage_per_hit() * Game.take_charged()
+	if perfect:
+		dmg *= Gameplay.PERFECT_MULT
+		perfect_hit.emit()
 	var crit := false
 	if Game.crit_chance() > 0.0 and _rng.randf() < Game.crit_chance():
 		crit = true
@@ -326,6 +405,7 @@ func _strike() -> void:
 		_finish()
 		return
 	_refresh_damage_art()
+	_ring.modulate = Color.WHITE
 	# Un ciclo es un golpe y un clic: si la caja aguanta, vuelve a quedar quieta
 	# esperando a que el jugador vuelva a pulsarla. Sin esto se abriria sola de
 	# una tirada encadenando ciclos.
@@ -381,6 +461,8 @@ func _on_pressed() -> void:
 		# Lo pide al juego y no lo hace el solo: quien sabe cuantos paquetes caben
 		# cargando a la vez (el cupo de la mesa) es game.gd, no el elemento.
 		Game.request_open(self)
+	elif state == State.OPENING:
+		try_perfect()
 	elif state == State.LOOT:
 		_sell()
 
@@ -482,6 +564,24 @@ func sell_instant() -> int:
 	var value := int(loot.get("value", 0))
 	queue_free()
 	return value
+
+
+## Pulsar el sobre mientras carga: en el ultimo trozo del anillo es un GOLPE
+## PERFECTO (sale ya y pega PERFECT_MULT); antes, no hace nada (como siempre). Devuelve si
+## ha sido perfecto.
+func try_perfect() -> bool:
+	if state != State.OPENING or _busy:
+		return false
+	if _charge / maxf(0.001, _total) < Gameplay.PERFECT_FROM:
+		return false
+	_charge = 0.0
+	_strike(true)
+	return true
+
+
+## Progreso de la carga, de 0 a 1 (para los tests y el frenesi).
+func charge_progress() -> float:
+	return clampf(_charge / maxf(0.001, _total), 0.0, 1.0) if state == State.OPENING else 0.0
 
 
 func is_waiting_pack() -> bool:

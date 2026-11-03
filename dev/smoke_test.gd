@@ -1383,20 +1383,18 @@ func _run() -> void:
 	# 1,65 s desde que la barra se freno, y volver a tocarlo no puede romper esto
 	# (con 0,4 s fijos se cumplia porque el ciclo viejo medía 0,55; con el de
 	# ahora ese numero se queda corto y el check diria que la caja se abre sola).
-	await _wait(Game.charge_time() + 0.3)
+	#
+	# Y SE ESPERA AL GOLPE, no al reloj: el numero del dano vive 0,85 s y con una
+	# espera fija se miraba 0,83 s despues del golpe, asi que un fotograma lento
+	# bastaba para que ya no estuviera y el check fallara sin que nada se rompiera.
+	# Se mira cada fotograma hasta que la caja pierde resistencia (con el mismo
+	# tope de antes por si no llegara nunca) y se deja un fotograma para el numero.
+	var tope_golpe := Time.get_ticks_msec() + int((Game.charge_time() + 0.3) * 1000.0)
+	while el.hp >= el.max_hp and Time.get_ticks_msec() < tope_golpe:
+		await get_tree().process_frame
+	await get_tree().process_frame
 	_check("un clic no abre la caja del todo", not el.is_opening())
 	_check("la resistencia ha bajado", el.hp < el.max_hp)
-	# Y EL DIBUJO ES EL UNICO AVISO QUE QUEDA, que es lo que se pidio al quitar la
-	# barra: con la caja a media resistencia tiene que estar en su tramo agrietado.
-	# Se mira en un paquete aparte para no romper el que sigue el test.
-	var roto: TableElement = g._spawn_pack("cards")
-	await get_tree().process_frame
-	roto.take_damage(roto.max_hp * 0.5)
-	_check("a media resistencia el dibujo del paquete esta agrietado",
-		roto._art != null and roto._art.texture == Sprites.tex("pack_cards_d1"))
-	g._drop_element(roto)
-	roto.queue_free()
-	await get_tree().process_frame
 
 	# --- el numero del dano ---
 	# Al cerrarse el aro sale el numero del golpe ENCIMA del paquete, con la misma
@@ -1412,6 +1410,21 @@ func _run() -> void:
 			num.color == DamagePopup.NORMAL and num.color != DamagePopup.CRIT)
 		_check("y el numero sale encima del paquete, no debajo de el",
 			num.get_global_rect().get_center().y < el.get_global_rect().get_center().y)
+
+	# (Va DESPUES del numero del dano: el numero vive 0,85 s y el golpe cae 0,8 s
+	# antes de mirarlo, asi que los dos fotogramas de este paquete aparte bastaban
+	# para que a veces ya no estuviera.)
+	# Y EL DIBUJO ES EL UNICO AVISO QUE QUEDA, que es lo que se pidio al quitar la
+	# barra: con la caja a media resistencia tiene que estar en su tramo agrietado.
+	# Se mira en un paquete aparte para no romper el que sigue el test.
+	var roto: TableElement = g._spawn_pack("cards")
+	await get_tree().process_frame
+	roto.take_damage(roto.max_hp * 0.5)
+	_check("a media resistencia el dibujo del paquete esta agrietado",
+		roto._art != null and roto._art.texture == Sprites.tex("pack_cards_d1"))
+	g._drop_element(roto)
+	roto.queue_free()
+	await get_tree().process_frame
 
 	# Y UN CRITICO SALE EN AMARILLO, y mas grande. Para no depender de la suerte se
 	# pone el Ojo verde AL TOPE y se le dan sesenta tiradas. El tope y el numero de
@@ -2483,7 +2496,7 @@ func _run() -> void:
 	# Dieciseis: el centro, cuatro caminos de los que tres siguen dos nodos mas
 	# (dano, velocidad y Pinchos) y cinco INTERRUPTORES de calidad de vida en la
 	# rama de abajo.
-	_check("el arbol trae dieciseis mejoras", SkillTree.node_count() == 16)
+	_check("el arbol trae diecinueve mejoras", SkillTree.node_count() == 19)
 	# LOS TRES CAMINOS QUE SIGUEN: cada anillo esta en SU diagonal (2 x SEP y
 	# 3 x SEP) y cuelga del nodo de antes, asi que un camino se compra de arriba
 	# abajo y no se puede empezar por el fondo.
@@ -2512,8 +2525,14 @@ func _run() -> void:
 	var diagonales := 0
 	var cuelgan_del_centro := 0
 	var interruptores: Array = []
+	var habilidades: Array = []
 	for id in SkillTree.ids():
 		if str(id) == "money":
+			continue
+		# Las habilidades son interruptores tambien, pero van en su propia rama
+		# (hacia arriba): se cuentan aparte.
+		if str(id).begins_with("abil_"):
+			habilidades.append(str(id))
 			continue
 		if SkillTree.is_qol(str(id)):
 			interruptores.append(str(id))
@@ -2532,6 +2551,17 @@ func _run() -> void:
 	# no da ningun error: se mira aqui.
 	_check("y debajo cuelgan cinco interruptores de calidad de vida",
 		interruptores.size() == 5)
+	# LA RAMA DE LAS HABILIDADES: las tres de Gameplay.ABILITIES, por ENCIMA del
+	# centro, y el golpe cargado es la puerta de las otras dos.
+	var hab_arriba := true
+	for id in habilidades:
+		if float(SkillTree.node_by_id(str(id))["pos"].y) >= 0.0:
+			hab_arriba = false
+	_check("y encima cuelgan las tres habilidades (%d)" % habilidades.size(),
+		habilidades.size() == Gameplay.ABILITIES.size() and hab_arriba
+		and SkillTree.req_of(Gameplay.ABIL_CHARGE) == "money"
+		and SkillTree.req_of(Gameplay.ABIL_FRENZY) == Gameplay.ABIL_CHARGE
+		and SkillTree.req_of(Gameplay.ABIL_APPRAISE) == Gameplay.ABIL_CHARGE)
 	var qol_abajo := true
 	var qol_un_nivel := true
 	var qol_precios: Array = []
@@ -2701,7 +2731,7 @@ func _run() -> void:
 	var arbol = g._rebirth
 	_check("la chapa del rebirth abre el arbol", arbol != null)
 	if arbol != null:
-		_check("y el panel dibuja los dieciseis nodos",
+		_check("y el panel dibuja los diecinueve nodos",
 			arbol._nodes.size() == SkillTree.node_count())
 		# AL ABRIRLO SE VE LO DE SIEMPRE: el centro y los cuatro caminos, dentro del
 		# marco y por DEBAJO de la barra del rebirth, que es lo unico fijo de la
@@ -3016,7 +3046,7 @@ func _run() -> void:
 			if f != null:
 				f._close()
 				await get_tree().process_frame
-		_check("la ficha de los dieciseis nodos se monta entera", fichas_rotas.is_empty())
+		_check("la ficha de los diecinueve nodos se monta entera", fichas_rotas.is_empty())
 		for f_rota in fichas_rotas:
 			print("         ficha rota: ", f_rota)
 		# Y SE MIRA UNA DE INTERRUPTOR ENTERA, con los mismos checks de encuadre
@@ -3279,6 +3309,208 @@ func _run() -> void:
 		g.table_count() == 2 and vuelto_sobre and vuelto_botin)
 	await _empty_table(g)
 	Game.table = []
+
+	# --- EL GAMEPLAY NUEVO -------------------------------------------------- #
+	await _empty_table(g)
+	Game.table = []
+	Game.buyer = {}
+	Game.happy = {}
+	Game.cooldowns = {}
+	Game.skills = {}
+	var gp_vinilo := {"id": "vinyl_c", "name": "VINILO", "art": "loot_vinyl_psa5",
+		"rarity": "common", "grade": 5, "value": 1000, "kind": "vinyls"}
+	var gp_carta := botin.duplicate()
+	# LA HORA FELIZ multiplica lo de su tipo y no lo demas.
+	Game.happy = {"kind": "vinyls", "left": 30.0}
+	var gp_d0: int = Game.money
+	Game.payout(gp_vinilo)
+	_check("la hora feliz multiplica lo que vale un objeto de su tipo (%s)"
+			% Gameplay.mult_text(Gameplay.HAPPY_MULT),
+		Game.money - gp_d0 == roundi(1000.0 * Gameplay.HAPPY_MULT))
+	gp_d0 = Game.money
+	Game.payout(gp_carta)
+	_check("y no toca lo de otro tipo", Game.money - gp_d0 == int(gp_carta["value"]))
+	Game.happy = {}
+	# EL COMPRADOR VIP multiplica UN objeto de su tipo con la nota que pide, y se va.
+	Game.buyer = {"kind": "vinyls", "grade": 6, "left": 60.0}
+	gp_d0 = Game.money
+	Game.payout(gp_vinilo)
+	_check("el VIP no compra si la nota no llega", Game.money - gp_d0 == 1000
+		and not Game.buyer.is_empty())
+	var gp_vinilo_bueno := gp_vinilo.duplicate()
+	gp_vinilo_bueno["grade"] = 8
+	gp_d0 = Game.money
+	Game.payout(gp_vinilo_bueno)
+	# Al menos lo suyo: vender al VIP tambien puede cumplir el encargo de "vende
+	# un objeto al VIP" si esta en curso, y ese premio entra a la vez.
+	_check("y con la nota que pide paga %s y se va" % Gameplay.mult_text(Gameplay.VIP_MULT),
+		Game.money - gp_d0 >= roundi(1000.0 * Gameplay.VIP_MULT) and Game.buyer.is_empty())
+	_check("los multiplicadores se escriben con su coma (X2, X1,5)",
+		Gameplay.mult_text(2.0) == "X2" and Gameplay.mult_text(1.5) == "X1,5")
+	Game._tick_play(0.0)
+	Game.start_buyer()
+	Game._tick_play(Gameplay.VIP_LIFE + 1.0)
+	_check("el VIP se va solo cuando se le acaba el tiempo", Game.buyer.is_empty())
+	g._refresh_event_band()
+	Game.start_happy()
+	g._refresh_event_band()
+	_check("la banda de la mesa ensena la hora feliz",
+		g.event_texts().size() == 1 and (g._event_lines[0]["label"] as Label).visible)
+	Game.happy = {}
+	g._refresh_event_band()
+
+	# EL SOBRE DORADO: aparece, brilla, se va si nadie lo empieza y trae nota alta.
+	var gp_dorado: TableElement = g.spawn_golden()
+	await get_tree().process_frame
+	_check("el sobre dorado cae en la mesa", gp_dorado != null and gp_dorado.golden
+		and g._elements.has(gp_dorado))
+	_check("y dice cuanto le queda", gp_dorado._golden_tag != null
+		and gp_dorado._golden_tag.text == "DORADO  %d S" % ceili(Gameplay.GOLDEN_LIFE))
+	g._golden_step(Gameplay.GOLDEN_LIFE + 0.5)
+	await get_tree().process_frame
+	_check("y si nadie lo empieza se va", not g._elements.has(gp_dorado))
+	var gp_dorado2: TableElement = g.spawn_golden()
+	await get_tree().process_frame
+	g._golden_step(Gameplay.GOLDEN_LIFE - 1.0)
+	gp_dorado2.modulate.a = 0.45
+	gp_dorado2.start_opening()
+	g._golden_step(Gameplay.GOLDEN_LIFE + 0.5)
+	_check("empezado ya no se va", g._elements.has(gp_dorado2))
+	_check("y si se empezo en pleno parpadeo vuelve a verse entero",
+		is_equal_approx(gp_dorado2.modulate.a, 1.0) and gp_dorado2._golden_tag.text == "DORADO")
+	var gp_abiertos: int = Game.packs_opened
+	g._on_element_opened(str(gp_dorado2.pack["id"]), gp_dorado2)
+	await get_tree().process_frame
+	_check("y trae botin con nota %d o mas" % Gameplay.GOLDEN_MIN_GRADE,
+		g._reveal != null and int(g._reveal_data.get("grade", 0)) >= Gameplay.GOLDEN_MIN_GRADE
+		and Game.packs_opened == gp_abiertos + 1)
+	if g._reveal != null:
+		g._reveal._finish(RevealCard.ACTION_SELL)
+	await get_tree().process_frame
+	await _empty_table(g)
+
+	# EL GOLPE PERFECTO: en el ultimo trozo del anillo pega mas y antes no hace nada.
+	var gp_perfecto: TableElement = g._spawn_pack("electronics")
+	await get_tree().process_frame
+	gp_perfecto.start_opening()
+	gp_perfecto._charge = gp_perfecto._total * 0.3
+	_check("pulsar a mitad de carga no es perfecto", not gp_perfecto.try_perfect())
+	var gp_vida: float = gp_perfecto.hp
+	gp_perfecto._charge = gp_perfecto._total * 0.9
+	var gp_perf_antes: int = Game.perfect_hits
+	_check("pulsar al final del anillo es un golpe perfecto", gp_perfecto.try_perfect())
+	_check("y pega el doble de un golpe normal",
+		absf((gp_vida - gp_perfecto.hp) - Game.damage_per_hit() * Gameplay.PERFECT_MULT) < 1.0
+		and Game.perfect_hits == gp_perf_antes + 1)
+
+	# LAS HABILIDADES: bloqueadas sin el arbol; con el, se gastan y recargan.
+	_check("sin el arbol las habilidades no se pueden usar",
+		not Game.use_ability(Gameplay.ABIL_CHARGE))
+	Game.skills = {"money": 1, Gameplay.ABIL_CHARGE: 1, Gameplay.ABIL_FRENZY: 1,
+		Gameplay.ABIL_APPRAISE: 1}
+	_check("con el arbol el golpe cargado se usa", Game.use_ability(Gameplay.ABIL_CHARGE))
+	_check("y se queda recargando", not Game.ability_ready(Gameplay.ABIL_CHARGE))
+	gp_vida = gp_perfecto.hp
+	gp_perfecto.start_opening()
+	gp_perfecto._charge = 0.0
+	gp_perfecto._strike()
+	_check("y el siguiente golpe pega x%d" % roundi(Gameplay.CHARGE_MULT),
+		absf((gp_vida - gp_perfecto.hp) - Game.damage_per_hit() * Gameplay.CHARGE_MULT) < 1.0
+		or gp_perfecto.hp <= 0.0)
+	_check("y solo ese golpe", not Game.charged_next)
+	Game._tick_play(float(Gameplay.ability(Gameplay.ABIL_CHARGE)["cooldown"]) + 1.0)
+	_check("al acabar la recarga vuelve a estar lista", Game.ability_ready(Gameplay.ABIL_CHARGE))
+	await _empty_table(g)
+	var gp_quieto: TableElement = g._spawn_pack("electronics")
+	await get_tree().process_frame
+	Game.use_ability(Gameplay.ABIL_FRENZY)
+	g._frenzy_step()
+	_check("el frenesi pone a golpear solos los sobres de la mesa", gp_quieto.is_opening())
+	Game.frenzy_left = 0.0
+	await _empty_table(g)
+	# LA LUPA: la nota cambia y el valor y el dibujo van con ella.
+	var gp_tasado: Dictionary = Game.regrade(gp_vinilo)
+	_check("la lupa vuelve a tirar la nota y el valor va con ella",
+		int(gp_tasado["value"]) == roundi(1000.0 * LootDB.grade_mult(int(gp_tasado["grade"]))
+			/ LootDB.grade_mult(5))
+		and str(gp_tasado["art"]) == "loot_vinyl_psa%d" % int(gp_tasado["grade"]))
+	g._reveal_item(gp_vinilo.duplicate())
+	await get_tree().process_frame
+	_check("con la lupa comprada la tarjeta trae el boton de tasar",
+		g._reveal != null and g._reveal.find_child("Lupa", true, false) != null)
+	if g._reveal != null:
+		g._reveal._reroll()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("y tasar vuelve a abrir la tarjeta con la lupa recargando",
+		g._reveal != null and not Game.ability_ready(Gameplay.ABIL_APPRAISE))
+	if g._reveal != null:
+		g._reveal._finish(RevealCard.ACTION_SELL)
+	await get_tree().process_frame
+	await _empty_table(g)
+	Game.cooldowns = {}
+	_check("la barra trae los tres botones de habilidad",
+		g._abil_buttons.size() == Gameplay.ABILITIES.size())
+
+	# EL ALBUM: completar una coleccion da su bonus y no se pierde al reiniciar.
+	Game.album = {}
+	var gp_dano_sin: float = Game.damage_multiplier()
+	for gp_key in Gameplay.set_by_id("cards")["items"]:
+		Game.register_found({"art": str(gp_key) + "_psa4", "grade": 4, "kind": "cards"})
+	_check("con las cuatro cartas vistas la coleccion se completa",
+		Game.set_complete("cards") and Game.set_progress("cards") == Vector2i(4, 4))
+	_check("y da su bonus de dano", Game.damage_multiplier() > gp_dano_sin)
+	Game.register_found({"art": "loot_vinyl_psa10", "grade": 10, "kind": "vinyls"})
+	_check("un 10 completa la de perfeccion", Game.set_complete("perfect"))
+	var gp_mesa_sin: int = LootDB.table_slots(Game.items)
+	for gp_key in Gameplay.set_by_id("treasure")["items"]:
+		Game.register_found({"art": str(gp_key) + "_psa3", "grade": 3, "kind": "electronics"})
+	_check("la de tesoros da un hueco mas en la mesa", Game.table_slots() == gp_mesa_sin + 1)
+
+	# LOS ENCARGOS: tres a la vez; al cumplirse pagan y entra otro.
+	Game.missions = []
+	Game._fill_missions()
+	_check("hay tres encargos en curso", Game.missions.size() == Gameplay.MISSION_SLOTS)
+	var gp_textos_ok := true
+	for gp_m in Game.missions:
+		if Game.mission_text(gp_m) == "":
+			gp_textos_ok = false
+	_check("y todos dicen lo que piden", gp_textos_ok)
+	var gp_uno: Dictionary = Game.missions[0]
+	var gp_premio := int(gp_uno["reward"])
+	gp_d0 = Game.money
+	var gp_tipo := str(gp_uno["type"])
+	var gp_veces := 1 if gp_tipo == "grade" else int(gp_uno["goal"])
+	for gp_i in gp_veces:
+		if gp_tipo == "grade":
+			Game.mission_event("grade", 10)
+		elif gp_tipo == "open_any":
+			Game.mission_event("open", 1, "cards")
+		elif gp_tipo == "open_kind":
+			Game.mission_event("open", 1, str(gp_uno["kind"]))
+		else:
+			Game.mission_event(gp_tipo, 1)
+	_check("cumplir un encargo paga su premio (%s)" % gp_tipo, Game.money - gp_d0 >= gp_premio
+		and not Game.missions.has(gp_uno) and Game.missions.size() == Gameplay.MISSION_SLOTS)
+
+	# LA LIBRETA: se abre, ensena las seis colecciones y los encargos, y cabe.
+	g._open_libreta()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("la chapa LIBRETA abre su panel", g._libreta != null)
+	if g._libreta != null:
+		_check_cabe("la libreta no saca texto del panel", g._libreta, PANEL)
+		_check_sin_encimarse("la libreta no pone texto encima de una chapa", g._libreta)
+		_check("la libreta ensena las colecciones", _dice(g._libreta, "CARTAS", true)
+			and _dice(g._libreta, "TESOROS", true))
+		g._close_libreta()
+		await get_tree().process_frame
+	_check("y se cierra", g._libreta == null)
+	Game.album = {}
+	Game.skills = {}
+	Game.missions = []
+	Game._fill_missions()
+	Game.items_changed.emit()
 
 	# Y EL MENU NO SABE NADA DE ESTO. El menu que se ve al arrancar (y al salir de
 	# la partida) no tiene hucha ni forma de abrirla: el rebirth se hace jugando, y

@@ -378,9 +378,9 @@ expuestas. Y **no se pierde al reiniciar**: es lo que hace que reiniciar signifi
 algo, porque las monedas se ganan reiniciando y se gastan aquí. Lo que se pierde
 es la partida: dinero, items, inventario y armario.
 
-El primer rebirth —la primera moneda— pide **120.000 en el contador**, que son
-**unos quince minutos de partida** (doce el que juega rápido y compra bien, y once
-con el PC y los Pinchos puestos): lo justo para subir los dos primeros escalones
+El primer rebirth —la primera moneda— pide **150.000 en el contador**, que son
+**unos quince minutos de partida** (diez el que juega rápido, acierta los golpes
+perfectos y compra bien, y nueve con el PC y los Pinchos puestos): lo justo para subir los dos primeros escalones
 de sobres, comprar treinta y tantas mejoras y llegar con ganas de reiniciar. Y
 por el camino **se nota que se va mejorando**: la primera mejora cae antes del
 primer minuto, sale un escalón de sobres nuevo cada dos o tres minutos y el rato
@@ -392,7 +392,7 @@ también unos dieciocho minutos, así que el ritmo es el mismo; lo que cambió e
 **qué** se mide.
 
 El **requisito** y el **premio** se cuentan sobre lo mismo: **el dinero que hay en
-el contador**. Se piden **120.000** para poder reiniciar y cada **1,5 millones** dan
+el contador**. Se piden **150.000** para poder reiniciar y cada **1,5 millones** dan
 una moneda, así que gastar en sobres y mejoras antes de reiniciar **aleja las dos
 cosas** y guardar el dinero las acerca. El número del requisito es bajo (en el
 contador de una partida se manejan miles, no millones) y **está medido**, no
@@ -464,11 +464,52 @@ El **Trébol no toca la nota**, solo engorda el peso del botín raro, épico y
 legendario (y por eso un 10 sigue saliendo una vez de cada cuarenta con el
 Trébol al máximo).
 
+### Lo que rompe la rutina: eventos, golpe perfecto, habilidades y libreta
+
+El bucle de comprar, golpear y mejorar daño o velocidad funciona, pero a los diez
+minutos es siempre lo mismo. Para eso hay cuatro cosas más, con sus números en
+`scripts/data/gameplay.gd` (`Gameplay`):
+
+- **Eventos** que aparecen solos y se van, anunciados en una franja debajo de la
+  barra de arriba. Sus relojes solo corren con la mesa a la vista.
+  - **Sobre dorado**: cae en la mesa cada dos o cuatro minutos y espera diez
+    segundos a que le des el primer golpe; si no, se va. Es gratis y trae un
+    objeto de nota 8 o más (del sobre dos escalones por debajo del más caro que
+    hayas comprado: con el del escalón de arriba resolvía la partida él solo).
+  - **Comprador VIP**: durante 45 s paga **el doble** por un tipo de botín con
+    una nota mínima. La tarjeta de revelado ya enseña lo que pagaría.
+  - **Hora feliz**: 30 s en los que un tipo de botín vale **×1,5**.
+- **Golpe perfecto**: pulsar el sobre que se está cargando cuando el anillo pasa
+  del 80 % (se pone dorado) da el golpe en el acto y **×1,5** de daño. El clic deja
+  de ser pulsar y esperar.
+- **Habilidades** (teclas `1`, `2` y `3`), que se compran en una rama nueva del
+  árbol del rebirth (hacia arriba): **golpe cargado** (el siguiente golpe ×5),
+  **frenesí** (8 s en los que la mesa se golpea sola) y **lupa del tasador** (en
+  la tarjeta, vuelve a tirar la nota del objeto). Cada una con su recarga.
+- **Libreta** (el botón de abajo a la izquierda):
+  - **Álbum**: seis colecciones (cartas, vinilos, zapatillas, consolas, tesoros y
+    perfección). Completar una da un bonus **para siempre** —un poco de daño,
+    dinero, velocidad, críticos, un hueco de mesa o monedas de rebirth— y no se
+    pierde al reiniciar.
+  - **Encargos**: tres misiones cortas (abre tantos sobres, saca una nota 9,
+    acierta golpes perfectos, abre un dorado, véndele al VIP...) que se cobran
+    solas al cumplirse.
+
+Todo eso mete dinero por fuera del bucle, así que **la partida se mide con ello**:
+`dev/balance.gd` simula los eventos, los encargos, el álbum y los golpes perfectos
+(el normal acierta uno de cada tres, el optimizado más de la mitad). Con el
+requisito y el margen de antes el primer rebirth bajaba a menos de doce minutos;
+el margen de los sobres bajó un poco (`VALUE_SCALE` 2,2 → 2,06) y el requisito
+subió a 150.000 para dejarlo otra vez en los quince. Con `clasico` en la línea de
+comandos el simulador apaga todo esto, y con `sin_dorado`, `sin_vip`,
+`sin_feliz`, `sin_encargos`, `sin_perfecto` o `sin_album` apaga solo esa pieza.
+
 ### Teclado
 
 | Tecla | Qué hace |
 |---|---|
 | `ESPACIO` / `ENTER` | Cerrar la tarjeta sin elegir: el objeto se queda en la mesa |
+| `1` / `2` / `3` | Golpe cargado, frenesí y lupa del tasador (si están compradas en el árbol) |
 | `ESC` | Cierra el panel abierto; si no hay ninguno, vuelve al menú (la mesa se guarda tal cual: sobres con la vida que les queda y botín sin vender) |
 
 La partida se guarda sola (cada 30 s si ha cambiado algo, y al salir) en

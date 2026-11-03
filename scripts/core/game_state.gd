@@ -25,6 +25,15 @@ signal notice(text: String, color: Color)
 ## partida que se va) o un reinicio de los tests. Lo escucha la pantalla de juego,
 ## que es la que tiene los elementos dibujados y tiene que quitarlos.
 signal table_reset()
+## Ha empezado o acabado un evento (comprador VIP u hora feliz): lo escucha la
+## banda de avisos de la mesa.
+signal events_changed()
+## El album ha apuntado un objeto nuevo o una nota mejor.
+signal album_changed()
+## Los encargos han avanzado, se ha cumplido uno o han cambiado.
+signal missions_changed()
+## Una habilidad se ha usado o ha vuelto a estar lista.
+signal abilities_changed()
 
 const SAVE_PATH := "user://packtycoon.json"
 const AUTOSAVE_EVERY := 30.0
@@ -111,6 +120,30 @@ var best_grade: int = 0
 var table: Array = []
 var table_provider: Callable = Callable()
 
+# --- el gameplay nuevo (ver Gameplay) -------------------------------------- #
+
+## EL ALBUM: el dibujo de cada objeto visto (sin la nota) y la mejor nota que ha
+## salido de el. Es de la CUENTA, como las estadisticas: no se pierde al
+## reiniciar, y por eso sus colecciones dan un bonus para siempre.
+var album: Dictionary = {}
+## Los encargos en curso: cada uno {type, goal, progress, kind, reward}.
+var missions: Array = []
+## El sobre mas caro comprado en esta partida: de el salen el premio de los
+## encargos y el sobre dorado (que es el siguiente a este).
+var top_pack_price: int = 0
+var top_pack_index: int = 0
+## Golpes perfectos dados en toda la cuenta (estadistica).
+var perfect_hits: int = 0
+
+## Lo que NO se guarda: los eventos en curso y las recargas. Son de este rato de
+## juego, como el dano que sobra de un golpe.
+var buyer: Dictionary = {}          # {kind, grade, left}
+var happy: Dictionary = {}          # {kind, left}
+var cooldowns: Dictionary = {}      # id de habilidad -> segundos que le faltan
+var charged_next: bool = false
+var frenzy_left: float = 0.0
+var _rng_play := RandomNumberGenerator.new()
+
 var _dirty := false
 var _autosave_left := AUTOSAVE_EVERY
 
@@ -123,11 +156,14 @@ func _ready() -> void:
 	# guardado que no la traiga (los de antes de este menu) se queda con todos
 	# los sobres, que es el comportamiento de siempre.
 	auto_buy_packs = _all_pack_ids()
+	_rng_play.randomize()
 	# El cierre lo lleva este nodo y no el motor, para poder meter medio frame
 	# de margen antes de salir (ver _on_close). Sin esto, el motor cierra de
 	# golpe en cuanto llega el aviso de la ventana.
 	get_tree().auto_accept_quit = false
 	load_game()
+	if missions.is_empty():
+		_fill_missions()
 	# La pantalla completa se GUARDABA pero no se aplicaba al arrancar: la casilla
 	# de los ajustes salia marcada y la ventana se abria igual en ventana. Sin
 	# ventana (los tests van en headless) no hay modo que poner.
@@ -137,6 +173,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_tick_play(delta)
 	_autosave_left -= delta
 	if _autosave_left <= 0.0:
 		_autosave_left = AUTOSAVE_EVERY
@@ -271,7 +308,7 @@ func inventory_free() -> bool:
 ## ampliarlos (el armario tiene sus propios huecos y no son del inventario).
 func store(item: Dictionary) -> bool:
 	if not inventory_free():
-		add_money(int(item["value"]))
+		payout(item)
 		notice.emit("INVENTARIO LLENO: VENDIDO", Palette.GOLD)
 		return false
 	inventory.append(item.duplicate(true))
@@ -290,6 +327,8 @@ func register_found(item: Dictionary) -> void:
 	items_found += 1
 	best_grade = maxi(best_grade, int(item.get("grade", 0)))
 	_dirty = true
+	_album_add(item)
+	mission_event("grade", int(item.get("grade", 0)))
 
 
 ## Vende por indice. Devuelve cuanto se ha sacado (0 si no habia nada).
@@ -298,8 +337,7 @@ func sell_at(index: int) -> int:
 		return 0
 	var item: Dictionary = inventory[index]
 	inventory.remove_at(index)
-	var value := int(item["value"])
-	add_money(value)
+	var value := payout(item)
 	_dirty = true
 	inventory_changed.emit()
 	return value
@@ -307,11 +345,10 @@ func sell_at(index: int) -> int:
 
 func sell_all() -> int:
 	var total := 0
-	for item in inventory:
-		total += int(item["value"])
+	var vender := inventory.duplicate()
 	inventory.clear()
-	if total > 0:
-		add_money(total)
+	for item in vender:
+		total += payout(item)
 	_dirty = true
 	inventory_changed.emit()
 	return total
@@ -449,14 +486,16 @@ func kind_totals() -> Dictionary:
 ## una con su origen, pero el golpe solo tiene un multiplicador, asi que se
 ## juntan aqui y no en cada sitio que pega (el boton, los pinchos y la mesa).
 func damage_multiplier() -> float:
-	return (1.0 + kind_bonus("cards")) * (1.0 + skill_bonus("damage"))
+	return (1.0 + kind_bonus("cards")) * (1.0 + skill_bonus("damage")) \
+			* (1.0 + album_bonus("damage"))
 
 
 ## Cuanto se acelera la CARGA del boton (Zapatillas expuestas y la mejora de
 ## VELOCIDAD del arbol). El tiempo por ciclo se divide por esto: 1.0 es "igual
 ## que sin nada".
 func charge_multiplier() -> float:
-	return (1.0 + kind_bonus("sneakers")) * (1.0 + skill_bonus("speed"))
+	return (1.0 + kind_bonus("sneakers")) * (1.0 + skill_bonus("speed")) \
+			* (1.0 + album_bonus("speed"))
 
 
 ## Cuanto sube el DINERO que se saca de cada objeto encontrado: lo que dan los
@@ -469,14 +508,15 @@ func charge_multiplier() -> float:
 ## se acumulaba solo. Ahora el dinero es un NODO del arbol que hay que comprar
 ## (+30 %) y las monedas se gastan ahi.
 func value_multiplier() -> float:
-	return (1.0 + kind_bonus("vinyls")) * (1.0 + skill_bonus("money"))
+	return (1.0 + kind_bonus("vinyls")) * (1.0 + skill_bonus("money")) \
+			* (1.0 + album_bonus("money"))
 
 
 ## Cuanto se multiplican las monedas de rebirth que da reiniciar (Electronica
 ## expuesta). No toca el dinero: toca el PREMIO del rebirth, que es lo que le da
 ## sentido a exponer electronica.
 func rebirth_multiplier() -> float:
-	return 1.0 + kind_bonus("electronics")
+	return 1.0 + kind_bonus("electronics") + album_bonus("rebirth")
 
 
 # --------------------------------------------------------------------------- #
@@ -533,6 +573,14 @@ func do_rebirth() -> int:
 	# guardado le pide la foto de la mesa a la pantalla, y tiene que salir vacia.
 	table = []
 	table_reset.emit()
+	top_pack_price = 0
+	top_pack_index = 0
+	missions = []
+	buyer = {}
+	happy = {}
+	charged_next = false
+	frenzy_left = 0.0
+	_fill_missions()
 	money = START_MONEY
 	items = []
 	while items.size() < LootDB.item_count():
@@ -699,7 +747,7 @@ func charge_time() -> float:
 
 
 func crit_chance() -> float:
-	return LootDB.crit_chance(items)
+	return LootDB.crit_chance(items) + album_bonus("crit")
 
 
 func crit_mult() -> float:
@@ -711,11 +759,11 @@ func luck() -> float:
 
 
 func open_count() -> int:
-	return LootDB.open_count(items)
+	return table_slots()
 
 
 func table_slots() -> int:
-	return LootDB.table_slots(items)
+	return LootDB.table_slots(items) + int(album_bonus("table"))
 
 
 func auto_buy_interval() -> float:
@@ -762,6 +810,319 @@ func auto_sell_chaff(item: Dictionary) -> bool:
 ## Un paquete pide abrirse. game.gd decide cuantos mas arranca a la vez.
 func request_open(element: Object) -> void:
 	open_requested.emit(element)
+
+
+# --------------------------------------------------------------------------- #
+# El gameplay nuevo: pagos, eventos, habilidades, album y encargos
+# --------------------------------------------------------------------------- #
+
+## COBRAR UN OBJETO: el UNICO sitio por el que pasa el dinero de una venta (la
+## mesa, la tarjeta, el inventario, la venta automatica). Aqui se aplican los
+## eventos -la hora feliz dobla y el comprador VIP triplica- y se avisa a los
+## encargos, asi que ninguna forma de vender se queda sin ellos.
+func payout(item: Dictionary) -> int:
+	var value := int(item.get("value", 0))
+	var kind := LootDB.kind_of(item)
+	if not happy.is_empty() and str(happy["kind"]) == kind:
+		value = roundi(float(value) * Gameplay.HAPPY_MULT)
+	if buyer_wants(item):
+		value = roundi(float(value) * Gameplay.VIP_MULT)
+		buyer = {}
+		events_changed.emit()
+		notice.emit("VENDIDO AL COMPRADOR VIP: " + Gameplay.mult_text(Gameplay.VIP_MULT),
+			Palette.GOLD_XL)
+		mission_event("vip", 1)
+	add_money(value)
+	return value
+
+
+## Lo que se cobraria AHORA por un objeto (para ensenarlo en la tarjeta).
+func payout_preview(item: Dictionary) -> int:
+	var value := int(item.get("value", 0))
+	if not happy.is_empty() and str(happy["kind"]) == LootDB.kind_of(item):
+		value = roundi(float(value) * Gameplay.HAPPY_MULT)
+	if buyer_wants(item):
+		value = roundi(float(value) * Gameplay.VIP_MULT)
+	return value
+
+
+func buyer_wants(item: Dictionary) -> bool:
+	return not buyer.is_empty() and LootDB.kind_of(item) == str(buyer["kind"]) \
+			and int(item.get("grade", 0)) >= int(buyer["grade"])
+
+
+## Se ha comprado un sobre: el mas caro de la partida decide el premio de los
+## encargos y que sobre dorado sale.
+func note_pack_bought(pack_id: String, price: int) -> void:
+	if price > top_pack_price:
+		top_pack_price = price
+		top_pack_index = LootDB.pack_index(pack_id)
+		_dirty = true
+
+
+## El sobre que trae el sobre dorado: el mas caro que se ha comprado (mas
+## Gameplay.GOLDEN_STEP, sin pasarse del ultimo), y como poco los vinilos.
+func golden_pack_id() -> String:
+	var i := clampi(maxi(top_pack_index + Gameplay.GOLDEN_STEP, 1), 0,
+			LootDB.pack_count() - 1)
+	return str(LootDB.pack_at(i)["id"])
+
+
+## Los relojes de los eventos que duran (VIP y hora feliz) y de las habilidades.
+## Los que hacen APARECER los eventos los lleva la pantalla de juego, que es la
+## que sabe si la mesa esta a la vista.
+func _tick_play(delta: float) -> void:
+	var cambio := false
+	if not buyer.is_empty():
+		buyer["left"] = float(buyer["left"]) - delta
+		if float(buyer["left"]) <= 0.0:
+			buyer = {}
+			cambio = true
+	if not happy.is_empty():
+		happy["left"] = float(happy["left"]) - delta
+		if float(happy["left"]) <= 0.0:
+			happy = {}
+			cambio = true
+	if cambio:
+		events_changed.emit()
+	frenzy_left = maxf(0.0, frenzy_left - delta)
+	var listas := false
+	for id in cooldowns.keys():
+		cooldowns[id] = float(cooldowns[id]) - delta
+		if float(cooldowns[id]) <= 0.0:
+			cooldowns.erase(id)
+			listas = true
+	if listas:
+		abilities_changed.emit()
+
+
+## Empieza el comprador VIP: un tipo de botin al azar y la nota minima.
+func start_buyer() -> void:
+	var kinds := LootDB.kind_ids()
+	buyer = {"kind": kinds[_rng_play.randi_range(0, kinds.size() - 1)],
+		"grade": _rng_play.randi_range(Gameplay.VIP_GRADE.x, Gameplay.VIP_GRADE.y),
+		"left": Gameplay.VIP_LIFE}
+	events_changed.emit()
+
+
+## Empieza la hora feliz de un tipo de botin al azar.
+func start_happy() -> void:
+	var kinds := LootDB.kind_ids()
+	happy = {"kind": kinds[_rng_play.randi_range(0, kinds.size() - 1)],
+		"left": Gameplay.HAPPY_LIFE}
+	events_changed.emit()
+
+
+# --- habilidades ------------------------------------------------------------ #
+
+func ability_unlocked(id: String) -> bool:
+	return skill_owned(id)
+
+
+func ability_ready(id: String) -> bool:
+	return ability_unlocked(id) and not cooldowns.has(id)
+
+
+func ability_left(id: String) -> float:
+	return float(cooldowns.get(id, 0.0))
+
+
+## Gasta una habilidad (la pone a recargar). Devuelve false si no se puede usar.
+## Lo que HACE cada una lo hace quien la usa: el golpe cargado lo cobra el
+## siguiente golpe (take_charged), el frenesi lo mira la mesa (frenzy_left) y la
+## lupa la aplica la tarjeta de revelado (regrade).
+func use_ability(id: String) -> bool:
+	if not ability_ready(id):
+		return false
+	cooldowns[id] = float(Gameplay.ability(id).get("cooldown", 60.0))
+	if id == Gameplay.ABIL_CHARGE:
+		charged_next = true
+	elif id == Gameplay.ABIL_FRENZY:
+		frenzy_left = Gameplay.FRENZY_TIME
+	abilities_changed.emit()
+	return true
+
+
+## El golpe cargado se gasta en el primer golpe que lo pide.
+func take_charged() -> float:
+	if not charged_next:
+		return 1.0
+	charged_next = false
+	abilities_changed.emit()
+	return Gameplay.CHARGE_MULT
+
+
+## La lupa del tasador: la nota del objeto se vuelve a tirar. El valor se
+## escala por lo que vale la nota nueva frente a la vieja (lleva dentro el
+## escalon del sobre y los multiplicadores, que no cambian), y el dibujo y la
+## insignia de estado se cambian a los de la nota nueva.
+func regrade(item: Dictionary) -> Dictionary:
+	var nuevo := item.duplicate(true)
+	var antes := int(item.get("grade", 1))
+	var nota := LootDB.roll_grade(_rng_play)
+	nuevo["grade"] = nota
+	nuevo["value"] = maxi(1, roundi(float(item.get("value", 1))
+			* LootDB.grade_mult(nota) / LootDB.grade_mult(antes)))
+	nuevo["condition"] = LootDB.condition_for_grade(nota)
+	var art := str(item.get("art", ""))
+	var i := art.rfind("_psa")
+	if i > 0:
+		nuevo["art"] = "%s_psa%d" % [art.substr(0, i), nota]
+	return nuevo
+
+
+# --- album ---------------------------------------------------------------- #
+
+## Un objeto que ha cambiado de nota (la lupa): cuenta para el album y para el
+## encargo de nota como si acabara de salir, pero no como un objeto mas.
+func note_regrade(item: Dictionary) -> void:
+	_album_add(item)
+	mission_event("grade", int(item.get("grade", 0)))
+
+func _album_add(item: Dictionary) -> void:
+	var key := Gameplay.album_key(item)
+	if not Gameplay.album_items().has(key):
+		return
+	var grade := int(item.get("grade", 1))
+	var completas := completed_sets()
+	var nuevo := not album.has(key)
+	if nuevo or grade > int(album[key]):
+		album[key] = grade
+		_dirty = true
+		album_changed.emit()
+	if nuevo:
+		notice.emit("NUEVO EN EL ALBUM", Palette.CREAM)
+	for set_id in completed_sets():
+		if not completas.has(set_id):
+			var s := Gameplay.set_by_id(set_id)
+			notice.emit("COLECCION %s: %s" % [s["name"], s["effect"]], Palette.GOLD_XL)
+			# Una coleccion de huecos de mesa cambia la mesa en el acto.
+			items_changed.emit()
+
+
+## ¿Esta completa esta coleccion? La de PERFECCION pide una nota (cualquier
+## objeto con un 10); las demas, todos sus objetos vistos.
+func set_complete(set_id: String) -> bool:
+	var s := Gameplay.set_by_id(set_id)
+	if s.is_empty():
+		return false
+	if s.has("grade"):
+		for key in album:
+			if int(album[key]) >= int(s["grade"]):
+				return true
+		return false
+	for key in s["items"]:
+		if not album.has(key):
+			return false
+	return true
+
+
+func set_progress(set_id: String) -> Vector2i:
+	var s := Gameplay.set_by_id(set_id)
+	if s.has("grade"):
+		return Vector2i(1 if set_complete(set_id) else 0, 1)
+	var n := 0
+	for key in s["items"]:
+		if album.has(key):
+			n += 1
+	return Vector2i(n, (s["items"] as Array).size())
+
+
+func completed_sets() -> Array:
+	var out: Array = []
+	for s in Gameplay.SETS:
+		if set_complete(str(s["id"])):
+			out.append(str(s["id"]))
+	return out
+
+
+## Lo que suman las colecciones completas a un stat.
+func album_bonus(stat: String) -> float:
+	var total := 0.0
+	for s in Gameplay.SETS:
+		if str(s["stat"]) == stat and set_complete(str(s["id"])):
+			total += float(s["value"])
+	return total
+
+
+# --- encargos ---------------------------------------------------------------- #
+
+## El premio de un encargo nuevo: REWARD_PACKS sobres del mas caro de la partida.
+func mission_reward() -> int:
+	return maxi(Gameplay.REWARD_MIN, roundi(float(top_pack_price) * Gameplay.REWARD_PACKS))
+
+
+## Rellena los huecos de encargos que falten, sin repetir tipo.
+func _fill_missions() -> void:
+	var cambio := false
+	while missions.size() < Gameplay.MISSION_SLOTS:
+		var usados: Array = []
+		for m in missions:
+			usados.append(str(m["type"]))
+		var libres: Array = []
+		for t in Gameplay.MISSION_TYPES:
+			if not usados.has(str(t["type"])):
+				libres.append(t)
+		if libres.is_empty():
+			break
+		var t: Dictionary = libres[_rng_play.randi_range(0, libres.size() - 1)]
+		var m := {"type": str(t["type"]), "goal": int(t["goal"]), "progress": 0,
+			"reward": mission_reward(), "kind": ""}
+		if m["type"] == "open_kind":
+			var kinds := LootDB.kind_ids()
+			m["kind"] = kinds[_rng_play.randi_range(0, kinds.size() - 1)]
+		missions.append(m)
+		cambio = true
+	if cambio:
+		_dirty = true
+		missions_changed.emit()
+
+
+## El texto de un encargo, con su objetivo dentro.
+static func mission_text(m: Dictionary) -> String:
+	for t in Gameplay.MISSION_TYPES:
+		if str(t["type"]) == str(m["type"]):
+			if m["type"] == "open_kind":
+				return str(t["text"]) % [int(m["goal"]),
+					str(LootDB.kind_row(str(m["kind"]))["name"])]
+			return str(t["text"]) % int(m["goal"])
+	return ""
+
+
+## Algo ha pasado que puede contar para un encargo. `value` es lo que cuenta:
+## 1 por sobre, la nota del objeto, etc. Los que se cumplen se cobran solos y
+## dejan sitio a uno nuevo.
+func mission_event(type: String, value: int, kind: String = "") -> void:
+	if missions.is_empty():
+		_fill_missions()
+	var hechos: Array = []
+	var cambio := false
+	for m in missions:
+		var t := str(m["type"])
+		if t == "grade":
+			if type == "grade" and value >= int(m["goal"]):
+				m["progress"] = 1
+				cambio = true
+		elif t == "open_kind":
+			if type == "open" and kind == str(m["kind"]):
+				m["progress"] = int(m["progress"]) + value
+				cambio = true
+		elif (t == "open_any" and type == "open") or t == type:
+			m["progress"] = int(m["progress"]) + value
+			cambio = true
+		var meta := 1 if t == "grade" else int(m["goal"])
+		if int(m["progress"]) >= meta:
+			hechos.append(m)
+	for m in hechos:
+		missions.erase(m)
+		add_money(int(m["reward"]))
+		notice.emit("ENCARGO CUMPLIDO: +" + PixelNumber.format(int(m["reward"])),
+			Palette.GOLD_XL)
+	if not hechos.is_empty():
+		_fill_missions()
+	if cambio:
+		_dirty = true
+		missions_changed.emit()
 
 
 ## La mesa que trae un guardado, limpia: fuera los sobres que ya no existan, las
@@ -877,6 +1238,16 @@ func hard_reset() -> void:
 	best_grade = 0
 	table = []
 	table_reset.emit()
+	album = {}
+	missions = []
+	top_pack_price = 0
+	top_pack_index = 0
+	perfect_hits = 0
+	buyer = {}
+	happy = {}
+	cooldowns = {}
+	charged_next = false
+	frenzy_left = 0.0
 	_dirty = true
 	if FileAccess.file_exists(SAVE_PATH):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
@@ -909,6 +1280,11 @@ func to_dict() -> Dictionary:
 		"items_found": items_found,
 		"best_grade": best_grade,
 		"table": table,
+		"album": album,
+		"missions": missions,
+		"top_pack_price": top_pack_price,
+		"top_pack_index": top_pack_index,
+		"perfect_hits": perfect_hits,
 	}
 
 
@@ -991,6 +1367,21 @@ func _apply(d: Dictionary) -> void:
 	items_found = int(d.get("items_found", 0))
 	best_grade = int(d.get("best_grade", 0))
 	table = _clean_table(d.get("table", []))
+	album = {}
+	var guardado_album = d.get("album", {})
+	if typeof(guardado_album) == TYPE_DICTIONARY:
+		for key in guardado_album:
+			if Gameplay.album_items().has(str(key)):
+				album[str(key)] = clampi(int(guardado_album[key]), 1, 10)
+	missions = []
+	var guardados_m = d.get("missions", [])
+	if typeof(guardados_m) == TYPE_ARRAY:
+		for m in guardados_m:
+			if typeof(m) == TYPE_DICTIONARY and m.has("type") and m.has("goal"):
+				missions.append(m)
+	top_pack_price = int(d.get("top_pack_price", 0))
+	top_pack_index = int(d.get("top_pack_index", 0))
+	perfect_hits = int(d.get("perfect_hits", 0))
 	# Y cada automatizacion se cae si no esta SU pieza: un guardado que venga con
 	# ellas encendidas y sin Pinchos o sin PC (de una version anterior, o de haber
 	# tocado el fichero) no puede dejar la mesa abriendose o comprando sola.
