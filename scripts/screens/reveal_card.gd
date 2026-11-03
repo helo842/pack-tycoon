@@ -85,20 +85,23 @@ func show_item(data: Dictionary) -> void:
 #   izquierda    la VITRINA: el objeto grande sobre su pedestal, con el brillo de
 #                la rareza detras y el borde de su color; debajo, la gema y la
 #                rareza
-#   derecha      la FUNDA PSA, como las de verdad: la etiqueta crema con la nota
-#                enorme y el estado, y las diez estrellas dentro de la funda (antes
-#                iban sobre una cinta roja que se comia las estrellas vacias)
+#   debajo       la rareza (gema y nombre) y el estado de conservacion
+#   derecha      la NOTA PSA: el escudo con el numero y la cinta con las diez
+#                estrellas. Hubo una "funda PSA" con la nota en una etiqueta y se
+#                volvio al escudo y la cinta, que gustaban mas
 #   abajo dcha.  el VALOR y los dos botones
 #
 # Todas las cajas son StyleBoxFlat en colores de la paleta y medidas multiplo de
 # 8, para que no desentonen con el pixel art de los sprites.
 
 const BAND := Rect2(288, 208, 1344, 88)
-const SHOWCASE := Rect2(336, 328, 560, 456)
-const SHOWCASE_ART := 336.0
-const SLAB := Rect2(952, 328, 632, 320)
-const SLAB_LABEL := Rect2(976, 352, 584, 152)
-const SLAB_STARS_Y := 584.0
+const SHOWCASE := Rect2(336, 328, 560, 416)
+const SHOWCASE_ART := 320.0
+## La columna de la derecha: de x 952 a 1584, con el centro en 1268.
+const RIGHT := Rect2(952, 328, 632, 320)
+const GRADE_LABEL_Y := 348.0
+const BADGE_Y := 448.0
+const RIBBON_Y := 592.0
 const VALUE_Y := 704.0
 const BUTTONS_Y := 856.0
 
@@ -175,7 +178,7 @@ func _build_object_column(rarity_id: String) -> void:
 	st.tween_property(shine, "modulate:a", 0.85, 0.18)
 	st.tween_property(shine, "modulate:a", 0.0, 0.35)
 	# La rareza, debajo de la vitrina: la gema y el nombre, juntos y centrados.
-	var fila_y := SHOWCASE.end.y + 52.0
+	var fila_y := SHOWCASE.end.y + 44.0
 	var nombre := str(Palette.RARITY_NAME.get(rarity_id, "COMUN"))
 	var ancho := 72.0 + 16.0 + UIKit.text_width(nombre, 35)
 	var x0 := SHOWCASE.get_center().x - ancho * 0.5
@@ -185,52 +188,54 @@ func _build_object_column(rarity_id: String) -> void:
 			* 0.5, fila_y), Vector2(UIKit.text_width(nombre, 35), 50), 35, c,
 			HORIZONTAL_ALIGNMENT_CENTER, 0))
 
-
-## La funda PSA: una caja de plastico (gris claro) con la etiqueta crema arriba y
-## las estrellas dentro.
-func _build_grade_column() -> void:
-	var grade := int(item.get("grade", 1))
-	_box(SLAB, Color(Palette.NIGHT_LL), Palette.CREAM_D, 4)
-	_box(SLAB.grow(-12), Palette.NIGHT_L, Palette.NIGHT, 4)
-	# La etiqueta: roja con el filo claro, como la de las fundas de verdad. Roja
-	# y no crema porque la letra del juego lleva su contorno oscuro: en oscuro
-	# sobre crema se empastaba, y en crema sobre rojo se lee con la misma letra.
-	_box(SLAB_LABEL, Color8(132, 52, 36), Palette.RUST_L, 8)
-	var lx := SLAB_LABEL.position.x + 32.0
-	_card.add_child(UIKit.label_at("PSA", Vector2(lx + 63, SLAB_LABEL.position.y + 46),
-			Vector2(126, 50), 42, Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 0))
+	# Y el estado de conservacion, en la fila de debajo y con el mismo dibujo:
+	# el icono y el nombre, centrados como la rareza.
 	var cond: Dictionary = item.get("condition", {})
+	var estado := str(cond.get("name", "BUEN ESTADO"))
+	var estado_y := fila_y + 52.0
+	var ancho_e := 48.0 + 16.0 + UIKit.text_width(estado, 28)
+	var e0 := SHOWCASE.get_center().x - ancho_e * 0.5
 	_card.add_child(UIKit.art(str(cond.get("art", "condition_good")),
-			Vector2(lx + 28, SLAB_LABEL.position.y + 108), 0.16))
-	_card.add_child(UIKit.label_at(str(cond.get("name", "BUEN ESTADO")),
-			Vector2(lx + 72 + 140, SLAB_LABEL.position.y + 108), Vector2(280, 40), 28,
-			Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
-	# La nota, ENORME, en su recuadro rojo a la derecha de la etiqueta.
-	var nota_box := Rect2(SLAB_LABEL.end.x - 176, SLAB_LABEL.position.y + 16, 152, 120)
-	_box(nota_box, Palette.CREAM_L, Palette.OUTLINE, 4)
+			Vector2(e0 + 24, estado_y), 0.19))
+	_card.add_child(UIKit.label_at(estado, Vector2(e0 + 64 + UIKit.text_width(estado, 28)
+			* 0.5, estado_y), Vector2(UIKit.text_width(estado, 28), 40), 28,
+			Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0))
+
+
+## La nota PSA: el rotulo, el escudo con el numero encima y la cinta con las diez
+## estrellas, llenas hasta la nota y vacias detras.
+func _build_grade_column() -> void:
+	var cx := RIGHT.get_center().x
+	var grade := int(item.get("grade", 1))
+	_card.add_child(UIKit.label_at("NOTA PSA", Vector2(cx, GRADE_LABEL_Y),
+			Vector2(600, 50), 35, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
+	# El escudo viene vacio a proposito: el numero se pinta encima con la fuente
+	# de numeros del juego.
+	_card.add_child(UIKit.art("grade_badge", Vector2(cx, BADGE_Y), 0.74))
 	var num := PixelNumber.new()
-	num.scale_factor = 0.9
-	num.max_width = nota_box.size.x - 24.0
+	num.scale_factor = 0.55
+	num.max_width = 150.0
 	_card.add_child(num)
 	num.set_number(grade)
-	num.position = nota_box.get_center() - num.size * 0.5
+	num.position = Vector2(cx, BADGE_Y) - num.size * 0.5
 
-	# Las diez estrellas, dentro de la funda y sobre su fondo oscuro.
+	# La cinta va detras de las estrellas y a todo lo ancho de la columna.
+	_card.add_child(UIKit.image("grade_ribbon", Vector2(cx, RIBBON_Y), Vector2(680, 130)))
 	var stars := LootDB.grade_stars(grade)
-	var size := 48.0
+	var size := 58.0
 	var gap := 8.0
 	var total := 10.0 * size + 9.0 * gap
-	var x := SLAB.get_center().x - total * 0.5
+	var x := cx - total * 0.5
 	for i in 10:
 		var tex := "grade_star_full" if i < stars else "grade_star_empty"
-		_card.add_child(UIKit.image(tex, Vector2(x + size * 0.5, SLAB_STARS_Y),
+		_card.add_child(UIKit.image(tex, Vector2(x + size * 0.5, RIBBON_Y),
 				Vector2(size, size)))
 		x += size + gap
 
 
 func _build_value() -> void:
-	var cx := SLAB.get_center().x
-	_card.add_child(UIKit.label_at("VALOR", Vector2(SLAB.position.x + 72, VALUE_Y),
+	var cx := RIGHT.get_center().x
+	_card.add_child(UIKit.label_at("VALOR", Vector2(RIGHT.position.x + 72, VALUE_Y),
 			Vector2(144, 50), 35, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT, 0))
 	_card.add_child(UIKit.square("currency_coin", Vector2(cx - 40, VALUE_Y), 0.18))
 	var num := PixelNumber.new()
@@ -244,19 +249,19 @@ func _build_value() -> void:
 ## Los dos botones de decision: GUARDAR (al inventario) y VENDER (dinero ahora),
 ## sin icono para que el texto salga grande: son LA decision de la pantalla.
 func _build_buttons() -> void:
-	var guardar := UIKit.plate_button("GUARDAR", "", Vector2(SLAB.position.x + 152,
+	var guardar := UIKit.plate_button("GUARDAR", "", Vector2(RIGHT.position.x + 152,
 			BUTTONS_Y), Vector2(304, 152), 35)
 	guardar.pressed.connect(_store)
 	_card.add_child(guardar)
 
-	var vender := UIKit.plate_button("VENDER", "", Vector2(SLAB.end.x - 152, BUTTONS_Y),
+	var vender := UIKit.plate_button("VENDER", "", Vector2(RIGHT.end.x - 152, BUTTONS_Y),
 			Vector2(304, 152), 35)
 	vender.pressed.connect(_sell)
 	_card.add_child(vender)
 
 	# La tercera salida (cerrar sin elegir), debajo de la rareza.
 	var hint := UIKit.label_at("ESPACIO O CLIC PARA DEJARLO EN LA MESA",
-			Vector2(SHOWCASE.get_center().x, SHOWCASE.end.y + 112), Vector2(560, 32),
+			Vector2(SHOWCASE.get_center().x, SHOWCASE.end.y + 148), Vector2(560, 32),
 			21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	_card.add_child(hint)
 

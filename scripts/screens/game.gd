@@ -499,14 +499,14 @@ func _pack_cell(list: Control, pack: Dictionary, index: int) -> Dictionary:
 	# que los precios de al lado.
 	#
 	#
-	# CON LA LETRA DE SIEMPRE (la de SOBRES, VINILOS...) y en el naranja de las
-	# cifras del precio, con su contorno oscuro: asi GRATIS se lee como un precio
-	# mas de la columna. Estuvo con la fuente del titulo (sin contorno) y se veia
-	# como otra tipografia; y antes en oro claro, que sobre la cinta crema era un
-	# borron.
-	var free_label := UIKit.label_at("GRATIS", tag,
-			PACK_TAG_SIZE - Vector2(24, 4), 35, Palette.GOLD,
-			HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+	# SOLO LAS LETRAS, sin el contorno negro: es la misma letra de la columna
+	# (la misma rejilla y los mismos glifos) en su version sin contorno, y en el
+	# naranja oscuro de los precios para que se lea sobre la cinta crema. Con el
+	# contorno, sobre la cinta clara se leian unas lineas negras alrededor de
+	# cada letra.
+	var free_label := UIKit.title_label_at("GRATIS", tag,
+			PACK_TAG_SIZE - Vector2(24, 4), 35, Palette.GOLD_D,
+			HORIZONTAL_ALIGNMENT_CENTER)
 	free_label.visible = false
 	list.add_child(free_label)
 
