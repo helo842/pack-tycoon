@@ -277,6 +277,7 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	var b := UIKit.hit_area(self, Rect2(top_left, BOX),
 			"Ver ficha de " + str(item["name"]))
 	b.pressed.connect(_open_card.bind(index))
+	UIKit.juice(b, [art], 1.1)
 	return {"art": art, "back": back, "frame": frame, "owned": owned_label,
 			"cost": cost, "tag": tag, "tag_node": tag_node, "pips": pips,
 			"once": una_vez, "button": b}
@@ -445,6 +446,9 @@ func _on_item(index: int) -> void:
 		return
 	Game.buy_item(index)
 	Sound.play("sfx_tool")
+	if index < _item_cells.size():
+		UIKit.punch(_item_cells[index]["art"], 1.3)
+	MainRoot.get_root().confetti()
 	Game.notice.emit("COMPRADO" if Game.item_max_level(index) <= 1
 			else "+1 NIVEL", Palette.GOLD_XL)
 	refresh()

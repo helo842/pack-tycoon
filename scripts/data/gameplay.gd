@@ -145,16 +145,35 @@ const SETS: Array = [
 # Encargos
 # --------------------------------------------------------------------------- #
 # Tres a la vez. Al cumplir uno se cobra solo (con un aviso) y entra otro nuevo.
-# El premio va en "sobres": REWARD_PACKS veces el precio del sobre mas caro que
-# hayas comprado en la partida, con un minimo, para que valga lo mismo al
-# principio que al final.
+#
+# EL PREMIO VA CON LO QUE CUESTA HACERLO. Antes todos pagaban lo mismo (un 30 %
+# del sobre mas caro), y "abre 25 sobres" pagaba igual que "saca un 9": unos se
+# hacian solos y otros no valian la pena. Ahora cada encargo sabe cuantos SOBRES
+# cuesta de media cumplirlo (mission_packs) y paga REWARD_PER_PACK del sobre mas
+# caro de la partida por cada uno, con un minimo y un tope: lo dificil paga mas
+# y todo vale lo mismo al principio que al final.
+#
+# Y EL DE GUARDAR pide un tipo y una nota EXACTA ("GUARDA 3 CARTAS CON PSA 2"):
+# es lo que da sentido a guardar notas bajas, y al filtro del AUTO GUARDAR (que
+# deja elegir cada nota por separado). Cuenta al entrar en el inventario.
 
 const MISSION_SLOTS := 3
-const REWARD_PACKS := 0.3
+const REWARD_PER_PACK := 0.022
 const REWARD_MIN := 150
+## Lo que se cuenta como "un sobre" de un encargo, entre estos topes: ni uno que
+## se hace solo paga una miseria, ni uno de suerte pura paga una partida.
+const MISSION_PACKS_MIN := 8.0
+const MISSION_PACKS_MAX := 60.0
+## Pedir un tipo concreto obliga a comprar ese sobre y no el que tocaria: cuesta
+## un poco mas que abrir cualquiera.
+const KIND_EFFORT := 1.3
+## Lo que tarda de media en salir un sobre dorado o un VIP, en sobres.
+const EVENT_PACKS := 12.0
+## Golpes perfectos que se sacan de media por sobre jugando normal.
+const PERFECT_PER_PACK := 3.0
 
-## Las clases de encargo. `goal` es lo que hay que llegar a contar; `text` lleva
-## %d para el objetivo (y %s para el tipo de sobre en open_kind).
+## Las clases de encargo. `goal` es lo que hay que llegar a contar (en "grade"
+## y "store" se sortea, ver make_mission); `text` lleva el objetivo.
 const MISSION_TYPES: Array = [
 	{"type": "open_any", "goal": 25, "text": "ABRE %d SOBRES"},
 	{"type": "open_kind", "goal": 10, "text": "ABRE %d SOBRES DE %s"},
@@ -162,7 +181,96 @@ const MISSION_TYPES: Array = [
 	{"type": "perfect", "goal": 40, "text": "HAZ %d GOLPES PERFECTOS"},
 	{"type": "golden", "goal": 1, "text": "ABRE %d SOBRE DORADO"},
 	{"type": "vip", "goal": 1, "text": "VENDE %d OBJETO AL VIP"},
+	{"type": "store", "goal": 1, "text": "GUARDA %d %s CON PSA %d"},
 ]
+
+
+## Un encargo nuevo de la fila `row`. Lo usan la partida (Game._fill_missions) y
+## el simulador del equilibrio, para que los dos sorteen lo mismo.
+static func make_mission(rng: RandomNumberGenerator, row: Dictionary, top_price: int) -> Dictionary:
+	var kinds := LootDB.kind_ids()
+	var m := {"type": str(row["type"]), "goal": int(row["goal"]), "progress": 0,
+		"kind": "", "grade": 0}
+	match m["type"]:
+		"open_kind":
+			m["kind"] = kinds[rng.randi_range(0, kinds.size() - 1)]
+		"grade":
+			m["goal"] = rng.randi_range(8, 10)
+		"store":
+			m["kind"] = kinds[rng.randi_range(0, kinds.size() - 1)]
+			m["grade"] = rng.randi_range(1, LootDB.GRADE_MAX)
+			# Cuantos: tres de las notas que salen a menudo, uno de las raras.
+			var p := grade_chance(int(m["grade"]))
+			m["goal"] = 3 if p >= 0.1 else (2 if p >= 0.05 else 1)
+	m["reward"] = mission_reward(m, top_price)
+	return m
+
+
+## La probabilidad de que un objeto salga con la nota `grade` exacta.
+static func grade_chance(grade: int) -> float:
+	var total := 0.0
+	for w in LootDB.GRADE_WEIGHTS:
+		total += float(w)
+	return float(LootDB.GRADE_WEIGHTS[clampi(grade, 1, LootDB.GRADE_MAX) - 1]) / total
+
+
+## Los sobres que cuesta de media cumplir el encargo: la medida de su dificultad.
+static func mission_packs(m: Dictionary) -> float:
+	var goal := float(m.get("goal", 1))
+	var packs := goal
+	match str(m.get("type", "")):
+		"open_kind":
+			packs = goal * KIND_EFFORT
+		"grade":
+			var p := 0.0
+			for g in range(int(goal), LootDB.GRADE_MAX + 1):
+				p += grade_chance(g)
+			packs = 1.0 / maxf(p, 0.001)
+		"perfect":
+			packs = goal / PERFECT_PER_PACK
+		"golden", "vip":
+			packs = EVENT_PACKS * goal
+		"store":
+			packs = goal / grade_chance(int(m.get("grade", 1))) * KIND_EFFORT
+	return clampf(packs, MISSION_PACKS_MIN, MISSION_PACKS_MAX)
+
+
+static func mission_reward(m: Dictionary, top_price: int) -> int:
+	return maxi(REWARD_MIN, roundi(float(top_price) * REWARD_PER_PACK * mission_packs(m)))
+
+
+## Algo ha pasado que puede contar para el encargo `m` (lo cambia). Devuelve si
+## ya esta cumplido. `value` es lo que cuenta (1 por sobre, la nota del objeto...).
+static func mission_step(m: Dictionary, type: String, value: int, kind: String = "") -> bool:
+	var t := str(m["type"])
+	if t == "grade":
+		if type == "grade" and value >= int(m["goal"]):
+			m["progress"] = 1
+		return int(m["progress"]) >= 1
+	if t == "store":
+		if type == "store" and kind == str(m["kind"]) and value == int(m.get("grade", 0)):
+			m["progress"] = int(m["progress"]) + 1
+	elif t == "open_kind":
+		if type == "open" and kind == str(m["kind"]):
+			m["progress"] = int(m["progress"]) + value
+	elif (t == "open_any" and type == "open") or t == type:
+		m["progress"] = int(m["progress"]) + value
+	return int(m["progress"]) >= int(m["goal"])
+
+
+## El texto de un encargo, con su objetivo dentro.
+static func mission_text(m: Dictionary) -> String:
+	for t in MISSION_TYPES:
+		if str(t["type"]) == str(m["type"]):
+			match str(m["type"]):
+				"open_kind":
+					return str(t["text"]) % [int(m["goal"]),
+						str(LootDB.kind_row(str(m["kind"]))["name"])]
+				"store":
+					return str(t["text"]) % [int(m["goal"]),
+						str(LootDB.kind_row(str(m["kind"]))["name"]), int(m["grade"])]
+			return str(t["text"]) % int(m["goal"])
+	return ""
 
 
 # --------------------------------------------------------------------------- #

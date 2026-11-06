@@ -222,6 +222,7 @@ func _build_pack() -> void:
 	_hit = UIKit.hit_area(self, HIT_RECT, "Abrir %s" % pack.get("name", ""))
 	_hit.pressed.connect(_on_pressed)
 	_hit.gui_input.connect(_on_hit_input)
+	UIKit.juice(_hit, [_art], 1.06)
 
 
 func _build_loot() -> void:
@@ -248,6 +249,7 @@ func _build_loot() -> void:
 			int(loot.get("value", 0))))
 	_hit.pressed.connect(_on_pressed)
 	_hit.gui_input.connect(_on_hit_input)
+	UIKit.juice(_hit, [_art], 1.06)
 
 
 ## Cambia el sprite del paquete segun lo danado que este. Es lo que pide el PDF:

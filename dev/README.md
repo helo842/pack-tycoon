@@ -124,6 +124,10 @@ $G --headless --path . res://dev/BalanceTest.tscn
 # cada momento): es lo que se mira cuando un jugador sale mas lento de lo que
 # deberia y hay que ver DONDE se pierde el rato
 $G --headless --path . res://dev/BalanceTest.tscn trace
+# que conviene exponer en el armario: el optimizado juega 30 y 45 min sin
+# reiniciar con el armario lleno de un tipo (o de los cuatro) y dice las monedas
+# y el dinero de cada uno. Si un tipo solo gana siempre, el armario no decide nada
+$G --headless --path . res://dev/BalanceTest.tscn armario
 # y el barrido de cuanto se gasta de golpe en mejoras, que es la decision con
 # mas peso de la partida y la que menos se ve (gastar el 55 % del dinero en cada
 # sobre se come su margen del 15 % y deja el dinero sin componer)
@@ -150,6 +154,25 @@ $G --headless --path . res://dev/ProbeFont.tscn
 $G --path . --rendering-driver opengl3 res://dev/ProbePop.tscn
 # deja el PNG en ~/.local/share/godot/app_userdata/Pack Tycoon/shots/_probe_pop.png
 ```
+
+**OJO: LOS TESTS BORRAN LA PARTIDA GUARDADA.** El smoke test, el del raton y las
+capturas empiezan con `Game.hard_reset()`, que borra
+`~/.local/share/godot/app_userdata/Pack Tycoon/packtycoon.json`, y al cerrarse
+guardan una partida de prueba encima. Si hay una partida que importa, hay que
+copiarla antes y volver a ponerla despues:
+
+```bash
+SAVE="$HOME/.local/share/godot/app_userdata/Pack Tycoon/packtycoon.json"
+cp "$SAVE" /tmp/partida.json   # antes de los tests
+cp /tmp/partida.json "$SAVE"   # despues
+```
+
+**Los dos tests ponen la ficha en "siempre" y sin espera** (`Game.card_mode =
+"always"` y `RevealCard.arm_delay_ms = 0`, nada mas empezar): todo el test de
+siempre abre sobres y pulsa la ficha de CADA objeto en el mismo frame. La ficha
+solo para lo bueno y el medio segundo sin hacer caso tienen sus propios checks al
+final del smoke test (`_check_autostore_y_ficha`), junto con el filtro del auto
+guardar y los encargos de guardar.
 
 Y si se acaba de anadir una escena o un `class_name` nuevo, antes hay que dejar
 que Godot importe:

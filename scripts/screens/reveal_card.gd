@@ -32,9 +32,17 @@ var item: Dictionary = {}
 
 var _card: Control = null
 
+## LA TARJETA NO SE PUEDE CERRAR EN SU PRIMER MEDIO SEGUNDO. Al hacer spam de
+## clics en los sobres, el clic siguiente caia en la tarjeta recien salida y la
+## cerraba (o pulsaba VENDER) sin haberla visto. Es lo que tarda en aparecer.
+## Las pruebas lo ponen a 0: pulsan los botones en el mismo frame en que sale.
+static var arm_delay_ms := 500
+var _armed_at := 0
+
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_armed_at = Time.get_ticks_msec() + arm_delay_ms
 	# El destello de fondo, del color de la rareza: es el unico sitio donde se
 	# usa el alfa graduado del sprite y por eso se nota.
 	var rarity_id := str(item.get("rarity", "common"))
@@ -282,7 +290,7 @@ func _build_buttons() -> void:
 	_card.add_child(vender)
 
 	# La tercera salida (cerrar sin elegir), debajo de la rareza.
-	var hint := UIKit.label_at("ESPACIO O CLIC PARA DEJARLO EN LA MESA",
+	var hint := UIKit.label_at("ESPACIO PARA DEJARLO EN LA MESA",
 			Vector2(SHOWCASE.get_center().x, SHOWCASE.end.y + 148), Vector2(560, 32),
 			21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	_card.add_child(hint)
@@ -292,11 +300,19 @@ func _build_buttons() -> void:
 
 ## Al inventario. Si esta lleno, Game.store() lo vende y avisa el solo.
 func _store() -> void:
-	_finish(ACTION_STORE)
+	if armed():
+		_finish(ACTION_STORE)
+
+
+## ¿Ya ha pasado el medio segundo en que la tarjeta no hace caso (ver arm_delay_ms)?
+func armed() -> bool:
+	return Time.get_ticks_msec() >= _armed_at
 
 
 ## La lupa: solo si esta lista. Si recarga, avisa y no cierra la tarjeta.
 func _reroll() -> void:
+	if not armed():
+		return
 	if not Game.ability_ready(Gameplay.ABIL_APPRAISE):
 		Sound.play("sfx_error")
 		Game.notice.emit("LA LUPA SE ESTA RECARGANDO: %d S"
@@ -307,13 +323,15 @@ func _reroll() -> void:
 
 ## Dinero ahora.
 func _sell() -> void:
-	_finish(ACTION_SELL)
+	if armed():
+		_finish(ACTION_SELL)
 
 
 ## Cerrar sin elegir: el objeto se queda en la mesa, donde se puede mover y
 ## vender con un clic, como cualquier otro botin.
 func _dismiss() -> void:
-	_finish(ACTION_LATER)
+	if armed():
+		_finish(ACTION_LATER)
 
 
 func _finish(action: String) -> void:
@@ -321,9 +339,11 @@ func _finish(action: String) -> void:
 	queue_free()
 
 
+## Un clic fuera de los botones YA NO CIERRA la tarjeta: era el que la cerraba sin
+## verla al hacer spam. Se come el clic (no pasa a la mesa) y ya esta; para dejar
+## el objeto en la mesa esta ESPACIO, escrito en la propia tarjeta.
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
-		_dismiss()
 		accept_event()
 
 

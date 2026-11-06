@@ -34,6 +34,8 @@ ShopPanel.tscn     la tienda
 ItemCard.tscn      la ficha de un item de la tienda
 SkillCard.tscn     la ficha de compra de una mejora del arbol del rebirth
 AutoBuyPanel.tscn  el mini menu de la compra automatica
+AutoStorePanel.tscn el filtro del auto guardar (se abre desde los ajustes)
+LibretaPanel.tscn  la libreta: el album y los encargos
 LockerPanel.tscn   el armario: el inventario y las vitrinas
 RebirthPanel.tscn  el arbol de mejoras: aqui se gastan las monedas, y el
                    rebirth es el boton de la barra de arriba

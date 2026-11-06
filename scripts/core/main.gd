@@ -42,6 +42,7 @@ func _ready() -> void:
 	_toast_host.add_child(_toast)
 
 	Game.notice.connect(_on_notice)
+	Game.celebrate.connect(banner)
 	# La musica es la misma en el menu y en la partida: es el fondo de la
 	# tienda, no de una pantalla concreta. Por eso arranca aqui, en la raiz, y
 	# no la para nadie al cambiar de pantalla.
@@ -94,6 +95,9 @@ func _swap(next: Control) -> void:
 	next.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_screen_host.add_child(next)
 	_current = next
+	# El cambio de pantalla (menu <-> partida) entra fundido, no de golpe.
+	next.modulate.a = 0.0
+	next.create_tween().tween_property(next, "modulate:a", 1.0, 0.3)
 
 
 # --------------------------------------------------------------------------- #
@@ -228,3 +232,86 @@ func banner(title: String, subtitle: String = "", gold: bool = true) -> void:
 	tw.tween_property(plate, "position:y", -plate.size.y - 30, 0.3) \
 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_callback(plate.queue_free)
+
+
+## EL CONFETI DE UNA MEJORA: una lluvia desde arriba a lo ancho de la pantalla, dos
+## chorros desde los lados y una luz de colores que pasa por toda la pantalla.
+## Cantidad normalita a proposito (unos cien papelitos en total): es un premio de
+## un segundo, no una fiesta que tape la partida.
+const CONFETTI_COLORS: Array = [Color8(248, 192, 0), Color8(232, 72, 96),
+	Color8(88, 208, 196), Color8(120, 150, 255), Color8(160, 220, 90), Color8(252, 236, 196)]
+
+
+func confetti() -> void:
+	_confetti_burst(Vector2(960, -20), Vector2(960, 8), Vector2(0, 1), 30.0, 60,
+			Vector2(150, 380))
+	_confetti_burst(Vector2(-10, 640), Vector2(4, 120), Vector2(1, -1.2), 22.0, 22,
+			Vector2(600, 900))
+	_confetti_burst(Vector2(1930, 640), Vector2(4, 120), Vector2(-1, -1.2), 22.0, 22,
+			Vector2(600, 900))
+	# La luz: un velo que pasa por tres colores y se apaga, muy suave.
+	var light := ColorRect.new()
+	light.size = Vector2(1920, 1080)
+	light.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	light.color = Color(CONFETTI_COLORS[0], 0.0)
+	_toast_host.add_child(light)
+	var tw := light.create_tween()
+	tw.tween_property(light, "color", Color(CONFETTI_COLORS[0], 0.22), 0.08)
+	tw.tween_property(light, "color", Color(CONFETTI_COLORS[1], 0.16), 0.2)
+	tw.tween_property(light, "color", Color(CONFETTI_COLORS[2], 0.12), 0.2)
+	tw.tween_property(light, "color", Color(CONFETTI_COLORS[3], 0.0), 0.45)
+	tw.tween_callback(light.queue_free)
+
+
+func _confetti_burst(at: Vector2, extents: Vector2, dir: Vector2, spread: float,
+		amount: int, speed: Vector2) -> void:
+	var p := CPUParticles2D.new()
+	p.position = at
+	p.texture = _confetti_tex()
+	p.one_shot = true
+	p.explosiveness = 0.8
+	p.amount = amount
+	p.lifetime = 2.2
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = extents
+	p.direction = dir
+	p.spread = spread
+	p.initial_velocity_min = speed.x
+	p.initial_velocity_max = speed.y
+	p.gravity = Vector2(0, 520)
+	p.damping_min = 40.0
+	p.damping_max = 90.0
+	p.angle_min = 0.0
+	p.angle_max = 360.0
+	p.angular_velocity_min = -540.0
+	p.angular_velocity_max = 540.0
+	p.scale_amount_min = 3.0
+	p.scale_amount_max = 4.5
+	# Cada papelito sale de un color de la lista (rampa en escalones, no mezcla).
+	var colores := Gradient.new()
+	colores.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
+	var offs := PackedFloat32Array()
+	var cols := PackedColorArray()
+	for i in CONFETTI_COLORS.size():
+		offs.append(float(i) / float(CONFETTI_COLORS.size()))
+		cols.append(CONFETTI_COLORS[i])
+	colores.offsets = offs
+	colores.colors = cols
+	p.color_initial_ramp = colores
+	var fade := Gradient.new()
+	fade.offsets = PackedFloat32Array([0.0, 0.75, 1.0])
+	fade.colors = PackedColorArray([Color.WHITE, Color.WHITE, Color(1, 1, 1, 0)])
+	p.color_ramp = fade
+	_toast_host.add_child(p)
+	p.emitting = true
+	p.finished.connect(p.queue_free)
+
+
+## Un papelito: un rectangulo blanco de 4x2 (el color lo pone la rampa).
+static var _paper: Texture2D = null
+static func _confetti_tex() -> Texture2D:
+	if _paper == null:
+		var img := Image.create(4, 2, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		_paper = ImageTexture.create_from_image(img)
+	return _paper

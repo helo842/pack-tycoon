@@ -744,6 +744,11 @@ func _boton_de(de: Node, texto: String) -> BaseButton:
 
 func _run() -> void:
 	Game.hard_reset()
+	# Las pruebas de siempre miran la ficha de CADA objeto y la pulsan al salir:
+	# la ficha solo para lo bueno y el medio segundo sin hacer caso se prueban
+	# aparte, con sus propios checks.
+	Game.card_mode = "always"
+	RevealCard.arm_delay_ms = 0
 	await get_tree().process_frame
 	_main = MAIN_SCENE.instantiate() as MainRoot
 	add_child(_main)
@@ -2513,7 +2518,7 @@ func _run() -> void:
 	# Dieciseis: el centro, cuatro caminos de los que tres siguen dos nodos mas
 	# (dano, velocidad y Pinchos) y cinco INTERRUPTORES de calidad de vida en la
 	# rama de abajo.
-	_check("el arbol trae diecinueve mejoras", SkillTree.node_count() == 19)
+	_check("el arbol trae veinte mejoras", SkillTree.node_count() == 20)
 	# LOS TRES CAMINOS QUE SIGUEN: cada anillo esta en SU diagonal (2 x SEP y
 	# 3 x SEP) y cuelga del nodo de antes, asi que un camino se compra de arriba
 	# abajo y no se puede empezar por el fondo.
@@ -2561,13 +2566,13 @@ func _run() -> void:
 			cuelgan_del_centro += 1
 	_check("y los cuatro caminos van en diagonal, uno en cada lado", diagonales == 4)
 	_check("y los cuatro salen de la mejora del centro", cuelgan_del_centro == 4)
-	# LA RAMA DE LA CALIDAD DE VIDA: cinco interruptores, todos por debajo del
+	# LA RAMA DE LA CALIDAD DE VIDA: seis interruptores (con el AUTO GUARDAR), todos por debajo del
 	# centro y todos de UN NIVEL (pagar dos veces por tener los atajos no
 	# significa nada). Sus ids son los que consulta el juego para saber si quitar
 	# trabajo de encima, asi que si uno deja de existir, la mejora no hace nada y
 	# no da ningun error: se mira aqui.
-	_check("y debajo cuelgan cinco interruptores de calidad de vida",
-		interruptores.size() == 5)
+	_check("y debajo cuelgan seis interruptores de calidad de vida",
+		interruptores.size() == 6)
 	# LA RAMA DE LAS HABILIDADES: las tres de Gameplay.ABILITIES, por ENCIMA del
 	# centro, y el golpe cargado es la puerta de las otras dos.
 	var hab_arriba := true
@@ -2748,7 +2753,7 @@ func _run() -> void:
 	var arbol = g._rebirth
 	_check("la chapa del rebirth abre el arbol", arbol != null)
 	if arbol != null:
-		_check("y el panel dibuja los diecinueve nodos",
+		_check("y el panel dibuja los veinte nodos",
 			arbol._nodes.size() == SkillTree.node_count())
 		# AL ABRIRLO SE VE LO DE SIEMPRE: el centro y los cuatro caminos, dentro del
 		# marco y por DEBAJO de la barra del rebirth, que es lo unico fijo de la
@@ -2804,7 +2809,11 @@ func _run() -> void:
 		arbol._set_offset(Vector2(offset_ini.x,
 			arbol.VIEW_SIZE.y * 0.5 - float(SkillTree.node_by_id(SkillTree.QOL_TABLE)["pos"].y)))
 		_check_cabe("la rama de calidad de vida no saca texto de la vista", arbol, PANEL)
-		_check_sin_encimarse("y no pone texto encima de las chapas de la rama", arbol)
+		# Lo que queda DEBAJO de la barra del rebirth no cuenta: la barra va encima
+		# del arbol a proposito (ver RebirthPanel) y lo tapa. Con la rama de abajo
+		# mas abierta (el AUTO GUARDAR en medio), la fila de encima pasa por ahi.
+		_check_sin_encimarse("y no pone texto encima de las chapas de la rama", arbol,
+			Rect2(arbol.VIEW_POS, Vector2(arbol.VIEW_SIZE.x, arbol.BAR_H)))
 		# AQUI NO SE MIRA EL "TEXTO ENCIMA DE UN DIBUJO", y es a proposito: al bajar
 		# el arbol, sus nodos pasan POR DEBAJO de la barra fija (asi esta hecho, la
 		# barra va superpuesta y el arbol se cuela por debajo), asi que el check
@@ -3063,7 +3072,7 @@ func _run() -> void:
 			if f != null:
 				f._close()
 				await get_tree().process_frame
-		_check("la ficha de los diecinueve nodos se monta entera", fichas_rotas.is_empty())
+		_check("la ficha de los veinte nodos se monta entera", fichas_rotas.is_empty())
 		for f_rota in fichas_rotas:
 			print("         ficha rota: ", f_rota)
 		# Y SE MIRA UNA DE INTERRUPTOR ENTERA, con los mismos checks de encuadre
@@ -3529,6 +3538,8 @@ func _run() -> void:
 	Game._fill_missions()
 	Game.items_changed.emit()
 
+	await _check_autostore_y_ficha()
+
 	# Y EL MENU NO SABE NADA DE ESTO. El menu que se ve al arrancar (y al salir de
 	# la partida) no tiene hucha ni forma de abrirla: el rebirth se hace jugando, y
 	# ahi se queda. Se mira al final porque cambiar de pantalla deja la partida sin
@@ -3553,3 +3564,110 @@ func _run() -> void:
 	# audio mezcla por su cuenta, asi que tres frames no le dan ni una vuelta.
 	await get_tree().create_timer(0.2).timeout
 	get_tree().quit(0 if _fails.is_empty() else 1)
+
+
+
+## EL AUTO GUARDAR, LA FICHA SOLO PARA LO BUENO Y LOS ENCARGOS DE GUARDAR.
+func _check_autostore_y_ficha() -> void:
+	var g = _main._current
+	# --- el filtro: tipo, nota y rareza, las tres a la vez ---
+	Game.skills = {}
+	_check("sin la mejora el auto guardar no se enciende",
+		not Game.set_autostore(true) and not Game.autostore_active())
+	Game.skills = {"money": 1, SkillTree.QOL_KEYS: 1, SkillTree.QOL_AUTOSTORE: 1}
+	_check("con la mejora si", Game.set_autostore(true) and Game.autostore_active())
+	Game.autostore_kinds = ["vinyls"]
+	Game.autostore_grades = [2, 10]
+	Game.autostore_rarities = ["common"]
+	var vinilo := {"kind": "vinyls", "grade": 2, "rarity": "common", "value": 10}
+	_check("guarda lo que cumple las tres filas", Game.autostore_wants(vinilo))
+	_check("y no si falla la nota (notas sueltas, no un minimo)",
+		not Game.autostore_wants({"kind": "vinyls", "grade": 5, "rarity": "common"}))
+	_check("ni si falla el tipo",
+		not Game.autostore_wants({"kind": "cards", "grade": 2, "rarity": "common"}))
+	_check("ni si falla la rareza",
+		not Game.autostore_wants({"kind": "vinyls", "grade": 10, "rarity": "rare"}))
+	Game.autostore_toggle("grades", 5)
+	_check("cada boton enciende su nota", Game.autostore_has("grades", 5))
+	# Lo que se quiere va al inventario y lo demas se vende, sin ficha.
+	Game.inventory.clear()
+	var dinero: int = Game.money
+	g._autostore(vinilo)
+	_check("el auto guardar mete en el inventario lo que pide el filtro",
+		Game.inventory.size() == 1 and g._reveal == null)
+	g._autostore({"kind": "cards", "grade": 2, "rarity": "common", "value": 10,
+		"name": "X", "id": "x", "art": "loot_card_common_psa2"})
+	_check("y vende lo demas", Game.inventory.size() == 1 and Game.money > dinero)
+	Game.inventory.clear()
+	Game.set_autostore(false)
+
+	# --- la ficha: siempre, lo bueno o nunca ---
+	Game.card_mode = "good"
+	var comun := {"rarity": "common", "grade": 5}
+	_check("en LO BUENO un comun de nota 5 no saca ficha", not Game.card_worth(comun, false))
+	_check("pero si es nuevo en la libreta, si", Game.card_worth(comun, true))
+	_check("y un raro o una nota 8 tambien",
+		Game.card_worth({"rarity": "rare", "grade": 1}, false)
+		and Game.card_worth({"rarity": "common", "grade": 8}, false))
+	Game.card_mode = "never"
+	_check("en NUNCA no sale ni lo legendario",
+		not Game.card_worth({"rarity": "legendary", "grade": 10}, true))
+	Game.card_mode = "always"
+
+	# --- la ficha no se cierra en su primer medio segundo ---
+	RevealCard.arm_delay_ms = 500
+	var ficha := RevealCard.new()
+	ficha.show_item(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
+	var cerrada := [false]
+	ficha.resolved.connect(func(_a): cerrada[0] = true)
+	_main.push_overlay(ficha)
+	await get_tree().process_frame
+	ficha._sell()
+	ficha._dismiss()
+	var click := InputEventMouseButton.new()
+	click.pressed = true
+	click.button_index = MOUSE_BUTTON_LEFT
+	ficha._gui_input(click)
+	_check("la ficha recien salida no hace caso a los clics", not cerrada[0])
+	await get_tree().create_timer(0.55).timeout
+	ficha._gui_input(click)
+	_check("y un clic fuera de los botones ya no la cierra", not cerrada[0])
+	ficha._sell()
+	_check("pero pasado el medio segundo VENDER si", cerrada[0])
+	RevealCard.arm_delay_ms = 0
+	if is_instance_valid(ficha):
+		_main.pop_overlay(ficha)
+
+	# --- los encargos: GUARDA con nota exacta y el premio segun lo dificil ---
+	var rng := RandomNumberGenerator.new()
+	var fila: Dictionary = {}
+	for t in Gameplay.MISSION_TYPES:
+		if str(t["type"]) == "store":
+			fila = t
+	var m := Gameplay.make_mission(rng, fila, 10000)
+	_check("el encargo de guardar pide tipo y nota", str(m["kind"]) != "" and int(m["grade"]) >= 1)
+	var otra_nota := int(m["grade"]) % LootDB.GRADE_MAX + 1
+	Gameplay.mission_step(m, "store", otra_nota, str(m["kind"]))
+	_check("y otra nota no cuenta", int(m["progress"]) == 0)
+	Gameplay.mission_step(m, "store", int(m["grade"]), str(m["kind"]))
+	_check("y la suya si", int(m["progress"]) == 1)
+	var facil := Gameplay.mission_reward({"type": "store", "goal": 1, "grade": 4}, 10000)
+	var dificil := Gameplay.mission_reward({"type": "store", "goal": 1, "grade": 10}, 10000)
+	_check("un PSA 10 paga mas que un PSA 4 (%d contra %d)" % [dificil, facil], dificil > facil)
+	_check("y abrir 25 sobres mas que abrir 10 de un tipo",
+		Gameplay.mission_reward({"type": "open_any", "goal": 25}, 10000)
+		> Gameplay.mission_reward({"type": "open_kind", "goal": 10}, 10000))
+	_check("el texto del encargo lo dice",
+		Gameplay.mission_text({"type": "store", "goal": 2, "kind": "vinyls", "grade": 3})
+		== "GUARDA 2 VINILOS CON PSA 3")
+	# Guardar de verdad (Game.store) es lo que lo cumple.
+	Game.missions = [{"type": "store", "goal": 1, "progress": 0, "kind": "cards",
+		"grade": 3, "reward": 777}]
+	var antes: int = Game.money
+	Game.store({"kind": "cards", "grade": 3, "rarity": "common", "value": 1})
+	_check("guardar la carta PSA 3 cumple el encargo y lo cobra",
+		Game.money == antes + 777)
+	Game.inventory.clear()
+	Game.missions = []
+	Game._fill_missions()
+	Game.skills = {}

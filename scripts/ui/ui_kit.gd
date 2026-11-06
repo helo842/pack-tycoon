@@ -389,6 +389,7 @@ static func plate_button(text: String, icon: String, center: Vector2,
 	b.button_up.connect(func() -> void: plate.texture = Sprites.tex("ui_button_plate"))
 	b.focus_entered.connect(func() -> void: plate.modulate = Color(1.1, 1.1, 1.1))
 	b.focus_exited.connect(func() -> void: plate.modulate = Color.WHITE)
+	juice(b)
 	return b
 
 
@@ -441,6 +442,7 @@ static func small_button(text: String, icon: String, center: Vector2,
 
 	b.button_down.connect(func() -> void: plate.texture = Sprites.tex(pressed_sprite))
 	b.button_up.connect(func() -> void: plate.texture = Sprites.tex(sprite))
+	juice(b)
 	return b
 
 
@@ -473,6 +475,7 @@ static func icon_button(icon: String, center: Vector2, side: float = 96.0,
 	b.button_up.connect(func() -> void: b.modulate = Color.WHITE)
 	b.focus_entered.connect(func() -> void: b.modulate = Color(1.2, 1.2, 1.2))
 	b.focus_exited.connect(func() -> void: b.modulate = Color.WHITE)
+	juice(b, [], 1.1)
 	return b
 
 
@@ -534,6 +537,7 @@ static func close_button(center: Vector2, side: float = PANEL_CLOSE_SIDE) -> But
 	var tr := _fill(b, "ui_button_close")
 	b.button_down.connect(func() -> void: tr.modulate = Color(0.7, 0.7, 0.7))
 	b.button_up.connect(func() -> void: tr.modulate = Color.WHITE)
+	juice(b, [], 1.1)
 	return b
 
 
@@ -603,5 +607,74 @@ static func hit_area(parent: Control, rect: Rect2, tooltip: String = "") -> Butt
 	b.tooltip_text = tooltip
 	b.size = rect.size
 	b.position = rect.position
+	# La mano al pasar por encima: sin dibujo propio, es lo que dice "esto se
+	# pulsa". El crecer lo pone quien la crea, pasando SU dibujo a juice().
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	parent.add_child(b)
 	return b
+
+
+# --------------------------------------------------------------------------- #
+# Animaciones de los botones
+# --------------------------------------------------------------------------- #
+
+## LO QUE HACE TODO LO QUE SE PULSA: al pasar el raton crece un poco (`grow`), al
+## pulsar se hunde y al soltar vuelve, con la mano de cursor. `targets` son los
+## dibujos que se mueven; vacio, el propio boton. Las zonas de clic invisibles
+## (hit_area) pasan su dibujo, porque escalar una zona invisible no se ve.
+##
+## Solo toca la ESCALA, nunca el modulate: el modulate ya lo usan los botones
+## para decir otras cosas (apagado, bloqueado, encendido) y se pisarian.
+static func juice(b: BaseButton, targets: Array = [], grow: float = 1.06) -> void:
+	if targets.is_empty():
+		targets = [b]
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	for t in targets:
+		if t is Control and t != b:
+			(t as Control).pivot_offset = (t as Control).size * 0.5
+	b.mouse_entered.connect(_scale_to.bind(targets, grow, 0.14))
+	b.mouse_exited.connect(_scale_to.bind(targets, 1.0, 0.14))
+	b.button_down.connect(_scale_to.bind(targets, 0.93, 0.06))
+	b.button_up.connect(func() -> void:
+		_scale_to(targets, grow if b.is_hovered() else 1.0, 0.18))
+
+
+static func _scale_to(targets: Array, to: float, seconds: float) -> void:
+	for t in targets:
+		if not is_instance_valid(t) or not (t is CanvasItem) or not t.is_inside_tree():
+			continue
+		# has_meta antes: get_meta con null de reserva se queja si no existe.
+		if t.has_meta("juice_tw"):
+			var old = t.get_meta("juice_tw")
+			if old is Tween and (old as Tween).is_valid():
+				(old as Tween).kill()
+		var tw: Tween = t.create_tween()
+		tw.tween_property(t, "scale", Vector2.ONE * to, seconds) \
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.set_meta("juice_tw", tw)
+
+
+## Un golpe de escala que vuelve solo: para "esto acaba de cambiar" (una compra,
+## un nivel, el dinero que sube).
+static func punch(node: CanvasItem, amount: float = 1.25) -> void:
+	if node == null or not is_instance_valid(node) or not node.is_inside_tree():
+		return
+	if node is Control:
+		(node as Control).pivot_offset = (node as Control).size * 0.5
+	var tw := node.create_tween()
+	tw.tween_property(node, "scale", Vector2.ONE * amount, 0.07)
+	tw.tween_property(node, "scale", Vector2.ONE, 0.35) \
+			.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+
+## Un "no" con la cabeza: para lo que no se puede hacer (no te llega, mesa llena).
+static func shake(node: CanvasItem) -> void:
+	if node == null or not is_instance_valid(node) or not node.is_inside_tree():
+		return
+	# La x de reposo se guarda la primera vez: dos "no" seguidos no lo desplazan.
+	if not node.has_meta("shake_x0"):
+		node.set_meta("shake_x0", node.position.x)
+	var x0: float = node.get_meta("shake_x0")
+	var tw := node.create_tween()
+	for off in [10.0, -8.0, 6.0, -4.0, 0.0]:
+		tw.tween_property(node, "position:x", x0 + off, 0.04)

@@ -21,6 +21,9 @@ signal settings_changed()
 signal skills_changed()
 ## Aviso corto para la parte de arriba de la pantalla.
 signal notice(text: String, color: Color)
+## Algo gordo que merece el cartel grande de arriba (MainRoot.banner): una
+## coleccion completa del album.
+signal celebrate(title: String, subtitle: String)
 ## La mesa se ha vaciado por decreto: un rebirth (lo que habia en ella era de la
 ## partida que se va) o un reinicio de los tests. Lo escucha la pantalla de juego,
 ## que es la que tiene los elementos dibujados y tiene que quitarlos.
@@ -94,6 +97,19 @@ var auto_buy_packs: Array = []
 ## herramientas: es una forma de jugar (abrir cajas sin pararse en nada), asi
 ## que vive en los ajustes y no en la barra de la partida.
 var auto_sell: bool = false
+## EL AUTO GUARDAR (nodo del arbol SkillTree.QOL_AUTOSTORE): con el encendido,
+## lo que sale de un sobre se guarda solo si su tipo, su nota PSA y su rareza
+## estan marcados en las tres listas, y si no se vende solo. Las listas se eligen
+## valor por valor en Ajustes (AutoStorePanel). Son de la cuenta, como el arbol:
+## el rebirth no las toca.
+var autostore_on: bool = false
+var autostore_kinds: Array = []
+var autostore_grades: Array = []
+var autostore_rarities: Array = []
+## Cuando sale la FICHA del objeto: "always" con cada objeto, "good" solo con
+## lo que merece pararse (ver card_worth) y "never" nunca (cae en la mesa).
+const CARD_MODES: Array = ["always", "good", "never"]
+var card_mode: String = "good"
 var music_volume: float = 0.7
 var sfx_volume: float = 0.45
 var fullscreen: bool = false
@@ -156,6 +172,7 @@ func _ready() -> void:
 	# guardado que no la traiga (los de antes de este menu) se queda con todos
 	# los sobres, que es el comportamiento de siempre.
 	auto_buy_packs = _all_pack_ids()
+	_autostore_defaults()
 	_rng_play.randomize()
 	# El cierre lo lleva este nodo y no el motor, para poder meter medio frame
 	# de margen antes de salir (ver _on_close). Sin esto, el motor cierra de
@@ -314,6 +331,8 @@ func store(item: Dictionary) -> bool:
 	inventory.append(item.duplicate(true))
 	_dirty = true
 	inventory_changed.emit()
+	# El encargo de GUARDAR cuenta aqui, al entrar de verdad en el inventario.
+	mission_event("store", int(item.get("grade", 0)), LootDB.kind_of(item))
 	return true
 
 
@@ -986,7 +1005,7 @@ func _album_add(item: Dictionary) -> void:
 	for set_id in completed_sets():
 		if not completas.has(set_id):
 			var s := Gameplay.set_by_id(set_id)
-			notice.emit("COLECCION %s: %s" % [s["name"], s["effect"]], Palette.GOLD_XL)
+			celebrate.emit("COLECCION %s" % s["name"], "%s PARA SIEMPRE" % s["effect"])
 			# Una coleccion de huecos de mesa cambia la mesa en el acto.
 			items_changed.emit()
 
@@ -1038,9 +1057,10 @@ func album_bonus(stat: String) -> float:
 
 # --- encargos ---------------------------------------------------------------- #
 
-## El premio de un encargo nuevo: REWARD_PACKS sobres del mas caro de la partida.
+## El premio de un encargo de dificultad media (el de "abre 25 sobres"): lo que
+## se enseña cuando todavia no hay encargo concreto. Ver Gameplay.mission_reward.
 func mission_reward() -> int:
-	return maxi(Gameplay.REWARD_MIN, roundi(float(top_pack_price) * Gameplay.REWARD_PACKS))
+	return Gameplay.mission_reward({"type": "open_any", "goal": 25}, top_pack_price)
 
 
 ## Rellena los huecos de encargos que falten, sin repetir tipo.
@@ -1057,27 +1077,16 @@ func _fill_missions() -> void:
 		if libres.is_empty():
 			break
 		var t: Dictionary = libres[_rng_play.randi_range(0, libres.size() - 1)]
-		var m := {"type": str(t["type"]), "goal": int(t["goal"]), "progress": 0,
-			"reward": mission_reward(), "kind": ""}
-		if m["type"] == "open_kind":
-			var kinds := LootDB.kind_ids()
-			m["kind"] = kinds[_rng_play.randi_range(0, kinds.size() - 1)]
-		missions.append(m)
+		missions.append(Gameplay.make_mission(_rng_play, t, top_pack_price))
 		cambio = true
 	if cambio:
 		_dirty = true
 		missions_changed.emit()
 
 
-## El texto de un encargo, con su objetivo dentro.
+## El texto de un encargo, con su objetivo dentro (ver Gameplay.mission_text).
 static func mission_text(m: Dictionary) -> String:
-	for t in Gameplay.MISSION_TYPES:
-		if str(t["type"]) == str(m["type"]):
-			if m["type"] == "open_kind":
-				return str(t["text"]) % [int(m["goal"]),
-					str(LootDB.kind_row(str(m["kind"]))["name"])]
-			return str(t["text"]) % int(m["goal"])
-	return ""
+	return Gameplay.mission_text(m)
 
 
 ## Algo ha pasado que puede contar para un encargo. `value` es lo que cuenta:
@@ -1089,21 +1098,11 @@ func mission_event(type: String, value: int, kind: String = "") -> void:
 	var hechos: Array = []
 	var cambio := false
 	for m in missions:
-		var t := str(m["type"])
-		if t == "grade":
-			if type == "grade" and value >= int(m["goal"]):
-				m["progress"] = 1
-				cambio = true
-		elif t == "open_kind":
-			if type == "open" and kind == str(m["kind"]):
-				m["progress"] = int(m["progress"]) + value
-				cambio = true
-		elif (t == "open_any" and type == "open") or t == type:
-			m["progress"] = int(m["progress"]) + value
-			cambio = true
-		var meta := 1 if t == "grade" else int(m["goal"])
-		if int(m["progress"]) >= meta:
+		var antes := int(m["progress"])
+		if Gameplay.mission_step(m, type, value, kind):
 			hechos.append(m)
+		if int(m["progress"]) != antes:
+			cambio = true
 	for m in hechos:
 		missions.erase(m)
 		add_money(int(m["reward"]))
@@ -1111,7 +1110,7 @@ func mission_event(type: String, value: int, kind: String = "") -> void:
 			Palette.GOLD_XL)
 	if not hechos.is_empty():
 		_fill_missions()
-	if cambio:
+	if cambio or not hechos.is_empty():
 		_dirty = true
 		missions_changed.emit()
 
@@ -1200,6 +1199,92 @@ func set_auto_sell(on: bool) -> void:
 	settings_changed.emit()
 
 
+# --- auto guardar ------------------------------------------------------------ #
+
+## ¿Esta comprado el AUTO GUARDAR? Sin el, la fila de Ajustes sale en gris.
+func autostore_unlocked() -> bool:
+	return skill_owned(SkillTree.QOL_AUTOSTORE)
+
+
+## ¿Esta trabajando? Comprado Y encendido.
+func autostore_active() -> bool:
+	return autostore_unlocked() and autostore_on
+
+
+func set_autostore(on: bool) -> bool:
+	if on and not autostore_unlocked():
+		return false
+	autostore_on = on
+	_dirty = true
+	settings_changed.emit()
+	return true
+
+
+## ¿Esta marcado este valor en una de las tres listas ("kinds", "grades",
+## "rarities")? Las notas se guardan como numero.
+func autostore_has(list_name: String, value) -> bool:
+	return (_autostore_list(list_name)).has(value)
+
+
+## Marca o desmarca un valor de una lista. Cada boton del panel es uno.
+func autostore_toggle(list_name: String, value) -> void:
+	var list := _autostore_list(list_name)
+	if list.has(value):
+		list.erase(value)
+	else:
+		list.append(value)
+	_dirty = true
+	settings_changed.emit()
+
+
+func _autostore_list(list_name: String) -> Array:
+	match list_name:
+		"kinds":
+			return autostore_kinds
+		"grades":
+			return autostore_grades
+	return autostore_rarities
+
+
+## ¿Se guarda este objeto? Tiene que estar marcado en las TRES listas.
+func autostore_wants(item: Dictionary) -> bool:
+	return autostore_kinds.has(LootDB.kind_of(item)) \
+			and autostore_grades.has(int(item.get("grade", 0))) \
+			and autostore_rarities.has(str(item.get("rarity", "common")))
+
+
+## Lo que viene marcado de serie: todos los tipos y rarezas y las notas altas
+## (8, 9 y 10). Guardar todo de serie llenaria el inventario en un minuto.
+func _autostore_defaults() -> void:
+	autostore_on = false
+	autostore_kinds = LootDB.kind_ids()
+	autostore_grades = [8, 9, 10]
+	autostore_rarities = Palette.RARITY_ORDER.duplicate()
+
+
+# --- la ficha del objeto ------------------------------------------------------ #
+
+func set_card_mode(mode: String) -> void:
+	card_mode = mode if CARD_MODES.has(mode) else "good"
+	_dirty = true
+	settings_changed.emit()
+
+
+## ¿Merece este objeto la ficha grande? En "good": rareza rara o mejor, nota 8 o
+## mas, o la primera vez que sale (`is_new`, nuevo en la libreta).
+func card_worth(item: Dictionary, is_new: bool) -> bool:
+	match card_mode:
+		"always":
+			return true
+		"never":
+			return false
+	return str(item.get("rarity", "common")) != "common" \
+			or int(item.get("grade", 0)) >= CARD_GOOD_GRADE or is_new
+
+
+const CARD_GOOD_GRADE := 8
+
+
 # --------------------------------------------------------------------------- #
 # Guardado
 # --------------------------------------------------------------------------- #
@@ -1219,6 +1304,8 @@ func hard_reset() -> void:
 	auto_buy = false
 	auto_buy_packs = _all_pack_ids()
 	auto_sell = false
+	_autostore_defaults()
+	card_mode = "good"
 	music_volume = 0.7
 	sfx_volume = 0.45
 	fullscreen = false
@@ -1263,6 +1350,11 @@ func to_dict() -> Dictionary:
 		"auto_buy": auto_buy,
 		"auto_buy_packs": auto_buy_packs,
 		"auto_sell": auto_sell,
+		"autostore_on": autostore_on,
+		"autostore_kinds": autostore_kinds,
+		"autostore_grades": autostore_grades,
+		"autostore_rarities": autostore_rarities,
+		"card_mode": card_mode,
 		"music_volume": music_volume,
 		"sfx_volume": sfx_volume,
 		"fullscreen": fullscreen,
@@ -1350,6 +1442,23 @@ func _apply(d: Dictionary) -> void:
 	else:
 		auto_buy_packs = _all_pack_ids()
 	auto_sell = bool(d.get("auto_sell", false))
+	# El auto guardar: un guardado de antes no trae nada y sale lo de serie. Las
+	# listas se limpian contra lo que existe (JSON devuelve las notas como float).
+	_autostore_defaults()
+	autostore_on = bool(d.get("autostore_on", false))
+	if typeof(d.get("autostore_kinds")) == TYPE_ARRAY:
+		autostore_kinds = LootDB.kind_ids().filter(func(k): return (d["autostore_kinds"] as Array).has(k))
+	if typeof(d.get("autostore_grades")) == TYPE_ARRAY:
+		autostore_grades = []
+		for g in d["autostore_grades"]:
+			if int(g) >= 1 and int(g) <= LootDB.GRADE_MAX and not autostore_grades.has(int(g)):
+				autostore_grades.append(int(g))
+	if typeof(d.get("autostore_rarities")) == TYPE_ARRAY:
+		autostore_rarities = Palette.RARITY_ORDER.filter(
+				func(r): return (d["autostore_rarities"] as Array).has(r))
+	card_mode = str(d.get("card_mode", "good"))
+	if not CARD_MODES.has(card_mode):
+		card_mode = "good"
 	music_volume = float(d.get("music_volume", 0.7))
 	sfx_volume = float(d.get("sfx_volume", 0.45))
 	fullscreen = bool(d.get("fullscreen", false))

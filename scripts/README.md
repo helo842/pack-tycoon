@@ -46,6 +46,8 @@ screens/    una clase por pantalla
                     efecto de ahora y del nivel siguiente, y el boton de
                     comprar (que PIDE la compra a la tienda, no la hace)
   auto_buy_panel.gd el mini menu de la compra automatica (que sobres se compran)
+  auto_store_panel.gd el filtro del AUTO GUARDAR: un boton por tipo, nota PSA
+                    y rareza; se abre desde Ajustes con la mejora comprada
   locker_panel.gd   el armario: el inventario a la IZQUIERDA y las vitrinas a la
                     DERECHA, con la suma de los cuatro bonus y VENDER TODO
   rebirth_panel.gd  el arbol de mejoras: la barra de arriba (el rebirth, lo que
@@ -55,7 +57,10 @@ screens/    una clase por pantalla
                     lleva sumado y lo que sumara, el precio y el boton de
                     comprar (que PIDE la compra al arbol, no la hace)
   reveal_card.gd    la tarjeta de revelado
-  settings_panel.gd los ajustes
+  settings_panel.gd los ajustes: volumen, pantalla completa, venta automatica,
+                    la fila del AUTO GUARDAR (gris hasta comprarlo) y cuando
+                    sale la FICHA del objeto (siempre / lo bueno / nunca)
+  libreta_panel.gd  la libreta: el album y los encargos
   table_element.gd  un objeto de la mesa: el paquete que se abre, el botin que
                     se vende, y se arrastra por la mesa
 ```

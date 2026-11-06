@@ -53,6 +53,11 @@ func _run() -> void:
 	# llegue a pulsarla). smoke_test deja el guardado con todo al maximo, asi que
 	# los dos tests se pisarian.
 	Game.hard_reset()
+	# Las pruebas de siempre miran la ficha de CADA objeto y la pulsan al salir:
+	# la ficha solo para lo bueno y el medio segundo sin hacer caso se prueban
+	# aparte, con sus propios checks.
+	Game.card_mode = "always"
+	RevealCard.arm_delay_ms = 0
 	Game.set_auto_sell(false)
 	Game.set_auto_open(false)
 	Game.set_auto_buy(false)

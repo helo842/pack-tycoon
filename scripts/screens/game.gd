@@ -208,6 +208,7 @@ const SPIKE_TICK := 0.25
 var _table: Control
 var _fx: Control
 var _shake_tween: Tween = null
+var _money_shown := 0
 var _money: PixelNumber
 ## El contador de monedas de rebirth de la barra: el cerdito y, a su derecha, el
 ## numero. Es la unica moneda del juego que no se gasta, asi que se lee de reojo
@@ -556,6 +557,7 @@ func _pack_cell(list: Control, pack: Dictionary, index: int) -> Dictionary:
 	# que es donde se usa.
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
 	b.pressed.connect(_buy_pack.bind(str(pack["id"])))
+	UIKit.juice(b, [art], 1.1)
 	return {"art": art, "back": back, "price": price, "tag": tag,
 			"tag_node": tag_node, "free": free_label, "button": b}
 
@@ -585,6 +587,7 @@ func _build_top_bar() -> void:
 	_money.max_width = MONEY_MAX_W
 	add_child(_money)
 	_money.set_number(Game.money)
+	_money_shown = Game.money
 	# El contador se ancla por su IZQUIERDA, no por su centro: si no, cuando el
 	# numero crece se sale por la pantalla en vez de empujar lo de al lado.
 	_money.position = Vector2(MONEY_X, 58 - _money.size.y * 0.5)
@@ -701,6 +704,7 @@ func _build_locker() -> void:
 					- Vector2(LOCK_SIDE, LOCK_SIDE) * 0.5,
 				Vector2(LOCK_SIDE, LOCK_SIDE)), "Armario: ver los objetos expuestos")
 		b.pressed.connect(_open_locker)
+		UIKit.juice(b, [holder], 1.08)
 		_locker_slots.append({"holder": holder, "button": b})
 
 
@@ -998,19 +1002,31 @@ func _close_shop() -> void:
 func _buy_pack(pack_id: String) -> void:
 	# La mesa se mira ANTES de cobrar: es mas claro no cobrar que cobrar y
 	# devolver, que es lo que hacia la tienda cuando el sobre no cabia.
+	var cell := _pack_cell_of(pack_id)
 	if not table_free():
 		Sound.play("sfx_error")
 		Game.notice.emit("MESA LLENA", Palette.RUST_L)
+		UIKit.shake(cell.get("art"))
 		return
 	var price := Game.pack_price(pack_id)
 	if not Game.can_afford(price):
 		Sound.play("sfx_error")
 		Game.notice.emit("NO TE LLEGA", Palette.RUST_L)
+		UIKit.shake(cell.get("art"))
 		return
 	Game.spend(price)
 	Game.note_pack_bought(pack_id, price)
 	Sound.play("sfx_buy")
+	UIKit.punch(cell.get("art"), 1.2)
 	_spawn_pack(pack_id)
+
+
+## La celda de la columna de un sobre (para animarla al comprar o al fallar).
+func _pack_cell_of(pack_id: String) -> Dictionary:
+	for i in _pack_cells.size():
+		if str(LootDB.pack_at(i)["id"]) == pack_id:
+			return _pack_cells[i]
+	return {}
 	_refresh_packs()
 
 
@@ -1033,9 +1049,18 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 			vueltas += 1
 		Game.mission_event("golden", 1)
 	Game.mission_event("open", 1, _pack_kind(pack_id))
+	# ¿Es la primera vez que sale? Se mira ANTES de apuntarlo: register_found lo
+	# mete en la libreta y despues ya no seria nuevo (ver Game.card_worth).
+	var nuevo := Gameplay.album_items().has(Gameplay.album_key(item)) \
+			and not Game.album.has(Gameplay.album_key(item))
 	# Encontrado es una cosa y guardado es otra: se apunta aqui, cuando sale,
 	# porque a partir de este punto puede venderse sin pasar por el inventario.
 	Game.register_found(item)
+	# EL AUTO GUARDAR manda sobre todo lo demas: es el filtro que el jugador ha
+	# elegido valor por valor (ver Game.autostore_wants).
+	if Game.autostore_active():
+		_autostore(item)
+		return
 	# Dos formas de vender sin pasar por la mesa: la venta automatica de los
 	# ajustes (todo) y la mejora SIN FICHA del arbol (solo la chatarra, ver
 	# Game.auto_sell_chaff). La de los ajustes va primero porque es la que pidio el
@@ -1043,7 +1068,59 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 	if Game.auto_sell or Game.auto_sell_chaff(item):
 		_sell_quietly(item)
 		return
+	# LA FICHA SOLO PARA LO QUE MERECE PARARSE (Ajustes > FICHA): lo demas cae en
+	# la mesa con un rotulo pequeño y la partida no se para.
+	if not Game.card_worth(item, nuevo):
+		_drop_quietly(item)
+		return
 	_reveal_item(item)
+
+
+## El AUTO GUARDAR: lo que cumple el filtro va al inventario y lo demas se vende,
+## los dos sin ficha. Con el inventario lleno, lo que se queria guardar cae en la
+## mesa en vez de venderse: se pidio guardarlo, y venderlo seria perderlo.
+func _autostore(item: Dictionary) -> void:
+	if not Game.autostore_wants(item):
+		_sell_quietly(item)
+		return
+	if Game.inventory_free():
+		Game.store(item)
+		Sound.play("sfx_click")
+		_float_label("GUARDADO", _table_point(), Palette.CREAM)
+		return
+	if table_free():
+		_spawn_loot(item)
+		_float_label("INVENTARIO LLENO", _table_point(), Palette.RUST_L)
+		return
+	_sell_quietly(item)
+
+
+## Un objeto que no merece ficha: a la mesa con un rotulo que sube y se va
+## (nombre, nota y precio). Sin sitio en la mesa, se guarda; y si tampoco cabe,
+## Game.store() lo vende y avisa.
+func _drop_quietly(item: Dictionary) -> void:
+	Sound.play("sfx_open")
+	if not table_free():
+		Game.store(item)
+		return
+	var el := _spawn_loot(item)
+	_float_label("%s  PSA %d  %s" % [str(item.get("name", "")), int(item.get("grade", 0)),
+			PixelNumber.format(int(item.get("value", 0)))],
+			el.rest_spot + Vector2(TableElement.BOX.x * 0.5, 20.0), Palette.CREAM)
+
+
+## Un rotulo de texto que sube y se desvanece (el de _float_text es de cifras).
+func _float_label(text: String, at: Vector2, color: Color) -> void:
+	if _fx == null:
+		return
+	var l := UIKit.label_at(text, at, Vector2(420, 32), 21, color,
+			HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fx.add_child(l)
+	var tw := l.create_tween().set_parallel()
+	tw.tween_property(l, "position:y", l.position.y - 70.0, 1.3).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(l, "modulate:a", 0.0, 0.6).set_delay(0.9)
+	tw.chain().tween_callback(l.queue_free)
 
 
 ## Venta automatica: el objeto se vende nada mas salir, sin tarjeta y sin mesa.
@@ -1434,6 +1511,10 @@ func _locked_notice(item_id: String) -> void:
 
 func _on_money_changed(value: int) -> void:
 	if is_instance_valid(_money):
+		# El contador da un salto cuando entra dinero: es lo que se mira al vender.
+		if value > _money_shown:
+			UIKit.punch(_money, 1.15)
+		_money_shown = value
 		_money.set_number(value)
 		# El dinero cambio de ancho (o de cifras): el cerdito se vuelve a pegar a
 		# su ultimo digito.
@@ -1767,6 +1848,9 @@ func _use_ability(id: String) -> void:
 		Game.notice.emit("TODAVIA SE ESTA RECARGANDO", Palette.RUST_L)
 		return
 	Sound.play("sfx_tool")
+	for a in _abil_buttons:
+		if str(a["id"]) == id:
+			UIKit.punch(a["button"], 1.25)
 	if id == Gameplay.ABIL_FRENZY:
 		_main().banner("FRENESI!", "TODOS LOS SOBRES SE GOLPEAN SOLOS %d S" % int(Gameplay.FRENZY_TIME))
 	else:

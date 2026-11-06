@@ -587,6 +587,9 @@ func _on_buy_skill(id: String) -> void:
 		return
 	Game.buy_skill(id)
 	Sound.play("sfx_tool")
+	if _nodes.has(id):
+		UIKit.punch(_nodes[id]["view"], 1.2)
+	MainRoot.get_root().confetti()
 	_hint("COMPRADO: " + SkillTree.effect_text(id), Palette.GOLD_XL)
 
 
@@ -911,8 +914,8 @@ func _on_rebirth() -> void:
 		return
 	var coins := Game.do_rebirth()
 	Sound.play("sfx_tool")
-	Game.notice.emit("REBIRTH: +" + PixelNumber.format(coins) + " MONEDAS",
-		Palette.GOLD_XL)
+	Sound.play("sfx_rare")
+	MainRoot.get_root().banner("REBIRTH", "+%s MONEDAS PARA EL ARBOL" % PixelNumber.format(coins))
 	_close()
 
 

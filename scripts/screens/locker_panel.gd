@@ -148,6 +148,7 @@ func _build_inventory() -> void:
 		# el boton derecho (el Button solo escucha el izquierdo), asi que el evento
 		# se mira a mano.
 		b.gui_input.connect(_on_inv_input.bind(i))
+		UIKit.juice(b, [holder], 1.08)
 		_inv_cells.append({"holder": holder, "button": b})
 
 	# LOS DOS GESTOS, ESCRITOS. El clic derecho no tiene nada que lo anuncie
@@ -195,6 +196,7 @@ func _build_locker() -> void:
 		var b := UIKit.hit_area(self, Rect2(centre - Vector2(LOCK_SIDE, LOCK_SIDE) * 0.5,
 				Vector2(LOCK_SIDE, LOCK_SIDE)), "")
 		b.pressed.connect(_take.bind(i))
+		UIKit.juice(b, [holder], 1.08)
 		_locker_cells.append({"holder": holder, "button": b})
 
 

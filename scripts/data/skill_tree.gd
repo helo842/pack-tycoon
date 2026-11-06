@@ -90,6 +90,10 @@ const QOL_STEP := 320.0
 ## en -176 y la otra en 176, que con el rotulo de 320 de ancho deja 32 px entre
 ## los dos textos de una misma fila.
 const QOL_SIDE := 176.0
+## Las dos columnas de debajo de ATAJOS van el doble de abiertas desde que entro
+## el AUTO GUARDAR, que va en medio de las dos, justo debajo de ATAJOS: a 176
+## los tres rotulos de esa fila se pisaban.
+const QOL_WIDE := 352.0
 
 ## El precio de cada interruptor de calidad de vida. Suben al bajar la rama y no
 ## valen lo que un +20 %: los de arriba son un lujo barato (1) y el armario, que
@@ -101,6 +105,9 @@ const COST_QOL_CHAFF := 2
 const COST_QOL_CARRY := 2
 const COST_QOL_TABLE := 3
 const COST_QOL_LOCKER := 4
+## El AUTO GUARDAR: de los primeros (cuelga de ATAJOS, 1 + 2 monedas) porque es
+## el que mas trabajo quita en cuanto la partida se llena de fichas.
+const COST_QOL_AUTOSTORE := 2
 
 ## El nombre con el que se escribe cada stat en pantalla, y el que se lee en el
 ## aviso de compra. Uno solo para las dos cosas: dos nombres para el mismo stat
@@ -131,6 +138,7 @@ const QOL_CHAFF := "qol_chaff"
 const QOL_CARRY := "qol_carry"
 const QOL_TABLE := "qol_table"
 const QOL_LOCKER := "qol_locker"
+const QOL_AUTOSTORE := "qol_autostore"
 
 ## Los nodos, EN ORDEN. El primero es el centro y los otros cuatro son los
 ## caminos diagonales, en el sentido de las agujas del reloj desde arriba a la
@@ -278,7 +286,7 @@ const NODES: Array = [
 	},
 	{
 		"id": QOL_CHAFF, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_CHAFF,
-		"pos": Vector2(-QOL_SIDE, QOL_STEP * 2.0), "art": "ui_tag_price",
+		"pos": Vector2(-QOL_WIDE, QOL_STEP * 2.0), "art": "ui_tag_price",
 		"req": QOL_KEYS,
 		"desc": "LO BARATO SE VENDE SOLO",
 		"detail": "LOS OBJETOS DE TRES ESTRELLAS O MENOS SE VENDEN NADA MAS"
@@ -287,7 +295,7 @@ const NODES: Array = [
 	},
 	{
 		"id": QOL_CARRY, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_CARRY,
-		"pos": Vector2(QOL_SIDE, QOL_STEP * 2.0), "art": "item_guantes",
+		"pos": Vector2(QOL_WIDE, QOL_STEP * 2.0), "art": "item_guantes",
 		"req": QOL_KEYS,
 		"desc": "EL GOLPE QUE SOBRA NO SE TIRA",
 		"detail": "EL DANO QUE LE SOBRA A UN GOLPE PASA AL SIGUIENTE SOBRE"
@@ -296,7 +304,7 @@ const NODES: Array = [
 	},
 	{
 		"id": QOL_TABLE, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_TABLE,
-		"pos": Vector2(-QOL_SIDE, QOL_STEP * 3.0), "art": "ui_icon_auto_open",
+		"pos": Vector2(-QOL_WIDE, QOL_STEP * 3.0), "art": "ui_icon_auto_open",
 		"req": QOL_CHAFF,
 		"desc": "LA MESA SE VENDE SOLA",
 		"detail": "LO QUE LLEVA UN RATO EN LA MESA SE VENDE AL PRECIO DE"
@@ -305,12 +313,21 @@ const NODES: Array = [
 	},
 	{
 		"id": QOL_LOCKER, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_LOCKER,
-		"pos": Vector2(QOL_SIDE, QOL_STEP * 3.0), "art": "ui_icon_display_case",
+		"pos": Vector2(QOL_WIDE, QOL_STEP * 3.0), "art": "ui_icon_display_case",
 		"req": QOL_CARRY,
 		"desc": "EXPONER YA NO ES COMPARAR",
 		"detail": "AL EXPONER ALGO, SI YA HAY UNA PIEZA DE SU TIPO ENTRA LA"
 			+ " MEJOR. LA PEOR VUELVE AL INVENTARIO.",
 		"effect": "ARMARIO SOLO",
+	},
+	{
+		"id": QOL_AUTOSTORE, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_AUTOSTORE,
+		"pos": Vector2(0, QOL_STEP * 2.0), "art": "ui_icon_inventory",
+		"req": QOL_KEYS,
+		"desc": "GUARDA LO QUE TU ELIJAS",
+		"detail": "EN AJUSTES ELIGES TIPO, PSA Y RAREZA. LO QUE CUMPLE SE GUARDA"
+			+ " SOLO EN EL INVENTARIO; LO DEMAS SE VENDE SOLO. SIN FICHAS.",
+		"effect": "AUTO GUARDAR",
 	},
 
 	# --- LAS HABILIDADES (la rama de arriba) ------------------------------ #

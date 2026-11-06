@@ -1,11 +1,45 @@
-# PACK TYCOON — primera versión jugable
+# PACK TYCOON — segunda entrega
 
 Incremental 2D de abrir paquetes, hecho en **Godot 4.7** con los sprites que genera
 `tools/make_sprites.py`. El documento de diseño original (`Idea.pdf`) no se publica
 aqui; este README explica lo mismo que hacia falta saber de el.
 
-Esta es la **v1**: el bucle principal funciona de principio a fin y se puede
-jugar. No está todo lo del documento (el final está en *Qué falta*).
+La **primera entrega** fue el bucle de principio a fin: comprar sobres, abrirlos,
+revelar el botín, venderlo o guardarlo, mejorar y reiniciar. La **segunda
+entrega** pule ese bucle con lo que dijeron las primeras partidas de prueba. No
+está todo lo del documento (el final está en *Qué falta*).
+
+### La idea del juego, en corto
+
+Abres sobres en una mesa de trastienda. Cada sobre es de un tipo (cartas,
+vinilos, zapatillas o electrónica) y de un escalón (más caro, más vida, mejor
+botín). Lo que sale tiene **rareza** y **nota PSA** del 1 al 10, y con eso un
+precio. Con ese dinero se compran sobres más caros y **mejoras** en la tienda.
+Lo que vale la pena se **expone en el armario**, que da un bonus según el tipo
+(cartas daño, vinilos dinero, zapatillas velocidad, electrónica rebirth). Al
+juntar 150.000 se puede hacer **rebirth**: empiezas de cero a cambio de monedas
+para un **árbol de mejoras** permanente, que también quita trabajo (atajos, auto
+guardar, automatizaciones...). Por el camino hay **eventos** (sobre dorado,
+comprador VIP, hora feliz), **encargos** y un **álbum** de colecciones.
+
+### Qué trae la segunda entrega
+
+- **Animaciones por todas partes**: los paneles entran y salen, los sobres caen y
+  chocan contra la mesa, todo lo que se pulsa crece al pasar el ratón, los
+  eventos x2 bajan como cartel con destello dorado y comprar una mejora tira
+  confeti. Ver *Animaciones*.
+- **La tienda en cartón**: la caja de cartón con las fichas de papel, TIENDA en
+  su cinta roja con las letras de los precios y el dinero en su etiqueta.
+- **Equilibrio**: el daño ya no lo sube cualquier compra (las Tijeras son el
+  item del daño), las monedas de rebirth crecen con la raíz cúbica del dinero y el
+  armario da según nota, rareza, escalón y tipo, con menos por repetir tipo.
+- **Auto guardar**: un nodo del árbol (2 monedas) y un filtro en Ajustes con un
+  botón por tipo, por nota PSA y por rareza. Lo que cumple se guarda; lo demás se
+  vende.
+- **La ficha del objeto ya no molesta**: sale solo con lo que merece la pena, y
+  no se salta sin querer al hacer spam de clics.
+- **Encargos con sentido**: pagan según lo difícil que son, y los nuevos piden
+  guardar un tipo con una **nota exacta** (también bajas).
 
 ---
 
@@ -130,8 +164,11 @@ son 2.096, 3.331, 5.266 y 8.327 y los del 3 son 16.654, 26.332, 43.000 y
 3. Cuando la resistencia llega a cero, sale la **tarjeta de revelado**: objeto, rareza,
    estado de conservación, nota PSA de 1 a 10 y el valor final. Abajo tiene los
    dos botones de la decisión: **GUARDAR** (al inventario) y **VENDER** (dinero
-   ahora). Cerrarla sin elegir —clic fuera, `ESPACIO` o `ESC`— deja el objeto en
-   la mesa, que es la tercera salida.
+   ahora). Cerrarla sin elegir (`ESPACIO` o `ESC`) deja el objeto en la mesa, que
+   es la tercera salida. Un clic fuera de los botones ya no la cierra, y en su
+   primer medio segundo no hace caso a nada (ver *Auto guardar y la ficha del
+   objeto*). Además, la ficha solo sale con lo que merece la pena (raro o mejor,
+   PSA 8 o más, o nuevo en la libreta); lo demás cae en la mesa con un rótulo.
 4. El objeto se queda en la mesa. **Clic en él** y se vende; **arrastrarlo** lo
    aparta y hace sitio, como en los juegos de cachivaches. Al inventario solo va
    si se pulsa GUARDAR, y de ahí se vende **de uno en uno** (clic derecho en el
@@ -538,9 +575,46 @@ minutos es siempre lo mismo. Para eso hay cuatro cosas más, con sus números en
     perfección). Completar una da un bonus **para siempre** —un poco de daño,
     dinero, velocidad, críticos, un hueco de mesa o monedas de rebirth— y no se
     pierde al reiniciar.
-  - **Encargos**: tres misiones cortas (abre tantos sobres, saca una nota 9,
-    acierta golpes perfectos, abre un dorado, véndele al VIP...) que se cobran
-    solas al cumplirse.
+  - **Encargos**: tres misiones cortas que se cobran solas al cumplirse: abre
+    tantos sobres, saca una nota 8, 9 o 10, acierta golpes perfectos, abre un
+    dorado, véndele al VIP... y **GUARDA 3 ZAPATILLAS CON PSA 2**, que pide un
+    tipo y una **nota exacta**, también baja. Es lo que da sentido a guardar
+    notas bajas, y al Auto guardar, que deja elegir cada nota por separado. Cuenta
+    al entrar en el inventario (`Game.store`).
+  - **El premio va con lo difícil**: cada encargo calcula cuántos sobres cuesta
+    de media (`Gameplay.mission_packs`: 25 sobres son 25, una nota 9 o más son
+    unos 17, guardar un PSA 10 concreto unos 54) y paga
+    `REWARD_PER_PACK` (2,2 %) del sobre más caro de la partida por cada uno, con
+    un mínimo de 8 sobres y un tope de 60. Antes todos pagaban lo mismo, y "abre
+    25 sobres" valía igual que "saca un 9". Las reglas viven en `Gameplay`
+    (`make_mission`, `mission_step`, `mission_reward`), y las usan la partida y
+    el simulador.
+
+### Auto guardar y la ficha del objeto
+
+- **AUTO GUARDAR** es un nodo del árbol del rebirth (**2 monedas**) que cuelga de
+  ATAJOS, en medio de la rama de calidad de vida (las dos columnas de debajo se
+  abrieron a ±352 para hacerle sitio). En **Ajustes** su fila sale **en gris**
+  hasta comprarlo, diciendo dónde se compra; comprado, sale en color con su
+  casilla y el botón **ELEGIR**.
+- **ELEGIR** abre el filtro (`AutoStorePanel`): un botón por cada **tipo** (4),
+  cada **nota PSA** (10) y cada **rareza** (4), y cada uno se enciende por
+  separado. Un objeto **se guarda** si su tipo, su nota y su rareza están
+  encendidos; si no, **se vende solo**. En los dos casos, sin ficha. Con el
+  inventario lleno, lo que se quería guardar cae en la mesa en vez de venderse.
+  De serie vienen todos los tipos y rarezas y las notas 8, 9 y 10. El filtro es
+  de la cuenta: el rebirth no lo toca.
+- **La ficha solo para lo bueno** (Ajustes → **FICHA DEL OBJETO**: siempre /
+  lo bueno / nunca, por defecto "lo bueno"). Sale si el objeto es **raro o
+  mejor**, tiene **PSA 8 o más** o es **nuevo en la libreta**. Lo demás cae en la
+  mesa con un rótulo que sube y se va (nombre, PSA y precio), sin parar la
+  partida.
+- **La ficha ya no se salta sin querer**: en su primer **medio segundo** no hace
+  caso a nada (`RevealCard.arm_delay_ms`), y un clic fuera de los botones **ya no
+  la cierra**. Para dejar el objeto en la mesa está **ESPACIO**. Antes, haciendo
+  spam de clics en los sobres, el clic siguiente cerraba la ficha recién salida.
+- Para hacer sitio a las dos filas, Ajustes **ya no tiene el selector de
+  idioma**: solo había español y no hacía nada.
 
 Todo eso mete dinero por fuera del bucle, así que **la partida se mide con ello**:
 `dev/balance.gd` simula los eventos, los encargos, el álbum y los golpes perfectos
@@ -567,6 +641,26 @@ comandos el simulador apaga todo esto, y con `sin_dorado`, `sin_vip`,
   suena un golpe sordo y la mesa tiembla un momento (`TableElement.play_drop` y
   la señal `landed`).
 - **Los avisos** entran subiendo un poco además de aparecer.
+- **Todo lo que se pulsa** crece un poco al pasar el ratón por encima, se hunde
+  al pulsar, vuelve al soltar y pone la mano de cursor. Lo hace `UIKit.juice()`,
+  que ya va dentro de los cuatro constructores de botones (`plate_button`,
+  `small_button`, `icon_button`, `close_button`), así que un botón nuevo lo trae
+  solo. Las zonas de clic invisibles (`hit_area`) le pasan **su dibujo**: el sobre
+  de la columna, el objeto de la mesa, el dibujo de la ficha de la tienda, los
+  huecos del armario y de la vitrina, las casillas de los ajustes y las filas de
+  la compra automática. Solo toca la escala, nunca el `modulate`, que los botones
+  ya usan para decir apagado o encendido.
+- **Al comprar** (sobre, item de la tienda o nodo del árbol) el dibujo da un
+  salto (`UIKit.punch`), y al no poder (no te llega, mesa llena) el sobre dice
+  que no con la cabeza (`UIKit.shake`). El **dinero** de la barra salta cada vez
+  que entra, y las **habilidades** al usarlas.
+- **El rebirth** y **completar una colección del álbum** sacan el cartel grande
+  con destello dorado (la colección llega por la señal `Game.celebrate`).
+- **Cambiar de pantalla** (menú ↔ partida) entra fundido.
+- **Comprar una mejora** (un nivel de la tienda o un nodo del árbol) tira
+  **confeti** (`MainRoot.confetti`): una lluvia desde arriba, dos chorros desde
+  los lados y una luz suave que pasa por varios colores. Son unos cien papelitos,
+  poca cosa a propósito: dura un segundo y no tapa la partida.
 
 ### Teclado
 
@@ -612,14 +706,15 @@ Sounds/                11 WAV, en subcarpetas (ver Sounds/README.md)
 
 scripts/               el código, por capas (ver scripts/README.md)
   core/                main, game_state y audio (los dos autoloads) y palette
-  data/                loot_db: precios, botín, rarezas, PSA
+  data/                loot_db (precios, botín, rarezas, PSA, armario),
+                       gameplay (eventos, encargos, álbum) y skill_tree
   ui/                  ui_kit, sprites, y los controles con sprite
   screens/             una clase por pantalla
 
 scenes/                un nodo raíz por pantalla (ver scenes/README.md)
   Main.tscn Game.tscn Menu.tscn ShopPanel.tscn AutoBuyPanel.tscn
-  LockerPanel.tscn RebirthPanel.tscn ItemCard.tscn RevealCard.tscn
-  SettingsPanel.tscn
+  AutoStorePanel.tscn LockerPanel.tscn LibretaPanel.tscn RebirthPanel.tscn
+  ItemCard.tscn SkillCard.tscn RevealCard.tscn SettingsPanel.tscn
   ui/game_theme.tres   el tema: la fuente y los colores de la interfaz
 
 tools/                 los generadores de Python (ver tools/README.md)
@@ -900,11 +995,19 @@ de mejoras.
 
 **Sistemas del documento que no están** — el árbol de habilidades **ya está** (es
 el árbol del rebirth: la mejora del centro, cuatro caminos de números —tres de
-ellos estirados dos anillos más— y la rama de calidad de vida; estirar un camino
-es añadir una fila a `SkillTree.NODES`), logros y eventos de mercado todavía no.
+ellos estirados dos anillos más— y la rama de calidad de vida con el auto
+guardar; estirar un camino es añadir una fila a `SkillTree.NODES`). Los
+**encargos** hacen de logros cortos (con premio según la dificultad), y los
+eventos de mercado son el VIP y la hora feliz. Faltan **logros permanentes** (de
+la cuenta, no de la partida).
+
+**Equilibrio pendiente** — las **zapatillas** del armario son las flojas: con
+varios sobres a la vez, lo que limita es el clic y no la carga, así que más
+velocidad apenas se nota. Arreglarlo es cambiar qué hacen, no un número. Y el
+"sin dado" del jugador normal va en 18,5 min con la banda en 19: un cambio
+pequeño lo puede sacar.
 
 **Extras de la interfaz** — los deslizadores de volumen de los ajustes ya mueven
-sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta el
-**selector de idioma**, que está puesto pero sin nada detrás (no hay más texto que
-el español), y el botón de empezar de cero (`hard_reset()` lo hace, pero solo lo
+sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta
+cambiar de **idioma** (el selector se quitó: solo hay español), y el botón de empezar de cero (`hard_reset()` lo hace, pero solo lo
 llaman las pruebas).

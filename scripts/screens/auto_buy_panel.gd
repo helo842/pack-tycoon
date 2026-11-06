@@ -168,6 +168,7 @@ func _pack_row(pack: Dictionary, price: int, top_left: Vector2) -> Dictionary:
 	var hit := UIKit.hit_area(self, Rect2(Vector2(x, y - ROW_H * 0.5),
 			Vector2(COL_W, ROW_H)), "")
 	hit.pressed.connect(_toggle_pack.bind(str(pack["id"])))
+	UIKit.juice(hit, [art, box], 1.1)
 	return {"back": back, "box": box, "art": art, "label": label,
 			"num": num, "tag": tag, "tag_node": tag_node, "button": hit}
 

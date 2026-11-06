@@ -183,6 +183,7 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	var max_gap := 0.0
 	var first_buy := -1.0
 	_gp_reset(st, seed_value)
+	_gp["fixed"] = fixed_loot
 	# SE PARA CUANDO EL CONTADOR LLEGA AL REQUISITO, que es la regla del rebirth
 	# desde que su requisito se mide en el dinero que TIENES y no en lo ganado (ver
 	# Game.can_rebirth). El requisito de la partida no es "hacer tal cosa": es
@@ -469,6 +470,8 @@ func _gp_sell(loot: Dictionary) -> int:
 		_gp["buyer"] = {}
 		_gp_mission("vip", 1)
 	_gp_mission("grade", int(loot["grade"]))
+	# El encargo de guardar: el simulado guarda lo que le piden cuando sale.
+	_gp_mission("store", int(loot["grade"]), kind)
 	return value
 
 
@@ -502,14 +505,14 @@ func _gp_fill_missions() -> void:
 			usados.append(str(m["type"]))
 		var libres: Array = []
 		for ty in Gameplay.MISSION_TYPES:
+			# Sin dado no hay notas: los encargos de nota no se cumplirian nunca y
+			# se quedarian ocupando el hueco (en la partida de verdad si salen).
+			if bool(_gp.get("fixed", false)) and ["grade", "store"].has(str(ty["type"])):
+				continue
 			if not usados.has(str(ty["type"])):
 				libres.append(ty)
 		var ty: Dictionary = libres[r.randi_range(0, libres.size() - 1)]
-		var kinds := LootDB.kind_ids()
-		missions.append({"type": str(ty["type"]), "goal": int(ty["goal"]), "progress": 0,
-			"reward": maxi(Gameplay.REWARD_MIN,
-				roundi(float(_gp["top_price"]) * Gameplay.REWARD_PACKS)),
-			"kind": kinds[r.randi_range(0, kinds.size() - 1)]})
+		missions.append(Gameplay.make_mission(r, ty, int(_gp["top_price"])))
 
 
 ## Game.mission_event en pequeno: lo cumplido se apunta en "pending" y lo cobra
@@ -520,16 +523,7 @@ func _gp_mission(type: String, value: int, kind: String = "") -> void:
 	var missions: Array = _gp["missions"]
 	var hechos: Array = []
 	for m in missions:
-		var ty := str(m["type"])
-		if ty == "grade":
-			if type == "grade" and value >= int(m["goal"]):
-				m["progress"] = 1
-		elif ty == "open_kind":
-			if type == "open" and kind == str(m["kind"]):
-				m["progress"] = int(m["progress"]) + value
-		elif (ty == "open_any" and type == "open") or ty == type:
-			m["progress"] = int(m["progress"]) + value
-		if int(m["progress"]) >= (1 if ty == "grade" else int(m["goal"])):
+		if Gameplay.mission_step(m, type, value, kind):
 			hechos.append(m)
 	for m in hechos:
 		missions.erase(m)
