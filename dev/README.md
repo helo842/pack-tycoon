@@ -444,8 +444,8 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   premio (que es lo unico que hace que exponer electronica signifique algo). Se
   comprueba contra el numero que da de verdad, no contra una copia de la formula
   escrita al lado. Y tanto el **requisito** como las **monedas** se cuentan sobre
-  **el dinero que hay en el contador en ese momento** (el requisito son 5.000 y
-  una moneda por cada 1,5 M): hay un check con la partida entera ganada y el
+  **el dinero que hay en el contador en ese momento** (el requisito y las monedas con
+  la raiz cubica del contador en requisitos: 8 dan 2, 64 dan 4): hay un check con la partida entera ganada y el
   contador vacio que no deja reiniciar y da la moneda minima, otro con el
   contador a una unidad del requisito que todavia no deja, y otro con 12,5 M en
   el contador que tiene que dar 8. Si alguien vuelve a mirar `lifetime_earned`
@@ -483,8 +483,8 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   piezas de la partida, el armario y los Pinchos): es lo que hace que reiniciar
   signifique algo, porque las monedas se ganan reiniciando y se gastan en el
   arbol. Y que el dano del armario **se multiplique con el** y no lo sustituya:
-  una carta de nota 10 expuesta (+25 %) con el camino del dano comprado (+20 %)
-  tiene que dar el producto (x1,5), no el mayor de los dos.
+  una carta de nota 10 expuesta (+25 % o mas, segun rareza) con el camino del dano comprado (+20 %)
+  tiene que dar el producto, no el mayor de los dos.
 - Que la **rama de calidad de vida** este entera: cinco interruptores debajo del
   centro (atajos, sin ficha, sobrante, mesa limpia y armario solo), de **un solo
   nivel** y con los ids que consulta el juego (un id mal escrito seria una mejora
@@ -560,8 +560,8 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   sorteaban entre 40 puntos al azar y salian tres apilados en un rincon teniendo
   media mesa vacia al lado.
 - Que el **dinero no se pierda** en el camino: el requisito del rebirth se mide
-  en el dinero que hay en el contador (5.000), igual que el premio (1 moneda por
-  cada 1,5 M). Antes eran dos numeros de sitios distintos -lo ganado para el
+  en el dinero que hay en el contador (5.000), igual que el premio (raiz cubica
+  del contador). Antes eran dos numeros de sitios distintos -lo ganado para el
   requisito, el contador para el premio- y el jugador leia que le faltaba un
   millon "de lo ganado" mientras tenia cuatro perras delante. Que despues de
   reiniciar la partida vuelva todo a cero

@@ -159,8 +159,16 @@ static func label(text: String, font_size: int = 40, color: Color = Palette.CREA
 		outline: int = 0) -> Label:
 	var l := Label.new()
 	l.text = text
-	if font() != null:
-		l.add_theme_font_override("font", font())
+	# La fuente es de mapa de bits a 7 px y se escala x3, x8...: sin NEAREST explicito
+	# Godot la estira con filtro lineal y la letra sale borrosa (dev/probe_font.gd no
+	# lo veia porque el contorno de font_pack lo tapa).
+	l.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# El texto pequeno (hasta x3) va SIN contorno: ahi el contorno de la fuente es tan
+	# gordo como la letra y sobre el carton de los paneles la empasta. Las dos
+	# fuentes miden igual, asi que nada se mueve.
+	var f := title_font() if font_step(font_size) <= FONT_STEP * 3 else font()
+	if f != null:
+		l.add_theme_font_override("font", f)
 	l.add_theme_font_size_override("font_size", font_step(font_size))
 	l.add_theme_color_override("font_color", color)
 	if outline > 0:
@@ -505,8 +513,16 @@ static func _scaled(c: Color, k: float) -> Color:
 	return Color(c.r * k, c.g * k, c.b * k, c.a)
 
 
-## El boton de cerrar, que es el sprite entero (ui_button_close, 256x256).
-static func close_button(center: Vector2, side: float = 96.0) -> Button:
+## Donde va el cerrar de los paneles: la esquina de arriba a la derecha que
+## ui_panel_shop y ui_panel_settings traen recortada (PANEL_FLAP en
+## make_sprites.py: 8 px de arte = 128 px). La solapa la tapa justo.
+const PANEL_CLOSE := Vector2(1680, 140)
+const PANEL_CLOSE_SIDE := 128.0
+
+
+## El boton de cerrar: la solapa doblada de la esquina del panel (ui_button_close).
+## Se coloca en PANEL_CLOSE con su lado, PANEL_CLOSE_SIDE.
+static func close_button(center: Vector2, side: float = PANEL_CLOSE_SIDE) -> Button:
 	var s := snap(side)
 	var b := Button.new()
 	b.flat = true

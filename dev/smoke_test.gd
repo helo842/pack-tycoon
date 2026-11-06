@@ -9,6 +9,9 @@ const MAIN_SCENE := preload("res://scenes/Main.tscn")
 ## y 60..1020), con un marco dorado de 48 px. Lo de dentro va de 224 a 1696 y
 ## de 140 a 940. Es la caja contra la que se comprueba que no se sale nada.
 const PANEL := Rect2(224, 140, 1472, 800)
+## La tienda usa tambien la cinta de la cabecera (y 92..172) para el titulo y el
+## dinero; la caja del titulo asoma unos px por arriba (la Label mide 88 de alto).
+const PANEL_TIENDA := Rect2(224, 84, 1472, 856)
 const PANTALLA := Rect2(0, 0, 1920, 1080)
 
 var _main: MainRoot = null
@@ -1218,14 +1221,15 @@ func _run() -> void:
 	var shop = g._shop
 	_check("la tienda se abre", shop != null)
 	_check("hay diez items", shop._item_cells.size() == LootDB.item_count())
-	# La tienda se ha quedado con los items: ni sobres, ni titulo, ni moneda, ni
-	# el rotulo del dano. Es facil que cualquiera de los cuatro vuelva al pintar
-	# el panel, asi que se comprueba que no estan.
+	# La tienda se ha quedado con los items: ni sobres ni el rotulo del dano.
+	# El titulo TIENDA si va, en la cinta de la cabecera (estilo carton).
 	_check("la tienda no vende sobres", not _usa_sprite(shop, "pack_cards"))
-	_check("la tienda no lleva el titulo TIENDA", not _dice(shop, "TIENDA"))
+	# Con las letras doradas de los precios (PixelNumber), no con una Label.
+	_check("la tienda lleva el titulo TIENDA en la cinta",
+		shop.has_node("Titulo") and _usa_sprite(shop, "num_E") and _usa_sprite(shop, "ui_tag_price"))
 	_check("la tienda no lleva el rotulo de dano", not _dice(shop, "DANO", true))
 	_check("la tienda trae la moneda del contador", _usa_sprite(shop, "currency_coin"))
-	_check_cabe("la tienda no saca texto del panel", shop, PANEL)
+	_check_cabe("la tienda no saca texto del panel", shop, PANEL_TIENDA)
 	_check_sin_encimarse("la tienda no pone texto encima de una chapa", shop)
 
 	# LAS CAJAS. Cada item se dibuja como una caja de 264x264 en rejilla de cinco
@@ -1589,6 +1593,7 @@ func _run() -> void:
 	_check("sale la tarjeta de revelado al insistir", g._reveal != null)
 	if g._reveal != null:
 		var card = g._reveal
+		await _wait(0.3)  # la entrada de la tarjeta (MainRoot._pop_in) la escala
 		_check_cabe("la tarjeta no saca texto del panel", card, PANEL)
 		_check_sin_encimarse("la tarjeta no pone texto encima de una chapa", card)
 		_check("el objeto tiene nombre", str(card.item.get("name", "")) != "")
@@ -2131,7 +2136,7 @@ func _run() -> void:
 				banda.grow(-4.0).encloses(precio.get_rect()))
 	# La fila del item comprado tiene que caber igual que las demas: cambia el
 	# precio por el rotulo de COMPRADO, y el rotulo es mas ancho que la chapa.
-	_check_cabe("la tienda con 99.999.999 no saca texto del panel", shop3, PANEL)
+	_check_cabe("la tienda con 99.999.999 no saca texto del panel", shop3, PANEL_TIENDA)
 	_check_sin_encimarse("la tienda llena no pone texto encima de una chapa", shop3)
 	# El contador de arriba es lo primero que se llena: son nueve digitos y el
 	# rotulo de la mesa esta justo a la derecha.
@@ -2206,15 +2211,18 @@ func _run() -> void:
 		_check("exponer saca el objeto del inventario",
 			Game.inventory.size() == inv_antes - 1)
 		_check("y lo mete en el armario", Game.locker.size() == 1)
-		# La nota PSA manda en el bonus: la 10 da el tope de LootDB y la 1 el minimo.
+		# La nota PSA manda en el bonus: la 10 da al menos el tope de LootDB (mas con
+		# rareza o escalon, ver LootDB.bonus_for) y la 1 el minimo.
+		var bonus_carta: float = LootDB.bonus_for(Game.locker[0])
 		_check("una carta de nota 10 da el tope del bonus",
-			is_equal_approx(Game.kind_bonus("cards"), LootDB.KIND_BONUS_MAX))
+			is_equal_approx(Game.kind_bonus("cards"), bonus_carta)
+			and bonus_carta >= LootDB.KIND_BONUS_MAX - 0.0001)
 		_check("y la misma carta con nota 1 daria el minimo",
 			is_equal_approx(LootDB.bonus_for({"kind": "cards", "grade": 1}),
 				LootDB.KIND_BONUS_MIN))
 		_check("y el dano del golpe sube con ella",
 			is_equal_approx(Game.damage_per_hit(),
-				dano_antes * (1.0 + LootDB.KIND_BONUS_MAX)))
+				dano_antes * (1.0 + bonus_carta)))
 		# Cada tipo va a lo suyo y no todo al dano: son cuatro stats distintos.
 		_check("las zapatillas dan velocidad",
 			str(LootDB.kind_row("sneakers")["stat"]) == "VELOCIDAD")
@@ -2354,6 +2362,7 @@ func _run() -> void:
 	Game.locker.clear()
 	for i in Game.items.size():
 		Game.items[i] = 0
+	Game.album = {}  # un PSA 10 de antes completaria PERFECCION (+10 % de rebirth)
 	Game.rebirth_coins = 0
 	Game.money = Game.START_MONEY
 	_check("con el contador vacio el rebirth da la moneda minima",
@@ -2372,9 +2381,13 @@ func _run() -> void:
 	_check("con el requisito en el contador ya se puede reiniciar",
 		Game.can_rebirth() and Game.rebirth_missing() == 0
 		and Game.pending_rebirth_coins() == 1)
-	Game.money = LootDB.REBIRTH_COIN_AT * 8 + LootDB.REBIRTH_COIN_AT / 2
-	_check("una moneda por cada 1,5 M del contador (8 con 12,5 M)",
-		Game.pending_rebirth_coins() == 8)
+	# Las monedas van con la RAIZ CUBICA del contador medido en requisitos: 8
+	# requisitos dan 2 y 64 dan 4 (ver LootDB.rebirth_coins_for).
+	Game.money = LootDB.REBIRTH_REQUIRE * 8
+	_check("ocho requisitos en el contador dan 2 monedas", Game.pending_rebirth_coins() == 2)
+	Game.money = LootDB.REBIRTH_REQUIRE * 64 + LootDB.REBIRTH_REQUIRE / 2
+	_check("y sesenta y cuatro dan 4 (raiz cubica, no una por cada tanto)",
+		Game.pending_rebirth_coins() == 4)
 	_check("y sin armario el multiplicador del rebirth es 1",
 		is_equal_approx(Game.rebirth_multiplier(), 1.0))
 	# La ELECTRONICA expuesta es lo unico que sube el premio del rebirth: por eso
@@ -2383,9 +2396,10 @@ func _run() -> void:
 	chip["grade"] = LootDB.GRADE_MAX
 	Game.locker.append(chip)
 	_check("la electronica expuesta sube el multiplicador del rebirth",
-		is_equal_approx(Game.rebirth_multiplier(), 1.0 + LootDB.KIND_BONUS_MAX))
-	Game.money = LootDB.REBIRTH_COIN_AT * 10
-	_check("y con quince millones en el contador da mas monedas que sin ella",
+		Game.rebirth_multiplier() > 1.0
+		and is_equal_approx(Game.rebirth_multiplier(), 1.0 + LootDB.bonus_for(chip)))
+	Game.money = LootDB.REBIRTH_REQUIRE * 1000
+	_check("y con mil requisitos en el contador da mas monedas que sin ella (10)",
 		Game.pending_rebirth_coins() > 10
 		and Game.pending_rebirth_coins()
 			== LootDB.rebirth_coins_for(Game.money, Game.rebirth_multiplier()))
@@ -2484,6 +2498,9 @@ func _run() -> void:
 	Game.locker.clear()
 	Game.inventory.clear()
 	Game.skills = {}
+	# El album sobrevive al rebirth y lo de antes lo ha ido llenando: sus bonus
+	# se colarian en los multiplicadores que se miden aqui.
+	Game.album = {}
 	Game.rebirth_coins = 40
 	_check("las monedas de rebirth ya no dan dinero por si solas",
 		is_equal_approx(Game.value_multiplier(), 1.0)
@@ -2693,7 +2710,7 @@ func _run() -> void:
 	Game.locker.clear()
 	Game.locker.append(carta_psa10)
 	_check("el dano del armario se multiplica con el del arbol",
-		is_equal_approx(Game.damage_multiplier(), (1.0 + LootDB.KIND_BONUS_MAX) * 1.20))
+		is_equal_approx(Game.damage_multiplier(), (1.0 + LootDB.bonus_for(carta_psa10)) * 1.20))
 	Game.locker.clear()
 
 	# EL ARBOL NO SE PIERDE AL REINICIAR, y es lo que hace que reiniciar valga la
@@ -2704,7 +2721,7 @@ func _run() -> void:
 	Game.locker.append(chip)
 	# Con dos millones en el contador se pasa el requisito de sobra (que es lo que
 	# se mira para poder reiniciar) y el premio son dos monedas.
-	Game.money = LootDB.REBIRTH_COIN_AT * 2
+	Game.money = LootDB.REBIRTH_REQUIRE * 8
 	Game.do_rebirth()
 	_check("el arbol de mejoras se queda al reiniciar la partida",
 		Game.skill_owned("money") and Game.skill_owned("damage")

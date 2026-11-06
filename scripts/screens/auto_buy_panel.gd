@@ -61,7 +61,7 @@ func _ready() -> void:
 	add_child(UIKit.label_at("COMPRA AUTOMATICA", Vector2(960, TITLE_Y),
 			Vector2(1400, 70), 48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
-	var close := UIKit.close_button(Vector2(1650, TITLE_Y), 96.0)
+	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
 	add_child(close)
 
@@ -198,7 +198,7 @@ func refresh() -> void:
 			(cell[key] as CanvasItem).modulate = Color.WHITE if on \
 					else Color(0.5, 0.5, 0.58, 1.0)
 		var num: PixelNumber = cell["num"]
-		num.color = Palette.CREAM if on else Palette.RUST_L
+		num.color = Palette.CREAM if on else Palette.PRICE_OFF
 		num.position = (cell["tag"] as Vector2) - num.size * 0.5
 
 

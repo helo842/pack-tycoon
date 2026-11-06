@@ -45,8 +45,8 @@ const START_MONEY := 500
 const INVENTORY_SLOTS := 50
 
 var money: int = START_MONEY
-## Las monedas de rebirth SIN GASTAR. Se ganan reiniciando la partida (una por
-## cada 1,5 M del contador, ver LootDB.REBIRTH_COIN_AT) y se gastan en el arbol
+## Las monedas de rebirth SIN GASTAR. Se ganan reiniciando la partida (con la
+## raiz cubica del contador, ver LootDB.rebirth_coins_for) y se gastan en el arbol
 ## de mejoras, que es lo unico que se compra con ellas.
 var rebirth_coins: int = 0
 ## El arbol de mejoras: el id de cada nodo comprado y su nivel (ver SkillTree).
@@ -463,22 +463,13 @@ func locker_take(index: int) -> bool:
 ## Lo que aporta el armario a UN tipo de botin: la suma de sus objetos expuestos
 ## (ver LootDB.bonus_for, que es lo que da un objeto segun su nota).
 func kind_bonus(kind_id: String) -> float:
-	var total := 0.0
-	for item in locker:
-		if LootDB.kind_of(item) == kind_id:
-			total += LootDB.bonus_for(item)
-	return total
+	return float(kind_totals().get(kind_id, 0.0))
 
 
-## Las cuatro sumas a la vez, para leerlas de una vez en el panel.
+## Las cuatro sumas a la vez, para leerlas de una vez en el panel. Cada pieza
+## del mismo tipo cuenta menos que la anterior (ver LootDB.locker_totals).
 func kind_totals() -> Dictionary:
-	var totals := {}
-	for kind_id in LootDB.kind_ids():
-		totals[kind_id] = 0.0
-	for item in locker:
-		totals[LootDB.kind_of(item)] = float(totals[LootDB.kind_of(item)]) \
-				+ LootDB.bonus_for(item)
-	return totals
+	return LootDB.locker_totals(locker)
 
 
 ## Cuanto sube el DANO del golpe: lo que dan las Cartas expuestas EN EL ARMARIO y

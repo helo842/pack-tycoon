@@ -177,6 +177,19 @@ paquete. Son **diez** —los ocho del `Idea.pdf`, los **Guantes** (velocidad) y 
   chapa del precio y pone **COMPRADO**. Sin ese rótulo la fila solo se
   distinguía por lo que *no* tenía (ni puntos ni segundo precio), y eso hay que
   deducirlo; con él, que no vuelvan a la tienda deja de ser una sorpresa.
+- **La tienda es la caja de cartón claro** (`ui_panel_carton`, estilo A de las
+  maquetas con el precio del estilo C): una cinta de embalar cruza la cabecera.
+  Encima, **TIENDA** va en una cinta roja (`ui_tag_price`) con las letras
+  doradas de los precios (`num_T`, `num_E`... ver `NUM_LETTERS` en
+  `tools/make_sprites.py`), y el dinero en una etiqueta de papel crema con su
+  celo, a la derecha, que crece hacia la izquierda con la cifra. Sueltos sobre la cinta parecían flotar. Solo la tienda usa ese panel; los
+  demás siguen con el oscuro, porque su texto crema no se leería en el claro.
+- **Cada item es una ficha de papel crema** pegada con un trozo de celo y con
+  sombra, el texto en oscuro y sin contorno; el precio va en una cinta roja que
+  cruza la ficha entera y asoma por los lados. Los puntos de nivel comprados van
+  en rojo, como la cinta. La ficha comprada o al tope se oscurece y lleva el
+  filete y el rótulo en dorado oscuro. Un precio que no te llega se apaga en
+  gris (`Palette.PRICE_OFF`): en rojo no se leería sobre la cinta roja.
 
 Quién es cuál no lo decide una lista aparte: son `LootDB.AUTO_ITEM_OPEN` y
 `LootDB.AUTO_ITEM_BUY` (los mismos ids que encienden las automatizaciones), y lo
@@ -215,10 +228,28 @@ algo.
 | **ZAPATILLAS** | la velocidad de carga del clic |
 | **ELECTRÓNICA** | las monedas de rebirth |
 
-Cuánto aporta cada objeto lo decide **su nota PSA**: de un **2 % en la nota 1 a
-un 25 % en la 10**, repartido a partes iguales. Son porcentajes bajos a
-propósito: ocho vitrinas llenas de piezas de nota 10 son +200 % repartido entre
-los cuatro stats, y con el armario lleno el jugador ya nota que trabaja.
+Cuánto aporta cada objeto (`LootDB.bonus_for`) sale de cuatro cosas:
+
+- **La nota PSA**: de un **2 % en la nota 1 a un 25 % en la 10**.
+- **La rareza** (×1 común, ×1,2 raro, ×1,45 épico, ×1,75 legendario) y **el
+  escalón del sobre** del que salió (×1, ×1,3, ×1,7): lo que vale más, da más.
+  Antes un común del sobre gratis daba lo mismo que un legendario de escalón 3
+  con la misma nota.
+- **El tipo** (`LOCKER_KIND_WEIGHT`): cartas ×1, vinilos ×0,6, zapatillas ×1,2 y
+  electrónica ×0,4. No valen lo mismo: el dinero de los vinilos lo multiplica
+  todo, y la electrónica multiplica las monedas directamente.
+- **Repetir tipo da menos** (`LOCKER_SAME_KIND`): de cada tipo, la mejor pieza
+  cuenta entera, la segunda un 60 %, la tercera un 36 %...
+
+Así llenar el armario solo de vinilos ya no es lo mejor. Con `BalanceTest
+armario` (el optimizado jugando 30 min sin reiniciar), las monedas que daría el
+rebirth son: solo vinilos 9,7, solo cartas 9,9, solo zapatillas 8,5, solo
+electrónica 11,6 (pero con un tercio menos de dinero) y **los cuatro mezclados
+14,3**. Antes eran 173 / 152 / 85 / 295 / 1.265: con este cambio y la fórmula
+nueva de las monedas (ver el rebirth) todo eso bajó.
+
+Las zapatillas siguen siendo las flojas: cuando llevas varios sobres a la vez,
+lo que limita es el clic y no la carga, así que más velocidad apenas se nota.
 
 En la pantalla de partida **no hay inventario**: la tira de abajo es **la
 vitrina** (los objetos expuestos de un vistazo, y cada hueco abre el panel), y la
@@ -281,6 +312,22 @@ a cambio te llevas **monedas**, que ya no se pierden nunca más: se **gastan en 
 que hayas comprado con ellas, y por eso el rebirth se hace **desde dentro del
 árbol**: arriba está el botón, con lo que te llevas (cuántas monedas y cuánto
 multiplica la Electrónica del armario), y debajo, lo que se compra con ellas.
+
+**Cuántas monedas:** la **raíz cúbica** del dinero del contador, medido en
+requisitos (`LootDB.rebirth_coins_for`). 150.000 dan 1, 1,2 M dan 2, 4 M dan 3 y
+150 M dan 10, todo por el multiplicador de la Electrónica, que va **antes del
+redondeo** (antes iba después, y con una o dos monedas no sumaba nada). Antes era
+una moneda por cada 1,5 M en línea recta. El dinero crece mucho más rápido que
+eso con los sobres caros: aguantando media hora sin reiniciar te llevabas ~170
+monedas, o sea el árbol entero en una vez («a partir de 150.000 se desbalancea»).
+Ahora aguantar sigue dando más monedas, pero cada una cuesta más que la anterior.
+
+**El daño ya no lo sube cualquier compra.** Cada nivel de cualquier item sumaba
+un 15 % de daño, así que lo mejor era comprar siempre lo más barato, sin mirar qué
+era («compras todo lo que ves sin pensar»). Ahora cada nivel da un 4 % y las
+**Tijeras** dan un 35 % más por nivel (`DAMAGE_PER_LEVEL`,
+`TIJERAS_DAMAGE_PER_LEVEL`). Cada item hace lo suyo, y el primer rebirth sigue
+cayendo en ~15 minutos.
 
 **Las monedas ya no dan nada solas.** Cada una subía un 5 % el valor de todo lo
 que vendías sin hacer nada, y eso dejaba el rebirth sin decisión: se acumulaba
@@ -503,6 +550,23 @@ el margen de los sobres bajó un poco (`VALUE_SCALE` 2,2 → 2,06) y el requisit
 subió a 150.000 para dejarlo otra vez en los quince. Con `clasico` en la línea de
 comandos el simulador apaga todo esto, y con `sin_dorado`, `sin_vip`,
 `sin_feliz`, `sin_encargos`, `sin_perfecto` o `sin_album` apaga solo esa pieza.
+
+### Animaciones
+
+- **Los paneles** (tienda, armario, rebirth, libreta, ajustes y la tarjeta de
+  revelado) entran creciendo desde el centro con un pequeño rebote y se van
+  encogiéndose. Lo hace `MainRoot` en `push_veil`/`push_overlay`, así que un
+  panel nuevo lo tiene sin hacer nada. Al cerrar, el panel sale del velo **en el
+  acto** (`has_veil()` ya no lo ve) y termina la animación en una capa aparte,
+  `Closing`, donde ya no recibe clics ni teclas.
+- **Los eventos** (comprador VIP, hora feliz, sobre dorado y frenesí) sacan un
+  **cartel que baja desde arriba** (`MainRoot.banner`) y un **destello dorado**
+  en toda la pantalla. La línea de abajo con los segundos sigue igual.
+- **Los sobres caen** desde arriba de la pantalla, por encima de la barra,
+  acelerando. Al tocar la mesa se aplastan, levantan polvo, rebotan a su forma,
+  suena un golpe sordo y la mesa tiembla un momento (`TableElement.play_drop` y
+  la señal `landed`).
+- **Los avisos** entran subiendo un poco además de aparecer.
 
 ### Teclado
 

@@ -89,7 +89,7 @@ func _ready() -> void:
 	add_child(UIKit.label_at("ARMARIO", Vector2(960, TITLE_Y), Vector2(1400, 70),
 		48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
-	var close := UIKit.close_button(Vector2(1650, TITLE_Y), 96.0)
+	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
 	add_child(close)
 
@@ -209,8 +209,9 @@ func _build_stats() -> void:
 	# Los porcentajes salen de LootDB y no escritos a mano: este rotulo decia
 	# "DEL 2 % AL 15 %" cuando el tope ya era el 25 %. Y es CORTO a proposito: con
 	# 53 letras en 660 px encogia hasta 7 px de alto, que no se leia ni de cerca.
-	add_child(UIKit.label_at("CADA OBJETO DA DEL %d %% AL %d %% SEGUN SU NOTA" % [
-				roundi(LootDB.KIND_BONUS_MIN * 100.0), roundi(LootDB.KIND_BONUS_MAX * 100.0)],
+	# Ahora el bonus depende de mas cosas (ver LootDB.bonus_for), y la pista dice
+	# las dos que se le escapan al jugador: el valor cuenta y repetir tipo resta.
+	add_child(UIKit.label_at("MAS NOTA, RAREZA Y SOBRE CARO, MAS DA. REPETIR TIPO DA MENOS",
 			Vector2(RIGHT_MID, HINT_Y), Vector2(660, 32), 14, HINT_COLOR,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 

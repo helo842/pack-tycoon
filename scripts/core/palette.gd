@@ -25,6 +25,10 @@ const NIGHT_LL := Color8(36, 30, 50)
 const SHINE := Color8(255, 232, 176)
 const SHINE_HI := Color8(255, 240, 200)
 
+## El tinte de un precio que no te llega. No es rojo porque el precio va sobre
+## la cinta roja (ui_tag_price) y ahi no se leeria: se apaga en gris.
+const PRICE_OFF := Color(0.6, 0.6, 0.6)
+
 # El color de cada rareza (el "base" de RARITIES en make_sprites.py).
 const RARITY := {
 	"common": Color8(154, 160, 170),

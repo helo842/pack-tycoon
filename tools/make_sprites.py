@@ -1384,25 +1384,20 @@ def draw_timer_fill(s: Sprite) -> None:
 
 
 def draw_panel_reveal(s: Sprite) -> None:
-    """Tarjeta de revelado: donde se enseña objeto, rareza, nota y valor.
+    """Tarjeta de revelado: canto de carton y el interior casi negro.
 
-    Mismo esqueleto de 9-slice que los otros paneles (100x60 de arte, margen 8)
-    para que Godot use los mismos margenes, pero cuerpo casi negro: el objeto
-    tiene que destacar sobre el, al contrario que en la tienda.
+    Mismo esqueleto de 9-slice que los otros paneles (100x60 de arte, margen 4),
+    pero el cuerpo es oscuro: el objeto tiene que destacar sobre el. No lleva
+    esquina recortada porque la tarjeta no tiene boton de cerrar.
     """
     w, h = s.w, s.h
-    s.rect(1, 1, w - 2, h - 2, GOLD_D)
-    s.rect(2, 2, w - 3, h - 3, GOLD_L)
-    s.rect(3, 3, w - 4, h - 4, GOLD_D)
+    draw_panel(s, flap=False)
     s.rect(4, 4, w - 5, h - 5, NIGHT)
-    s.rect(4, 4, w - 5, 4, NIGHT_LL)       # bisel superior
-    s.rect(4, h - 5, w - 5, h - 5, NIGHT_DD)
+    s.rect(4, 4, w - 5, 4, NIGHT_DD)                  # el carton hace sombra dentro
+    s.rect(4, h - 5, w - 5, h - 5, NIGHT_LL)
     # hueco reservado para el objeto, en el centro
     s.rect(28, 12, 71, 45, NIGHT_D)
-    s.rect(28, 12, 71, 13, NIGHT_L)
-    s.dots([(6, 6), (w - 7, 6), (6, h - 7), (w - 7, h - 7)], GOLD)
-    for cx, cy in ((1, 1), (w - 2, 1), (1, h - 2), (w - 2, h - 2)):
-        s.px(cx, cy, TRANSPARENT)
+    s.rect(28, 12, 71, 13, NIGHT_DD)
 
 
 def draw_fx_shine(s: Sprite) -> None:
@@ -1421,27 +1416,41 @@ def draw_fx_shine(s: Sprite) -> None:
 
 
 def draw_tag_price(s: Sprite) -> None:
-    """Chapita de valor: el precio de la columna de sobres y el de la tienda.
+    """Cinta roja con las puntas en cola de golondrina: el precio de la columna
+    de sobres, de la tienda y de las fichas.
 
-    Ya no se pone bajo los objetos de la mesa (ver scripts/screens/table_element.gd).
+    La cinta ocupa las filas 2..h-3 (el 60 % del alto), que es la BANDA que mide
+    PACK_TAG_INK en game.gd: el numero tiene que caber dentro de ella.
     """
+    # Sin contorno negro (estilo C): el canto RED_D ya la recorta del fondo.
+    s.want_outline = False
     w, h = s.w, s.h
-    punta = [(3, 2), (w - 4, 2), (w - 2, h // 2), (w - 4, h - 3), (3, h - 3), (1, h // 2)]
-    s.poly(punta, CREAM)
-    s.poly([(4, 3), (w - 5, 3), (w - 3, h // 2), (w - 5, h - 4), (4, h - 4), (2, h // 2)], CREAM_D)
-    s.poly([(5, 4), (w - 6, 4), (w - 4, h // 2), (w - 6, h - 5), (5, h - 5), (3, h // 2)], CREAM_L)
-    s.ellipse(4, h // 2 - 1, 6, h // 2 + 1, CREAM_D)     # agujero de la chapita
-    s.rect(4, h // 2 - 1, 6, h // 2 - 1, CREAM)
+    top, bot, mid = 2, h - 3, (h - 1) / 2.0
+    s.poly([(1, top), (w - 2, top), (w - 4, mid), (w - 2, bot), (1, bot), (3, mid)], RED_D)
+    s.poly([(3, top + 1), (w - 4, top + 1), (w - 5, mid), (w - 4, bot - 1), (3, bot - 1), (4, mid)], RED)
+    s.rect(3, top, w - 4, top, RED_L)                 # canto con luz
+    s.rect(3, bot, w - 4, bot, RED_D)                 # canto en sombra
+    for x in (3, w - 4):                              # pliegue de cada punta
+        s.rect(x, top + 1, x, bot - 1, RED_D)
 
 
 def draw_button_sell(s: Sprite) -> None:
-    """Boton de vender. Sin texto: la etiqueta la pone Godot."""
+    """Boton de vender: la etiqueta de carton, pero ROJA (la de oferta)."""
+    _etiqueta(s, False, RED, RED_L, RED_D)
+
+
+def _etiqueta(s: Sprite, pressed: bool, body: RGBA, hi: RGBA, lo: RGBA) -> None:
+    """Etiqueta de carton recortada: el cuerpo de los botones de toda la interfaz.
+
+    Sin marco dorado: el borde es el contorno oscuro y el canto de abajo, que es
+    lo que hace que se lea como un trozo de carton y no como una placa. El texto
+    va en el cuerpo, a 3 px del borde (PLATE_BODY y SMALL_BODY en ui_kit.gd).
+    """
     w, h = s.w, s.h
-    s.rect(1, 1, w - 2, h - 2, GOLD_L)
-    s.rect(2, 2, w - 3, h - 3, GOLD_D)
-    s.rect(3, 3, w - 4, h - 4, NIGHT_L)                   # cuerpo oscuro, es accion de perder
-    s.rect(3, 3, w - 4, 4, NIGHT_LL)
-    s.rect(3, h - 4, w - 4, h - 4, NIGHT_DD)
+    s.rect(1, 1, w - 2, h - 2, lo)                    # canto (grosor del carton)
+    s.rect(1, 1, w - 2, h - 3, body if not pressed else lo)
+    if not pressed:                                   # al pulsar no hay luz: se hunde
+        s.rect(1, 1, w - 2, 1, hi)                    # luz de arriba
     for cx, cy in ((1, 1), (w - 2, 1), (1, h - 2), (w - 2, h - 2)):
         s.px(cx, cy, TRANSPARENT)
 
@@ -1622,295 +1631,260 @@ def draw_crowbar(s: Sprite) -> None:
 # Sustituyen a las cuatro herramientas: ya no acortan la espera, suben el dano,
 # la suerte o el espacio de la mesa. Se dibujan a 32x32 y salen a 512, como las
 # herramientas, para que la tienda los pinte al mismo tamano.
-# --------------------------------------------------------------------------- ### EL GUANTE: una manopla de cuero, tramo a tramo.
-##
-## Es la unica pieza ORGANICA de la tienda. Probado a elipses y rectangulos en
-## tres versiones seguidas, siempre salia lo mismo: una masa redonda sin
-## pulgar y una muneca que se confundia con el puno. A 32 px no hay sitio para
-## corregirlo despues, asi que la silueta va escrita a mano, fila a fila.
-##
-## La pieza son TRES tramos de fila (y, x0, x1) sobre una rejilla de 13x20 que
-## se coloca en GLOVE_AT: el cuerpo, el pulgar (pegado al costado izquierdo,
-## arrancando a media altura) y el puno (mas ancho que la muneca, para que se
-## lea como un brazalete y no como el fondo del cuerpo).
-##
-## El sombreado NO va escrito: sale de mirar los vecinos, con la luz arriba a
-## la izquierda. Un pixel con el vecino de arriba o de la izquierda vacio es
-## borde iluminado; con el de abajo o el de la derecha vacio, borde en sombra.
-## Asi la rampa sigue la silueta sola y no hay que repintarla si cambia una
-## fila. Los detalles (costura del pulgar, banda dorada, puntadas) van encima.
-GLOVE_AT: Tuple[int, int] = (8, 4)
-
-GLOVE_BODY: List[Tuple[int, int, int]] = [
-    (0, 9, 10),
-    (1, 7, 12),
-    (2, 6, 13),
-    (3, 5, 14),
-    (4, 5, 14), (5, 5, 14), (6, 5, 14), (7, 5, 14),
-    (8, 5, 14), (9, 5, 14), (10, 5, 14), (11, 5, 14),
-    (12, 5, 14),
-    (13, 5, 14),
-    (14, 5, 13),
-]
-
-GLOVE_THUMB: List[Tuple[int, int, int]] = [
-    (6, 3, 4),
-    (7, 2, 4),
-    (8, 1, 4), (9, 1, 4), (10, 1, 4),
-    (11, 2, 4),
-    (12, 3, 4),
-]
-
-GLOVE_CUFF: List[Tuple[int, int, int]] = [
-    (15, 5, 14),
-    (16, 4, 15), (17, 4, 15), (18, 4, 15),
-    (19, 4, 15), (20, 4, 15), (21, 4, 15),
-    (22, 5, 14),
-]
-
-
-def _glove_cells() -> set:
-    """Los pixeles de arte del guante, en coordenadas de su rejilla."""
-    cells = set()
-    for grupo in (GLOVE_BODY, GLOVE_THUMB, GLOVE_CUFF):
-        for y, x0, x1 in grupo:
-            for x in range(x0, x1 + 1):
-                cells.add((x, y))
-    return cells
+# ---------------------------------------------------------------------------
 
 
 def draw_item_guantes(s: Sprite) -> None:
-    """Manopla de cuero: el item de VELOCIDAD (ver GLOVE_BODY)."""
-    ox, oy = GLOVE_AT
-    cells = _glove_cells()
-
-    def vacio(x: int, y: int) -> bool:
-        return (x, y) not in cells
-
-    tone: Dict[Tuple[int, int], RGBA] = {}
-    for x, y in cells:
-        if vacio(x - 1, y) or vacio(x, y - 1):
-            tone[(x, y)] = LEATHER_HI
-        elif vacio(x + 1, y) or vacio(x, y + 1):
-            tone[(x, y)] = LEATHER
-        else:
-            tone[(x, y)] = LEATHER_L
-
-    # Segunda fila de penumbra: se probo a encadenarla a todo el canto en
-    # sombra y salia una escalera de pixeles oscuros por el costado derecho.
-    # Se deja en el canto y en el pliegue de abajo, que es lo que se lee.
-    for (x, y), color in tone.items():
-        s.px(ox + x, oy + y, color)
-
-    # dorso: el canto derecho en penumbra y un pliegue suelto junto a la muneca
-    for y in range(3, 14):
-        s.px(ox + 13, oy + y, LEATHER)
-    for x in (6, 7):
-        s.px(ox + x, oy + 13, LEATHER)
-
-    # brillo: un solo tramo de luz plena en el hombro de la manopla. Con seis
-    # pixeles el hombro se comia el borde y parecia un pegote claro.
-    for x, y in ((6, 5), (7, 5), (6, 6)):
-        s.px(ox + x, oy + y, LEATHER_HI)
-
-    # costura del pulgar: la linea que lo despega del cuerpo
-    for y in range(7, 13):
-        s.px(ox + 5, oy + y, LEATHER_D)
-
-    # separacion de los dedos: dos muescas cortas desde el borde de arriba. Sin
-    # ellas la manopla se leia como un calcetin; con ellas se ve la mano dentro.
-    for x, y0, y1 in ((9, 3, 5), (11, 2, 4)):
-        for y in range(y0, y1 + 1):
-            s.px(ox + x, oy + y, LEATHER_D)
-
-    # puno: cuero granate, ribete dorado y puntadas de la banda. Se recorre el
-    # tramo de cada fila (no un rectangulo) para no pintar fuera de la silueta.
-    for y, x0, x1 in GLOVE_CUFF:
-        for x in range(x0, x1 + 1):
-            s.px(ox + x, oy + y, RUST_D)
-    for y, x0, x1 in GLOVE_CUFF:
-        banda = {16: GOLD, 17: GOLD_D, 22: shade(RUST_D, -0.30)}.get(y)
-        if banda is None:
-            continue
-        for x in range(x0, x1 + 1):
-            s.px(ox + x, oy + y, banda)
-    for x in (7, 9, 11, 13):
-        s.px(ox + x, oy + 19, CREAM)
-        s.px(ox + x, oy + 20, CREAM)
+    """Guante de carreras sin dedos: el item de VELOCIDAD (franja y estelas)."""
+    dedos = ((8, 4, 10), (11, 2, 13), (14, 2, 16), (17, 4, 19))
+    for x0, y0, x1 in dedos:
+        s.rect(x0, y0, x1, y0 + 3, LEATHER_L)        # piel que asoma
+        s.rect(x0, y0, x1 - 1, y0, LEATHER_HI)
+        s.rect(x0, y0 + 4, x1, 13, DARK_SOFT)
+        s.rect(x1, y0 + 4, x1, 13, DARK)
+    s.poly([(4, 12), (8, 11), (8, 18), (5, 16)], DARK_SOFT)
+    s.rect(4, 12, 5, 13, LEATHER_L)
+    s.rect(8, 12, 20, 22, DARK_SOFT)
+    s.rect(20, 12, 20, 22, DARK)
+    s.rect(9, 12, 19, 14, SLATE)                     # protector de nudillos
+    s.rect(9, 12, 19, 12, STEEL_DD)
+    s.poly([(8, 20), (20, 15), (20, 17), (8, 22)], GOLD)   # franja
+    s.line([(8, 20), (20, 15)], GOLD_HI)
+    s.rect(7, 23, 21, 28, TEAL_D)                    # velcro
+    s.rect(7, 23, 21, 23, TEAL)
+    s.rect(12, 24, 21, 27, TEAL)
+    s.dots([(14, 25), (17, 25), (20, 25)], TEAL_L)
+    for y, x0, x1 in ((8, 23, 29), (13, 24, 30), (18, 23, 28)):
+        s.rect(x0, y, x1, y, CREAM)
 
 
 def draw_item_tijeras(s: Sprite) -> None:
-    """Tijeras del item de dano. Reutiliza el dibujo de las tijeras viejas."""
-    draw_scissors(s)
+    """Tijeras de sastre abiertas hacia arriba: hojas largas y anillas rojas."""
+    # hojas: dos cunas que salen del pivote (16,18) hacia arriba
+    s.poly([(15, 18), (6, 3), (8, 2), (17, 17)], STEEL_D)
+    s.poly([(17, 18), (26, 3), (24, 2), (15, 17)], STEEL_D)
+    s.line([(8, 3), (16, 17)], STEEL)
+    s.line([(24, 3), (16, 17)], STEEL)
+    s.line([(7, 3), (11, 9)], WHITE)          # filo con brillo
+    s.line([(25, 3), (21, 9)], WHITE)
+    # brazos hasta las anillas
+    s.rect(13, 18, 14, 21, STEEL_DD)
+    s.rect(18, 18, 19, 21, STEEL_DD)
+    # anillas
+    s.ring(4, 20, 14, 29, RED_D, width=3)
+    s.ring(5, 21, 13, 28, RED, width=2)
+    s.ring(18, 20, 28, 29, RED_D, width=3)
+    s.ring(19, 21, 27, 28, RED, width=2)
+    s.arc(5, 21, 13, 28, 180, 260, fill=RED_L)
+    s.arc(19, 21, 27, 28, 180, 260, fill=RED_L)
+    # tornillo
+    s.ellipse(14, 16, 18, 20, GOLD_D)
+    s.ellipse(15, 17, 17, 19, GOLD)
+    s.px(15, 17, GOLD_HI)
 
 
 def draw_item_trebol(s: Sprite) -> None:
-    """Trebol de cuatro hojas: tira mas botin raro."""
-    # tallo
-    s.rect(15, 17, 16, 27, GREEN_D)
-    s.rect(15, 17, 15, 27, GREEN)
-    # cuatro hojas, mirando a las diagonales
-    s.ellipse(8, 5, 16, 14, GREEN_D)
-    s.ellipse(16, 5, 24, 14, GREEN_D)
-    s.ellipse(8, 11, 16, 20, GREEN_D)
-    s.ellipse(16, 11, 24, 20, GREEN_D)
-    s.ellipse(9, 6, 15, 13, GREEN)
-    s.ellipse(17, 6, 23, 13, GREEN)
-    s.ellipse(9, 12, 15, 19, GREEN)
-    s.ellipse(17, 12, 23, 19, GREEN)
-    # brillo de la hoja de arriba-izquierda
-    s.ellipse(10, 7, 13, 10, GREEN_L)
-    s.dots([(12, 8), (20, 8)], GREEN_L)
-    # muesca entre hojas
-    s.px(14, 10, GREEN_D)
-    s.px(17, 10, GREEN_D)
-    s.px(14, 16, GREEN_D)
-    s.px(17, 16, GREEN_D)
+    """Trebol de cuatro hojas en forma de corazon, con su destello de suerte."""
+    hojas = [  # dos lobulos por hoja, apuntando al centro (15,14)
+        ((8, 3, 14, 9), (14, 3, 20, 9)),     # no es simetrico a proposito:
+        ((8, 15, 14, 21), (14, 15, 20, 21)),  # el trebol se lee mejor ladeado
+        ((3, 8, 9, 14), (3, 14, 9, 20)),
+        ((19, 8, 25, 14), (19, 14, 25, 20)),
+    ]
+    for a, b in hojas:
+        s.ellipse(*a, GREEN_D)
+        s.ellipse(*b, GREEN_D)
+    for a, b in hojas:
+        s.ellipse(a[0] + 1, a[1] + 1, a[2] - 1, a[3] - 1, GREEN)
+        s.ellipse(b[0] + 1, b[1] + 1, b[2] - 1, b[3] - 1, GREEN)
+    s.rect(11, 9, 17, 15, GREEN)
+    # nervios: cruz oscura desde el centro
+    s.line([(14, 6), (14, 18)], GREEN_D)
+    s.line([(6, 12), (22, 12)], GREEN_D)
+    s.dots([(10, 5), (11, 5), (5, 10), (5, 11), (16, 5), (10, 17)], GREEN_L)
+    # tallo curvo
+    s.line([(14, 19), (15, 23), (17, 27), (19, 29)], GREEN_D, width=2)
+    s.line([(14, 20), (15, 23), (17, 26)], GREEN)
+    # destello
+    s.dots([(26, 3), (25, 4), (27, 4), (26, 5), (26, 2), (26, 6), (24, 4), (28, 4)], GOLD_HI)
+    s.px(26, 4, WHITE)
 
 
 def draw_item_pinchos(s: Sprite) -> None:
-    """Banda de pinchos: danan todas las cajas de la mesa a la vez."""
-    # base metalica
-    s.rect(3, 20, 28, 25, STEEL_D)
-    s.rect(3, 20, 28, 21, STEEL)
-    s.rect(3, 24, 28, 25, STEEL_DD)
-    # punta de cada pincho
-    for x in range(4, 27, 5):
-        s.poly([(x, 20), (x + 2, 6), (x + 4, 20)], STEEL_D)
-        s.poly([(x + 1, 20), (x + 2, 7), (x + 3, 20)], STEEL)
-        s.line([(x + 2, 7), (x + 2, 20)], WHITE)   # filo iluminado
-    # remaches de la base
-    s.dots([(5, 23), (15, 23), (26, 23)], GOLD_D)
+    """Bloque de pinchos: dos filas de puas sobre una base remachada."""
+    # fila de atras: puntas oscuras entre las de delante
+    for x in range(5, 20, 6):
+        s.poly([(x, 20), (x + 3, 8), (x + 6, 20)], STEEL_DD)
+    # fila de delante: cada pua con su cara iluminada y su cara en sombra
+    for x in range(2, 21, 6):
+        s.poly([(x, 21), (x + 4, 4), (x + 8, 21)], STEEL_D)
+        s.poly([(x + 1, 21), (x + 4, 5), (x + 4, 21)], STEEL)
+        s.line([(x + 3, 9), (x + 4, 5)], WHITE)
+    # base de madera con flejes
+    s.rect(2, 21, 29, 28, BROWN)
+    s.rect(2, 21, 29, 22, BROWN_L)
+    s.rect(2, 27, 29, 28, BROWN_D)
+    s.rect(2, 24, 29, 24, STEEL_DD)
+    s.dots([(4, 24), (10, 24), (16, 24), (22, 24), (27, 24)], GOLD)
 
 
 def draw_item_cajon(s: Sprite) -> None:
-    """Cajon de madera: mas espacio en la mesa."""
-    # cuerpo
-    s.rect(4, 8, 27, 26, BROWN)
-    s.rect(4, 8, 27, 10, BROWN_L)          # canto superior
-    s.rect(4, 24, 27, 26, BROWN_D)         # canto inferior
-    s.rect(4, 8, 4, 26, BROWN_L)           # lateral iluminado
-    s.rect(27, 8, 27, 26, BROWN_D)
-    # tirador
-    s.rect(8, 16, 23, 20, BROWN_D)
-    s.rect(9, 17, 22, 19, GOLD_D)
-    s.rect(9, 17, 22, 17, GOLD)
-    s.dots([(11, 18), (20, 18)], GOLD_HI)
-    # esquinas metalicas
-    s.dots([(5, 9), (26, 9), (5, 25), (26, 25)], STEEL_DD)
+    """Comoda con el cajon de abajo sacado: se ve el sitio de dentro."""
+    # mueble
+    s.rect(3, 3, 28, 20, BROWN)
+    s.rect(3, 3, 28, 4, BROWN_L)
+    s.rect(3, 3, 3, 20, BROWN_L)
+    s.rect(28, 3, 28, 20, BROWN_D)
+    # cajon de arriba, cerrado
+    s.rect(5, 6, 26, 11, BROWN_D)
+    s.rect(6, 7, 25, 10, BROWN)
+    s.rect(13, 8, 18, 9, GOLD)
+    s.px(13, 8, GOLD_HI)
+    # hueco del cajon sacado
+    s.rect(5, 13, 26, 19, WOOD_DD)
+    # cajon sacado: interior y frente, mas ancho (mas cerca)
+    s.poly([(4, 17), (27, 17), (29, 22), (2, 22)], WOOD_M)
+    s.rect(4, 18, 9, 21, CREAM_D)           # un sobre dentro
+    s.rect(11, 18, 14, 21, GOLD_D)          # una caja dentro
+    s.rect(11, 18, 14, 18, GOLD)
+    s.rect(2, 22, 29, 28, BROWN)
+    s.rect(2, 22, 29, 23, BROWN_L)
+    s.rect(2, 28, 29, 28, BROWN_D)
+    s.rect(12, 24, 19, 26, GOLD_D)
+    s.rect(12, 24, 19, 24, GOLD)
+    s.dots([(13, 24), (14, 24)], GOLD_HI)
 
 
 def draw_item_pc(s: Sprite) -> None:
-    """Ordenador: zona de compra automatica por tiempo."""
-    # pantalla
-    s.rect(5, 5, 26, 20, STEEL_D)
-    s.rect(5, 5, 26, 6, STEEL)
-    s.rect(5, 19, 26, 20, STEEL_DD)
-    s.rect(7, 7, 24, 18, LCD_D)
-    s.rect(8, 8, 23, 17, LCD)
-    # lineas de "codigo" en el monitor
-    s.dots([(9, 10), (12, 10), (17, 10)], LCD_L)
-    s.dots([(9, 12), (14, 12), (20, 12)], LCD_D)
-    s.dots([(9, 14), (12, 14)], LCD_L)
-    # peana
-    s.rect(13, 20, 18, 24, STEEL_D)
-    s.rect(9, 24, 22, 26, STEEL_D)
-    s.rect(9, 24, 22, 24, STEEL)
+    """Ordenador de tubo con teclado; en pantalla, un carrito: compra solo."""
+    # monitor
+    s.rect(4, 2, 27, 19, CREAM_D)
+    s.rect(4, 2, 27, 3, CREAM)
+    s.rect(4, 2, 4, 19, CREAM)
+    s.rect(27, 2, 27, 19, CRINKLE)
+    s.rect(6, 4, 25, 16, LCD_D)
+    s.rect(7, 5, 24, 15, LCD)
+    # carrito en pantalla
+    s.line([(9, 7), (11, 7), (12, 12), (20, 12), (22, 8), (12, 8)], LCD_D)
+    s.rect(13, 9, 20, 11, LCD_D)
+    s.dots([(13, 14), (19, 14)], LCD_D)
+    s.dots([(8, 6), (9, 6)], WHITE)            # reflejo del cristal
+    s.dots([(22, 17), (23, 17)], GREEN_L)      # piloto encendido
+    s.rect(6, 17, 9, 17, CRINKLE)
+    # peana y teclado
+    s.rect(12, 20, 19, 21, CRINKLE)
+    s.poly([(4, 23), (27, 23), (29, 28), (2, 28)], CREAM_D)
+    s.rect(3, 27, 28, 28, CRINKLE)
+    for y in (24, 26):
+        for x in range(5, 27, 3):
+            s.rect(x, y, x + 1, y, CREAM)
 
 
 def draw_item_armario(s: Sprite) -> None:
-    """Armario de dos puertas: expone objetos y da stats."""
-    s.rect(5, 4, 26, 28, BROWN)
-    s.rect(5, 4, 26, 5, BROWN_L)
-    s.rect(5, 27, 26, 28, BROWN_D)
-    s.rect(5, 4, 5, 28, BROWN_L)
-    s.rect(26, 4, 26, 28, BROWN_D)
-    # junta de las puertas
-    s.rect(15, 5, 16, 27, BROWN_D)
-    s.rect(15, 5, 15, 27, BROWN_L)
-    # paneles
-    s.rect(8, 8, 13, 24, BROWN_D)
-    s.rect(18, 8, 23, 24, BROWN_D)
-    # tiradores dorados
-    s.rect(13, 15, 14, 18, GOLD)
-    s.rect(17, 15, 18, 18, GOLD)
-    s.px(13, 15, GOLD_HI)
-    s.px(18, 15, GOLD_HI)
+    """Vitrina de cristal con piezas expuestas en sus baldas."""
+    # mueble
+    s.rect(4, 1, 27, 29, BROWN)
+    s.rect(3, 1, 28, 3, BROWN_L)          # cornisa
+    s.rect(4, 26, 27, 29, BROWN_D)
+    s.rect(4, 4, 4, 25, BROWN_L)
+    # cristal (fondo oscuro azulado)
+    s.rect(6, 5, 25, 24, NIGHT_LL)
+    # baldas
+    for y in (11, 18, 24):
+        s.rect(6, y, 25, y, BROWN_L)
+    # piezas: moneda, carta, gema / vinilo, zapatilla
+    s.ellipse(8, 7, 11, 10, GOLD)
+    s.px(9, 8, GOLD_HI)
+    s.rect(14, 6, 16, 10, CREAM)
+    s.rect(15, 7, 15, 9, RED)
+    s.poly([(21, 6), (23, 8), (21, 10), (19, 8)], TEAL_L)
+    s.px(21, 7, WHITE)
+    s.ellipse(8, 13, 12, 17, DARK)
+    s.px(10, 15, RED_L)
+    s.rect(16, 15, 23, 17, WHITE)
+    s.rect(16, 14, 18, 15, WHITE)
+    s.rect(16, 17, 23, 17, RED)
+    s.rect(8, 20, 12, 23, CARD_L)
+    s.rect(16, 21, 23, 23, STEEL_D)
+    # reflejo del cristal en diagonal
+    s.line([(19, 5), (25, 11)], STEEL_DD)
+    s.line([(6, 17), (12, 23)], STEEL_DD)
+    # junta de las dos puertas y tiradores
+    s.rect(15, 5, 16, 24, BROWN)
+    s.dots([(14, 15), (17, 15)], GOLD_HI)
+    s.dots([(14, 16), (17, 16)], GOLD)
 
 
 def draw_item_ojo_verde(s: Sprite) -> None:
-    """Ojo verde: probabilidad de critico al golpear la caja."""
-    # almendra del ojo
-    s.poly([(3, 16), (9, 9), (22, 9), (28, 16), (22, 23), (9, 23)], WHITE)
-    s.poly([(3, 16), (9, 9), (22, 9), (28, 16), (20, 15), (10, 15)], CREAM_D)
-    # iris
-    s.ellipse(11, 10, 21, 22, GREEN_D)
-    s.ellipse(12, 11, 20, 21, GREEN)
-    s.ellipse(15, 13, 18, 17, DARK)
-    s.px(14, 12, GREEN_L)          # brillo
-    # pestana superior marcada
-    s.line([(3, 16), (9, 9)], OUTLINE)
+    """Ojo con pestanas y el iris con dos brillos: el ojo del critico."""
+    s.poly([(2, 16), (8, 9), (16, 7), (24, 9), (30, 16), (24, 22), (16, 24), (8, 22)], WHITE)
+    s.poly([(2, 16), (8, 9), (16, 7), (24, 9), (30, 16), (16, 12)], CREAM_D)
+    s.ellipse(10, 9, 22, 22, GREEN_D)
+    s.ellipse(11, 10, 21, 21, GREEN)
+    s.ellipse(12, 15, 20, 21, GREEN_L)
+    s.ellipse(14, 13, 18, 18, DARK)
+    s.dots([(13, 12), (14, 12), (13, 13)], WHITE)
+    s.px(19, 18, WHITE)
+    # parpado y pestanas
+    s.line([(2, 16), (8, 9), (16, 7), (24, 9), (30, 16)], DARK, width=1)
+    for a, b in (((6, 10), (4, 7)), ((11, 8), (10, 4)), ((16, 7), (16, 3)),
+                 ((21, 8), (22, 4)), ((26, 10), (28, 7))):
+        s.line([a, b], DARK)
+    # chispa de critico
+    s.dots([(27, 21), (26, 22), (28, 22), (27, 23)], GOLD_HI)
+    s.px(27, 22, WHITE)
 
 
 def draw_item_dolar(s: Sprite) -> None:
-    """Billete de dolar: el item que ABASTA todos los sobres.
-
-    Es un BILLETE y no una moneda a proposito: la moneda de oro ya es el icono
-    del dinero en toda la interfaz, y un segundo circulo dorado en la tienda se
-    leeria como "esto te da dinero", cuando lo que hace es que gastes menos. El
-    rectangulo horizontal, ademas, no se parece a nada mas de la rejilla.
-    """
-    # ---- billete ----
-    s.rect(2, 6, 29, 25, GREEN_D)              # borde
-    s.rect(3, 7, 28, 24, GREEN)                # cuerpo
-    s.rect(3, 7, 28, 7, GREEN_L)               # canto iluminado
-    s.rect(3, 24, 28, 24, GREEN_D)             # canto en sombra
-    # marco interior, a un px del borde
-    s.rect(5, 9, 26, 9, GREEN_D)
-    s.rect(5, 22, 26, 22, GREEN_D)
-    s.rect(5, 9, 5, 22, GREEN_D)
-    s.rect(26, 9, 26, 22, GREEN_D)
-    # esquinas del grabado
-    s.dots([(7, 11), (24, 11), (7, 20), (24, 20)], GREEN_L)
-    s.dots([(7, 12), (24, 12), (7, 19), (24, 19)], GREEN_D)
-    # ---- el simbolo del dolar, 5x9 ----
-    # Se pinta con el patron y no con poligonos: a este tamano una S de curvas
-    # sale con escalones feos, y aqui cada px tiene que decir algo.
-    patron = (
-        "..#..",
-        "..#..",
-        ".###.",
-        ".#...",
-        ".###.",
-        "...#.",
-        ".###.",
-        "..#..",
-        "..#..",
-    )
-    for y, fila in enumerate(patron):
-        for x, c in enumerate(fila):
+    """Fajo de billetes con una etiqueta roja de descuento: abarata."""
+    for i, (x, y) in enumerate(((5, 12), (3, 9), (1, 6))):
+        s.rect(x, y, x + 24, y + 13, GREEN_D)
+        s.rect(x + 1, y + 1, x + 23, y + 12, GREEN if i == 2 else shade(GREEN, -0.15))
+    x, y = 1, 6
+    s.rect(x + 1, y + 1, x + 23, y + 1, GREEN_L)
+    s.rect(x + 3, y + 3, x + 21, y + 10, GREEN_D)
+    s.rect(x + 4, y + 4, x + 20, y + 9, GREEN)
+    s.ellipse(x + 9, y + 3, x + 15, y + 10, GREEN_L)
+    patron = (".#.", "###", "#..", "###", "..#", "###", ".#.")
+    for yy, fila in enumerate(patron):
+        for xx, c in enumerate(fila):
             if c == "#":
-                s.px(13 + x, 11 + y, CREAM)
+                s.px(x + 11 + xx, y + 3 + yy, GREEN_D)
+    # etiqueta de descuento colgando
+    s.line([(20, 15), (22, 19)], CREAM_D)
+    s.poly([(20, 19), (29, 19), (29, 29), (20, 29), (18, 24)], RED)
+    s.rect(21, 19, 29, 20, RED_L)
+    s.px(20, 24, RED_D)
+    # un "%" en crema
+    for yy, fila in enumerate(("##..#", "##.#.", "..#..", ".#.##", "#..##")):
+        for xx, c in enumerate(fila):
+            if c == "#":
+                s.px(22 + xx, 22 + yy, CREAM)
 
 
 def draw_item_laser(s: Sprite) -> None:
-    """Laser: sube el dano critico."""
-    # cuerpo
-    s.rect(4, 13, 17, 20, STEEL_D)
-    s.rect(4, 13, 17, 14, STEEL)
-    s.rect(4, 19, 17, 20, STEEL_DD)
-    # boca / lente
-    s.rect(17, 14, 20, 19, DARK_SOFT)
-    s.rect(20, 15, 21, 18, DARK)
-    # empunadura
-    s.rect(6, 20, 11, 27, DARK_SOFT)
-    s.rect(6, 20, 11, 21, STEEL_DD)
-    # haz
-    s.rect(21, 16, 29, 17, RED_L)
-    s.rect(21, 16, 26, 16, RED)
-    s.px(29, 16, RED_L)
-    # boton
-    s.px(8, 18, GOLD_HI)
+    """Pistola laser de ciencia ficcion disparando un rayo con impacto."""
+    # canon
+    s.rect(3, 10, 16, 15, STEEL_D)
+    s.rect(3, 10, 16, 11, STEEL)
+    s.rect(3, 15, 16, 15, STEEL_DD)
+    s.rect(6, 8, 13, 9, STEEL_DD)            # mira
+    s.rect(16, 11, 19, 14, TEAL_D)           # bobina
+    s.rect(16, 11, 19, 11, TEAL)
+    s.rect(19, 12, 20, 13, RED_L)            # boca
+    # bateria con luces
+    s.rect(5, 12, 11, 13, TEAL_D)
+    s.dots([(6, 12), (8, 12), (10, 12)], TEAL_L)
+    # empunadura en angulo
+    s.poly([(5, 16), (10, 16), (9, 25), (4, 25)], DARK_SOFT)
+    s.line([(6, 17), (5, 24)], SLATE)
+    s.rect(10, 16, 12, 19, STEEL_DD)         # guardamonte
+    # rayo
+    s.rect(21, 12, 27, 13, RED)
+    s.rect(21, 12, 27, 12, RED_L)
+    # impacto
+    s.dots([(28, 12), (28, 13), (29, 11), (29, 14), (30, 12), (30, 13), (28, 10), (28, 15)], GOLD_HI)
+    s.dots([(29, 12), (29, 13)], WHITE)
 
 
 # --------------------------------------------------------------------------- #
@@ -2135,29 +2109,8 @@ def draw_rarity_glow(s: Sprite, rarity: Rarity) -> None:
 # --------------------------------------------------------------------------- #
 
 def draw_button_plate(s: Sprite, pressed: bool = False) -> None:
-    """Placa de boton vacia (24x8 px de arte). El texto lo pone Godot encima.
-
-    Pensada para rebanado en 9: el centro es plano, asi que se puede estirar.
-    """
-    w, h = s.w, s.h
-    inset = 1 if pressed else 0        # al pulsar, el contenido baja 1px
-
-    s.rect(1, 1, w - 2, h - 2, GOLD_D if pressed else GOLD_L)   # aro exterior
-    s.rect(2, 2, w - 3, h - 3, GOLD_D)                          # aro interior
-
-    body_top = 3 + inset
-    s.rect(3, body_top, w - 4, h - 4, BROWN_D)                  # cuerpo
-    s.rect(3, body_top, w - 4, h - 5, BROWN)
-    if not pressed:
-        s.rect(3, 3, w - 4, 4, BROWN_L)                         # bisel superior
-
-    # esquinas redondeadas
-    for cx, cy in ((1, 1), (w - 2, 1), (1, h - 2), (w - 2, h - 2)):
-        s.px(cx, cy, TRANSPARENT)
-    # SIN REMACHES. El cuerpo llevaba cuatro cuadrados de oro (dos a cada lado) y
-    # el usuario los quito: en el menu caian justo debajo del texto y se leian
-    # como dos puntos naranjas pegados a la ultima letra de JUGAR y AJUSTES. El
-    # cuerpo de la chapa ya tiene su bisel; no hace falta nada mas.
+    """Etiqueta de carton grande (los botones del menu). El texto lo pone Godot."""
+    _etiqueta(s, pressed, CARD_L, CREAM_D, CARD)
 
 
 def draw_icon_play(s: Sprite) -> None:
@@ -2400,57 +2353,112 @@ def draw_condition_broken(s: Sprite) -> None:
 PANEL_9SLICE = 8        # margen de rebanado en 9, en px de arte (= 128 px a escala 16)
 
 
-def draw_panel(s: Sprite, body: RGBA) -> None:
-    """Marco de ventana rebanable en 9: el centro es plano, asi que se estira."""
+## Cuantos px de arte se recorta la esquina de arriba a la derecha de los
+## paneles: ahi va la solapa doblada que hace de boton de cerrar
+## (UIKit.PANEL_CLOSE la coloca justo encima: 8 px de arte = 128 px).
+PANEL_FLAP = 8
+
+
+def draw_panel(s: Sprite, body: RGBA = CARD, lo: RGBA = WOOD_L, fiber: RGBA = BROWN_D,
+               flap: bool = True) -> None:
+    """Caja de carton: el marco de todas las ventanas (rebanable en 9).
+
+    Carton OSCURO a proposito: sobre el claro, el texto pequeno de los paneles
+    (crema y dorado apagados) no tenia contraste. El cuerpo llega al borde (el
+    marco es el contorno oscuro y un canto de carton), lleva vetas de fibra suaves y un trozo de cinta de embalar en
+    el canto de arriba. La esquina de arriba a la derecha va RECORTADA en
+    diagonal: la solapa de UIKit.close_button() se dobla justo ahi.
+    """
     w, h = s.w, s.h
-    s.rect(1, 1, w - 2, h - 2, GOLD_D)
-    s.rect(2, 2, w - 3, h - 3, GOLD_L)
-    s.rect(3, 3, w - 4, h - 4, GOLD_D)
-    s.rect(4, 4, w - 5, h - 5, body)
-    s.rect(4, 4, w - 5, 4, shade(body, 0.20))        # bisel superior
-    s.rect(4, h - 5, w - 5, h - 5, shade(body, -0.30))
-    s.dots([(6, 6), (w - 7, 6), (6, h - 7), (w - 7, h - 7)], GOLD)
-    for cx, cy in ((1, 1), (w - 2, 1), (1, h - 2), (w - 2, h - 2)):
+    s.rect(1, 1, w - 2, h - 2, body)
+    # vetas del carton: trazos cortos y sueltos, del mismo tono casi
+    for y in range(6, h - 4, 7):
+        for x in range(4 + (y * 7) % 11, w - 6, 23):
+            s.rect(x, y, x + 6, y, fiber)
+    s.rect(1, h - 3, w - 2, h - 2, lo)                # canto de abajo
+    s.rect(w - 3, 1, w - 2, h - 2, lo)                # canto de la derecha
+    s.rect(1, 1, w - 4, 1, CREAM_D)                   # luz del canto de arriba
+    # cinta de embalar en el canto de arriba, a la izquierda del centro
+    tx = w // 2 - 22
+    s.rect(tx, 1, tx + 28, 3, CRINKLE_L)
+    s.rect(tx, 3, tx + 28, 3, CRINKLE)
+    for x in range(tx + 2, tx + 27, 5):
+        s.px(x, 2, CREAM_D)
+    for cx, cy in ((1, 1), (1, h - 2), (w - 2, h - 2)):
         s.px(cx, cy, TRANSPARENT)
+    if flap:
+        # el triangulo de arriba a la derecha del cuadrado de la solapa; el
+        # contorno automatico pinta luego el filo de la diagonal
+        x0 = w - 1 - PANEL_FLAP
+        for ly in range(PANEL_FLAP):
+            for lx in range(ly + 1, PANEL_FLAP):
+                s.px(x0 + lx, 1 + ly, TRANSPARENT)
+
+
+def draw_panel_carton(s: Sprite) -> None:
+    """La caja de la tienda (estilo A de las maquetas): carton CLARO con rayas
+    a lo ancho y una tira de cinta de embalar en toda la cabecera, que es donde
+    van el titulo TIENDA y el dinero (ver shop_panel.gd, HEAD_Y).
+
+    Solo la usa la tienda: el resto de paneles llevan texto crema y dorado que
+    sobre este carton no se leeria (por eso ui_panel_shop sigue oscuro).
+    """
+    # Las rayas finas de la maqueta no caben a 16 px por pixel (salian tablones):
+    # se quedan las vetas sueltas de draw_panel, en el tono oscuro del carton.
+    draw_panel(s, body=CARD_L, lo=CARD, fiber=CARD)
+    w, h = s.w, s.h
+    # la cinta: filas 2..6 (y 92..172 en pantalla), hasta la solapa
+    x1 = w - 2 - PANEL_FLAP
+    s.rect(1, 2, x1, 6, CRINKLE_L)
+    s.rect(1, 2, x1, 2, CREAM_D)                      # canto con luz
+    s.rect(1, 6, x1, 6, CRINKLE)                      # canto en sombra
+    for x in range(4, x1 - 2, 6):                     # brillo en diagonal
+        s.px(x, 4, CREAM_D)
+        s.px(x + 1, 3, CREAM_D)
 
 
 def draw_slot(s: Sprite) -> None:
-    """Ranura de objeto vacia del inventario y de la tienda."""
+    """Hueco recortado en el carton: canto claro y fondo oscuro."""
     w, h = s.w, s.h
-    s.rect(1, 1, w - 2, h - 2, GOLD_D)
-    s.rect(2, 2, w - 3, h - 3, shade(BROWN_D, -0.2))
-    s.rect(3, 3, w - 4, h - 4, WOOD_M)
-    s.rect(3, 3, w - 4, 4, WOOD_DD)        # sombra interior
-    s.rect(3, 3, 4, h - 4, WOOD_DD)
-    s.rect(3, h - 5, w - 4, h - 4, shade(BROWN_L, -0.1))
+    s.rect(1, 1, w - 2, h - 2, CARD)
+    s.rect(2, 2, w - 3, h - 3, WOOD_M)
+    s.rect(2, 2, w - 3, 3, WOOD_DD)                   # sombra del canto de arriba
+    s.rect(2, h - 3, w - 3, h - 3, WOOD_L)
+    s.rect(1, h - 2, w - 2, h - 2, CARD_L)            # canto de abajo, con luz
     for cx, cy in ((1, 1), (w - 2, 1), (1, h - 2), (w - 2, h - 2)):
         s.px(cx, cy, TRANSPARENT)
 
 
 def draw_button_small(s: Sprite, pressed: bool = False) -> None:
-    """Boton compacto para acciones dentro de un panel (comprar, equipar...)."""
-    w, h = s.w, s.h
-    inset = 1 if pressed else 0
-    s.rect(1, 1, w - 2, h - 2, GOLD_D if pressed else GOLD_L)
-    s.rect(2, 2, w - 3, h - 3, GOLD_D)
-    s.rect(3, 3 + inset, w - 4, h - 4, BROWN_D)
-    s.rect(3, 3 + inset, w - 4, h - 5, BROWN)
-    if not pressed:
-        s.rect(3, 3, w - 4, 3, BROWN_L)
-    for cx, cy in ((1, 1), (w - 2, 1), (1, h - 2), (w - 2, h - 2)):
-        s.px(cx, cy, TRANSPARENT)
+    """Etiqueta de carton compacta (barra de arriba y botones de los paneles)."""
+    _etiqueta(s, pressed, CARD_L, CREAM_D, CARD)
 
 
 def draw_button_close(s: Sprite) -> None:
-    """Boton redondo de cerrar (aspa)."""
-    d = s.w
-    s.ellipse(1, 1, d - 2, d - 2, GOLD_D)
-    s.ellipse(2, 2, d - 3, d - 3, RUST_D)
-    s.d.arc([2, 2, d - 3, d - 3], 185, 275, fill=RUST_L, width=2)  # brillo
-    # el aspa necesita recorrido de sobra: con trazos cortos se embota en un borron
-    mid = d // 2
-    s.line([(mid - 4, mid - 4), (mid + 3, mid + 3)], CREAM, width=2)
-    s.line([(mid + 3, mid - 4), (mid - 4, mid + 3)], CREAM, width=2)
+    """La esquina de la caja doblada hacia dentro, con una X de rotulador.
+
+    Es el triangulo de abajo a la izquierda de su cuadrado: el de arriba a la
+    derecha es el hueco que deja la esquina recortada del panel (draw_panel).
+    Sin contorno automatico: el filo de la diagonal lo pone el contorno del
+    panel (que rodea su recorte) y los otros dos bordes son pliegues.
+    """
+    s.want_outline = False
+    n = s.w
+    for y in range(n):
+        for x in range(y + 1):
+            if x == 0 or y == n - 1:
+                c = CRINKLE                            # el pliegue con la caja
+            elif y - x <= 2:
+                c = CREAM_L                            # la luz en el filo doblado
+            else:
+                c = CREAM_D
+            s.px(x, y, c)
+    # la X a rotulador, en el centro del triangulo
+    for i in range(6):                          # trazos de 2 px, a rotulador
+        for k in (0, 1):
+            s.px(2 + i + k, 8 + i, RED)
+            s.px(7 - i + k, 8 + i, RED)
+    s.dots([(4, 11), (6, 11)], RED_D)          # donde se cruzan los trazos
 
 
 def draw_checkbox(s: Sprite, checked: bool) -> None:
@@ -3435,8 +3443,9 @@ UI_ITEMS: Dict[str, UiSpec] = {
     "cycle": UiSpec(32, 32, draw_skill_cycle, prefix="skill", scale=8),
 
     # --- kit de interfaz ---
-    "panel_shop": UiSpec(100, 60, partial(draw_panel, body=BROWN_D)),
-    "panel_settings": UiSpec(100, 60, partial(draw_panel, body=(34, 30, 48, 255))),
+    "panel_shop": UiSpec(100, 60, draw_panel),
+    "panel_settings": UiSpec(100, 60, draw_panel),
+    "panel_carton": UiSpec(100, 60, draw_panel_carton),
     "slot": UiSpec(16, 16, draw_slot),
     "button_small": UiSpec(20, 9, partial(draw_button_small, pressed=False)),
     "button_small_pressed": UiSpec(20, 9, partial(draw_button_small, pressed=True)),
@@ -3497,12 +3506,13 @@ UI_ITEMS["sheet"] = UiSpec(len(FONT_ORDER) * FONT_CELL_W, FONT_CELL_H,
                            draw_font_sheet, prefix="num", scale=FONT_SCALE)
 
 # Y las LETRAS QUE HACEN FALTA EN LAS CIFRAS, con el mismo bisel dorado y el
-# mismo contorno que los numeros: hoy solo las de GRATIS, que va en la chapita
+# mismo contorno que los numeros: las de GRATIS, que va en la chapita
 # del precio del sobre gratuito y tiene que verse igual que los precios de al
-# lado (con la fuente de texto se veia como otra letra). No van todas las letras
+# lado (con la fuente de texto se veia como otra letra). Tambien las de TIENDA,
+# el titulo de la tienda en su cinta roja. No van todas las letras
 # a proposito: serian veintiseis sprites que nadie pide. Salen de LETTERS, la
 # misma tabla de la fuente de texto, asi que las formas son las de siempre.
-NUM_LETTERS = "GRATIS"
+NUM_LETTERS = "GRATIS" + "TIENDA"
 for _letra in sorted(set(NUM_LETTERS)):
     UI_ITEMS[_letra] = UiSpec(FONT_CELL_W, FONT_CELL_H,
                               partial(lambda s, k: stamp_glyph(s, LETTERS[k]), k=_letra),
@@ -3739,11 +3749,13 @@ def render_sprite(s: Sprite, scale: int) -> Image.Image:
 # estirarse. El recorte de contorno no les aplica por diseno.
 FULL_BLEED = {
     "panel_shop", "panel_settings",          # marcos de ventana
+    "panel_carton",
     "panel_reveal",                          # tarjeta de revelado
     "button_plate", "button_plate_pressed",  # placa grande del menu
     "button_small", "button_small_pressed",  # boton compacto
     "button_sell",                           # boton de vender
     "slot",                                  # ranura de objeto
+    "button_close",                          # solapa: llega al borde a proposito
     "slider_track",                          # canaleta del deslizador
     "ribbon",                                # cinta, sangra por los dos lados
 }

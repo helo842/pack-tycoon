@@ -80,7 +80,7 @@ func _ready() -> void:
 	add_child(UIKit.veil(0.62))
 	add_child(UIKit.panel("ui_panel_shop"))
 
-	var close := UIKit.close_button(Vector2(1650, TITLE_Y), 96.0)
+	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
 	add_child(close)
 
@@ -180,7 +180,7 @@ func refresh() -> void:
 	num.name = "Cost"
 	# El color va antes del texto: PixelNumber solo lo aplica al construir los
 	# glifos (ver pixel_number.gd, _rebuild).
-	num.color = Palette.CREAM if Game.can_afford(cost) else Palette.RUST_L
+	num.color = Palette.CREAM if Game.can_afford(cost) else Palette.PRICE_OFF
 	num.scale_factor = 0.46
 	num.max_width = TAG.x - 40.0
 	num.set_number(cost)

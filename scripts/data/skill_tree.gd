@@ -2,7 +2,7 @@
 # que dan.
 #
 # QUE ES. El rebirth paga MONEDAS (una por cada 1,5 M que haya en el contador al
-# reiniciar, ver LootDB.REBIRTH_COIN_AT) y esas monedas se gastan AQUI. Antes no
+# reiniciar, ver LootDB.rebirth_coins_for) y esas monedas se gastan AQUI. Antes no
 # se gastaban: cada moneda subia un 5 % el valor de lo que vendias, para siempre,
 # y eso convertia el rebirth en una paga automatica en la que no habia nada que
 # decidir. Ahora la moneda es una moneda de verdad: se cambia por una mejora.

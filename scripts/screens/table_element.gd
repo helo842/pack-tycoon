@@ -62,10 +62,14 @@ var _charge := 0.0
 var _total := 1.0
 var _busy := false
 
-## Donde queda el objeto cuando acaba de caer. Mientras vuela, position esta 260
-## px mas arriba, asi que quien mide huecos en la mesa no puede mirar position:
+## Donde queda el objeto cuando acaba de caer. Mientras vuela, position esta
+## DROP_HEIGHT px mas arriba, asi que quien mide huecos en la mesa no puede mirar position:
 ## un objeto a medio caer no ocupa su sitio todavia (ver spot()).
 var rest_spot := Vector2.ZERO
+## Desde cuanto mas arriba cae un objeto al entrar en la mesa.
+const DROP_HEIGHT := 420.0
+## Toca la mesa al acabar la caida (game.gd sacude la mesa con el golpe).
+signal landed()
 
 var _hit: Button = null
 var _dragging := false
@@ -300,17 +304,52 @@ func start_opening() -> bool:
 ## no responderia. Ver _stop_drop().
 func play_drop(rest: Vector2) -> void:
 	rest_spot = rest
-	position = rest + Vector2(0, -260)
-	scale = Vector2(0.7, 0.7)
+	position = rest + Vector2(0, -DROP_HEIGHT)
+	scale = Vector2(0.85, 1.12)
 	modulate.a = 0.0
+	# Mientras cae va por ENCIMA de la barra de arriba, que se dibuja despues.
+	z_index = 1
 	_drop_tween = create_tween()
-	_drop_tween.set_trans(Tween.TRANS_BOUNCE)
-	_drop_tween.set_ease(Tween.EASE_OUT)
+	# Cae acelerando (como algo que se suelta), no frenando.
 	_drop_tween.set_parallel(true)
-	_drop_tween.tween_property(self, "modulate:a", 1.0, 0.18)
-	_drop_tween.tween_property(self, "scale", Vector2.ONE, 0.24)
-	_drop_tween.chain()
-	_drop_tween.tween_property(self, "position", rest, 0.42)
+	_drop_tween.tween_property(self, "modulate:a", 1.0, 0.1)
+	_drop_tween.tween_property(self, "position", rest, 0.34) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	# El choque: se aplasta contra la mesa, levanta polvo y rebota a su forma.
+	_drop_tween.chain().tween_callback(_on_landed)
+	_drop_tween.tween_property(self, "scale", Vector2(1.22, 0.78), 0.06)
+	_drop_tween.chain().tween_property(self, "scale", Vector2.ONE, 0.38) \
+			.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+
+
+func _on_landed() -> void:
+	z_index = 0
+	landed.emit()
+	var dust := CPUParticles2D.new()
+	dust.position = Vector2(BOX.x * 0.5, BOX.y - 40.0)
+	dust.emitting = false
+	dust.one_shot = true
+	dust.explosiveness = 1.0
+	dust.amount = 18
+	dust.lifetime = 0.5
+	dust.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	dust.emission_rect_extents = Vector2(BOX.x * 0.35, 4)
+	dust.direction = Vector2(0, -1)
+	dust.spread = 80.0
+	dust.initial_velocity_min = 80.0
+	dust.initial_velocity_max = 220.0
+	dust.gravity = Vector2(0, 400)
+	dust.scale_amount_min = 6.0
+	dust.scale_amount_max = 12.0
+	dust.color = Color(Palette.CREAM_D, 0.8)
+	var fade := Gradient.new()
+	fade.set_color(0, Color.WHITE)
+	fade.set_color(1, Color(1, 1, 1, 0))
+	dust.color_ramp = fade
+	add_child(dust)
+	move_child(dust, 0)
+	dust.emitting = true
+	dust.finished.connect(dust.queue_free)
 
 
 ## El sitio que OCUPA el objeto en la mesa: el de reposo mientras cae y el suyo
@@ -329,6 +368,7 @@ func _stop_drop() -> void:
 	_drop_tween = null
 	modulate.a = 1.0
 	scale = Vector2.ONE
+	z_index = 0
 
 
 ## Cada latigazo de la carga sacude el paquete. Es el "estallido de material"

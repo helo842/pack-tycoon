@@ -51,7 +51,7 @@ func _ready() -> void:
 	add_child(UIKit.panel("ui_panel_shop"))
 	add_child(UIKit.label_at("LIBRETA", Vector2(960, TITLE_Y), Vector2(1200, 70), 48,
 			Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
-	var close := UIKit.close_button(Vector2(1650, TITLE_Y), 96.0)
+	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
 	add_child(close)
 

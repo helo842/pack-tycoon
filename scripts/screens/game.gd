@@ -207,6 +207,7 @@ const SPIKE_TICK := 0.25
 
 var _table: Control
 var _fx: Control
+var _shake_tween: Tween = null
 var _money: PixelNumber
 ## El contador de monedas de rebirth de la barra: el cerdito y, a su derecha, el
 ## numero. Es la unica moneda del juego que no se gasta, asi que se lee de reojo
@@ -675,7 +676,7 @@ func _build_top_bar() -> void:
 ## mas para lo unico que se puede hacer con el, que es abrirlo.
 func _build_locker() -> void:
 	var open := UIKit.small_button("ARMARIO", "ui_icon_vitrine", LOCK_BTN_CENTER,
-			LOCK_BTN_W, 21, "ui_button_sell", "ui_button_sell")
+			LOCK_BTN_W, 21)
 	open.tooltip_text = "Armario: expone objetos y da sus bonus"
 	open.pressed.connect(_open_locker)
 	add_child(open)
@@ -834,11 +835,23 @@ func _add_element(el: TableElement) -> void:
 	el.sold.connect(_on_element_sold.bind(el))
 	el.damaged.connect(_on_element_damaged.bind(el))
 	el.perfect_hit.connect(_on_perfect_hit.bind(el))
+	el.landed.connect(_on_landed)
 	_table.add_child(el)
 	# La caida la lleva el elemento: asi se puede cortar si el jugador lo agarra
 	# antes de que aterrice. Ver TableElement.play_drop().
 	el.play_drop(rest)
 	_refresh_top()
+
+
+## El golpe de un objeto contra la mesa: un ruido sordo y la mesa tiembla un
+## momento. Con la mesa restaurada caen muchos a la vez; el temblor se reinicia.
+func _on_landed() -> void:
+	Sound.play("sfx_open", -10.0, 0.55)
+	if _shake_tween != null and _shake_tween.is_valid():
+		_shake_tween.kill()
+	_shake_tween = create_tween()
+	for off in [Vector2(0, 7), Vector2(-4, -3), Vector2(3, 2), Vector2.ZERO]:
+		_shake_tween.tween_property(_table, "position", off, 0.04)
 
 
 func _drop_element(el: TableElement) -> void:
@@ -1451,7 +1464,7 @@ func _refresh_packs() -> void:
 		rotulo.visible = free
 		if free:
 			continue
-		num.color = Palette.CREAM if affordable else Palette.RUST_L
+		num.color = Palette.CREAM if affordable else Palette.PRICE_OFF
 		# El numero se reescribe porque el Dolar abarata los sobres: set_number()
 		# no reconstruye nada si el valor no ha cambiado (ver pixel_number.gd),
 		# asi que repintar por cada moneda que entra no cuesta nada.
@@ -1598,12 +1611,16 @@ func _events_step(delta: float) -> void:
 		if Game.buyer.is_empty():
 			Game.start_buyer()
 			Sound.play("sfx_rare")
+			_main().banner("COMPRADOR VIP  %s" % Gameplay.mult_text(Gameplay.VIP_MULT),
+					event_texts()[0].split("  -  ")[0].get_slice(": ", 1))
 	_happy_timer -= delta
 	if _happy_timer <= 0.0:
 		_happy_timer = Gameplay.between(_rng, Gameplay.HAPPY_EVERY)
 		if Game.happy.is_empty():
 			Game.start_happy()
 			Sound.play("sfx_rare")
+			_main().banner("HORA FELIZ  %s" % Gameplay.mult_text(Gameplay.HAPPY_MULT),
+					event_texts()[-1].split("  -  ")[0].get_slice(": ", 1))
 
 
 ## Pone un SOBRE DORADO en la mesa (si cabe). Devuelve el elemento o null.
@@ -1615,7 +1632,7 @@ func spawn_golden() -> TableElement:
 	el.setup_golden()
 	_add_element(el)
 	Sound.play("sfx_rare")
-	Game.notice.emit("SOBRE DORADO: ABRELO ANTES DE QUE SE VAYA", Palette.GOLD_XL)
+	_main().banner("SOBRE DORADO", "ABRELO ANTES DE QUE SE VAYA")
 	return el
 
 
@@ -1750,7 +1767,10 @@ func _use_ability(id: String) -> void:
 		Game.notice.emit("TODAVIA SE ESTA RECARGANDO", Palette.RUST_L)
 		return
 	Sound.play("sfx_tool")
-	Game.notice.emit(str(Gameplay.ability(id)["name"]) + "!", Palette.GOLD_XL)
+	if id == Gameplay.ABIL_FRENZY:
+		_main().banner("FRENESI!", "TODOS LOS SOBRES SE GOLPEAN SOLOS %d S" % int(Gameplay.FRENZY_TIME))
+	else:
+		Game.notice.emit(str(Gameplay.ability(id)["name"]) + "!", Palette.GOLD_XL)
 
 
 ## Cada boton: apagado si no se tiene o si recarga (con los segundos encima) y
@@ -1778,8 +1798,7 @@ func _refresh_abilities() -> void:
 # --- la libreta ----------------------------------------------------------------- #
 
 func _build_libreta_button() -> void:
-	var b := UIKit.small_button("LIBRETA", "", LIBRETA_BTN_CENTER, LIBRETA_BTN_W, 21,
-			"ui_button_sell", "ui_button_sell")
+	var b := UIKit.small_button("LIBRETA", "", LIBRETA_BTN_CENTER, LIBRETA_BTN_W, 21)
 	b.tooltip_text = "Libreta: el album de colecciones y los encargos"
 	b.pressed.connect(_open_libreta)
 	add_child(b)

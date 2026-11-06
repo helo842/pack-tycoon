@@ -27,7 +27,7 @@ func _ready() -> void:
 	add_child(UIKit.label_at("AJUSTES", Vector2(960, 240), Vector2(1600, 90),
 			63, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
-	var close := UIKit.close_button(Vector2(1630, 240), 96.0)
+	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
 	add_child(close)
 

@@ -118,8 +118,8 @@ const STAND_HINT := "SE PAGA CON MONEDAS Y SE QUEDA PARA SIEMPRE"
 
 const GO_CENTER := Vector2(1360, 215)
 const GO_W := 288.0
-const CLOSE_CENTER := Vector2(1648, 190)
-const CLOSE_SIDE := 96.0
+const CLOSE_CENTER := UIKit.PANEL_CLOSE
+const CLOSE_SIDE := UIKit.PANEL_CLOSE_SIDE
 
 ## Un nodo: la chapa (ui_slot, 256 nativo) y lo que lleva dentro. 176 de lado y
 ## no mas porque el arbol entero (los cinco) tiene que caber de una vez en la

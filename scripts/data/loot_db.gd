@@ -378,7 +378,7 @@ const DOLAR_COST_GROWTH := 2.3
 const ITEMS: Array = [
 	{"id": "tijeras", "name": "TIJERAS", "art": "item_tijeras", "base_cost": 300,
 		"desc": "MAS DANO POR GOLPE",
-		"detail": "SUBE EL DANO DE CADA GOLPE UN 15 % POR NIVEL. LAS TRES PRIMERAS MEJORAS SON BARATAS Y SUBEN POCO; DESPUES EL PRECIO SE DISPARA."},
+		"detail": "EL ITEM DEL DANO: UN 39 % MAS POR NIVEL (LOS DEMAS ITEMS SOLO SUMAN UN 4 %). LAS TRES PRIMERAS MEJORAS SON BARATAS; DESPUES EL PRECIO SE DISPARA."},
 	{"id": "trebol", "name": "TREBOL", "art": "item_trebol", "base_cost": 600,
 		"desc": "MAS BOTIN RARO",
 		"detail": "SUBE LAS PROBABILIDADES DE QUE SALGA BOTIN RARO, EPICO O LEGENDARIO. LA NOTA PSA NO CAMBIA. VALE PARA TODOS LOS SOBRES."},
@@ -399,7 +399,7 @@ const ITEMS: Array = [
 		"detail": "CON LA APERTURA AUTOMATICA ENCENDIDA GOLPEAN TODOS LOS PAQUETES DE LA MESA A LA VEZ, SIN QUE LES HAGAS CLIC. SE PAGAN UNA SOLA VEZ."},
 	{"id": "armario", "name": "ARMARIO", "art": "item_armario", "base_cost": 35000,
 		"desc": "EXPONE BOTIN Y DA SUS BONUS",
-		"detail": "CADA OBJETO EXPUESTO DA EL BONUS DE SU TIPO SEGUN SU NOTA PSA (DEL 2 % AL 25 %): CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO Y ELECTRONICA REBIRTH."},
+		"detail": "CADA OBJETO EXPUESTO DA EL BONUS DE SU TIPO SEGUN SU NOTA, RAREZA Y SOBRE: CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO, ELECTRONICA REBIRTH."},
 	# EL NOVENO, Y VA AL FINAL A PROPOSITO: los niveles de un guardado se leen
 	# por POSICION, asi que anadir un item en medio muda de sitio los niveles de
 	# todos los que vienen detras y una partida vieja se encontraria el dano
@@ -446,7 +446,14 @@ const BASE_DAMAGE := 45.0
 ## baratas (cada una un 30 % mas cara que la anterior) y a partir de ahi
 ## multiplican por 2,8, y el resto de items suben x1,6 por nivel. El principio de
 ## partida lo decide el jugador y no la tienda.
-const DAMAGE_PER_LEVEL := 0.15
+##
+## Y YA NO: con el 15 % por nivel de CUALQUIER item, todas las compras subian el
+## dano igual y lo optimo era comprar siempre lo mas barato, sin mirar que era
+## ("compras todo lo que ves sin pensar"). Ahora cada nivel de cualquier item da
+## un poco (DAMAGE_PER_LEVEL) y el dano de verdad lo dan las TIJERAS
+## (TIJERAS_DAMAGE_PER_LEVEL): cada item hace lo suyo y elegir importa.
+const DAMAGE_PER_LEVEL := 0.04
+const TIJERAS_DAMAGE_PER_LEVEL := 0.35
 ## Segundos que tarda un ciclo de carga del boton. Es el ritmo al que se golpea.
 ## Un ciclo es un golpe y un clic: la caja no se abre sola de una tirada.
 ##
@@ -553,6 +560,24 @@ const LOOT_KINDS: Array = [
 ## que ya es una barbaridad sin romper el juego por el camino.
 const KIND_BONUS_MIN := 0.02
 const KIND_BONUS_MAX := 0.25
+## EL BONUS DEPENDE TAMBIEN DE LO QUE VALE EL OBJETO, no solo de su nota: un
+## legendario de un sobre de escalon 3 da mucho mas que un comun del gratuito
+## con la misma nota. Antes daban lo mismo, y lo que se exponia era lo primero
+## que salia. La rareza y el escalon del sobre son los que ponen el precio, asi
+## que son los que multiplican (y se pueden leer en la ficha sin hacer cuentas).
+const LOCKER_RARITY := {"common": 1.0, "rare": 1.2, "epic": 1.45, "legendary": 1.75}
+const LOCKER_TIER: Array = [1.0, 1.3, 1.7]
+## CADA TIPO PESA DISTINTO porque no vale lo mismo un 10 % de cada cosa. El
+## dinero (vinilos) lo multiplica TODO, monedas de rebirth incluidas, y con los
+## cuatro iguales llenar el armario de vinilos era siempre lo mejor; la
+## velocidad (zapatillas) deja de notarse cuando el clic va mas lento que la
+## carga, y el rebirth (electronica) solo cobra al reiniciar. Los pesos salen
+## de medir (BalanceTest "armario"), no de gusto.
+const LOCKER_KIND_WEIGHT := {"cards": 1.0, "vinyls": 0.6, "sneakers": 1.2, "electronics": 0.4}
+## Y CADA PIEZA DEL MISMO TIPO DA MENOS que la anterior (la mejor entera, la
+## segunda un 75 %, la tercera un 56 %...): ocho del mismo tipo ya no son ocho
+## veces una. Es lo que hace que mezclar tipos sea la jugada y no un capricho.
+const LOCKER_SAME_KIND := 0.6
 
 # --- el rebirth (la hucha) ------------------------------------------------ #
 ## Lo que hay que TENER EN EL CONTADOR para poder reiniciarla. Se cuenta el dinero
@@ -575,14 +600,17 @@ const KIND_BONUS_MAX := 0.25
 ## poco el margen de los sobres (VALUE_SCALE) y se subio esto hasta devolverlo a
 ## los ~15.
 const REBIRTH_REQUIRE := 150000
-## Cada cuanto DINERO EN EL CONTADOR sale UNA moneda de rebirth. Se cuenta lo que
-## tengas EN EL MOMENTO de pulsar REBIRTH, no lo ganado en la partida: el cerdo
-## se lleva el dinero que hay dentro, asi que gastarlo antes de reiniciar cuesta
-## monedas y guardarlo las da. Con 1,5 millones por moneda, el primer rebirth
-## (que se hace con el contador justo en el requisito) da la moneda minima y las
-## buenas son las que se terminan con la hucha llena: reiniciar en cuanto se
-## puede es una moneda, y aguantar es la unica forma de llevarse mas.
-const REBIRTH_COIN_AT := 1500000
+## LAS MONEDAS CRECEN CON LA RAIZ CUBICA DEL DINERO DEL CONTADOR (medido en
+## requisitos): 150.000 da 1, 1,2 M da 2, 4 M da 3, 150 M da 10. Se cuenta lo que
+## tengas EN EL MOMENTO de pulsar REBIRTH: el cerdo se lleva el dinero que hay
+## dentro, asi que guardarlo da monedas y gastarlo las cuesta.
+##
+## Antes era una moneda por cada 1,5 M, en linea recta, y el dinero de una
+## partida crece MUCHO mas rapido que eso en cuanto llegan los sobres caros: el
+## que aguantaba media hora sin reiniciar se llevaba ~170 monedas y el arbol
+## entero de una vez. Con la raiz aguantar sigue dando mas, pero cada moneda
+## cuesta mas que la anterior y reiniciar a menudo vuelve a ser buena idea.
+const REBIRTH_COIN_POWER := 1.0 / 3.0
 ## Y LAS MONEDAS SE GASTAN EN EL ARBOL DE MEJORAS, que es donde esta lo que dan
 ## (ver SkillTree): +30 % de dinero en el centro, +20 % de dano, +20 % de
 ## velocidad, +2 huecos de armario y +30 % de pinchos en el primer anillo, y dos
@@ -784,8 +812,8 @@ static func item_effect(index: int, level: int) -> String:
 			# aporta nada, y por eso el nivel 1 y el 2 salen distintos en la ficha
 			# (con lo acumulado los dos dirian "+15 %" y no se veria que comprar
 			# sirve de algo).
-			return "+%d%% DE DANO POR GOLPE" % (roundi(DAMAGE_PER_LEVEL * 100.0)
-				if level > 0 else 0)
+			return "+%d%% DE DANO POR GOLPE" % (roundi((DAMAGE_PER_LEVEL
+				+ TIJERAS_DAMAGE_PER_LEVEL) * 100.0) if level > 0 else 0)
 		"guantes":
 			# Lo mismo que las Tijeras, pero con la velocidad: lo que aporta ESTE
 			# nivel, no el acumulado (ver el comentario de arriba).
@@ -839,9 +867,11 @@ static func total_levels(levels: Array) -> int:
 	return total
 
 
-## Dano de cada golpe: base mas el 15 % por nivel comprado.
+## Dano de cada golpe: base, mas un 4 % por nivel de cualquier item y un 35 % mas
+## por nivel de las Tijeras.
 static func damage_per_hit(levels: Array) -> float:
-	return BASE_DAMAGE * (1.0 + DAMAGE_PER_LEVEL * float(total_levels(levels)))
+	return BASE_DAMAGE * (1.0 + DAMAGE_PER_LEVEL * float(total_levels(levels))
+			+ TIJERAS_DAMAGE_PER_LEVEL * float(item_level(levels, "tijeras")))
 
 
 ## Segundos por ciclo de carga. Baja con los niveles comprados, y los GUANTES
@@ -960,16 +990,49 @@ static func kind_of(item: Dictionary) -> String:
 	return "cards"
 
 
-## Lo que aporta un objeto expuesto al bonus de su tipo, segun su nota PSA: del
-## 2 % de la nota 1 al 25 % de la nota 10.
+## Lo que aporta por su NOTA un objeto expuesto: del 2 % de la nota 1 al 25 % de
+## la nota 10, antes de su tipo, su rareza y su escalon (ver bonus_for).
 static func kind_bonus(kind_id: String, grade: int) -> float:
 	var t := clampf(float(grade - PSA_MIN) / float(GRADE_MAX - PSA_MIN), 0.0, 1.0)
-	return lerpf(KIND_BONUS_MIN, KIND_BONUS_MAX, t)
+	return lerpf(KIND_BONUS_MIN, KIND_BONUS_MAX, t) \
+			* float(LOCKER_KIND_WEIGHT.get(kind_id, 1.0))
 
 
-## Lo que aporta ESTE objeto expuesto, ya con su tipo y su nota.
+## Lo que aporta ESTE objeto expuesto, solo, con su tipo, su nota, su rareza y
+## el escalon del sobre del que salio. Un objeto sin rareza o sin escalon (un
+## guardado de antes de este cambio) cuenta como comun del escalon 1.
 static func bonus_for(item: Dictionary) -> float:
-	return kind_bonus(kind_of(item), int(item.get("grade", PSA_MIN)))
+	var tier := clampi(int(item.get("tier", 1)), 1, LOCKER_TIER.size())
+	return kind_bonus(kind_of(item), int(item.get("grade", PSA_MIN))) \
+			* float(LOCKER_RARITY.get(str(item.get("rarity", "common")), 1.0)) \
+			* float(LOCKER_TIER[tier - 1])
+
+
+## Lo que suma TODO el armario a cada tipo: por tipo, la mejor pieza entera, la
+## segunda por LOCKER_SAME_KIND, la tercera por su cuadrado... Lo usan la partida
+## (Game.kind_totals) y el simulador del equilibrio, para que cuenten igual.
+static func locker_totals(locker: Array) -> Dictionary:
+	var by_kind := {}
+	for kind_id in kind_ids():
+		by_kind[kind_id] = []
+	for item in locker:
+		(by_kind[kind_of(item)] as Array).append(bonus_for(item))
+	var totals := {}
+	for kind_id in by_kind:
+		var list: Array = by_kind[kind_id]
+		list.sort()
+		list.reverse()
+		var total := 0.0
+		for i in list.size():
+			total += float(list[i]) * pow(LOCKER_SAME_KIND, i)
+		totals[kind_id] = total
+	return totals
+
+
+## El escalon de un sobre por su id: "cards" 1, "cards2" 2, "cards3" 3.
+static func pack_tier(pack_id: String) -> int:
+	var digits := pack_id.substr(pack_id.rstrip("0123456789").length())
+	return maxi(1, int(digits)) if digits != "" else 1
 
 
 ## Las monedas que da reiniciar una partida con el DINERO QUE HAYA EN EL
@@ -987,10 +1050,16 @@ static func bonus_for(item: Dictionary) -> float:
 ## nunca baja de 1: un rebirth que diera cero monedas seria un boton que cobra
 ## toda la partida y no paga nada.
 static func rebirth_coins_for(amount: int, mult: float = 1.0) -> int:
-	var base := int(maxi(0, amount) / REBIRTH_COIN_AT)
-	if base <= 0:
-		return 1
-	return maxi(1, int(floor(float(base) * maxf(mult, 1.0))))
+	return maxi(1, int(floor(rebirth_coins_raw(amount, mult) + 0.000001)))
+
+
+## Las monedas SIN el suelo (lo que mide el simulador del equilibrio). El
+## multiplicador de la electronica va FUERA de la raiz y ANTES del suelo: +50 %
+## son +50 % de monedas. Con el suelo primero, 1 moneda x1,5 seguia siendo 1 y la
+## electronica del armario no daba nada.
+static func rebirth_coins_raw(amount: int, mult: float = 1.0) -> float:
+	return pow(float(maxi(0, amount)) / float(REBIRTH_REQUIRE), REBIRTH_COIN_POWER) \
+			* maxf(mult, 1.0)
 
 
 # --------------------------------------------------------------------------- #
@@ -1129,6 +1198,8 @@ static func roll_pack(rng: RandomNumberGenerator, pack_id: String,
 		# los campos que usa la interfaz), asi que lo que no se copie aqui se
 		# pierde por el camino.
 		"kind": kind_of(item),
+		# Y el escalon del sobre: el armario da mas por un objeto de un sobre caro.
+		"tier": pack_tier(pack_id),
 	}
 
 

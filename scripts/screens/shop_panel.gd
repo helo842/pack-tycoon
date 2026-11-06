@@ -29,14 +29,21 @@ signal closed()
 
 const ITEM_CARD_SCENE := preload("res://scenes/ItemCard.tscn")
 
-## Todas las medidas caben en el recuadro interior del panel, que es
-## x 224..1696 y 140..940: ui_panel_shop.png es de 1600x960 y se dibuja tal
-## cual centrado, con el marco dorado de 48 px a cada lado.
-##
-## EL TITULO NO PUEDE SUBIR MAS, y no es gusto: arriba a la izquierda esta el
-## contador de dinero con su moneda (y 143..245), asi que un titulo mas alto le
-## caeria encima. A 264 su linea empieza en 231 y la del dinero acaba en 214.
-const ITEMS_TITLE_Y := 264.0
+## El panel es la caja de carton claro (ui_panel_carton, 1600x960 centrado:
+## x 160..1760 y 60..1020). Su cinta de embalar cruza la cabecera de y 92 a
+## 172, y en ella van el titulo TIENDA y el dinero, a la altura HEAD_Y.
+const HEAD_Y := 132.0
+## La cinta roja del titulo (el mismo sprite que el precio de las fichas). Su
+## dibujo solo pinta una banda en medio del alto, por eso es mas alta que la cifra.
+const TITLE_TAG := Vector2(480, 120)
+const TITLE_TAG_CENTER := Vector2(440, HEAD_Y)
+## La placa del dinero: su borde derecho fijo antes de la solapa de cerrar.
+const MONEY_RIGHT := 1590.0
+const MONEY_H := 68.0
+const MONEY_PAD := 24.0
+const MONEY_COIN := 52.0
+const MONEY_MAX_W := 520.0
+const MONEY_TAPE := Vector2(60, 20)
 ## Una caja: 264 de ancho por 264 de alto, y la rejilla de cinco columnas y dos
 ## filas (diez items: cinco arriba y cinco abajo). Los pasos (288 y 324) dejan
 ## 24 px de aire entre cajas de la misma fila y 60 entre las dos filas. El ancho
@@ -50,26 +57,40 @@ const ITEMS_TITLE_Y := 264.0
 const BOX := Vector2(264, 264)
 const BOX_COL0_X := 252.0
 const BOX_COL_STEP := 288.0
-const BOX_ROW0_Y := 320.0
-const BOX_ROW_STEP := 324.0
+const BOX_ROW0_Y := 248.0
+const BOX_ROW_STEP := 376.0
 const PER_ROW := 5
 const ICON_BOX := Vector2(112, 112)
 const ICON_DY := 68.0
 const NAME_DY := 150.0
 const LEVEL_DY := 188.0
-## La chapa del precio, ancha y alta lo justo para que las cifras vayan a 0,38:
-## a 160x56 y 0,34 un precio de seis cifras ya se encogia por el ancho.
-const TAG := Vector2(208, 64)
+## La cinta del precio cruza la ficha entera y asoma 8 px por cada lado, como
+## en la maqueta C (la de terciopelo) que eligio el usuario para el precio.
+const TAG := Vector2(BOX.x + 16.0, 64)
 const TAG_DY := 230.0
-## El fondo de la caja y su filete. La comprada se marca con el filete en dorado
-## claro, que es lo que se ve de un vistazo al mirar la rejilla entera.
-const BACK_OPEN := Color(0.02, 0.015, 0.04, 0.62)
-const BACK_DONE := Color(0.10, 0.07, 0.02, 0.62)
-const EDGE_OPEN := Color(Palette.GOLD_D, 0.85)
-const EDGE_DONE := Color(Palette.GOLD_XL, 0.9)
+## La caja es una ficha de papel crema sobre el carton del panel, con el texto
+## en oscuro. La comprada (o al tope) se oscurece y lleva el filete en dorado,
+## que es lo que se ve de un vistazo al mirar la rejilla entera.
+const BACK_OPEN := Palette.CREAM_L
+const BACK_DONE := Palette.CREAM_D
+const EDGE_OPEN := Palette.CREAM_D
+const EDGE_DONE := Palette.GOLD_D
+## Los puntos de nivel: los comprados en rojo, como la cinta del precio.
+const PIP_ON := Palette.RUST_L
+const PIP_OFF := Palette.CREAM_D
 const EDGE := 4.0
+## La sombra de la ficha sobre el carton y el trozo de celo que la sujeta.
+const SHADOW := Color(0.35, 0.23, 0.16, 0.63)
+const SHADOW_OFF := Vector2(8, 8)
+const TAPE := Color(0.93, 0.89, 0.77, 0.8)
+const TAPE_SIZE := Vector2(80, 24)
 
 var _money: PixelNumber
+var _money_plate: ColorRect
+var _money_back: ColorRect
+var _money_shadow: ColorRect
+var _money_tape: ColorRect
+var _money_coin: TextureRect
 var _item_cells: Array = []
 ## La ficha abierta, si hay una. Solo puede haber una: es una capa por encima de
 ## la tienda y la tienda ya es una capa.
@@ -78,9 +99,9 @@ var _card: ItemCard = null
 
 func _ready() -> void:
 	add_child(UIKit.veil(0.55))
-	add_child(UIKit.panel("ui_panel_shop"))
+	add_child(UIKit.panel("ui_panel_carton"))
 
-	var close := UIKit.close_button(Vector2(1700, 150), 96.0)
+	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
 	add_child(close)
 
@@ -96,22 +117,52 @@ func _ready() -> void:
 # Dinero
 # --------------------------------------------------------------------------- #
 
-## El dinero que llevas, arriba a la izquierda, con la moneda delante.
-##
-## El TITULO no vuelve ("TIENDA" ya lo dice el boton que abre el panel, y ocupaba
-## la franja entera), pero la moneda si: es la que dice que el numero de al lado
-## es dinero y no cualquier otra cuenta.
-##
-## La moneda a 0.20 son 102 px: a 0.22 se salia por arriba del marco y abajo
-## pisaba la lista de items.
+## La cabecera, sobre la cinta de embalar: a la izquierda TIENDA, con las
+## letras doradas de los precios, en una cinta roja como la de las fichas; a la
+## derecha, el dinero en una etiqueta de papel crema pegada con celo, como las
+## fichas de los items. Cada
+## cosa va sobre algo suyo: sueltos encima de la cinta parecian flotar.
 func _build_money() -> void:
-	add_child(UIKit.square("currency_coin", Vector2(300, 194), 0.20))
+	add_child(UIKit.image("ui_tag_price", TITLE_TAG_CENTER, TITLE_TAG))
+	var titulo := PixelNumber.new()
+	titulo.scale_factor = 0.56
+	titulo.name = "Titulo"
+	add_child(titulo)
+	titulo.set_text("TIENDA")
+	titulo.position = (TITLE_TAG_CENTER - titulo.size * 0.5).round()
+
 	_money = PixelNumber.new()
-	_money.scale_factor = 0.55
-	_money.max_width = 460.0
-	add_child(_money)
+	_money.scale_factor = 0.40
+	_money.max_width = MONEY_MAX_W
 	_money.set_number(Game.money)
-	_money.position = Vector2(430, 194 - _money.size.y * 0.5)
+	_money_shadow = _rect(Vector2.ZERO, Vector2.ZERO, SHADOW)
+	_money_plate = _rect(Vector2.ZERO, Vector2.ZERO, EDGE_OPEN)
+	_money_back = _rect(Vector2.ZERO, Vector2.ZERO, BACK_OPEN)
+	_money_tape = _rect(Vector2.ZERO, MONEY_TAPE, TAPE)
+	_money_coin = UIKit.square("currency_coin", Vector2.ZERO, 0.12)
+	add_child(_money_coin)
+	add_child(_money)
+	_place_money()
+
+
+## La placa del dinero crece hacia la IZQUIERDA con la cifra: su borde derecho
+## se queda fijo antes de la solapa de cerrar.
+func _place_money() -> void:
+	var coin := MONEY_COIN
+	var w := MONEY_PAD * 2.0 + coin + 12.0 + _money.size.x
+	var plate := Rect2(Vector2(MONEY_RIGHT - w, HEAD_Y - MONEY_H * 0.5), Vector2(w, MONEY_H))
+	_money_shadow.position = plate.position + Vector2(6, 6)
+	_money_shadow.size = plate.size
+	_money_tape.position = Vector2(plate.get_center().x - MONEY_TAPE.x * 0.5,
+			plate.position.y - MONEY_TAPE.y * 0.5)
+	_money_plate.position = plate.position
+	_money_plate.size = plate.size
+	_money_back.position = plate.position + Vector2(EDGE, EDGE)
+	_money_back.size = plate.size - Vector2(EDGE, EDGE) * 2.0
+	_money_coin.position = Vector2(plate.position.x + MONEY_PAD + coin * 0.5, HEAD_Y) \
+			- _money_coin.size * 0.5
+	_money.position = Vector2(plate.position.x + MONEY_PAD + coin + 12.0,
+			HEAD_Y - _money.size.y * 0.5).round()
 
 
 func _on_money_changed(_v: int) -> void:
@@ -123,10 +174,6 @@ func _on_money_changed(_v: int) -> void:
 # --------------------------------------------------------------------------- #
 
 func _build_items() -> void:
-	add_child(UIKit.label_at("ITEMS - MEJORAN LA APERTURA",
-			Vector2(960, ITEMS_TITLE_Y), Vector2(1200, 60), 42, Palette.GOLD_XL,
-			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
-
 	# Un solo tamaño de nombre para las diez cajas, como en la lista de sobres:
 	# encoger cada uno por su cuenta deja "PC" a 28 y "OJO VERDE" a 21 en la misma
 	# rejilla, y eso se lee como un fallo.
@@ -153,10 +200,10 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	var x := top_left.x
 	var y := top_left.y
 
-	# La caja: un fondo oscuro con filete dorado, como la bandeja de los sobres
-	# (ver game.gd, _build_pack_zone()). NO es un ui_slot estirado a 264x264: el
-	# marco del slot es cuadrado y estirarlo descuadra su bevel, que es lo unico
-	# que le da volumen.
+	# La caja: una ficha de papel con filete, su sombra y un trozo de celo
+	# arriba. NO es un ui_slot estirado a 264x264: el marco del slot es cuadrado
+	# y estirarlo descuadra su bevel, que es lo unico que le da volumen.
+	_rect(top_left + SHADOW_OFF, BOX, SHADOW)
 	var back := ColorRect.new()
 	back.color = BACK_OPEN
 	back.position = top_left
@@ -164,6 +211,7 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(back)
 	var frame := _frame(top_left, EDGE_OPEN)
+	_rect(Vector2(x + (BOX.x - TAPE_SIZE.x) * 0.5, y - TAPE_SIZE.y * 0.5), TAPE_SIZE, TAPE)
 
 	# El dibujo del item, colocado por su DIBUJO dentro de la caja (ver
 	# UIKit.fit_art): los diez items no llenan igual su lienzo y escalados por el
@@ -172,9 +220,11 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 			ICON_BOX)
 	add_child(art)
 
-	var name_label := UIKit.label_at(str(item["name"]),
+	# Texto oscuro SIN contorno (la fuente del titulo): sobre el papel claro, el
+	# contorno de la fuente normal lo emborronaba.
+	var name_label := UIKit.title_label_at(str(item["name"]),
 			Vector2(x + BOX.x * 0.5, y + NAME_DY), Vector2(BOX.x - 24.0, 36),
-			name_size, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+			UIKit.fit_size(str(item["name"]), BOX.x - 24.0, name_size), Palette.OUTLINE)
 	add_child(name_label)
 
 	# Los puntos de nivel SOLO en los items que suben de nivel. En el PC y en los
@@ -191,9 +241,9 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	if max_level > 1:
 		pips = _pips(Vector2(x + BOX.x * 0.5, y + LEVEL_DY), max_level, 10.0, 4.0)
 	else:
-		una_vez = UIKit.label_at("COMPRA UNICA",
-				Vector2(x + BOX.x * 0.5, y + LEVEL_DY), Vector2(BOX.x - 40.0, 24), 14,
-				Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+		una_vez = UIKit.title_label_at("COMPRA UNICA",
+				Vector2(x + BOX.x * 0.5, y + LEVEL_DY), Vector2(BOX.x - 40.0, 24),
+				UIKit.fit_size("COMPRA UNICA", BOX.x - 40.0, 14), Palette.GOLD_D)
 		add_child(una_vez)
 
 	var tag := Vector2(x + BOX.x * 0.5, y + TAG_DY)
@@ -215,8 +265,8 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	# solo tiene glifos de DIGITOS, asi que un texto con letras NO se dibuja. El
 	# "MAX" que hacia este trabajo antes salia en blanco, y esa era la razon de
 	# que las cajas al tope parecieran tener un hueco roto.
-	var owned_label := UIKit.label_at("", tag, TAG, 21, Palette.GOLD_XL,
-			HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+	# En dorado oscuro, como COMPRA UNICA: el dorado claro no se leia sobre el papel.
+	var owned_label := UIKit.title_label_at("", tag, TAG, 21, Palette.GOLD_D)
 	owned_label.visible = false
 	add_child(owned_label)
 
@@ -230,6 +280,16 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	return {"art": art, "back": back, "frame": frame, "owned": owned_label,
 			"cost": cost, "tag": tag, "tag_node": tag_node, "pips": pips,
 			"once": una_vez, "button": b}
+
+
+func _rect(at: Vector2, size: Vector2, color: Color) -> ColorRect:
+	var c := ColorRect.new()
+	c.color = color
+	c.position = at
+	c.size = size
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(c)
+	return c
 
 
 ## El filete de una caja: cuatro rectangulos planos. No es un sprite porque la
@@ -264,7 +324,7 @@ func _pips(centre: Vector2, total: int, side: float = 18.0, gap: float = 8.0) ->
 		var r := ColorRect.new()
 		r.size = Vector2(side, side)
 		r.position = Vector2(x0 + float(i) * (side + gap), centre.y - side * 0.5)
-		r.color = Palette.NIGHT_LL
+		r.color = PIP_OFF
 		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(r)
 		nodes.append(r)
@@ -278,6 +338,7 @@ func _pips(centre: Vector2, total: int, side: float = 18.0, gap: float = 8.0) ->
 func refresh() -> void:
 	if is_instance_valid(_money):
 		_money.set_number(Game.money)
+		_place_money()
 	_refresh_items()
 
 
@@ -309,14 +370,15 @@ func _refresh_items() -> void:
 		# resto en el gris de fondo.
 		for j in (cell["pips"] as Array).size():
 			((cell["pips"] as Array)[j] as ColorRect).color = \
-					Palette.GOLD_XL if j < level else Palette.NIGHT_LL
+					PIP_ON if j < level else PIP_OFF
 		if cerrado:
 			(cell["art"] as TextureRect).modulate = Color(0.85, 0.85, 0.88)
 			continue
 		# El color va ANTES del texto, siempre: PixelNumber solo lo aplica al
 		# construir los glifos (ver pixel_number.gd, _rebuild), asi que al reves el
 		# numero se queda del color que tuviera la vez anterior.
-		num.color = Palette.CREAM if Game.can_afford(cost) else Palette.RUST_L
+		# Sin dinero, el numero se apaga (ver Palette.PRICE_OFF).
+		num.color = Palette.CREAM if Game.can_afford(cost) else Palette.PRICE_OFF
 		num.set_number(cost)
 		(cell["art"] as TextureRect).modulate = _lit(Game.can_afford(cost))
 		# El texto acaba de cambiar de ancho, asi que se vuelve a centrar.

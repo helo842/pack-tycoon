@@ -137,12 +137,21 @@ var _gp: Dictionary = {}
 ## "sin_encargos", "sin_perfecto" y "sin_album" en la linea de comandos apagan
 ## esa sola cosa.
 var _off: Array = []
+## El armario de la partida que se esta simulando (lo leen el dano, la carga y
+## el dinero, que estan en funciones que no lo reciben).
+var _locker: Array = []
+## Lo que suma ese armario por tipo, guardado: se recalcula solo cuando cambia
+## (ver _keep), porque leerlo en cada golpe hacia la simulacion diez veces mas lenta.
+var _tot: Dictionary = LootDB.locker_totals([])
+## Los tipos que expone el jugador del armario (ver _keep). Lo cambia el
+## informe "armario" para comparar estrategias.
+var _locker_kinds: Array = ["vinyls"]
 
 
 ## Una partida entera: devuelve los minutos, los sobres abiertos, los niveles
 ## comprados y lo que se fue en la tienda.
 func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
-		trace: bool = false, share: float = -1.0) -> Dictionary:
+		trace: bool = false, share: float = -1.0, until_min: float = 0.0) -> Dictionary:
 	var st: Dictionary = STRATEGIES[strategy].duplicate()
 	if share >= 0.0:
 		st["share"] = share
@@ -160,6 +169,8 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	var income := 0
 	var rungs: Dictionary = {}
 	var locker: Array = []
+	_locker = locker
+	_tot = LootDB.locker_totals(locker)
 	var table: Array = []
 	var buy_left := 0.0
 	# EL RITMO, ademas del minuto final: cuando se abre por primera vez cada sobre
@@ -177,7 +188,10 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	# Game.can_rebirth). El requisito de la partida no es "hacer tal cosa": es
 	# "tener tanto dinero a la vez" (LootDB.REBIRTH_REQUIRE), asi que este bucle
 	# mira `money` y no `earned`, que se sigue llevando solo para el informe.
-	while money < LootDB.REBIRTH_REQUIRE and t < CAP:
+	# Con until_min la partida NO se para en el requisito: sigue hasta ese minuto,
+	# que es lo que mide como va la partida larga (informe "armario").
+	while (t < until_min * 60.0 if until_min > 0.0 else money < LootDB.REBIRTH_REQUIRE) \
+			and t < CAP:
 		if trace and opened % 10 == 0:
 			print("    %6.1f min  dinero %9d  niveles %2d  sobres %4d  ahora %s"
 				% [t / 60.0, money, LootDB.total_levels(levels), opened,
@@ -226,6 +240,11 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 				first_buy = t
 			max_gap = maxf(max_gap, t - last_buy)
 			last_buy = t
+	if until_min > 0.0:
+		var tot := LootDB.locker_totals(locker)
+		return {"money": money, "levels": LootDB.total_levels(levels),
+			"coins": LootDB.rebirth_coins_raw(money, 1.0 + float(tot["electronics"])),
+			"totals": tot, "packs": opened}
 	if money < LootDB.REBIRTH_REQUIRE:
 		return {"minutes": INF, "packs": opened, "spent": spent, "levels": 0}
 	max_gap = maxf(max_gap, t - last_buy)
@@ -332,6 +351,7 @@ func _cycle(levels: Array, st: Dictionary) -> float:
 		# El golpe perfecto llega antes: se pulsa entre PERFECT_FROM y el final del anillo.
 		charge *= 1.0 - float(st.get("perfect", 0.0)) * (1.0 - (1.0 + Gameplay.PERFECT_FROM) * 0.5)
 		charge /= 1.0 + _album_bonus("speed")
+	charge /= 1.0 + float(_tot["sneakers"])
 	var click := float(st["click"])
 	var best := charge + click
 	var slots := LootDB.table_slots(levels) + int(_album_bonus("table"))
@@ -345,16 +365,15 @@ func _cycle(levels: Array, st: Dictionary) -> float:
 func _average_hit(levels: Array) -> float:
 	var crit := (LootDB.crit_chance(levels) + _album_bonus("crit")) \
 			* (LootDB.crit_mult(levels) - 1.0)
-	return LootDB.damage_per_hit(levels) * (1.0 + crit) * (1.0 + _album_bonus("damage"))
+	return LootDB.damage_per_hit(levels) * (1.0 + crit) * (1.0 + _album_bonus("damage")) \
+			* (1.0 + float(_tot["cards"]))
 
 
 ## Lo que paga un sobre: el botin de verdad (roll_pack, con su rareza y su nota)
 ## o, en la pasada "sin suerte", su valor medio (pack_payout).
 func _loot(levels: Array, locker: Array, pack_id: String, st: Dictionary,
 		rng: RandomNumberGenerator, fixed_loot: bool) -> int:
-	var mult := 1.0
-	for item in locker:
-		mult += LootDB.bonus_for(item)
+	var mult := 1.0 + float(_tot["vinyls"])
 	mult *= 1.0 + _album_bonus("money")
 	_gp_mission("open", 1, pack_id.rstrip("0123456789"))
 	if fixed_loot:
@@ -365,17 +384,29 @@ func _loot(levels: Array, locker: Array, pack_id: String, st: Dictionary,
 
 ## El armario (ver _loot): devuelve el objeto tal cual, para cobrarlo.
 func _keep(levels: Array, locker: Array, loot: Dictionary, st: Dictionary) -> Dictionary:
-	# El armario: el que lo mira expone los mejores vinilos que ha encontrado
-	# -los vinilos son el tipo que sube el DINERO-, hasta llenar sus huecos.
+	# El armario: el que lo mira expone lo mejor que encuentra de los tipos que
+	# ha elegido (_locker_kinds; vinilos de serie, que suben el DINERO). Lleno,
+	# sale la peor pieza del tipo que mas tiene: asi un armario mezclado se
+	# queda repartido.
 	if bool(st["locker"]) and LootDB.item_level(levels, "armario") > 0 \
-			and str(loot["kind"]) == "vinyls":
+			and _locker_kinds.has(str(loot["kind"])):
 		locker.append(loot)
 		if locker.size() > LootDB.locker_slots(levels):
-			var worst := 0
+			var count := {}
+			for it in locker:
+				count[str(it["kind"])] = int(count.get(str(it["kind"]), 0)) + 1
+			var most := ""
+			for k in count:
+				if most == "" or int(count[k]) > int(count[most]):
+					most = k
+			var worst := -1
 			for i in locker.size():
-				if LootDB.bonus_for(locker[i]) < LootDB.bonus_for(locker[worst]):
+				if str(locker[i]["kind"]) != most:
+					continue
+				if worst < 0 or LootDB.bonus_for(locker[i]) < LootDB.bonus_for(locker[worst]):
 					worst = i
 			locker.remove_at(worst)
+		_tot = LootDB.locker_totals(locker)
 	return loot
 
 
@@ -562,9 +593,7 @@ func _gp_events(st: Dictionary, levels: Array, locker: Array,
 ## a base de volver a tirarla (como hace game.gd con Game.regrade).
 func _gp_golden_loot(levels: Array, locker: Array, pack_id: String,
 		rng: RandomNumberGenerator, fixed_loot: bool) -> int:
-	var mult := 1.0
-	for item in locker:
-		mult += LootDB.bonus_for(item)
+	var mult := 1.0 + float(_tot["vinyls"])
 	mult *= 1.0 + _album_bonus("money")
 	_gp_mission("open", 1, pack_id.rstrip("0123456789"))
 	if fixed_loot:
@@ -638,6 +667,10 @@ func _ready() -> void:
 			simulate(i, 0, false, true)
 	if args.has("shares"):
 		_sweep_shares()
+	if args.has("armario"):
+		_locker_report()
+		get_tree().quit(0)
+		return
 
 	report()
 	get_tree().quit(0)
@@ -844,3 +877,31 @@ func _median(values: Array) -> float:
 	var v := values.duplicate()
 	v.sort()
 	return float(v[v.size() / 2])
+
+
+## QUE CONVIENE EXPONER. El jugador optimizado sigue jugando sin reiniciar hasta
+## el minuto 30 y hasta el 45, cada vez llenando el armario con un tipo (o con
+## los cuatro mezclados), y se miran las MONEDAS que le daria el rebirth en ese
+## momento (con la electronica dentro, sin el suelo) y el dinero. Si un tipo solo
+## gana siempre, el armario no tiene decision: es lo que se queja la gente.
+##   $G --headless --path . res://dev/BalanceTest.tscn armario
+func _locker_report(runs: int = 15) -> void:
+	var sets := [["vinyls"], ["cards"], ["sneakers"], ["electronics"],
+		["cards", "vinyls", "sneakers", "electronics"]]
+	for minutes in [30.0, 45.0]:
+		print("ARMARIO: optimizado sin reiniciar, minuto %d (%d partidas)" % [minutes, runs])
+		for kinds in sets:
+			_locker_kinds = kinds
+			var coins: Array = []
+			var money: Array = []
+			var levels := 0
+			for seed_value in runs:
+				var r := simulate(1, seed_value, false, false, -1.0, minutes)
+				coins.append(float(r["coins"]))
+				money.append(float(r["money"]))
+				levels += int(r["levels"])
+			coins.sort()
+			money.sort()
+			print("  %-40s monedas %6.2f   dinero %12d   niveles %2d"
+				% [",".join(kinds), _median(coins), int(_median(money)), levels / runs])
+	_locker_kinds = ["vinyls"]
