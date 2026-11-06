@@ -19,8 +19,12 @@ signal sold(value: int, at: Vector2)
 ## _on_element_damaged()), que es el mismo que pinta los avisos de venta.
 signal damaged(amount: float, crit: bool)
 ## El jugador ha dado un GOLPE PERFECTO: ha pulsado el sobre en el ultimo trozo
-## del anillo (ver Gameplay.PERFECT_FROM). Lo pinta y lo cuenta game.gd.
-signal perfect_hit()
+## del anillo (ver Gameplay.PERFECT_FROM). `sweet` si ha sido en la zona dorada y
+## `mult` lo que ha multiplicado el dano (con la racha). Lo pinta game.gd.
+signal perfect_hit(sweet: bool, mult: float)
+## El jugador ha pulsado ANTES del tramo perfecto: el anillo ha perdido un trozo
+## y la racha se ha roto (ver Gameplay.EARLY_PENALTY).
+signal early_click()
 
 enum State { CLOSED, OPENING, OPENED, LOOT }
 
@@ -87,6 +91,20 @@ var _golden_glow: TextureRect = null
 ## El rotulo de debajo ("DORADO 7 S"): sin el, el reloj solo se ve en los tres
 ## ultimos segundos (cuando parpadea) y el jugador no sabe que se le va a ir.
 var _golden_tag: Label = null
+
+## EL JEFE: un sobre con mucha vida y un reloj que corre desde que aparece. Lo
+## que trae y el reloj los lleva game.gd; aqui viven el aspecto y el rotulo.
+var boss := false
+var boss_left := 0.0
+var _boss_tag: Label = null
+
+## Se ha roto a golpes del jugador (y no por los Pinchos): es lo que cuenta para
+## el combo de apertura (ver game.gd, _on_element_opened).
+var broken_by_hit := false
+
+## Un clic justo despues de arrancar la carga no es "pulsar antes de tiempo": es
+## el doble clic de empezar. Por debajo de estos segundos no se castiga.
+const EARLY_GRACE := 0.2
 
 
 func _init() -> void:
@@ -164,6 +182,25 @@ func golden_tick() -> void:
 		_golden_tag.text = "DORADO  %d S" % ceili(maxf(0.0, golden_left))
 
 
+## Lo convierte en JEFE, con su vida y su reloj. Como setup_golden(): despues
+## de setup_pack() y antes de entrar en el arbol.
+func setup_boss(hp_value: float, life: float) -> void:
+	boss = true
+	boss_left = life
+	max_hp = maxf(max_hp, hp_value)
+	hp = max_hp
+
+
+## Pone al dia el rotulo del jefe: lo que le queda de vida y de reloj.
+func boss_tick() -> void:
+	if _boss_tag == null:
+		return
+	_boss_tag.text = "JEFE  %d %%  %d S" % [ceili(hp / maxf(1.0, max_hp) * 100.0),
+			ceili(maxf(0.0, boss_left))]
+	_boss_tag.modulate = Color.WHITE if boss_left > 5.0 \
+			else (Color(1.6, 0.6, 0.5) if int(boss_left * 4.0) % 2 == 0 else Color.WHITE)
+
+
 ## ¿Se ha empezado ya? Un sobre dorado empezado no se va.
 func started() -> bool:
 	return state != State.CLOSED or hp < max_hp
@@ -185,6 +222,19 @@ func _build_pack() -> void:
 				Vector2(BOX.x, 30), 21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0)
 		add_child(_golden_tag)
 		golden_tick()
+	if boss:
+		# El jefe late en rojo detras, como el dorado en oro: se ve de lejos que
+		# no es un sobre mas.
+		var aura := UIKit.image("rarity_glow_legendary", ART_CENTER, ART_SIZE * 1.9,
+				Color(1.6, 0.35, 0.3, 1.0))
+		add_child(aura)
+		var at := create_tween().set_loops()
+		at.tween_property(aura, "modulate:a", 0.55, 0.3)
+		at.tween_property(aura, "modulate:a", 1.0, 0.3)
+		_boss_tag = UIKit.label_at("", Vector2(BOX.x * 0.5, ART_CENTER.y + ART_SIZE.y * 0.5 + 12),
+				Vector2(BOX.x, 30), 21, Palette.RUST_L, HORIZONTAL_ALIGNMENT_CENTER, 0)
+		add_child(_boss_tag)
+		boss_tick()
 	# El ANILLO VA DELANTE DE TODO MENOS DEL PAQUETE, y es justo lo que hace que
 	# no lo tape. El sprite ui_timer_track es un disco con un agujero en medio:
 	# medido pixel a pixel, su banda pintada va de 2,3 a 8,5 celdas de radio (36
@@ -199,6 +249,9 @@ func _build_pack() -> void:
 	_ring.size = RING_SIZE
 	_ring.position = ART_CENTER - RING_SIZE * 0.5
 	_ring.progress = 0.0
+	_ring.zone_from = Gameplay.PERFECT_FROM
+	_ring.sweet_from = Gameplay.SWEET_FROM
+	_ring.sweet_to = Gameplay.SWEET_TO
 	_ring.modulate.a = 0.0
 	add_child(_ring)
 
@@ -206,6 +259,8 @@ func _build_pack() -> void:
 	add_child(_art)
 	if golden:
 		_art.modulate = Color(1.25, 1.1, 0.55)
+	elif boss:
+		_art.modulate = Color(1.35, 0.7, 0.65)
 	add_child(UIKit.image("shadow_small", SHADOW_CENTER, SHADOW_SIZE,
 			Color(1, 1, 1, 0.55)))
 
@@ -394,27 +449,39 @@ func _process(delta: float) -> void:
 	_charge += delta
 	var p := clampf(_charge / _total, 0.0, 1.0)
 	_ring.progress = p
-	# EL TRAMO DEL GOLPE PERFECTO: el anillo se enciende en dorado en el ultimo
-	# trozo, que es cuando pulsar el sobre da el golpe perfecto.
-	_ring.modulate = Color(1.7, 1.45, 0.5, 1.0) if p >= Gameplay.PERFECT_FROM \
-			else Color.WHITE
+	# EL TRAMO DEL GOLPE PERFECTO: las zonas ya estan pintadas en el anillo (ver
+	# TimerRing.zone_from), asi que aqui solo cambia la PUNTA que avanza: turquesa
+	# dentro del tramo perfecto y blanca en la ZONA DORADA. Antes se tenia todo el
+	# anillo, y eso tapaba los colores de las zonas.
+	if p >= Gameplay.SWEET_FROM and p < Gameplay.SWEET_TO:
+		_ring.head_color = TimerRing.SWEET_COLOR
+	elif p >= Gameplay.PERFECT_FROM:
+		_ring.head_color = TimerRing.ZONE_COLOR
+	else:
+		_ring.head_color = Palette.GOLD_XL
 	if p >= 1.0:
 		# Un ciclo completo es un golpe. La vida no baja de golpe, pero sube
 		# otra vez la carga: por eso hacen falta varios ciclos para abrir.
 		_charge = 0.0
+		# Se le ha pasado al jugador: la vuelta ha acabado sin que lo pulse, y eso
+		# rompe la racha. Con el FRENESI no, que ahi los sobres van solos.
+		if Game.frenzy_left <= 0.0:
+			Game.break_streak()
 		_strike()
 
 
 ## Un golpe: resta a la resistencia el dano del jugador (con critico si toca) y,
 ## si llega a cero, la caja se rompe y sale el botin.
-func _strike(perfect: bool = false) -> void:
+func _strike(perfect: bool = false, sweet: bool = false) -> void:
 	# El golpe cargado (habilidad) se gasta en el primer golpe del jugador, y el
-	# perfecto dobla: los dos son del dedo del jugador, por eso van aqui y no en
+	# perfecto multiplica (con la zona dorada y la racha dentro, ver
+	# Game.note_perfect): los dos son del dedo del jugador, por eso van aqui y no en
 	# take_damage() (que es de los Pinchos).
 	var dmg := Game.damage_per_hit() * Game.take_charged()
 	if perfect:
-		dmg *= Gameplay.PERFECT_MULT
-		perfect_hit.emit()
+		var mult := Game.note_perfect(sweet)
+		dmg *= mult
+		perfect_hit.emit(sweet, mult)
 	var crit := false
 	if Game.crit_chance() > 0.0 and _rng.randf() < Game.crit_chance():
 		crit = true
@@ -442,6 +509,7 @@ func _strike(perfect: bool = false) -> void:
 		# Lo que le ha sobrado a este golpe espera al siguiente sobre (ver
 		# Game.keep_carry, que no guarda nada sin la mejora).
 		Game.keep_carry(dmg - before)
+		broken_by_hit = true
 		if _art != null:
 			_art.texture = Sprites.tex(str(pack.get("art_open", "pack_cards_open")))
 		_finish()
@@ -609,15 +677,23 @@ func sell_instant() -> int:
 
 
 ## Pulsar el sobre mientras carga: en el ultimo trozo del anillo es un GOLPE
-## PERFECTO (sale ya y pega PERFECT_MULT); antes, no hace nada (como siempre). Devuelve si
-## ha sido perfecto.
+## PERFECTO (sale ya y pega PERFECT_MULT, mas en la zona dorada y con racha);
+## antes de ese trozo el anillo pierde Gameplay.EARLY_PENALTY de la vuelta y la
+## racha se rompe. Devuelve si ha sido perfecto.
 func try_perfect() -> bool:
 	if state != State.OPENING or _busy:
 		return false
-	if _charge / maxf(0.001, _total) < Gameplay.PERFECT_FROM:
+	var p := _charge / maxf(0.001, _total)
+	if p < Gameplay.PERFECT_FROM:
+		if _charge >= EARLY_GRACE:
+			_charge = maxf(0.0, _charge - Gameplay.EARLY_PENALTY * _total)
+			Game.break_streak()
+			early_click.emit()
+			if _art != null:
+				UIKit.shake(_art)
 		return false
 	_charge = 0.0
-	_strike(true)
+	_strike(true, p >= Gameplay.SWEET_FROM and p < Gameplay.SWEET_TO)
 	return true
 
 

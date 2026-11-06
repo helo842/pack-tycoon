@@ -58,6 +58,7 @@ func _run() -> void:
 	# aparte, con sus propios checks.
 	Game.card_mode = "always"
 	RevealCard.arm_delay_ms = 0
+	RevealCard.suspense = false
 	Game.set_auto_sell(false)
 	Game.set_auto_open(false)
 	Game.set_auto_buy(false)

@@ -37,6 +37,8 @@ signal album_changed()
 signal missions_changed()
 ## Una habilidad se ha usado o ha vuelto a estar lista.
 signal abilities_changed()
+## La racha de golpes perfectos ha subido o se ha roto (ver Gameplay.STREAK_STEP).
+signal streak_changed(streak: int)
 
 const SAVE_PATH := "user://packtycoon.json"
 const AUTOSAVE_EVERY := 30.0
@@ -158,6 +160,8 @@ var happy: Dictionary = {}          # {kind, left}
 var cooldowns: Dictionary = {}      # id de habilidad -> segundos que le faltan
 var charged_next: bool = false
 var frenzy_left: float = 0.0
+## Golpes perfectos seguidos (ver Gameplay.STREAK_STEP). Es de este rato de juego.
+var streak: int = 0
 var _rng_play := RandomNumberGenerator.new()
 
 var _dirty := false
@@ -953,6 +957,24 @@ func use_ability(id: String) -> bool:
 	return true
 
 
+## Un golpe perfecto: sube la racha (dos pasos en la zona dorada) y devuelve
+## lo que multiplica el dano, con el perfecto, la zona dorada y la racha dentro.
+func note_perfect(sweet: bool) -> float:
+	streak += 2 if sweet else 1
+	perfect_hits += 1
+	streak_changed.emit(streak)
+	return Gameplay.PERFECT_MULT * (Gameplay.SWEET_MULT if sweet else 1.0) \
+			* Gameplay.streak_mult(streak)
+
+
+## La racha se rompe (se ha pasado un sobre o se ha pulsado antes de tiempo).
+func break_streak() -> void:
+	if streak == 0:
+		return
+	streak = 0
+	streak_changed.emit(streak)
+
+
 ## El golpe cargado se gasta en el primer golpe que lo pide.
 func take_charged() -> float:
 	if not charged_next:
@@ -1325,6 +1347,7 @@ func hard_reset() -> void:
 	happy = {}
 	cooldowns = {}
 	charged_next = false
+	streak = 0
 	frenzy_left = 0.0
 	_dirty = true
 	if FileAccess.file_exists(SAVE_PATH):

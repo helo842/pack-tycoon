@@ -199,7 +199,7 @@ func refresh() -> void:
 			(cell[key] as CanvasItem).modulate = Color.WHITE if on \
 					else Color(0.5, 0.5, 0.58, 1.0)
 		var num: PixelNumber = cell["num"]
-		num.color = Palette.CREAM if on else Palette.PRICE_OFF
+		num.recolor(Palette.CREAM if on else Palette.PRICE_OFF)
 		num.position = (cell["tag"] as Vector2) - num.size * 0.5
 
 

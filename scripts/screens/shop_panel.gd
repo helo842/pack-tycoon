@@ -375,11 +375,10 @@ func _refresh_items() -> void:
 		if cerrado:
 			(cell["art"] as TextureRect).modulate = Color(0.85, 0.85, 0.88)
 			continue
-		# El color va ANTES del texto, siempre: PixelNumber solo lo aplica al
-		# construir los glifos (ver pixel_number.gd, _rebuild), asi que al reves el
-		# numero se queda del color que tuviera la vez anterior.
-		# Sin dinero, el numero se apaga (ver Palette.PRICE_OFF).
-		num.color = Palette.CREAM if Game.can_afford(cost) else Palette.PRICE_OFF
+		# Sin dinero, el numero se apaga (ver Palette.PRICE_OFF). Va por recolor():
+		# con las mismas cifras set_number() no reconstruye los glifos, asi que
+		# asignar `color` dejaba el precio gris aunque ya te llegara el dinero.
+		num.recolor(Palette.CREAM if Game.can_afford(cost) else Palette.PRICE_OFF)
 		num.set_number(cost)
 		(cell["art"] as TextureRect).modulate = _lit(Game.can_afford(cost))
 		# El texto acaba de cambiar de ancho, asi que se vuelve a centrar.

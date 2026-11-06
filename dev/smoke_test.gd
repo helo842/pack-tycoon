@@ -749,6 +749,8 @@ func _run() -> void:
 	# aparte, con sus propios checks.
 	Game.card_mode = "always"
 	RevealCard.arm_delay_ms = 0
+	# Y sin el suspense de antes de la ficha, que se prueba aparte.
+	RevealCard.suspense = false
 	await get_tree().process_frame
 	_main = MAIN_SCENE.instantiate() as MainRoot
 	add_child(_main)
@@ -1570,9 +1572,13 @@ func _run() -> void:
 	var normal: float = bal.fixed_minutes(0)
 	var optimo: float = bal.fixed_minutes(1)
 	var automatico: float = bal.fixed_minutes(2)
-	_check("el jugador normal llega al primer rebirth en la banda (de 12 a 19 min): %.1f"
+	# EL TOPE SUBIO DE 19 A 26 cuando se pidio que la MEDIA de los tres jugadores
+	# llegue sobre los doce minutos (ver LootDB.REBIRTH_REQUIRE): el normal pasa a
+	# los ~17 de mediana, y sin dado (que siempre sale mas largo, ver el informe)
+	# a los ~25.
+	_check("el jugador normal llega al primer rebirth en la banda (de 12 a 26 min): %.1f"
 			% normal,
-		normal >= 12.0 and normal <= 19.0)
+		normal >= 12.0 and normal <= 26.0)
 	# El margen era de TRES minutos cuando el ritmo lo ponia el clic; con la barra
 	# a 1,65 s el cuello de botella pasa a ser la CARGA, que la pagan los dos
 	# igual (los Guantes son para todos), asi que la diferencia se queda en algo
@@ -3424,10 +3430,105 @@ func _run() -> void:
 	var gp_vida: float = gp_perfecto.hp
 	gp_perfecto._charge = gp_perfecto._total * 0.9
 	var gp_perf_antes: int = Game.perfect_hits
+	Game.streak = 0
 	_check("pulsar al final del anillo es un golpe perfecto", gp_perfecto.try_perfect())
 	_check("y pega el doble de un golpe normal",
 		absf((gp_vida - gp_perfecto.hp) - Game.damage_per_hit() * Gameplay.PERFECT_MULT) < 1.0
 		and Game.perfect_hits == gp_perf_antes + 1)
+
+	# LA RACHA, LA ZONA DORADA Y PULSAR ANTES DE TIEMPO, en un sobre que no se rompe.
+	await _empty_table(g)
+	var gp_racha: TableElement = g._spawn_pack("electronics")
+	await get_tree().process_frame
+	gp_racha.max_hp = 1.0e12
+	gp_racha.hp = gp_racha.max_hp
+	Game.streak = 0
+	gp_racha.start_opening()
+	gp_racha._charge = gp_racha._total * 0.85
+	gp_racha.try_perfect()
+	_check("un perfecto empieza la racha", Game.streak == 1)
+	gp_racha.start_opening()
+	gp_racha._charge = gp_racha._total * (Gameplay.SWEET_FROM + Gameplay.SWEET_TO) * 0.5
+	var gp_antes_dorado: float = gp_racha.hp
+	gp_racha.try_perfect()
+	_check("la zona dorada suma dos a la racha", Game.streak == 3)
+	_check("y pega perfecto x zona dorada x racha",
+		absf((gp_antes_dorado - gp_racha.hp) - Game.damage_per_hit() * Gameplay.PERFECT_MULT
+			* Gameplay.SWEET_MULT * Gameplay.streak_mult(3)) < 1.0)
+	gp_racha.start_opening()
+	gp_racha._charge = TableElement.EARLY_GRACE * 0.5
+	gp_racha.try_perfect()
+	_check("el doble clic de empezar no castiga", Game.streak == 3
+		and is_equal_approx(gp_racha._charge, TableElement.EARLY_GRACE * 0.5))
+	gp_racha._charge = gp_racha._total * 0.5
+	_check("pulsar antes de tiempo no es perfecto", not gp_racha.try_perfect())
+	_check("y quita un trozo del anillo y rompe la racha", Game.streak == 0
+		and absf(gp_racha._charge - gp_racha._total * (0.5 - Gameplay.EARLY_PENALTY)) < 0.001)
+	Game.streak = 2
+	gp_racha._charge = gp_racha._total * 0.999
+	gp_racha._process(gp_racha._total * 0.01)
+	_check("dejar pasar la vuelta sin pulsar rompe la racha", Game.streak == 0)
+	await _empty_table(g)
+
+	# EL COMBO: sobres rotos a golpes seguidos suben el botin; los Pinchos no cuentan.
+	Game.set_auto_sell(true)
+	var gp_c1: TableElement = g._spawn_pack("cards")
+	var gp_c2: TableElement = g._spawn_pack("cards")
+	var gp_c3: TableElement = g._spawn_pack("cards")
+	await get_tree().process_frame
+	g._combo = 0
+	g._combo_left = 0.0
+	gp_c1.broken_by_hit = true
+	gp_c2.broken_by_hit = true
+	g._on_element_opened("cards", gp_c1)
+	g._on_element_opened("cards", gp_c2)
+	_check("dos sobres rotos seguidos son combo 2", g._combo == 2
+		and Gameplay.combo_mult(2) > 1.0)
+	g._on_element_opened("cards", gp_c3)
+	_check("uno roto por los Pinchos no cuenta", g._combo == 2)
+	g._combo_step(Gameplay.COMBO_WINDOW + 0.1)
+	_check("y si pasa el rato sin romper otro se pierde", g._combo == 0)
+	# Abiertos a mano, sin su animacion: se borran aqui (ver TableElement._emit_opened).
+	for gp_c in [gp_c1, gp_c2, gp_c3]:
+		gp_c.queue_free()
+	await _empty_table(g)
+
+	# EL JEFE: mucha vida, un reloj que corre solo y varios objetos si cae.
+	var gp_jefe: TableElement = g.spawn_boss()
+	await get_tree().process_frame
+	_check("el jefe aparece con la vida de varios golpes", gp_jefe != null and gp_jefe.boss
+		and gp_jefe.max_hp >= Game.damage_per_hit() * Gameplay.BOSS_HITS - 1.0)
+	_check("y no se guarda con la mesa", g._snapshot_table().is_empty())
+	g._boss_step(Gameplay.BOSS_LIFE + 1.0)
+	_check("si se acaba su reloj se va", not g._elements.has(gp_jefe))
+	var gp_jefe2: TableElement = g.spawn_boss()
+	await get_tree().process_frame
+	var gp_hallados: int = Game.items_found
+	gp_jefe2.broken_by_hit = true
+	g._on_element_opened(str(gp_jefe2.pack["id"]), gp_jefe2)
+	_check("roto, suelta %d objetos" % Gameplay.BOSS_LOOT,
+		Game.items_found == gp_hallados + Gameplay.BOSS_LOOT)
+	gp_jefe2.queue_free()
+	Game.set_auto_sell(false)
+	await _empty_table(g)
+
+	# EL SUSPENSE: la ficha espera tapada hasta que acaba (o un clic lo salta).
+	RevealCard.suspense = true
+	var gp_ficha := RevealCard.new()
+	gp_ficha.show_item(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
+	_main.push_overlay(gp_ficha)
+	await get_tree().process_frame
+	_check("con suspense la ficha sale tapada", gp_ficha._teaser != null
+		and not gp_ficha._card.visible and not gp_ficha.armed())
+	var gp_clic := InputEventMouseButton.new()
+	gp_clic.pressed = true
+	gp_clic.button_index = MOUSE_BUTTON_LEFT
+	gp_ficha._gui_input(gp_clic)
+	_check("y un clic lo salta y la ensena", gp_ficha._teaser == null and gp_ficha._card.visible)
+	RevealCard.suspense = false
+	_main.pop_overlay(gp_ficha)
+	gp_perfecto = g._spawn_pack("electronics")
+	await get_tree().process_frame
 
 	# LAS HABILIDADES: bloqueadas sin el arbol; con el, se gastan y recargan.
 	_check("sin el arbol las habilidades no se pueden usar",
@@ -3514,6 +3615,10 @@ func _run() -> void:
 			Game.mission_event("open", 1, "cards")
 		elif gp_tipo == "open_kind":
 			Game.mission_event("open", 1, str(gp_uno["kind"]))
+		elif gp_tipo == "store":
+			# El de guardar pide su tipo y su nota exacta (ver Gameplay.mission_step):
+			# sin ellos no cuenta, y la prueba fallaba cada vez que salia este.
+			Game.mission_event("store", int(gp_uno["grade"]), str(gp_uno["kind"]))
 		else:
 			Game.mission_event(gp_tipo, 1)
 	_check("cumplir un encargo paga su premio (%s)" % gp_tipo, Game.money - gp_d0 >= gp_premio

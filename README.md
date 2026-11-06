@@ -17,7 +17,7 @@ botín). Lo que sale tiene **rareza** y **nota PSA** del 1 al 10, y con eso un
 precio. Con ese dinero se compran sobres más caros y **mejoras** en la tienda.
 Lo que vale la pena se **expone en el armario**, que da un bonus según el tipo
 (cartas daño, vinilos dinero, zapatillas velocidad, electrónica rebirth). Al
-juntar 150.000 se puede hacer **rebirth**: empiezas de cero a cambio de monedas
+juntar 750.000 se puede hacer **rebirth**: empiezas de cero a cambio de monedas
 para un **árbol de mejoras** permanente, que también quita trabajo (atajos, auto
 guardar, automatizaciones...). Por el camino hay **eventos** (sobre dorado,
 comprador VIP, hora feliz), **encargos** y un **álbum** de colecciones.
@@ -351,8 +351,8 @@ que hayas comprado con ellas, y por eso el rebirth se hace **desde dentro del
 multiplica la Electrónica del armario), y debajo, lo que se compra con ellas.
 
 **Cuántas monedas:** la **raíz cúbica** del dinero del contador, medido en
-requisitos (`LootDB.rebirth_coins_for`). 150.000 dan 1, 1,2 M dan 2, 4 M dan 3 y
-150 M dan 10, todo por el multiplicador de la Electrónica, que va **antes del
+requisitos (`LootDB.rebirth_coins_for`). 750.000 dan 1, 6 M dan 2, 20 M dan 3 y
+750 M dan 10, todo por el multiplicador de la Electrónica, que va **antes del
 redondeo** (antes iba después, y con una o dos monedas no sumaba nada). Antes era
 una moneda por cada 1,5 M en línea recta. El dinero crece mucho más rápido que
 eso con los sobres caros: aguantando media hora sin reiniciar te llevabas ~170
@@ -462,9 +462,11 @@ expuestas. Y **no se pierde al reiniciar**: es lo que hace que reiniciar signifi
 algo, porque las monedas se ganan reiniciando y se gastan aquí. Lo que se pierde
 es la partida: dinero, items, inventario y armario.
 
-El primer rebirth —la primera moneda— pide **150.000 en el contador**, que son
-**unos quince minutos de partida** (diez el que juega rápido, acierta los golpes
-perfectos y compra bien, y nueve con el PC y los Pinchos puestos): lo justo para subir los dos primeros escalones
+El primer rebirth —la primera moneda— pide **750.000 en el contador**, que son
+**unos diecisiete minutos de partida** (diez y medio el que juega rápido, acierta
+los golpes perfectos y compra bien, y nueve y medio con el PC y los Pinchos
+puestos; **doce de media** entre los tres, que es lo que se pidió al meter la
+racha, el combo y el jefe): lo justo para subir los dos primeros escalones
 de sobres, comprar treinta y tantas mejoras y llegar con ganas de reiniciar. Y
 por el camino **se nota que se va mejorando**: la primera mejora cae antes del
 primer minuto, sale un escalón de sobres nuevo cada dos o tres minutos y el rato
@@ -476,8 +478,8 @@ también unos dieciocho minutos, así que el ritmo es el mismo; lo que cambió e
 **qué** se mide.
 
 El **requisito** y el **premio** se cuentan sobre lo mismo: **el dinero que hay en
-el contador**. Se piden **150.000** para poder reiniciar y cada **1,5 millones** dan
-una moneda, así que gastar en sobres y mejoras antes de reiniciar **aleja las dos
+el contador**. Se piden **750.000** para poder reiniciar y las monedas crecen con
+la raíz cúbica de lo que haya (ver arriba), así que gastar en sobres y mejoras antes de reiniciar **aleja las dos
 cosas** y guardar el dinero las acerca. El número del requisito es bajo (en el
 contador de una partida se manejan miles, no millones) y **está medido**, no
 elegido: sale de barrer con `dev/balance.gd` y quedarse con el que deja la partida
@@ -623,7 +625,16 @@ requisito y el margen de antes el primer rebirth bajaba a menos de doce minutos;
 el margen de los sobres bajó un poco (`VALUE_SCALE` 2,2 → 2,06) y el requisito
 subió a 150.000 para dejarlo otra vez en los quince. Con `clasico` en la línea de
 comandos el simulador apaga todo esto, y con `sin_dorado`, `sin_vip`,
-`sin_feliz`, `sin_encargos`, `sin_perfecto` o `sin_album` apaga solo esa pieza.
+`sin_feliz`, `sin_encargos`, `sin_perfecto`, `sin_album`, `sin_combo` o
+`sin_jefe` apaga solo esa pieza.
+
+Después llegaron la **racha** de perfectos, la **zona dorada**, el **combo** de
+apertura y el **jefe** (ver `Gameplay`). Se pidió que la **media** de los tres
+jugadores del simulador llegue al primer rebirth sobre los **doce minutos**.
+Subir el requisito casi no frena a los rápidos, así que se recortaron también la
+racha (+8 % por paso, tope 3) y la zona dorada (×1,25), y el requisito subió a
+**750.000**: 16,9 / 10,6 / 9,4 min, media 12,3. Sin dado el normal sale en ~25,
+así que la banda del test de humo subió de 19 a 26.
 
 ### Animaciones
 

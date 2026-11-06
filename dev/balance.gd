@@ -10,10 +10,13 @@
 # jugador de verdad, al ver lo que le falta, deja de comprar y llega ANTES de lo
 # que dice esta herramienta.
 #
-# LA CIFRA DEL REQUISITO (hoy 150.000) SALIO DE AQUI, barriendo: con 100.000 el
+# LA CIFRA DEL REQUISITO (hoy 750.000) SALIO DE AQUI, barriendo: con 100.000 el
 # normal llegaba en 14,2 min, con 120.000 en 14,9 y con 130.000 en 15,5. Con el
 # gameplay nuevo (ver _gp_events y "clasico") bajaba a menos de doce y se volvio
-# a barrer: margen de los sobres a 2,06 y requisito a 150.000 dan 14,7. El
+# a barrer: margen de los sobres a 2,06 y requisito a 150.000 dan 14,7. Con la
+# racha, el combo y el jefe se pidio que la MEDIA de los tres jugadores quede en
+# unos doce minutos, y barriendo junto con la racha salio 750.000 (16,9 / 10,6 /
+# 9,4). El
 # objetivo es que la PRIMERA MONEDA de rebirth caiga sobre los quince minutos y
 # que por el camino se note que se va comprando: eso lo mide el informe del
 # RITMO (cuando se abre cada escalon y el rato mas largo sin comprar nada).
@@ -97,19 +100,19 @@ const AUTO_STEP := 0.25
 const STRATEGIES: Array = [
 	{
 		"id": "normal", "click": 0.35, "card": 1.6, "share": 0.30, "auto": false,
-		"locker": false, "perfect": 0.30, "catch": 0.8,
+		"locker": false, "perfect": 0.30, "catch": 0.8, "sweet": 0.15, "combo": 3, "boss": 0.5,
 		"order": ["tijeras", "guantes", "trebol", "cajon", "ojo_verde", "laser",
 			"pc", "pinchos", "armario"],
 	},
 	{
 		"id": "optimizado", "click": 0.20, "card": 1.1, "share": 0.20, "auto": false,
-		"locker": true, "perfect": 0.60, "catch": 1.0,
+		"locker": true, "perfect": 0.60, "catch": 1.0, "sweet": 0.30, "combo": 5, "boss": 0.9,
 		"order": ["tijeras", "guantes", "trebol", "cajon", "ojo_verde", "laser",
 			"pc", "pinchos", "armario"],
 	},
 	{
 		"id": "automatico", "click": 0.20, "card": 0.0, "share": 0.20, "auto": true,
-		"locker": true, "perfect": 0.60, "catch": 1.0,
+		"locker": true, "perfect": 0.60, "catch": 1.0, "sweet": 0.30, "combo": 5, "boss": 0.9,
 		"order": ["tijeras", "guantes", "trebol", "cajon", "ojo_verde", "laser",
 			"pc", "pinchos", "armario"],
 	},
@@ -129,13 +132,16 @@ const AUTO_BUY := 0.75
 ## optimizado mas de la mitad, y el automatico igual mientras juega a mano: los
 ## Pinchos no aciertan nunca) y "catch" la parte
 ## de los sobres dorados que llega a coger antes de que se vayan.
+## Y tres mas del gameplay de la racha: "sweet" es la parte de sus perfectos que
+## caen en la zona dorada, "combo" el combo de apertura que lleva de media y
+## "boss" la parte de los jefes que llega a romper a tiempo.
 ## Las habilidades no entran: se compran en el arbol del rebirth, asi que en la
 ## primera partida no hay ninguna.
 var gameplay := true
 var _gp: Dictionary = {}
 ## Para medir cada pieza por separado: "sin_dorado", "sin_vip", "sin_feliz",
-## "sin_encargos", "sin_perfecto" y "sin_album" en la linea de comandos apagan
-## esa sola cosa.
+## "sin_encargos", "sin_perfecto", "sin_album", "sin_combo" y "sin_jefe" en la
+## linea de comandos apagan esa sola cosa.
 var _off: Array = []
 ## El armario de la partida que se esta simulando (lo leen el dano, la carga y
 ## el dinero, que estan en funciones que no lo reciben).
@@ -326,11 +332,23 @@ func _pack_seconds(levels: Array, pack_id: String, st: Dictionary) -> float:
 
 
 ## Lo que da de mas, de media, acertar el golpe perfecto: la parte de golpes que
-## caen en el ultimo trozo del anillo pegan PERFECT_MULT veces.
+## caen en el ultimo trozo del anillo pegan PERFECT_MULT veces, la zona dorada
+## otra vez SWEET_MULT y la racha lo suyo.
+##
+## LA RACHA SE MIDE EN SU MEDIA: si se acierta una parte p de los golpes, el
+## perfecto numero j de una racha llega con probabilidad (1 - p) p^(j-1), y en
+## ese punto la racha vale j pasos (j x 1,x con la zona dorada, que suma dos).
 func _perfect_factor(st: Dictionary) -> float:
 	if not gameplay or _off.has("perfecto"):
 		return 1.0
-	return 1.0 + float(st.get("perfect", 0.0)) * (Gameplay.PERFECT_MULT - 1.0)
+	var p := float(st.get("perfect", 0.0))
+	var sweet := float(st.get("sweet", 0.0))
+	var racha := 0.0
+	for j in range(1, 60):
+		racha += (1.0 - p) * pow(p, j - 1) \
+				* Gameplay.streak_mult(roundi(float(j) * (1.0 + sweet)))
+	var perfecto := Gameplay.PERFECT_MULT * (1.0 + sweet * (Gameplay.SWEET_MULT - 1.0)) * racha
+	return 1.0 + p * (perfecto - 1.0)
 
 
 ## Segundos por golpe (un ciclo de carga + el clic que lo arranca), con el
@@ -424,6 +442,8 @@ func _gp_reset(st: Dictionary, seed_value: int) -> void:
 	r.seed = seed_value + 7777
 	_gp = {"rng": r, "t": 0.0, "top_price": 0, "top_index": 0,
 		"golden_at": Gameplay.GOLDEN_FIRST, "vip_at": Gameplay.VIP_FIRST,
+		"boss_at": Gameplay.BOSS_FIRST, "boss_n": 0, "boss_money": 0,
+		"combo": int(st.get("combo", 0)),
 		"happy_at": Gameplay.HAPPY_FIRST, "buyer": {}, "happy": {},
 		"missions": [], "pending": 0, "perfect_acc": 0.0, "perfect_done": 0,
 		"album": {}, "bonus": {}, "perfect10": false,
@@ -452,6 +472,9 @@ func _gp_sell(loot: Dictionary) -> int:
 	var value := int(loot["value"])
 	if not gameplay:
 		return value
+	# El combo de apertura sube lo que sale del sobre (en el juego, al tirarlo).
+	if not _off.has("combo"):
+		value = roundi(float(value) * Gameplay.combo_mult(int(_gp.get("combo", 0))))
 	_gp_album(loot)
 	var t := float(_gp["t"])
 	var kind := LootDB.kind_of(loot)
@@ -577,6 +600,27 @@ func _gp_events(st: Dictionary, levels: Array, locker: Array,
 		_gp["golden_money"] = int(_gp["golden_money"]) + gain
 		out["money"] = int(out["money"]) + gain
 		out["opened"] = int(out["opened"]) + 1
+	# EL JEFE: BOSS_HITS golpes (menos con perfectos), y si cae, BOSS_LOOT objetos
+	# del sobre del dorado con la nota subida a BOSS_MIN_GRADE.
+	while t >= float(_gp["boss_at"]):
+		_gp["boss_at"] = float(_gp["boss_at"]) + Gameplay.between(r, Gameplay.BOSS_EVERY)
+		if _off.has("jefe"):
+			continue
+		var golpes := Gameplay.BOSS_HITS / _perfect_factor(st)
+		out["seconds"] = float(out["seconds"]) + golpes * _cycle(levels, st)
+		if r.randf() >= float(st.get("boss", 1.0)):
+			continue
+		var j := clampi(maxi(int(_gp["top_index"]) + Gameplay.GOLDEN_STEP, 1), 0,
+				LootDB.pack_count() - 1)
+		var jefe_id := str(LootDB.pack_at(j)["id"])
+		var jefe_gain := 0
+		for k in Gameplay.BOSS_LOOT:
+			jefe_gain += _gp_golden_loot(levels, locker, jefe_id, rng, fixed_loot,
+					Gameplay.BOSS_MIN_GRADE)
+		_gp["boss_n"] = int(_gp["boss_n"]) + 1
+		_gp["boss_money"] = int(_gp["boss_money"]) + jefe_gain
+		out["money"] = int(out["money"]) + jefe_gain
+		out["opened"] = int(out["opened"]) + 1
 	if not _off.has("encargos"):
 		out["money"] = int(out["money"]) + int(_gp["pending"])
 	_gp["pending"] = 0
@@ -586,7 +630,8 @@ func _gp_events(st: Dictionary, levels: Array, locker: Array,
 ## El botin del sobre dorado: el del sobre, con la nota subida al minimo dorado
 ## a base de volver a tirarla (como hace game.gd con Game.regrade).
 func _gp_golden_loot(levels: Array, locker: Array, pack_id: String,
-		rng: RandomNumberGenerator, fixed_loot: bool) -> int:
+		rng: RandomNumberGenerator, fixed_loot: bool,
+		min_grade: int = Gameplay.GOLDEN_MIN_GRADE) -> int:
 	var mult := 1.0 + float(_tot["vinyls"])
 	mult *= 1.0 + _album_bonus("money")
 	_gp_mission("open", 1, pack_id.rstrip("0123456789"))
@@ -600,14 +645,14 @@ func _gp_golden_loot(levels: Array, locker: Array, pack_id: String,
 			var w := float(LootDB.GRADE_WEIGHTS[g - 1])
 			all += w * LootDB.grade_mult(g)
 			all_w += w
-			if g >= Gameplay.GOLDEN_MIN_GRADE:
+			if g >= min_grade:
 				top += w * LootDB.grade_mult(g)
 				top_w += w
 		return roundi(LootDB.pack_payout(pack_id) * mult * (top / top_w) / (all / all_w))
 	var loot := LootDB.roll_pack(rng, pack_id, LootDB.luck(levels), mult)
 	var r: RandomNumberGenerator = _gp["rng"]
 	var vueltas := 0
-	while int(loot["grade"]) < Gameplay.GOLDEN_MIN_GRADE and vueltas < 200:
+	while int(loot["grade"]) < min_grade and vueltas < 200:
 		var g := LootDB.roll_grade(r)
 		loot["value"] = maxi(1, roundi(float(loot["value"]) * LootDB.grade_mult(g)
 				/ LootDB.grade_mult(int(loot["grade"]))))

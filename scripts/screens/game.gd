@@ -268,6 +268,14 @@ var _spike_timer := 0.0
 var _golden_timer := Gameplay.GOLDEN_FIRST
 var _vip_timer := Gameplay.VIP_FIRST
 var _happy_timer := Gameplay.HAPPY_FIRST
+var _boss_timer := Gameplay.BOSS_FIRST
+## El combo de apertura (ver Gameplay.COMBO_WINDOW): cuantos sobres seguidos y el
+## tiempo que queda para romper el siguiente sin perderlo.
+var _combo := 0
+var _combo_left := 0.0
+var _streak_label: Label = null
+var _combo_label: Label = null
+var _combo_bar: ColorRect = null
 var _libreta: Control = null
 var _event_band: Control = null
 var _event_lines: Array = []
@@ -303,6 +311,7 @@ func _ready() -> void:
 	_build_libreta_button()
 	_build_abilities()
 	_build_event_band()
+	_build_hud()
 
 	Game.money_changed.connect(_on_money_changed)
 	# La tira de abajo se repinta con las DOS senales: con los objetos expuestos
@@ -331,6 +340,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	# Por si la pantalla se va en mitad de un hitstop.
+	Engine.time_scale = 1.0
 	# La pantalla se va (al menu, o se cierra el juego): la ultima foto de la mesa
 	# se queda en Game y esta pantalla deja de ser quien la da.
 	Game.table = _snapshot_table()
@@ -839,6 +850,7 @@ func _add_element(el: TableElement) -> void:
 	el.sold.connect(_on_element_sold.bind(el))
 	el.damaged.connect(_on_element_damaged.bind(el))
 	el.perfect_hit.connect(_on_perfect_hit.bind(el))
+	el.early_click.connect(_on_early_click.bind(el))
 	el.landed.connect(_on_landed)
 	_table.add_child(el)
 	# La caida la lleva el elemento: asi se puede cortar si el jugador lo agarra
@@ -851,11 +863,66 @@ func _add_element(el: TableElement) -> void:
 ## momento. Con la mesa restaurada caen muchos a la vez; el temblor se reinicia.
 func _on_landed() -> void:
 	Sound.play("sfx_open", -10.0, 0.55)
+	_shake(1.0)
+
+
+## La mesa tiembla. `k` es la fuerza: 1 es lo que tiembla al caer un objeto.
+func _shake(k: float) -> void:
 	if _shake_tween != null and _shake_tween.is_valid():
 		_shake_tween.kill()
 	_shake_tween = create_tween()
 	for off in [Vector2(0, 7), Vector2(-4, -3), Vector2(3, 2), Vector2.ZERO]:
-		_shake_tween.tween_property(_table, "position", off, 0.04)
+		_shake_tween.tween_property(_table, "position", off * k, 0.04)
+
+
+## Un instante de juego congelado (el "hitstop"): el golpe se siente como un
+## golpe. Se vuelve a la velocidad normal con un reloj de tiempo REAL, que el de
+## siempre tambien va a camara lenta.
+func _hitstop(seconds: float) -> void:
+	Engine.time_scale = 0.05
+	get_tree().create_timer(seconds, true, false, true).timeout.connect(
+			func() -> void: Engine.time_scale = 1.0)
+
+
+## Un sobre roto a golpes: estalla en trozos, la mesa da un golpe y el jefe, ademas,
+## congela el juego un instante.
+func _on_pack_broken(el: TableElement) -> void:
+	if not is_instance_valid(el) or _fx == null:
+		return
+	var color := Palette.GOLD_XL if el.golden else (Palette.RUST_L if el.boss else Palette.CREAM)
+	_burst(el.global_position + TableElement.ART_CENTER, color, 40 if el.boss else 22)
+	_shake(3.0 if el.boss else 1.6)
+	if el.boss:
+		_hitstop(0.12)
+
+
+## Trozos que saltan de un punto y caen (en la capa de avisos, para que no se vayan
+## con el sobre que se borra).
+func _burst(at: Vector2, color: Color, amount: int) -> void:
+	var p := CPUParticles2D.new()
+	p.position = at
+	p.emitting = false
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.amount = amount
+	p.lifetime = 0.7
+	p.direction = Vector2(0, -1)
+	p.spread = 180.0
+	p.initial_velocity_min = 260.0
+	p.initial_velocity_max = 620.0
+	p.gravity = Vector2(0, 1400)
+	p.angular_velocity_min = -540.0
+	p.angular_velocity_max = 540.0
+	p.scale_amount_min = 8.0
+	p.scale_amount_max = 16.0
+	p.color = color
+	var fade := Gradient.new()
+	fade.set_color(0, Color.WHITE)
+	fade.set_color(1, Color(1, 1, 1, 0))
+	p.color_ramp = fade
+	_fx.add_child(p)
+	p.emitting = true
+	p.finished.connect(p.queue_free)
 
 
 func _drop_element(el: TableElement) -> void:
@@ -882,6 +949,10 @@ func _snapshot_table() -> Array:
 			continue
 		if el.is_loot():
 			out.append({"loot": (el.loot as Dictionary).duplicate(true)})
+		elif el.boss:
+			# El jefe es un evento con reloj: no vuelve con la mesa guardada (volveria
+			# como un sobre normal con la vida de un jefe).
+			continue
 		else:
 			out.append({"pack": str(el.pack.get("id", "cards")), "hp": maxf(1.0, el.hp)})
 	if not _reveal_data.is_empty() and (_reveal_el == null or not _elements.has(_reveal_el)):
@@ -917,6 +988,9 @@ func _clear_table() -> void:
 	_worked.clear()
 	_loot_age.clear()
 	_reveal_queue.clear()
+	_combo = 0
+	_combo_left = 0.0
+	_refresh_combo()
 	_refresh_top()
 
 
@@ -1037,18 +1111,40 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 		return
 	_drop_element(el)
 	Game.packs_opened += 1
-	# La suerte (Trebol) engorda el botin no comun y el multiplicador del Armario
-	# sube el valor de lo que sale.
-	var item := LootDB.roll_pack(_rng, pack_id, Game.luck(), Game.value_multiplier())
-	# EL SOBRE DORADO trae la nota alta: se vuelve a tirar hasta llegar al
-	# minimo (con la misma regla que la lupa del tasador, que escala el valor).
+	# EL COMBO: solo los sobres rotos a golpes, uno detras de otro.
+	var mult := 1.0
+	if el.broken_by_hit:
+		_combo = _combo + 1 if _combo_left > 0.0 else 1
+		_combo_left = Gameplay.COMBO_WINDOW
+		mult = Gameplay.combo_mult(_combo)
+		_refresh_combo()
+		_on_pack_broken(el)
+	var rolls := Gameplay.BOSS_LOOT if el.boss else 1
+	var min_grade := Gameplay.GOLDEN_MIN_GRADE if el.golden \
+			else (Gameplay.BOSS_MIN_GRADE if el.boss else 0)
 	if el.golden:
+		Game.mission_event("golden", 1)
+	if el.boss:
+		Sound.play("sfx_sell_all")
+		_main().banner("JEFE DERROTADO", "%d OBJETOS CON NOTA %d O MAS" % [rolls, min_grade])
+	Game.mission_event("open", 1, _pack_kind(pack_id))
+	for i in rolls:
+		# La suerte (Trebol) engorda el botin no comun y el multiplicador del Armario
+		# sube el valor de lo que sale (y el combo, si lo hay).
+		var item := LootDB.roll_pack(_rng, pack_id, Game.luck(), Game.value_multiplier() * mult)
+		# EL SOBRE DORADO y EL JEFE traen la nota alta: se vuelve a tirar hasta
+		# llegar al minimo (con la misma regla que la lupa del tasador, que escala
+		# el valor).
 		var vueltas := 0
-		while int(item["grade"]) < Gameplay.GOLDEN_MIN_GRADE and vueltas < 200:
+		while int(item["grade"]) < min_grade and vueltas < 200:
 			item = Game.regrade(item)
 			vueltas += 1
-		Game.mission_event("golden", 1)
-	Game.mission_event("open", 1, _pack_kind(pack_id))
+		_deliver(item)
+
+
+## Lo que se hace con un objeto recien salido de un sobre: la libreta y luego, en
+## este orden, el auto guardar, la venta automatica, la mesa sin ficha o la ficha.
+func _deliver(item: Dictionary) -> void:
 	# ¿Es la primera vez que sale? Se mira ANTES de apuntarlo: register_found lo
 	# mete en la libreta y despues ya no seria nuevo (ver Game.card_worth).
 	var nuevo := Gameplay.album_items().has(Gameplay.album_key(item)) \
@@ -1135,12 +1231,9 @@ func _reveal_item(item: Dictionary) -> void:
 	if _reveal != null:
 		_reveal_queue.append(item)
 		return
-	# Primero el sonido de que se ha abierto, y ENCIMA el del premio si toca:
-	# en ese orden se entiende "algo ha salido" y luego "y es bueno".
+	# Primero el sonido de que se ha abierto; el del premio lo pone la ficha cuando
+	# se ensena, al final del suspense (ver RevealCard._reveal_now).
 	Sound.play("sfx_open")
-	var rarity_id := str(item.get("rarity", "common"))
-	if rarity_id == "epic" or rarity_id == "legendary":
-		Sound.play("sfx_rare")
 
 	# El objeto cae en la mesa ANTES de la tarjeta, asi que cuando se cierra ya
 	# esta puesto, en su sitio, y se puede mover y vender como cualquier otro.
@@ -1307,6 +1400,8 @@ func _process(delta: float) -> void:
 	if _reveal != null:
 		return
 	_golden_step(delta)
+	_boss_step(delta)
+	_combo_step(delta)
 	_frenzy_step()
 	if _table_clear():
 		_events_step(delta)
@@ -1545,7 +1640,9 @@ func _refresh_packs() -> void:
 		rotulo.visible = free
 		if free:
 			continue
-		num.color = Palette.CREAM if affordable else Palette.PRICE_OFF
+		# recolor() y no `color =`: con las mismas cifras set_number() no repinta,
+		# y el precio se quedaba gris aun llegandote el dinero.
+		num.recolor(Palette.CREAM if affordable else Palette.PRICE_OFF)
 		# El numero se reescribe porque el Dolar abarata los sobres: set_number()
 		# no reconstruye nada si el valor no ha cambiado (ver pixel_number.gd),
 		# asi que repintar por cada moneda que entra no cuesta nada.
@@ -1686,6 +1783,10 @@ func _events_step(delta: float) -> void:
 	if _golden_timer <= 0.0:
 		_golden_timer = Gameplay.between(_rng, Gameplay.GOLDEN_EVERY)
 		spawn_golden()
+	_boss_timer -= delta
+	if _boss_timer <= 0.0:
+		_boss_timer = Gameplay.between(_rng, Gameplay.BOSS_EVERY)
+		spawn_boss()
 	_vip_timer -= delta
 	if _vip_timer <= 0.0:
 		_vip_timer = Gameplay.between(_rng, Gameplay.VIP_EVERY)
@@ -1744,21 +1845,136 @@ func _frenzy_step() -> void:
 			el.start_opening()
 
 
-## Un golpe perfecto: el rotulo encima del sobre, la cuenta y el encargo.
-func _on_perfect_hit(el: TableElement) -> void:
-	Game.perfect_hits += 1
+## Un golpe perfecto: el rotulo con lo que ha multiplicado, un sonido que sube de
+## tono con la racha y un temblor (mas fuerte en la zona dorada). La cuenta de
+## perfectos la lleva Game.note_perfect().
+func _on_perfect_hit(sweet: bool, mult: float, el: TableElement) -> void:
 	Game.mission_event("perfect", 1)
+	Sound.play("sfx_tool", -4.0, minf(2.2, 1.0 + 0.09 * float(Game.streak)))
+	if sweet:
+		Sound.play("sfx_rare", -6.0, 1.5)
+		_shake(1.8)
+		_hitstop(0.05)
+	else:
+		_shake(0.8)
 	if not is_instance_valid(el) or _fx == null:
 		return
 	var at: Vector2 = el.global_position + Vector2(TableElement.BOX.x * 0.5, 40.0)
-	var l := UIKit.label_at("PERFECTO!", at, Vector2(300, 40), 28, Palette.GOLD_XL,
-			HORIZONTAL_ALIGNMENT_CENTER, 0)
+	var texto := ("DORADO! " if sweet else "PERFECTO! ") + Gameplay.mult_text(snappedf(mult, 0.1))
+	var l := UIKit.label_at(texto, at, Vector2(300, 40), 35 if sweet else 28,
+			Palette.GOLD_HI if sweet else Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fx.add_child(l)
+	UIKit.punch(l, 1.35 if sweet else 1.15)
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(l, "position:y", l.position.y - 60.0, 0.7)
 	tw.tween_property(l, "modulate:a", 0.0, 0.7).set_delay(0.25)
 	tw.chain().tween_callback(l.queue_free)
+
+
+## Se ha pulsado antes de tiempo: el anillo ha perdido un trozo y la racha se ha ido.
+func _on_early_click(el: TableElement) -> void:
+	Sound.play("sfx_error", -10.0, 1.3)
+	if is_instance_valid(el):
+		_float_label("PRONTO", el.global_position + Vector2(TableElement.BOX.x * 0.5, 40.0),
+				Palette.RUST_L)
+
+
+# --- la racha y el combo --------------------------------------------------------- #
+
+## Los dos contadores de arriba de la mesa: la RACHA de perfectos (con lo que
+## multiplica) y el COMBO de apertura (con lo que sube el botin y una barra que se
+## vacia con el tiempo que queda para encadenar el siguiente).
+func _build_hud() -> void:
+	var y := TABLE_RECT.position.y + 26.0
+	_streak_label = UIKit.label_at("", Vector2(TABLE_RECT.position.x + 230.0, y),
+			Vector2(400, 36), 28, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0)
+	_streak_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_streak_label)
+	_combo_label = UIKit.label_at("", Vector2(TABLE_RECT.end.x - 230.0, y),
+			Vector2(400, 36), 28, Palette.TEAL_L, HORIZONTAL_ALIGNMENT_CENTER, 0)
+	_combo_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_combo_label)
+	_combo_bar = ColorRect.new()
+	_combo_bar.color = Palette.TEAL_L
+	_combo_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_combo_bar.position = Vector2(TABLE_RECT.end.x - 330.0, y + 22.0)
+	_combo_bar.size = Vector2(200, 6)
+	add_child(_combo_bar)
+	Game.streak_changed.connect(_on_streak_changed)
+	_on_streak_changed(Game.streak)
+	_refresh_combo()
+
+
+func _on_streak_changed(streak: int) -> void:
+	if _streak_label == null:
+		return
+	var antes := _streak_label.visible
+	_streak_label.visible = streak >= 2
+	if streak >= 2:
+		_streak_label.text = "RACHA %d  %s" % [streak,
+				Gameplay.mult_text(snappedf(Gameplay.streak_mult(streak), 0.01))]
+		UIKit.punch(_streak_label, 1.2)
+	elif antes:
+		# Se ha roto con algo de racha: que se note que se ha perdido.
+		_float_label("RACHA ROTA", _streak_label.position + _streak_label.size * 0.5,
+				Palette.RUST_L)
+
+
+## El reloj del combo: si se acaba sin romper otro sobre, el combo vuelve a cero.
+func _combo_step(delta: float) -> void:
+	if _combo_left <= 0.0:
+		return
+	_combo_left -= delta
+	if _combo_left <= 0.0:
+		_combo = 0
+		_refresh_combo()
+		return
+	_combo_bar.size.x = 200.0 * _combo_left / Gameplay.COMBO_WINDOW
+
+
+func _refresh_combo() -> void:
+	if _combo_label == null:
+		return
+	var hay := _combo >= 2
+	_combo_label.visible = hay
+	_combo_bar.visible = hay
+	if hay:
+		_combo_label.text = "COMBO %d  +%d %%" % [_combo,
+				roundi((Gameplay.combo_mult(_combo) - 1.0) * 100.0)]
+		_combo_bar.size.x = 200.0 * _combo_left / Gameplay.COMBO_WINDOW
+		UIKit.punch(_combo_label, 1.15)
+
+
+# --- el jefe ------------------------------------------------------------------- #
+
+## Pone un JEFE en la mesa (si cabe): el sobre del dorado con la vida de
+## Gameplay.BOSS_HITS golpes tuyos. Devuelve el elemento o null.
+func spawn_boss() -> TableElement:
+	if not table_free():
+		return null
+	var el := TableElement.new()
+	el.setup_pack(LootDB.pack_by_id(Game.golden_pack_id()))
+	el.setup_boss(Game.damage_per_hit() * Gameplay.BOSS_HITS, Gameplay.BOSS_LIFE)
+	_add_element(el)
+	Sound.play("sfx_rare", 0.0, 0.6)
+	_shake(2.5)
+	_main().banner("JEFE DE SOBRE", "ROMPELO EN %d S" % roundi(Gameplay.BOSS_LIFE))
+	return el
+
+
+## El reloj del jefe corre desde que aparece; si llega a cero se va sin dar nada.
+func _boss_step(delta: float) -> void:
+	for el in _elements.duplicate():
+		if not is_instance_valid(el) or not el.boss:
+			continue
+		el.boss_left -= delta
+		el.boss_tick()
+		if el.boss_left <= 0.0 and not el.is_busy():
+			Sound.play("sfx_error")
+			Game.notice.emit("EL JEFE SE HA ESCAPADO", Palette.RUST_L)
+			_remove_from_table(el)
 
 
 # --- la banda de los eventos --------------------------------------------------- #

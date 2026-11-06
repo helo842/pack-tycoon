@@ -83,6 +83,66 @@ const PERFECT_FROM := 0.8
 ## Lo que multiplica el dano un golpe perfecto.
 const PERFECT_MULT := 1.5
 
+## LA RACHA: cada perfecto seguido suma STREAK_STEP al multiplicador del
+## perfecto, hasta STREAK_MAX pasos. Se rompe si un sobre que has empezado tu
+## termina la vuelta sin que lo pulses (se te ha pasado) o si pulsas antes de
+## tiempo. Es lo que hace que la punteria valga mas que machacar muchos sobres:
+## llevar pocos y acertar todos sube la racha, y llevar muchos la rompe.
+const STREAK_STEP := 0.08
+const STREAK_MAX := 3
+## LA ZONA DORADA: un trozo estrecho dentro del tramo perfecto. Acertar ahi
+## multiplica el perfecto otra vez y suma dos a la racha.
+const SWEET_FROM := 0.92
+const SWEET_TO := 0.97
+const SWEET_MULT := 1.25
+## Pulsar ANTES del tramo perfecto ya no es gratis: el anillo pierde esta parte
+## de la vuelta y la racha se rompe. Sin esto, machacar el sobre no costaba nada.
+const EARLY_PENALTY := 0.15
+
+
+## Lo que multiplica la racha al golpe perfecto (la primera vez, nada).
+static func streak_mult(streak: int) -> float:
+	return 1.0 + STREAK_STEP * float(clampi(streak - 1, 0, STREAK_MAX))
+
+
+# --------------------------------------------------------------------------- #
+# El combo de apertura
+# --------------------------------------------------------------------------- #
+# Romper sobres a golpes uno detras de otro, sin dejar pasar COMBO_WINDOW
+# segundos entre uno y otro, sube el combo. Cada paso de combo sube COMBO_STEP el
+# valor de lo que sale del sobre, hasta COMBO_MAX pasos. Los Pinchos no cuentan:
+# es un premio al ritmo del jugador, no a la automatizacion.
+const COMBO_WINDOW := 3.0
+const COMBO_STEP := 0.01
+const COMBO_MAX := 10
+
+
+static func combo_mult(combo: int) -> float:
+	return 1.0 + COMBO_STEP * float(clampi(combo - 1, 0, COMBO_MAX))
+
+
+# --------------------------------------------------------------------------- #
+# El jefe
+# --------------------------------------------------------------------------- #
+# Un sobre gigante que aparece cada cierto rato y hay que romper antes de que se
+# acabe su reloj (que corre desde que aparece). Su vida va con TU dano: son
+# BOSS_HITS golpes normales, asi que sin perfectos ni habilidades no se llega, y
+# con racha si. Roto a tiempo suelta BOSS_LOOT objetos del sobre del dorado con
+# la nota como poco en BOSS_MIN_GRADE. Si se acaba el reloj, se va sin nada.
+const BOSS_EVERY := Vector2(240.0, 360.0)
+const BOSS_FIRST := 210.0
+const BOSS_LIFE := 25.0
+const BOSS_HITS := 16.0
+const BOSS_LOOT := 2
+const BOSS_MIN_GRADE := 6
+
+# --------------------------------------------------------------------------- #
+# El revelado
+# --------------------------------------------------------------------------- #
+## Las veces que el revelado se pasa de rareza un momento y vuelve atras (el
+## "casi"). Solo cuando hay una rareza por encima de la que ha salido.
+const NEAR_MISS_CHANCE := 0.25
+
 # --------------------------------------------------------------------------- #
 # Habilidades (se desbloquean en el arbol: ver SkillTree, rama de arriba)
 # --------------------------------------------------------------------------- #

@@ -39,24 +39,35 @@ var _card: Control = null
 static var arm_delay_ms := 500
 var _armed_at := 0
 
+## EL SUSPENSE: antes de la ficha, la rareza va subiendo de una en una (comun,
+## raro, epico...) hasta pararse en la que ha salido, y a veces se pasa un
+## momento de la buena y vuelve atras (el "casi", ver Gameplay.NEAR_MISS_CHANCE).
+## Un clic lo salta. Las pruebas lo apagan: miran la ficha en el mismo frame.
+static var suspense := true
+var _flash: ColorRect = null
+var _teaser: Control = null
+var _teaser_tw: Tween = null
+var _teaser_glow: TextureRect = null
+var _teaser_gem: TextureRect = null
+var _teaser_text: Label = null
+
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_armed_at = Time.get_ticks_msec() + arm_delay_ms
+	# Hasta que no se ve la ficha no cuenta el medio segundo sin hacer caso: se
+	# vuelve a poner al ensenarla (ver _reveal_now).
+	_armed_at = Time.get_ticks_msec() + arm_delay_ms + (60000 if suspense else 0)
 	# El destello de fondo, del color de la rareza: es el unico sitio donde se
 	# usa el alfa graduado del sprite y por eso se nota.
 	var rarity_id := str(item.get("rarity", "common"))
 	var veil := UIKit.veil(0.72)
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(veil)
-	var flash := ColorRect.new()
-	flash.color = Palette.rarity(rarity_id, 0.0)
-	flash.size = Vector2(1920, 1080)
-	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(flash)
-	var ft := create_tween()
-	ft.tween_property(flash, "color:a", 0.45, 0.10)
-	ft.tween_property(flash, "color:a", 0.0, 0.55)
+	_flash = ColorRect.new()
+	_flash.color = Palette.rarity(rarity_id, 0.0)
+	_flash.size = Vector2(1920, 1080)
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_flash)
 
 	# El panel se anade ANTES que _card: el orden de add_child es el orden de
 	# capas, y si el panel fuera despues taparia justo lo que quiere enseñar.
@@ -72,12 +83,89 @@ func _ready() -> void:
 	_build_value()
 	_build_buttons()
 
+	if suspense:
+		_card.visible = false
+		_start_teaser(rarity_id)
+	else:
+		_reveal_now()
+
+
+## Ensena la ficha: el destello, el golpe de escala y el sonido del premio. Corta
+## el suspense si seguia (un clic lo salta).
+func _reveal_now() -> void:
+	if _teaser_tw != null and _teaser_tw.is_valid():
+		_teaser_tw.kill()
+	_teaser_tw = null
+	if _teaser != null:
+		_teaser.queue_free()
+		_teaser = null
+	_armed_at = Time.get_ticks_msec() + arm_delay_ms
+	_card.visible = true
+	var rarity_id := str(item.get("rarity", "common"))
+	if rarity_id == "epic" or rarity_id == "legendary":
+		Sound.play("sfx_rare")
+	var ft := create_tween()
+	var pico := 0.75 if rarity_id == "legendary" else 0.45
+	ft.tween_property(_flash, "color:a", pico, 0.10)
+	ft.tween_property(_flash, "color:a", 0.0, 0.55)
 	var pop := create_tween()
 	pop.set_trans(Tween.TRANS_BACK)
 	pop.set_ease(Tween.EASE_OUT)
 	_card.scale = Vector2(0.86, 0.86)
 	_card.pivot_offset = Vector2(960, 540)
 	pop.tween_property(_card, "scale", Vector2.ONE, 0.28)
+
+
+# --------------------------------------------------------------------------- #
+# El suspense
+# --------------------------------------------------------------------------- #
+
+func _start_teaser(rarity_id: String) -> void:
+	var target := maxi(0, Palette.RARITY_ORDER.find(rarity_id))
+	var top := Palette.RARITY_ORDER.size() - 1
+	var casi := target < top and randf() < Gameplay.NEAR_MISS_CHANCE
+	_teaser = Control.new()
+	_teaser.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_teaser)
+	_teaser_glow = UIKit.image("rarity_glow_common", Vector2(960, 500), Vector2(560, 560))
+	_teaser.add_child(_teaser_glow)
+	_teaser_gem = UIKit.image("rarity_gem_common", Vector2(960, 500), Vector2(160, 160))
+	_teaser.add_child(_teaser_gem)
+	_teaser_text = UIKit.label_at("", Vector2(960, 760), Vector2(800, 60), 49,
+			Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0)
+	_teaser.add_child(_teaser_text)
+	_teaser_tw = create_tween()
+	for i in target + 1:
+		_teaser_tw.tween_callback(_teaser_show.bind(i, ""))
+		_teaser_tw.tween_interval(0.22 + 0.1 * float(i))
+	if casi:
+		# Se pasa a la siguiente, parpadea... y vuelve.
+		_teaser_tw.tween_callback(_teaser_show.bind(target + 1, ""))
+		_teaser_tw.tween_interval(0.35)
+		_teaser_tw.tween_callback(_teaser_show.bind(target, "CASI..."))
+		_teaser_tw.tween_interval(0.5)
+	if target == top:
+		# Lo legendario se hace esperar un poco mas.
+		_teaser_tw.tween_interval(0.35)
+	_teaser_tw.tween_callback(_reveal_now)
+
+
+## Un paso del suspense: la rareza `i`, con su brillo, su gema y su nombre (o el
+## texto que se pase, para el "casi").
+func _teaser_show(i: int, texto: String) -> void:
+	var id: String = Palette.RARITY_ORDER[i]
+	_teaser_glow.texture = Sprites.tex("rarity_glow_" + id)
+	_teaser_gem.texture = Sprites.tex("rarity_gem_" + id)
+	_teaser_text.text = texto if texto != "" else str(Palette.RARITY_NAME.get(id, ""))
+	_teaser_text.add_theme_color_override("font_color",
+			Palette.RUST_L if texto != "" else Palette.rarity(id))
+	if texto != "":
+		Sound.play("sfx_error", -10.0, 0.8)
+		UIKit.shake(_teaser_gem)
+	else:
+		Sound.play("sfx_click", -2.0, 1.0 + 0.2 * float(i))
+		UIKit.punch(_teaser_gem, 1.3 + 0.1 * float(i))
+		UIKit.punch(_teaser_glow, 1.1)
 
 
 func show_item(data: Dictionary) -> void:
@@ -345,9 +433,17 @@ func _finish(action: String) -> void:
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		accept_event()
+		# Con el suspense en marcha, el clic lo salta.
+		if _teaser != null:
+			_reveal_now()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _teaser != null and (event.is_action_pressed("ui_accept")
+			or event.is_action_pressed("ui_cancel")):
+		_reveal_now()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("ui_accept") or event.is_action_pressed("ui_cancel"):
 		_dismiss()
 		get_viewport().set_input_as_handled()

@@ -599,9 +599,16 @@ const LOCKER_SAME_KIND := 0.6
 ## del bucle y con 120.000 el normal llegaba en menos de doce minutos. Se bajo un
 ## poco el margen de los sobres (VALUE_SCALE) y se subio esto hasta devolverlo a
 ## los ~15.
-const REBIRTH_REQUIRE := 150000
+##
+## Y A 750.000 CON LA RACHA, EL COMBO Y EL JEFE (ver Gameplay): se pidio que la
+## MEDIA de los tres jugadores del simulador (normal, optimizado y automatico)
+## llegue al primer rebirth sobre los doce minutos. Subir el requisito casi no
+## frena a los rapidos -su dinero crece tan deprisa al final que pedir el doble
+## les cuesta un minuto-, asi que se recorto tambien la racha y la zona dorada, y
+## esto se subio hasta dejar 16,9 / 10,6 / 9,4 min (media 12,3).
+const REBIRTH_REQUIRE := 750000
 ## LAS MONEDAS CRECEN CON LA RAIZ CUBICA DEL DINERO DEL CONTADOR (medido en
-## requisitos): 150.000 da 1, 1,2 M da 2, 4 M da 3, 150 M da 10. Se cuenta lo que
+## requisitos): 750.000 da 1, 6 M da 2, 20 M da 3, 750 M da 10. Se cuenta lo que
 ## tengas EN EL MOMENTO de pulsar REBIRTH: el cerdo se lleva el dinero que hay
 ## dentro, asi que guardarlo da monedas y gastarlo las cuesta.
 ##
