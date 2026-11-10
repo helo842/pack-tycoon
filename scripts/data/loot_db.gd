@@ -287,16 +287,10 @@ const GRADE_MAX := 10
 
 # --- calidad de vida (los interruptores del arbol) ------------------------- #
 #
-# Los dos numeros que necesitan las dos mejoras que no son un multiplicador. Van
+# Los numeros que necesitan las mejoras que no son un multiplicador. Van
 # aqui y no en la escena porque son equilibrio, igual que el precio de un sobre:
 # el dia que la chatarra sea otra, se toca este numero y ya esta.
 
-## Hasta que nota un objeto cuenta como CHATARRA para la mejora SIN FICHA, que
-## lo vende sin abrir su tarjeta. Tres y no cuatro porque la nota 4 ya ronda la
-## media (grade_mult 1.08): vender eso sin preguntar es tirar dinero del jugador,
-## y con la 3 (0.94) se vende un tercio de lo que sale -los pesos de
-## GRADE_WEIGHTS- que es justo el trozo que nadie mira.
-const AUTO_SELL_GRADE := 3
 
 ## Segundos que un objeto puede quedarse quieto en la mesa antes de que la
 ## mejora MESA LIMPIA lo venda. Doce: lo que tarda uno en mirar una ficha o en

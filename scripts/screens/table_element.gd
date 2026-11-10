@@ -164,7 +164,7 @@ func set_hp(value: float) -> void:
 ## el arbol (el brillo se monta en _build_pack).
 func setup_golden() -> void:
 	golden = true
-	golden_left = Gameplay.GOLDEN_LIFE
+	golden_left = Gameplay.GOLDEN_LIFE * (1.0 + Game.skill_bonus("golden"))
 
 
 ## Pone al dia el rotulo del sobre dorado. Empezado ya no se va, asi que el
@@ -250,8 +250,9 @@ func _build_pack() -> void:
 	_ring.position = ART_CENTER - RING_SIZE * 0.5
 	_ring.progress = 0.0
 	_ring.zone_from = Gameplay.PERFECT_FROM
-	_ring.sweet_from = Gameplay.SWEET_FROM
-	_ring.sweet_to = Gameplay.SWEET_TO
+	var zona := Gameplay.sweet_zone(Game.skill_bonus("sweet"))
+	_ring.sweet_from = zona.x
+	_ring.sweet_to = zona.y
 	_ring.modulate.a = 0.0
 	add_child(_ring)
 
@@ -453,7 +454,7 @@ func _process(delta: float) -> void:
 	# TimerRing.zone_from), asi que aqui solo cambia la PUNTA que avanza: turquesa
 	# dentro del tramo perfecto y blanca en la ZONA DORADA. Antes se tenia todo el
 	# anillo, y eso tapaba los colores de las zonas.
-	if p >= Gameplay.SWEET_FROM and p < Gameplay.SWEET_TO:
+	if p >= _ring.sweet_from and p < _ring.sweet_to:
 		_ring.head_color = TimerRing.SWEET_COLOR
 	elif p >= Gameplay.PERFECT_FROM:
 		_ring.head_color = TimerRing.ZONE_COLOR
@@ -693,7 +694,7 @@ func try_perfect() -> bool:
 				UIKit.shake(_art)
 		return false
 	_charge = 0.0
-	_strike(true, p >= Gameplay.SWEET_FROM and p < Gameplay.SWEET_TO)
+	_strike(true, p >= _ring.sweet_from and p < _ring.sweet_to)
 	return true
 
 

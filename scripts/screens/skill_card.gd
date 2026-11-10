@@ -230,7 +230,7 @@ func _state_text(cost: int) -> String:
 	if not Game.skill_unlocked(_id):
 		# Colgado de otro nodo: se dice CUAL y lo que da, que es lo que hay que
 		# comprar antes. El nombre del efecto es el idioma del arbol.
-		return "ANTES: " + SkillTree.effect_text(SkillTree.req_of(_id))
+		return "ANTES: " + SkillTree.effect_text(Game.skill_missing_req(_id))
 	if not Game.can_buy_skill(_id):
 		return "TE FALTAN %d MONEDAS" % Game.skill_missing_coins(_id)
 	return "COMPRA UNICA"

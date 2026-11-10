@@ -20,14 +20,13 @@
 # el juego invente un sistema nuevo, y por eso son los tres que crecen. Cada
 # anillo cuesta mas que el anterior (COST_BRANCH, COST_BRANCH2, COST_BRANCH3) y
 # da menos por moneda que el de antes, que es lo que hace que el arbol tenga fondo
-# sin romper el principio de la partida. El del armario NO sigue: sus huecos son
-# una cuenta (dos mas de golpe) y un cuarto anillo de armario seria media pantalla
-# de exposicion.
+# sin romper el principio de la partida. El del armario no sigue con mas huecos
+# (media pantalla de exposicion): sigue con el CAMINO DEL REBIRTH (COST_REQUIRE).
 #
 # Y DEBAJO DEL CENTRO, LA CALIDAD DE VIDA. Los cuatro caminos diagonales son
 # numeros que suben; la rama de abajo son INTERRUPTORES que quitan trabajo de
-# encima (ver QOL_STAT): atajos de teclado, vender solo lo barato, el golpe que
-# sobra, la mesa que se vacia y el armario que se ordena. Van aparte porque no se
+# encima (ver QOL_STAT): guardar lo que eliges, el golpe que sobra, la mesa que
+# se vacia y el armario que se ordena. Van aparte porque no se
 # comparan con un +20 %: se compran o no se compran, y por eso son de un solo
 # nivel y mucho mas baratos. La rama baja en dos columnas para no alargar el
 # arbol como si fuera una cadena de cinco.
@@ -90,8 +89,7 @@ const QOL_STEP := 320.0
 ## en -176 y la otra en 176, que con el rotulo de 320 de ancho deja 32 px entre
 ## los dos textos de una misma fila.
 const QOL_SIDE := 176.0
-## Las dos columnas de debajo de ATAJOS van el doble de abiertas desde que entro
-## el AUTO GUARDAR, que va en medio de las dos, justo debajo de ATAJOS: a 176
+## Las tres de debajo del AUTO GUARDAR van a 352 una de otra: a 176
 ## los tres rotulos de esa fila se pisaban.
 const QOL_WIDE := 352.0
 
@@ -100,14 +98,75 @@ const QOL_WIDE := 352.0
 ## es el que mas trabajo quita, es el caro (4). La rama entera son 12 monedas, o
 ## sea ocho rebirth, y se puede comprar por partes en cualquier orden dentro de
 ## su columna.
-const COST_QOL_KEYS := 1
-const COST_QOL_CHAFF := 2
 const COST_QOL_CARRY := 2
 const COST_QOL_TABLE := 3
 const COST_QOL_LOCKER := 4
-## El AUTO GUARDAR: de los primeros (cuelga de ATAJOS, 1 + 2 monedas) porque es
-## el que mas trabajo quita en cuanto la partida se llena de fichas.
+## El AUTO GUARDAR: la puerta de la rama (cuelga del centro) porque es el que
+## mas trabajo quita en cuanto la partida se llena de fichas.
 const COST_QOL_AUTOSTORE := 2
+## Las habilidades tenian su precio prestado de SIN FICHA (2) y de MESA LIMPIA
+## (3); al quitar SIN FICHA se quedan con sus numeros propios.
+const COST_ABIL_CHARGE := 2
+const COST_ABIL := 3
+
+## LAS DOS RAMAS DE LOS LADOS (la de la punteria a la izquierda y la de los
+## eventos a la derecha). Aqui SI cada nodo cuesta segun lo que da, y no por
+## anillo: lo flojo (el combo, +1 % por paso) es barato y lo que mas cambia la
+## partida (la zona dorada ancha, los dorados mas a menudo) es lo caro. Por eso
+## cada rama va de barato a caro: se compra de dentro afuera.
+##
+## dev/balance.gd arbol dijo que con +50 % y 2-6 monedas estas dos ramas apenas
+## se notaban (7,8 -> 7,7 min hasta el siguiente rebirth, por 27 monedas): se
+## doblo lo que dan y se bajo el precio.
+const COST_COMBO := 1
+const COST_STREAK := 2
+const COST_SWEET := 3
+const COST_HAPPY := 1
+const COST_VIP := 2
+const COST_BOSS := 3
+const COST_GOLDEN := 4
+## Donde empiezan esas dos ramas (dos SEP.x desde el centro, para que el primer
+## nodo no se meta entre el dano y el armario) y lo que hay de nodo a nodo: 480
+## y no 336 porque sus rotulos ("+60 % DE ZONA DORADA") miden mas de 320 y a
+## 336 se pisaban en la captura.
+const SIDE_START := 672.0
+const SIDE_STEP := 480.0
+
+## Lo que se devuelve al cargar una partida que tenia comprado un nodo que ya no
+## existe (ATAJOS y SIN FICHA se quitaron por inutiles): sin esto, las monedas
+## gastadas en ellos se perdian sin aviso.
+const REFUND := {"qol_keys": 1, "qol_chaff": 2}
+
+## EL CAMINO DEL REBIRTH: el del armario sigue por su diagonal con dos nodos que
+## hacen el rebirth mas fuerte, no obligatorio (la partida avanza igual sin el):
+## que pida menos y que pague mas. Los mas caros del arbol porque cada rebirth
+## que se acorta o que paga una moneda mas se nota en TODAS las partidas que
+## vienen despues. Son la base de la futura ASCENSION (un rebirth del rebirth).
+const COST_REQUIRE := 6
+const COST_COINS := 10
+
+## LEYENDA: el nodo del final, mas grande que los demas (BIG_SCALE). Pide el
+## fondo del dano Y el de la velocidad (`req` es una lista) y da de todo: +100 %
+## de dinero, +50 % de dano, velocidad y Pinchos, y la mesa abriendose sola desde
+## el principio de cada partida sin el PC. El mas caro del arbol porque es el
+## premio de haberlo subido casi entero.
+const LEGEND := "legend"
+const COST_LEGEND := 15
+const BIG_SCALE := 1.5
+
+## LOS FINALES DE CAMINO: un nodo grande (CAP_SCALE, menos que LEYENDA) al final
+## de cada camino. Fuertes en lo suyo pero menos que LEYENDA. El de abajo
+## (FABRICA) no sube numeros: automatiza.
+const CAP_SCALE := 1.25
+const COST_CAP := 10
+const COST_CAP_REBIRTH := 12
+const COST_CAP_SIDE := 6
+const FACTORY := "qol_factory"
+const COST_FACTORY := 8
+## Lo que suma la mejora del centro al dinero con el que empieza cada partida
+## (stat "start", ver Game.start_money). 25.000 es el sobre de VINILOS 2 nada
+## mas empezar: el primer rebirth se nota en el primer minuto.
+const START_BONUS := 25000.0
 
 ## El nombre con el que se escribe cada stat en pantalla, y el que se lee en el
 ## aviso de compra. Uno solo para las dos cosas: dos nombres para el mismo stat
@@ -118,11 +177,21 @@ const STAT_NAME := {
 	"speed": "VELOCIDAD",
 	"locker": "ARMARIO",
 	"spikes": "PINCHOS",
+	"streak": "RACHA",
+	"sweet": "ZONA ORO",
+	"combo": "COMBO",
+	"happy": "HORA FELIZ",
+	"boss": "TIEMPO JEFE",
+	"golden": "DORADOS",
+	"vip": "PAGO VIP",
+	"require": "REBAJA",
 }
 
 ## El unico stat que NO es un porcentaje: los huecos del armario son una cuenta
 ## (dos huecos mas, no un 2 % mas de no se que).
 const SLOTS_STAT := "locker"
+## Y la otra cuenta: monedas de rebirth de mas en cada rebirth.
+const COINS_STAT := "coins"
 
 ## El stat de los INTERRUPTORES: no hay numero que sumar, el nodo se tiene o no
 ## se tiene. Game.skill_bonus() no lo consulta nunca (nadie pregunta por "qol"),
@@ -133,8 +202,6 @@ const SLOTS_STAT := "locker"
 ## nombre con el que media partida pregunta "¿tengo los atajos?", y un id suelto
 ## mal escrito no da ningun error, solo una mejora que no hace nada.
 const QOL_STAT := "qol"
-const QOL_KEYS := "qol_keys"
-const QOL_CHAFF := "qol_chaff"
 const QOL_CARRY := "qol_carry"
 const QOL_TABLE := "qol_table"
 const QOL_LOCKER := "qol_locker"
@@ -168,12 +235,13 @@ const QOL_AUTOSTORE := "qol_autostore"
 ## de la tienda que dan esas dos cosas. Asi el arbol se lee sin leyenda.
 const NODES: Array = [
 	{
-		"id": "money", "stat": "money", "value": 0.30, "cost": COST_CENTER,
+		"id": "money", "stat": "money", "value": 0.50, "cost": COST_CENTER,
+		"bonus": {"start": START_BONUS},
 		"pos": Vector2(0, 0), "art": "pack_vinyls", "req": "",
-		"desc": "TODO LO QUE VENDES VALE MAS",
-		"detail": "SUBE EL VALOR DE TODO LO QUE VENDAS. ES LA PUERTA DEL ARBOL:"
-			+ " LOS CAMINOS DE LOS LADOS NO SE ABREN SIN ELLA. SE SUMA A LOS"
-			+ " VINILOS DEL ARMARIO.",
+		"desc": "VENDES MAS Y SALES CON 25.000",
+		"detail": "TODO LO QUE VENDES VALE UN 50 % MAS Y CADA PARTIDA EMPIEZA"
+			+ " CON 25.000 EN VEZ DE 500. ES LA PUERTA DEL ARBOL: NADA SE"
+			+ " ABRE SIN ELLA.",
 	},
 	{
 		"id": "damage", "stat": "damage", "value": 0.20, "cost": COST_BRANCH,
@@ -211,9 +279,8 @@ const NODES: Array = [
 	#
 	# El dano, la velocidad y los Pinchos siguen por su diagonal dos nodos mas.
 	# Cada uno cuelga del anterior (`req`), asi que un camino se compra DE ARRIBA
-	# ABAJO y no se puede saltar al fondo. El de arriba a la derecha (armario) no
-	# sigue: sus huecos son de dos en dos y un cuarto anillo seria media pantalla
-	# de exposicion, no una mejora.
+	# ABAJO y no se puede saltar al fondo. El del armario sigue con el camino del
+	# rebirth, mas abajo.
 	{
 		"id": "damage_2", "stat": "damage", "value": 0.25, "cost": COST_BRANCH2,
 		"pos": Vector2(-SEP.x * 2.0, -SEP.y * 2.0), "art": "pack_cards",
@@ -268,6 +335,36 @@ const NODES: Array = [
 			+ " PINCHOS PEGAN MAS QUE NADA.",
 	},
 
+	# --- EL CAMINO DEL REBIRTH (sigue al del armario) ---------------------- #
+	{
+		"id": "require", "stat": "require", "value": 0.15, "cost": COST_REQUIRE,
+		"pos": Vector2(-SEP.x * 2.0, SEP.y * 2.0), "art": "currency_piggy",
+		"req": "locker",
+		"desc": "EL REBIRTH PIDE MENOS",
+		"detail": "EL REBIRTH SE PUEDE HACER CON UN 15 % MENOS DE DINERO EN EL"
+			+ " CONTADOR. LAS MONEDAS SE CUENTAN IGUAL.",
+	},
+	{
+		"id": "coins", "stat": COINS_STAT, "value": 1.0, "cost": COST_COINS,
+		"pos": Vector2(-SEP.x * 3.0, SEP.y * 3.0), "art": "currency_coins",
+		"req": "require",
+		"desc": "CADA REBIRTH PAGA MAS",
+		"detail": "UNA MONEDA DE REBIRTH MAS CADA VEZ QUE REINICIES, ENCIMA DE"
+			+ " LO QUE DE EL CONTADOR Y LA ELECTRONICA.",
+	},
+
+	# --- LEYENDA (el nodo grande del final) ------------------------------- #
+	{
+		"id": LEGEND, "stat": "money", "value": 1.0, "cost": COST_LEGEND,
+		"bonus": {"damage": 0.5, "speed": 0.5, "spikes": 0.5},
+		"pos": Vector2(0, -QOL_STEP * 3.0), "art": "ui_icon_achievement",
+		"req": ["damage_3", "speed_3", "sweet", "golden"], "scale": BIG_SCALE,
+		"desc": "LA MEJORA DEFINITIVA",
+		"detail": "+100 % DINERO Y +50 % DANO, VELOCIDAD Y PINCHOS. Y LAS"
+			+ " HABILIDADES SE RECARGAN EL DOBLE DE RAPIDO. PIDE LOS DOS LADOS.",
+		"effect": "LEYENDA",
+	},
+
 	# --- LA CALIDAD DE VIDA (los interruptores) --------------------------- #
 	#
 	# Lo que va de aqui abajo no sube ningun numero: quita trabajo. Se dibuja en
@@ -277,26 +374,9 @@ const NODES: Array = [
 	# Y son de UN NIVEL, como todas: pagar dos veces por tener los atajos no
 	# significa nada.
 	{
-		"id": QOL_KEYS, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_KEYS,
-		"pos": Vector2(0, QOL_STEP), "art": "ui_icon_settings", "req": "money",
-		"desc": "TECLAS EN VEZ DE LA BARRA",
-		"detail": "T LA TIENDA, A EL ARMARIO, R EL REBIRTH Y V VENDE LA MESA."
-			+ " ESC CIERRA LO QUE ESTE ABIERTO, COMO SIEMPRE.",
-		"effect": "ATAJOS",
-	},
-	{
-		"id": QOL_CHAFF, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_CHAFF,
-		"pos": Vector2(-QOL_WIDE, QOL_STEP * 2.0), "art": "ui_tag_price",
-		"req": QOL_KEYS,
-		"desc": "LO BARATO SE VENDE SOLO",
-		"detail": "LOS OBJETOS DE TRES ESTRELLAS O MENOS SE VENDEN NADA MAS"
-			+ " SALIR, SIN ABRIR SU FICHA. EL DINERO ENTRA IGUAL.",
-		"effect": "SIN FICHA",
-	},
-	{
 		"id": QOL_CARRY, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_CARRY,
-		"pos": Vector2(QOL_WIDE, QOL_STEP * 2.0), "art": "item_guantes",
-		"req": QOL_KEYS,
+		"pos": Vector2(0, QOL_STEP * 2.0), "art": "item_guantes",
+		"req": QOL_AUTOSTORE,
 		"desc": "EL GOLPE QUE SOBRA NO SE TIRA",
 		"detail": "EL DANO QUE LE SOBRA A UN GOLPE PASA AL SIGUIENTE SOBRE"
 			+ " QUE GOLPEES. CON LA CAJA A UN TOQUE, ESE GOLPE YA NO SE PIERDE.",
@@ -304,8 +384,8 @@ const NODES: Array = [
 	},
 	{
 		"id": QOL_TABLE, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_TABLE,
-		"pos": Vector2(-QOL_WIDE, QOL_STEP * 3.0), "art": "ui_icon_auto_open",
-		"req": QOL_CHAFF,
+		"pos": Vector2(-QOL_WIDE, QOL_STEP * 2.0), "art": "ui_icon_auto_open",
+		"req": QOL_AUTOSTORE,
 		"desc": "LA MESA SE VENDE SOLA",
 		"detail": "LO QUE LLEVA UN RATO EN LA MESA SE VENDE AL PRECIO DE"
 			+ " SIEMPRE. SIRVE PARA VOLVER DE LA TIENDA Y ENCONTRARLA LIBRE.",
@@ -313,8 +393,8 @@ const NODES: Array = [
 	},
 	{
 		"id": QOL_LOCKER, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_LOCKER,
-		"pos": Vector2(QOL_WIDE, QOL_STEP * 3.0), "art": "ui_icon_display_case",
-		"req": QOL_CARRY,
+		"pos": Vector2(QOL_WIDE, QOL_STEP * 2.0), "art": "ui_icon_display_case",
+		"req": QOL_AUTOSTORE,
 		"desc": "EXPONER YA NO ES COMPARAR",
 		"detail": "AL EXPONER ALGO, SI YA HAY UNA PIEZA DE SU TIPO ENTRA LA"
 			+ " MEJOR. LA PEOR VUELVE AL INVENTARIO.",
@@ -322,8 +402,8 @@ const NODES: Array = [
 	},
 	{
 		"id": QOL_AUTOSTORE, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_AUTOSTORE,
-		"pos": Vector2(0, QOL_STEP * 2.0), "art": "ui_icon_inventory",
-		"req": QOL_KEYS,
+		"pos": Vector2(0, QOL_STEP), "art": "ui_icon_inventory",
+		"req": "money",
 		"desc": "GUARDA LO QUE TU ELIJAS",
 		"detail": "EN AJUSTES ELIGES TIPO, PSA Y RAREZA. LO QUE CUMPLE SE GUARDA"
 			+ " SOLO EN EL INVENTARIO; LO DEMAS SE VENDE SOLO. SIN FICHAS.",
@@ -338,7 +418,7 @@ const NODES: Array = [
 	# Suben desde el centro, al contrario que la calidad de vida, y el golpe
 	# cargado es la puerta de las otras dos.
 	{
-		"id": "abil_charge", "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_CHAFF,
+		"id": "abil_charge", "stat": QOL_STAT, "value": 1.0, "cost": COST_ABIL_CHARGE,
 		"pos": Vector2(0, -QOL_STEP), "art": "item_guantes", "req": "money",
 		"desc": "UN GOLPE QUE VALE POR CINCO",
 		"detail": "HABILIDAD (TECLA 1): EL SIGUIENTE GOLPE QUE DES HACE X5 DE"
@@ -346,7 +426,7 @@ const NODES: Array = [
 		"effect": "GOLPE CARGADO",
 	},
 	{
-		"id": "abil_frenzy", "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_TABLE,
+		"id": "abil_frenzy", "stat": QOL_STAT, "value": 1.0, "cost": COST_ABIL,
 		"pos": Vector2(-QOL_SIDE, -QOL_STEP * 2.0), "art": "skill_lightning",
 		"req": "abil_charge",
 		"desc": "LA MESA SE GOLPEA SOLA",
@@ -355,13 +435,136 @@ const NODES: Array = [
 		"effect": "FRENESI",
 	},
 	{
-		"id": "abil_appraise", "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_TABLE,
+		"id": "abil_appraise", "stat": QOL_STAT, "value": 1.0, "cost": COST_ABIL,
 		"pos": Vector2(QOL_SIDE, -QOL_STEP * 2.0), "art": "ui_icon_zoom_in",
 		"req": "abil_charge",
 		"desc": "OTRA OPORTUNIDAD PARA LA NOTA",
 		"detail": "HABILIDAD: EN LA TARJETA DEL OBJETO, LA LUPA VUELVE A TIRAR"
 			+ " SU NOTA. PUEDE SUBIR O BAJAR. SE RECARGA EN 75 S.",
 		"effect": "TASADOR",
+	},
+	# --- LA PUNTERIA (rama de la izquierda) ------------------------------- #
+	#
+	# Lo que sube el golpe perfecto y el combo (ver Gameplay). Numeros, como los
+	# caminos diagonales, pero cada uno con su precio: ver COST_COMBO.
+	{
+		"id": "combo", "stat": "combo", "value": 1.0, "cost": COST_COMBO,
+		"pos": Vector2(-SIDE_START, 0), "art": "skill_cycle", "req": "money",
+		"desc": "EL COMBO AGUANTA MAS",
+		"detail": "EL TIEMPO ENTRE SOBRE Y SOBRE PARA NO PERDER EL COMBO DE"
+			+ " APERTURA DURA EL DOBLE.",
+	},
+	{
+		"id": "streak", "stat": "streak", "value": 1.0, "cost": COST_STREAK,
+		"pos": Vector2(-SIDE_START - SIDE_STEP, 0), "art": "grade_star_full", "req": "combo",
+		"desc": "CADA PERFECTO SEGUIDO PEGA MAS",
+		"detail": "CADA PASO DE LA RACHA DE PERFECTOS SUBE EL GOLPE EL DOBLE"
+			+ " DE LO NORMAL. CON LA RACHA LLENA SE NOTA MUCHO.",
+	},
+	{
+		"id": "sweet", "stat": "sweet", "value": 1.0, "cost": COST_SWEET,
+		"pos": Vector2(-SIDE_START - SIDE_STEP * 2.0, 0), "art": "skill_diamond", "req": "streak",
+		"desc": "LA ZONA DORADA ES MAS ANCHA",
+		"detail": "EL TRAMO BLANCO DEL ANILLO ES EL DOBLE: MAS GOLPES EN LA"
+			+ " ZONA DORADA, QUE PEGAN MAS Y SUMAN DOS A LA RACHA.",
+	},
+
+	# --- LOS EVENTOS (rama de la derecha) --------------------------------- #
+	#
+	# Lo que dura o lo a menudo que sale cada evento (ver Gameplay, Eventos).
+	{
+		"id": "happy", "stat": "happy", "value": 1.0, "cost": COST_HAPPY,
+		"pos": Vector2(SIDE_START, 0), "art": "ui_icon_market_event",
+		"req": "money",
+		"desc": "LA HORA FELIZ DURA MAS",
+		"detail": "LA HORA FELIZ, LA QUE HACE QUE UN TIPO DE BOTIN VALGA MAS,"
+			+ " DURA EL DOBLE.",
+	},
+	{
+		"id": "vip", "stat": "vip", "value": 0.50, "cost": COST_VIP,
+		"pos": Vector2(SIDE_START + SIDE_STEP, 0), "art": "skill_dollar", "req": "happy",
+		"desc": "EL COMPRADOR VIP PAGA MAS",
+		"detail": "EL COMPRADOR VIP PAGA UN 50 % MAS DE LO QUE YA PAGABA: DE X2"
+			+ " A X3.",
+	},
+	{
+		"id": "boss", "stat": "boss", "value": 0.60, "cost": COST_BOSS,
+		"pos": Vector2(SIDE_START + SIDE_STEP * 2.0, 0), "art": "tool_crowbar", "req": "vip",
+		"desc": "MAS TIEMPO PARA EL JEFE",
+		"detail": "EL RELOJ DEL JEFE DE SOBRE DURA UN 60 % MAS. MAS JEFES ROTOS"
+			+ " SON MAS OBJETOS BUENOS.",
+	},
+	{
+		"id": "golden", "stat": "golden", "value": 0.75, "cost": COST_GOLDEN,
+		"pos": Vector2(SIDE_START + SIDE_STEP * 3.0, 0), "art": "rarity_gem_legendary",
+		"req": "boss",
+		"desc": "MAS SOBRES DORADOS",
+		"detail": "LOS SOBRES DORADOS SALEN UN 75 % MAS A MENUDO Y ESPERAN UN"
+			+ " 75 % MAS EN LA MESA ANTES DE IRSE.",
+	},
+	# --- LOS FINALES DE CAMINO (nodos grandes, ver CAP_SCALE) -------------- #
+	{
+		"id": "cap_damage", "stat": "damage", "value": 0.60, "cost": COST_CAP,
+		"pos": Vector2(-SEP.x * 4.0, -SEP.y * 4.0), "art": "tool_scissors",
+		"req": "damage_3", "scale": CAP_SCALE,
+		"desc": "FIN DEL CAMINO DEL DANO",
+		"detail": "UN 60 % MAS DE DANO DE GOLPE, ENCIMA DE TODO EL CAMINO.",
+		"effect": "MARTILLO",
+	},
+	{
+		"id": "cap_speed", "stat": "speed", "value": 0.60, "cost": COST_CAP,
+		"pos": Vector2(SEP.x * 4.0, -SEP.y * 4.0), "art": "loot_sneaker_limited_psa8",
+		"req": "speed_3", "scale": CAP_SCALE,
+		"desc": "FIN DEL CAMINO DE VELOCIDAD",
+		"detail": "UN 60 % MAS DE VELOCIDAD DE GOLPE, ENCIMA DE TODO EL CAMINO.",
+		"effect": "TURBO",
+	},
+	{
+		"id": "cap_spikes", "stat": "spikes", "value": 0.80, "cost": COST_CAP,
+		"pos": Vector2(SEP.x * 4.0, SEP.y * 4.0), "art": "item_pinchos",
+		"req": "spikes_3", "scale": CAP_SCALE,
+		"desc": "FIN DEL CAMINO DE PINCHOS",
+		"detail": "UN 80 % MAS DE DANO DE PINCHOS, ENCIMA DE TODO EL CAMINO.",
+		"effect": "ERIZO",
+	},
+	{
+		"id": "cap_rebirth", "stat": COINS_STAT, "value": 1.0, "cost": COST_CAP_REBIRTH,
+		"bonus": {"require": 0.10},
+		"pos": Vector2(-SEP.x * 4.0, SEP.y * 4.0), "art": "currency_coins",
+		"req": "coins", "scale": CAP_SCALE,
+		"desc": "FIN DEL CAMINO DEL REBIRTH",
+		"detail": "OTRA MONEDA MAS EN CADA REBIRTH Y EL REBIRTH PIDE UN 10 % MENOS"
+			+ " (SE SUMA A LA REBAJA).",
+		"effect": "HUCHA DE ORO",
+	},
+	{
+		"id": "cap_aim", "stat": "streak", "value": 1.0, "cost": COST_CAP_SIDE,
+		"bonus": {"sweet": 0.5},
+		"pos": Vector2(-SIDE_START - SIDE_STEP * 3.0, 0), "art": "item_ojo_verde",
+		"req": "sweet", "scale": CAP_SCALE,
+		"desc": "FIN DE LA PUNTERIA",
+		"detail": "LA RACHA PEGA OTRO 100 % MAS POR PASO Y LA ZONA DORADA CRECE"
+			+ " OTRO 50 %.",
+		"effect": "OJO DE HALCON",
+	},
+	{
+		"id": "cap_events", "stat": "golden", "value": 0.50, "cost": COST_CAP_SIDE,
+		"bonus": {"happy": 0.5, "vip": 0.25, "boss": 0.4},
+		"pos": Vector2(SIDE_START + SIDE_STEP * 4.0, 0), "art": "item_trebol",
+		"req": "golden", "scale": CAP_SCALE,
+		"desc": "FIN DE LOS EVENTOS",
+		"detail": "MAS DORADOS (+50 %), HORA FELIZ MAS LARGA (+50 %), VIP QUE PAGA"
+			+ " MAS (+25 %) Y MAS RELOJ PARA EL JEFE (+40 %).",
+		"effect": "IMAN",
+	},
+	{
+		"id": FACTORY, "stat": QOL_STAT, "value": 1.0, "cost": COST_FACTORY,
+		"pos": Vector2(0, QOL_STEP * 3.0), "art": "item_pc",
+		"req": [QOL_TABLE, QOL_CARRY, QOL_LOCKER], "scale": CAP_SCALE,
+		"desc": "LA PARTIDA SE JUEGA SOLA",
+		"detail": "CADA PARTIDA EMPIEZA CON LOS PINCHOS Y EL PC, Y LO AUTOMATICO"
+			+ " SIGUE ENCENDIDO TRAS EL REBIRTH. CERRADO GANAS HASTA DOS HORAS.",
+		"effect": "FABRICA",
 	},
 ]
 
@@ -393,9 +596,31 @@ static func has_node(id: String) -> bool:
 	return not node_by_id(id).is_empty()
 
 
-## Todo lo que hay que tener antes de poder comprar un nodo. Vacio es "nada".
+## Lo que hay que tener antes de poder comprar un nodo: el primero de sus
+## requisitos (LEYENDA pide dos, ver reqs_of). Vacio es "nada".
 static func req_of(id: String) -> String:
-	return str(node_by_id(id).get("req", ""))
+	var r := reqs_of(id)
+	return str(r[0]) if not r.is_empty() else ""
+
+
+## TODOS los requisitos de un nodo. `req` es un id o una lista de ids.
+static func reqs_of(id: String) -> Array:
+	var r = node_by_id(id).get("req", "")
+	if typeof(r) == TYPE_ARRAY:
+		return r
+	return [] if str(r) == "" else [str(r)]
+
+
+## Lo que suma un nodo a un stat: su `value` si es su stat, y lo de `bonus`
+## (LEYENDA y el centro dan varias cosas a la vez).
+static func node_bonus(n: Dictionary, stat: String) -> float:
+	var total := float(n["value"]) if str(n["stat"]) == stat else 0.0
+	return total + float((n.get("bonus", {}) as Dictionary).get(stat, 0.0))
+
+
+## Lo grande que se dibuja un nodo (1 los normales, BIG_SCALE el del final).
+static func scale_of(id: String) -> float:
+	return float(node_by_id(id).get("scale", 1.0))
 
 
 ## La linea corta de la ficha de un nodo.
@@ -422,6 +647,8 @@ static func levels_of(id: String) -> int:
 static func total_text(stat: String, total: float) -> String:
 	if stat == SLOTS_STAT:
 		return "%d HUECOS DE ARMARIO" % roundi(total)
+	if stat == COINS_STAT:
+		return "%d MONEDA EXTRA" % roundi(total)
 	return "+%d %% DE %s" % [roundi(total * 100.0), str(STAT_NAME[stat])]
 
 
@@ -433,7 +660,7 @@ static func total_text(stat: String, total: float) -> String:
 ## ("+30 % DE DINERO"): anadirlo siempre daba "++30 % DE DINERO", que es lo que se
 ## vio en las capturas y no rompe ningun check (el texto sigue cabiendo).
 ##
-## Un interruptor NO suma nada: su texto es su nombre ("SIN FICHA"), escrito a
+## Un interruptor NO suma nada: su texto es su nombre ("MESA LIMPIA"), escrito a
 ## mano en la fila, y es lo que se dibuja debajo de su chapa y lo que titula su
 ## ficha.
 static func effect_text(id: String) -> String:
@@ -444,7 +671,7 @@ static func effect_text(id: String) -> String:
 		return str(n["effect"])
 	var stat := str(n["stat"])
 	var texto := total_text(stat, float(n["value"]))
-	return "+" + texto if stat == SLOTS_STAT else texto
+	return "+" + texto if stat in [SLOTS_STAT, COINS_STAT] else texto
 
 
 ## ¿Este nodo es un interruptor de calidad de vida? Lo es todo el que no suma un
@@ -478,7 +705,9 @@ static func bounds() -> Rect2:
 	# los topes del arrastre dejan de significar nada).
 	var box := Rect2(Vector2(NODES[0]["pos"]), Vector2.ZERO)
 	for n in NODES:
-		box = box.merge(Rect2(n["pos"], Vector2.ZERO))
+		# Lo que un nodo grande se sale de mas por cada lado (88 es medio nodo).
+		var extra := Vector2.ONE * 88.0 * (scale_of(str(n["id"])) - 1.0)
+		box = box.merge(Rect2(Vector2(n["pos"]) - extra, extra * 2.0))
 	return box.grow_individual(160.0, 88.0, 160.0, 130.0)
 
 

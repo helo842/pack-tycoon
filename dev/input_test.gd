@@ -407,7 +407,7 @@ func _run() -> void:
 			await _frames(3)
 			_check(Game.skill_owned("money"), "y compra la mejora del nodo")
 			_check(Game.rebirth_coins == 4, "pagando sus monedas de rebirth")
-			_check(is_equal_approx(Game.value_multiplier(), 1.30),
+			_check(is_equal_approx(Game.value_multiplier(), 1.50),
 				"y la mejora se nota en la partida")
 			# Y se cierra con su boton, que devuelve al arbol sin cerrarlo.
 			var cerrar_ficha := _find_tooltip(ficha_nodo, "Cerrar")
@@ -435,53 +435,16 @@ func _run() -> void:
 		await _frames(3)
 		_check(Game.rebirth_coins == monedas_antes + premio,
 			"y reinicia la partida dando las monedas que prometia el panel")
-		_check(Game.money == Game.START_MONEY and not Game.can_rebirth(),
+		_check(Game.money == Game.start_money() and not Game.can_rebirth(),
 			"la partida vuelve a cero: el requisito hay que juntarlo otra vez")
 		_check(not _main.has_veil(), "y el panel se cierra solo al reiniciar")
 
-	print("Atajos de teclado:")
-	# Los atajos son la mejora ATAJOS del arbol, y sin ella las letras no hacen
-	# nada: se prueban los DOS estados, porque una tecla que abre la tienda sin
-	# haberla comprado es peor que no tener atajos (nadie sabria por que abre).
-	Game.skills = {}
+	print("Sin atajos de teclado:")
+	# ATAJOS se quito del arbol: las letras no abren nada, ni con un guardado viejo.
+	Game.skills = {"qol_keys": 1}
 	_key(KEY_T)
 	await _frames(3)
-	_check(not _main.has_veil(), "sin la mejora, las letras no abren nada")
-	Game.skills[SkillTree.QOL_KEYS] = 1
-	_key(KEY_T)
-	await _frames(3)
-	_check(_main.has_veil() and game._shop != null, "con ATAJOS, la T abre la tienda")
-	# CON UN PANEL ABIERTO LA LETRA NO HACE NADA: la V no puede vender una mesa que
-	# no se esta viendo, ni la A abrir el armario encima de la tienda.
-	var mesa_antes: int = game.table_count()
-	_key(KEY_V)
-	await _frames(3)
-	_check(game.table_count() == mesa_antes and game._shop != null,
-		"y con un panel abierto la V no vende nada")
-	game._close_shop()
-	await _frames(3)
-	_key(KEY_A)
-	await _frames(3)
-	_check(game._locker != null, "la A abre el armario")
-	game._close_locker()
-	await _frames(3)
-	_key(KEY_R)
-	await _frames(3)
-	_check(game._rebirth != null, "la R abre el arbol del rebirth")
-	if game._rebirth != null:
-		game._rebirth._close()
-	await _frames(3)
-	# Y LA V VACIA LA MESA DE VERDAD, por el mismo camino que el boton: el dinero
-	# entra y el objeto desaparece.
-	game._spawn_loot({"id": "card_c", "name": "CARTA COMUN",
-		"art": "loot_card_common_psa5", "rarity": "common", "grade": 5, "value": 600,
-		"kind": "cards"})
-	await _wait(0.9)
-	var dinero_antes: int = Game.money
-	_key(KEY_V)
-	await _frames(3)
-	_check(game.table_count() == 0 and Game.money >= dinero_antes + 600,
-		"y la V vende la mesa")
+	_check(not _main.has_veil(), "la T ya no abre la tienda")
 	Game.skills = {}
 
 	print("Menu otra vez:")

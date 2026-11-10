@@ -18,8 +18,8 @@ precio. Con ese dinero se compran sobres más caros y **mejoras** en la tienda.
 Lo que vale la pena se **expone en el armario**, que da un bonus según el tipo
 (cartas daño, vinilos dinero, zapatillas velocidad, electrónica rebirth). Al
 juntar 750.000 se puede hacer **rebirth**: empiezas de cero a cambio de monedas
-para un **árbol de mejoras** permanente, que también quita trabajo (atajos, auto
-guardar, automatizaciones...). Por el camino hay **eventos** (sobre dorado,
+para un **árbol de mejoras** permanente, que también quita trabajo (auto guardar,
+automatizaciones...) y sube la racha, la zona dorada y los eventos. Por el camino hay **eventos** (sobre dorado,
 comprador VIP, hora feliz), **encargos** y un **álbum** de colecciones.
 
 ### Qué trae la segunda entrega
@@ -410,13 +410,13 @@ anillo más caro que el anterior y dando menos por moneda:
 | **PINCHOS** | +35 % de daño de los Pinchos · **5 monedas** | +50 % · **8 monedas** |
 
 Se compran **de arriba abajo**: cada nodo pide el anterior, así que no se puede
-empezar por el fondo del camino. El del **ARMARIO no sigue**, porque sus huecos
-son de dos en dos y un tercer anillo sería media pantalla de exposición. Con los
+empezar por el fondo del camino. El del **ARMARIO no sigue con más huecos**
+(media pantalla de exposición): sigue con el **camino del rebirth** (más abajo). Con los
 tres anillos comprados, el daño y la velocidad quedan en **+80 %** y los Pinchos
 en **+115 %**, que es el fondo que tiene hoy el árbol.
 
 Cada nodo se pinta según lo que se pueda hacer con él: **en dorado** el comprado
-(con la palabra COMPRADO en lugar del precio), **claro** el que ya te llega,
+(con la palabra COMPRADO en lugar del precio), **claro y latiendo** el que ya te llega,
 **apagado** el que no, y **cerrado** el que necesita el nodo anterior —y su
 ficha, la de ese y la de todos, dice cuál hay que comprar antes y cuántas monedas
 faltan—. Las líneas que los unen llevan el color de su camino.
@@ -430,20 +430,13 @@ compran o no se compran—:
 
 | Interruptor | Lo que quita | Monedas |
 |---|---|---|
-| **ATAJOS** | T la tienda, A el armario, R el rebirth y V vende la mesa | 1 |
-| **SIN FICHA** | los objetos de tres estrellas o menos se venden al salir, sin abrir la tarjeta | 2 |
+| **AUTO GUARDAR** | la puerta de la rama: guarda lo que eliges en Ajustes y vende lo demás | 2 |
 | **SOBRANTE** | el daño que le sobra a un golpe pasa al siguiente sobre | 2 |
 | **MESA LIMPIA** | lo que lleva doce segundos quieto en la mesa se vende solo | 3 |
 | **ARMARIO SOLO** | con el armario lleno, entra la mejor pieza de su tipo y la peor vuelve al inventario | 4 |
 
-Tres detalles que se ven poco y son los que las hacen buenas:
+Dos detalles que se ven poco y son los que las hacen buenas:
 
-- **SIN FICHA mide estrellas, no dinero.** Lo que vale un objeto sube con el
-  escalón del sobre (una zapatilla común vale cuarenta veces una carta común), así
-  que un umbral en dinero habría que moverlo con cada escalón; la nota va de 1 a 10
-  en todos los sobres y se ve como estrellas en la ficha. El corte está en tres
-  porque la nota 4 ya vale la media: venderla sin preguntar sería tirar dinero del
-  jugador.
 - **MESA LIMPIA no corre con la ficha abierta.** La mesa se vacía mientras el
   jugador está en la tienda o en el armario, no mientras está decidiendo qué hacer
   con lo que acaba de salir.
@@ -451,9 +444,94 @@ Tres detalles que se ven poco y son los que las hacen buenas:
   y lo de dentro da menos; con sitio libre siempre se suma, porque dos piezas del
   mismo tipo suman las dos.
 
-La rama **baja tres filas y no cabe en la vista** al abrir el árbol: se llega a
+La rama **baja dos filas y no cabe en la vista** al abrir el árbol: se llega a
 ella arrastrando, que es para lo que está el arrastre (el centro y los cuatro
 caminos sí se ven de entrada).
+
+**ATAJOS y SIN FICHA se quitaron** por inútiles (los botones de la barra ya hacen
+lo mismo que las teclas, y AUTO GUARDAR hace mejor lo de SIN FICHA). Una partida
+que los tuviera comprados **recupera sus monedas** al cargar (`SkillTree.REFUND`).
+
+#### Las ramas de los lados: puntería y eventos
+
+En horizontal, a izquierda y derecha del centro, dos ramas de números que suben
+lo que trajo el gameplay nuevo. Aquí **cada nodo cuesta según lo que da** (no por
+anillo), y cada rama va de barato a caro, de dentro afuera:
+
+| Rama | Nodo | Lo que da | Monedas |
+|---|---|---|---|
+| Puntería | **COMBO** | el combo de apertura aguanta el doble entre sobre y sobre | 1 |
+| Puntería | **RACHA** | cada paso de la racha de perfectos sube el golpe el doble | 2 |
+| Puntería | **ZONA ORO** | el tramo blanco del anillo el doble de ancho (sin salirse del perfecto) | 3 |
+| Eventos | **HORA FELIZ** | la hora feliz dura el doble | 1 |
+| Eventos | **PAGO VIP** | el comprador VIP paga x3 en vez de x2 | 2 |
+| Eventos | **TIEMPO JEFE** | el reloj del jefe de sobre dura un 60 % más | 3 |
+| Eventos | **DORADOS** | los sobres dorados salen un 75 % más a menudo y esperan un 75 % más | 4 |
+
+#### El camino del rebirth (sigue al del armario)
+
+El rebirth tiene que **sentirse fuerte sin ser obligatorio**: la primera partida
+llega sola, y lo que hace el árbol es que cada partida siguiente vaya mucho más
+rápido. Este camino es el que más se nota a largo plazo, por eso es el más caro:
+
+| Nodo | Lo que da | Monedas |
+|---|---|---|
+| **REBAJA** | el rebirth pide un 15 % menos en el contador (las monedas se cuentan igual) | 6 |
+| **MONEDA EXTRA** | una moneda de rebirth más en cada rebirth | 10 |
+
+Es la base de la futura **ascensión** (un rebirth del rebirth).
+
+#### Que apetezca el primero, y LEYENDA al final
+
+- **El primer rebirth paga como poco 3 monedas** (`Game.FIRST_REBIRTH_COINS`; se
+  sabe cuál es por `rebirth_count`, que se guarda). Llega para el centro y un par
+  de nodos de 1.
+- **El centro** da **+50 % de dinero** y cada partida **empieza con 25.000** en vez
+  de 500 (`SkillTree.START_BONUS`, stat `start`): el sobre de VINILOS 2 nada más
+  empezar, o sea que el primer rebirth se nota en el primer minuto.
+- **LEYENDA** (15 monedas) es el nodo grande de arriba del todo (`scale` x1,5 y
+  con el brillo legendario detrás). Pide **el fondo del daño y el de la velocidad
+  Y los dos lados** (ZONA ORO y DORADOS; `req` puede ser una lista) y da **+100 %
+  de dinero, +50 % de daño, velocidad y Pinchos**, y **las habilidades recargan el
+  doble de rápido**. Un nodo puede dar varias cosas con `bonus` (ver
+  `SkillTree.node_bonus`).
+
+#### Los finales de camino (nodos grandes x1,25)
+
+| Camino | Final | Lo que da | Monedas |
+|---|---|---|---|
+| Daño | **MARTILLO** | +60 % de daño | 10 |
+| Velocidad | **TURBO** | +60 % de velocidad | 10 |
+| Pinchos | **ERIZO** | +80 % de daño de Pinchos | 10 |
+| Rebirth | **HUCHA DE ORO** | +1 moneda por rebirth y el rebirth pide otro 10 % menos | 12 |
+| Puntería | **OJO DE HALCÓN** | racha +100 % por paso y zona dorada +50 % | 6 |
+| Eventos | **IMÁN** | dorados +50 %, hora feliz +50 %, VIP +25 %, jefe +40 % | 6 |
+| Calidad de vida | **FÁBRICA** | cada partida empieza con los Pinchos y el PC, lo automático sigue encendido tras el rebirth y el tiempo con el juego cerrado llega a dos horas | 8 |
+
+FÁBRICA pide las tres de su fila (MESA LIMPIA, SOBRANTE y ARMARIO SOLO). Con los
+finales el árbol ya no cabía entero a 1/3, y el zoom ganó un paso de **1/4**.
+
+#### Lo que dice el simulador del árbol
+
+`$G --headless --path . res://dev/BalanceTest.tscn arbol` mide los minutos hasta
+el siguiente rebirth con el árbol a medias y entero (mediana de 15 partidas):
+
+| Árbol | Monedas | Normal | Optimizado | Automático |
+|---|---|---|---|---|
+| sin árbol | 0 | 16,3 | 9,9 | 9,3 |
+| centro + 4 caminos | 13 | 7,8 | 4,9 | 4,2 |
+| + puntería y eventos | 29 | 6,8 | 4,2 | 3,8 |
+| árbol entero (con LEYENDA y los finales) | 180 | 1,2 | 0,6 | 0,5 |
+
+Y `BalanceTest.tscn final` dice cuánto se tarda en tenerlo TODO (reiniciando en
+el minuto que más monedas por minuto da y comprando lo más barato): **11,7 h** el
+normal (69 rebirths, el primero a los 26 min), **7,7 h** el optimizado y **6,3 h**
+el automático.
+
+La primera versión de las ramas de los lados (+50 %, 2-6 monedas) apenas bajaba
+de 7,8 a 7,7: se doblaron sus efectos y se bajaron sus precios. No modela el combo
+(su ventana), la REBAJA sí, y la MONEDA EXTRA no cambia el tiempo sino lo que se
+cobra.
 
 El árbol **suma** a lo que ya tienes, nunca lo sustituye: los huecos de armario del
 árbol son huecos aunque no tengas el armario comprado (con el tope de los ocho que
@@ -594,9 +672,8 @@ minutos es siempre lo mismo. Para eso hay cuatro cosas más, con sus números en
 
 ### Auto guardar y la ficha del objeto
 
-- **AUTO GUARDAR** es un nodo del árbol del rebirth (**2 monedas**) que cuelga de
-  ATAJOS, en medio de la rama de calidad de vida (las dos columnas de debajo se
-  abrieron a ±352 para hacerle sitio). En **Ajustes** su fila sale **en gris**
+- **AUTO GUARDAR** es un nodo del árbol del rebirth (**2 monedas**) que cuelga
+  del centro y es la puerta de la rama de calidad de vida. En **Ajustes** su fila sale **en gris**
   hasta comprarlo, diciendo dónde se compra; comprado, sale en color con su
   casilla y el botón **ELEGIR**.
 - **ELEGIR** abre el filtro (`AutoStorePanel`): un botón por cada **tipo** (4),
@@ -1022,3 +1099,17 @@ pequeño lo puede sacar.
 sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta
 cambiar de **idioma** (el selector se quitó: solo hay español), y el botón de empezar de cero (`hard_reset()` lo hace, pero solo lo
 llaman las pruebas).
+
+
+## Guardado, copia y tiempo fuera
+
+- La partida va en `user://packtycoon.json`. **Antes de cada guardado** se copia
+  la anterior a `packtycoon.json.bak`, y si el guardado falta o no se puede leer
+  se carga la copia.
+- **Las pruebas y las capturas** (las escenas de `res://dev/`) guardan en
+  `packtycoon_test.json`: ya no pueden borrar la partida de verdad (el test de humo
+  hace `hard_reset()`, y el 2026-11-10 se llevó una por delante).
+- **Con el juego cerrado** se gana el 10 % de lo que se ganaba por segundo en la
+  partida (`lifetime_earned / play_seconds`), como mucho una hora y **solo con
+  los Pinchos comprados**, que son lo que sigue abriendo sobres sin ti. Al volver
+  sale un aviso: MIENTRAS NO ESTABAS. Las constantes son `Game.OFFLINE_*`.

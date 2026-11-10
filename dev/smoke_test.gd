@@ -2355,7 +2355,7 @@ func _run() -> void:
 
 	# --- guardado ---
 	Game.save_game()
-	_check("el fichero de guardado existe", FileAccess.file_exists(Game.SAVE_PATH))
+	_check("el fichero de guardado existe", FileAccess.file_exists(Game.save_path))
 
 	# --- rebirth: la hucha ---
 	# UNA SOLA CUENTA: EL CONTADOR. Tanto el REQUISITO para poder reiniciar como LAS
@@ -2376,6 +2376,11 @@ func _run() -> void:
 	Game.album = {}  # un PSA 10 de antes completaria PERFECCION (+10 % de rebirth)
 	Game.rebirth_coins = 0
 	Game.money = Game.START_MONEY
+	Game.rebirth_count = 0
+	_check("el PRIMER rebirth paga como poco %d monedas" % Game.FIRST_REBIRTH_COINS,
+		Game.pending_rebirth_coins() == Game.FIRST_REBIRTH_COINS)
+	# El resto de esta parte mide la cuenta normal (de la segunda vez en adelante).
+	Game.rebirth_count = 1
 	_check("con el contador vacio el rebirth da la moneda minima",
 		Game.pending_rebirth_coins() == 1)
 	# LO GANADO NO CUENTA: se puede haber ganado la partida entera y no llegar ni al
@@ -2524,7 +2529,7 @@ func _run() -> void:
 	# Dieciseis: el centro, cuatro caminos de los que tres siguen dos nodos mas
 	# (dano, velocidad y Pinchos) y cinco INTERRUPTORES de calidad de vida en la
 	# rama de abajo.
-	_check("el arbol trae veinte mejoras", SkillTree.node_count() == 20)
+	_check("el arbol trae treinta y cinco mejoras", SkillTree.node_count() == 35)
 	# LOS TRES CAMINOS QUE SIGUEN: cada anillo esta en SU diagonal (2 x SEP y
 	# 3 x SEP) y cuelga del nodo de antes, asi que un camino se compra de arriba
 	# abajo y no se puede empezar por el fondo.
@@ -2568,17 +2573,35 @@ func _run() -> void:
 		var pos: Vector2 = SkillTree.node_by_id(str(id))["pos"]
 		if absf(pos.x) == absf(SkillTree.SEP.x) and absf(pos.y) == absf(SkillTree.SEP.y):
 			diagonales += 1
-		if SkillTree.req_of(str(id)) == "money":
+		if SkillTree.req_of(str(id)) == "money" and pos.y != 0.0:
 			cuelgan_del_centro += 1
 	_check("y los cuatro caminos van en diagonal, uno en cada lado", diagonales == 4)
 	_check("y los cuatro salen de la mejora del centro", cuelgan_del_centro == 4)
+	# LAS DOS RAMAS DE LOS LADOS (punteria y eventos): en horizontal, cada una
+	# cuelga de la de antes y va de la mas barata a la mas cara.
+	var lados_ok := true
+	for rama in [["combo", "streak", "sweet"], ["happy", "vip", "boss", "golden"]]:
+		for k in rama.size():
+			var n_lado := SkillTree.node_by_id(str(rama[k]))
+			if n_lado.is_empty() or float(n_lado["pos"].y) != 0.0 \
+					or SkillTree.req_of(str(rama[k])) != ("money" if k == 0 else str(rama[k - 1])) \
+					or (k > 0 and int(n_lado["cost"]) <= int(SkillTree.node_by_id(str(rama[k - 1]))["cost"])):
+				lados_ok = false
+	_check("y a los lados, punteria y eventos de barato a caro", lados_ok)
+	# Y LO QUE HACEN: la racha pega mas y la zona dorada es mas ancha sin salirse
+	# del tramo perfecto.
+	var zona_ancha := Gameplay.sweet_zone(0.6)
+	_check("la racha y la zona dorada del arbol suben de verdad",
+		Gameplay.streak_mult(3, 0.5) > Gameplay.streak_mult(3)
+		and zona_ancha.y - zona_ancha.x > Gameplay.SWEET_TO - Gameplay.SWEET_FROM
+		and zona_ancha.x >= Gameplay.PERFECT_FROM and zona_ancha.y <= 1.0)
 	# LA RAMA DE LA CALIDAD DE VIDA: seis interruptores (con el AUTO GUARDAR), todos por debajo del
 	# centro y todos de UN NIVEL (pagar dos veces por tener los atajos no
 	# significa nada). Sus ids son los que consulta el juego para saber si quitar
 	# trabajo de encima, asi que si uno deja de existir, la mejora no hace nada y
 	# no da ningun error: se mira aqui.
-	_check("y debajo cuelgan seis interruptores de calidad de vida",
-		interruptores.size() == 6)
+	_check("y debajo cuelgan cuatro interruptores de calidad de vida",
+		interruptores.size() == 5)
 	# LA RAMA DE LAS HABILIDADES: las tres de Gameplay.ABILITIES, por ENCIMA del
 	# centro, y el golpe cargado es la puerta de las otras dos.
 	var hab_arriba := true
@@ -2604,19 +2627,21 @@ func _run() -> void:
 	# Los cinco ids tienen que ser los que usa el juego, no otros: un id mal
 	# escrito en la tabla seria una mejora que se paga y no hace nada.
 	_check("y son los interruptores que el juego consulta",
-		interruptores.has(SkillTree.QOL_KEYS) and interruptores.has(SkillTree.QOL_CHAFF)
+		interruptores.has(SkillTree.QOL_AUTOSTORE)
 		and interruptores.has(SkillTree.QOL_CARRY)
 		and interruptores.has(SkillTree.QOL_TABLE)
 		and interruptores.has(SkillTree.QOL_LOCKER))
 	# Y EL PRECIO: baratos y en subida. Un interruptor cuesta menos que un camino
 	# (+20 %) porque quita trabajo, no potencia; y el armario, que es el que mas
 	# quita, es el caro de la rama.
-	_check("y la rama entera cuesta doce monedas, de la mas barata a la mas cara",
-		qol_precios.min() == SkillTree.COST_QOL_KEYS
-		and qol_precios.max() == SkillTree.COST_QOL_LOCKER
+	_check("y la rama va de la mas barata a la mas cara",
+		qol_precios.min() == SkillTree.COST_QOL_AUTOSTORE
+		and qol_precios.max() == SkillTree.COST_FACTORY
 		and Game.skill_cost(SkillTree.QOL_LOCKER) < SkillTree.COST_BRANCH * 2)
-	_check("la del centro da un 30 % mas de dinero",
-		is_equal_approx(float(SkillTree.node_by_id("money")["value"]), 0.30))
+	_check("la del centro da un 50 % mas de dinero y 25.000 al empezar",
+		is_equal_approx(float(SkillTree.node_by_id("money")["value"]), 0.50)
+		and is_equal_approx(SkillTree.node_bonus(SkillTree.node_by_id("money"), "start"),
+			SkillTree.START_BONUS))
 	_check("y los cuatro caminos cuestan lo mismo",
 		Game.skill_cost("damage") == SkillTree.COST_BRANCH
 		and Game.skill_cost("speed") == SkillTree.COST_BRANCH
@@ -2682,8 +2707,8 @@ func _run() -> void:
 	Game.rebirth_coins = 1
 	_check("con una moneda se compra el centro", Game.buy_skill("money"))
 	_check("y cuesta esa moneda", Game.rebirth_coins == 0)
-	_check("y a partir de ahi todo vale un 30 % mas",
-		is_equal_approx(Game.value_multiplier(), 1.30))
+	_check("y a partir de ahi todo vale un 50 % mas",
+		is_equal_approx(Game.value_multiplier(), 1.50))
 
 	# Los cuatro caminos, cada uno con lo suyo. Los Pinchos y el Armario son
 	# piezas de la tienda y sin ellas no hay nada que medir (los Pinchos sin la
@@ -2739,8 +2764,9 @@ func _run() -> void:
 		and Game.skill_owned("speed") and Game.skill_owned("locker")
 		and Game.skill_owned("spikes"))
 	_check("y con el arbol la partida nueva sigue valiendo mas",
-		is_equal_approx(Game.value_multiplier(), 1.30)
-		and is_equal_approx(Game.damage_multiplier(), 1.20))
+		is_equal_approx(Game.value_multiplier(), 1.50)
+		and is_equal_approx(Game.damage_multiplier(), 1.20)
+		and Game.money == Game.START_MONEY + int(SkillTree.START_BONUS))
 	_check("y las piezas de la partida si se pierden",
 		Game.item_level(LootDB.item_index("armario")) == 0
 		and Game.item_level(LootDB.item_index("pinchos")) == 0)
@@ -2756,10 +2782,12 @@ func _run() -> void:
 	g._refresh_rebirth()
 	g._open_rebirth()
 	await get_tree().process_frame
+	# La entrada del panel rebota (pasa del 100 % un momento): se mide quieto.
+	await get_tree().create_timer(0.35).timeout
 	var arbol = g._rebirth
 	_check("la chapa del rebirth abre el arbol", arbol != null)
 	if arbol != null:
-		_check("y el panel dibuja los veinte nodos",
+		_check("y el panel dibuja los treinta y cinco nodos",
 			arbol._nodes.size() == SkillTree.node_count())
 		# AL ABRIRLO SE VE LO DE SIEMPRE: el centro y los cuatro caminos, dentro del
 		# marco y por DEBAJO de la barra del rebirth, que es lo unico fijo de la
@@ -2812,8 +2840,10 @@ func _run() -> void:
 		# Y CON LA RAMA A LA VISTA, sus rotulos se dibujan y no se salen: el mismo
 		# check de encuadre que se le hace al resto del arbol, que arriba no la ve
 		# porque la vista recorta lo que queda por debajo.
-		arbol._set_offset(Vector2(offset_ini.x,
-			arbol.VIEW_SIZE.y * 0.5 - float(SkillTree.node_by_id(SkillTree.QOL_TABLE)["pos"].y)))
+		# Entre la ultima fila y FABRICA, que es lo que cabe de una vez.
+		arbol._set_offset(Vector2(offset_ini.x, arbol.VIEW_SIZE.y * 0.5
+			- (float(SkillTree.node_by_id(SkillTree.QOL_TABLE)["pos"].y)
+				+ float(SkillTree.node_by_id(SkillTree.FACTORY)["pos"].y)) * 0.5))
 		_check_cabe("la rama de calidad de vida no saca texto de la vista", arbol, PANEL)
 		# Lo que queda DEBAJO de la barra del rebirth no cuenta: la barra va encima
 		# del arbol a proposito (ver RebirthPanel) y lo tapa. Con la rama de abajo
@@ -2955,7 +2985,7 @@ func _run() -> void:
 				_dice(ficha_centro, "AHORA, CON EL ARBOL: "
 					+ SkillTree.total_text("money", Game.skill_bonus("money")))
 				and _dice(ficha_centro, "AL COMPRARLO: "
-					+ SkillTree.total_text("money", 0.30)))
+					+ SkillTree.total_text("money", 0.50)))
 			# Y LA FICHA CABE Y NO PISA NADA: es una pantalla nueva, y una linea de
 			# texto encima del dibujo del nodo no da ningun error (solo una ficha
 			# ilegible), asi que se mira con los mismos checks que la tienda.
@@ -2965,7 +2995,7 @@ func _run() -> void:
 			_check("y comprar desde la ficha compra la mejora del centro",
 				_pulsa_comprar(ficha_centro) and Game.skill_owned("money")
 				and Game.rebirth_coins == 11
-				and is_equal_approx(Game.value_multiplier(), 1.30))
+				and is_equal_approx(Game.value_multiplier(), 1.50))
 			_check("y el aviso de la barra lo dice",
 				arbol._hint_label.text.begins_with("COMPRADO"))
 			await get_tree().process_frame
@@ -3078,18 +3108,18 @@ func _run() -> void:
 			if f != null:
 				f._close()
 				await get_tree().process_frame
-		_check("la ficha de los veinte nodos se monta entera", fichas_rotas.is_empty())
+		_check("la ficha de los treinta y cinco nodos se monta entera", fichas_rotas.is_empty())
 		for f_rota in fichas_rotas:
 			print("         ficha rota: ", f_rota)
 		# Y SE MIRA UNA DE INTERRUPTOR ENTERA, con los mismos checks de encuadre
 		# que la del centro: no tiene numeros de porcentaje, sino AHORA: APAGADO /
 		# AL COMPRARLO: ENCENDIDO, y esa linea tambien puede acabar encima del
 		# dibujo o fuera del marco sin que nada avise.
-		arbol._tap(SkillTree.QOL_KEYS)
+		arbol._tap(SkillTree.QOL_AUTOSTORE)
 		await get_tree().process_frame
 		var ficha_qol = arbol._card
 		_check("la ficha de un interruptor se abre",
-			ficha_qol != null and ficha_qol.skill_id() == SkillTree.QOL_KEYS)
+			ficha_qol != null and ficha_qol.skill_id() == SkillTree.QOL_AUTOSTORE)
 		if ficha_qol != null:
 			_check_cabe("y no saca texto del panel", ficha_qol, PANEL)
 			_check_sin_encimarse("y no pone texto encima de una chapa", ficha_qol)
@@ -3166,20 +3196,7 @@ func _run() -> void:
 
 	# --- LA CALIDAD DE VIDA, DENTRO DE LA PARTIDA -------------------------- #
 	#
-	# Los cuatro interruptores que tocan la partida se prueban donde vive cada
-	# regla. Los atajos van aparte, en el test del raton, que es donde hay teclas.
-	#
-	# SIN FICHA: la chatarra es una NOTA, no un precio. Lo que vale un objeto sube
-	# con el escalon del sobre (cuarenta veces de los SOBRES a ELECTRONICA), asi que
-	# un umbral en dinero tendria que cambiar con cada escalon; la nota va de 1 a 10
-	# en todos y se ve como estrellas en la ficha.
-	Game.skills = {}
-	_check("sin la mejora, la chatarra se sigue mirando una por una",
-		not Game.auto_sell_chaff({"grade": 1}))
-	Game.skills[SkillTree.QOL_CHAFF] = 1
-	_check("y con SIN FICHA lo de tres estrellas o menos se vende sin abrir ficha",
-		Game.auto_sell_chaff({"grade": 1}) and Game.auto_sell_chaff({"grade": 3})
-			and not Game.auto_sell_chaff({"grade": 4}))
+	# Los interruptores que tocan la partida se prueban donde vive cada regla.
 
 	# EL SOBRANTE: el dano que le sobra a un golpe no se tira, espera al siguiente.
 	Game.skills = {}
@@ -3656,6 +3673,105 @@ func _run() -> void:
 		inicio != null and not inicio.has_method("_on_rebirth")
 		and not inicio.has_method("_refresh_rebirth"))
 
+	# Un guardado con ATAJOS y SIN FICHA (quitados del arbol) recupera sus monedas.
+	Game._apply({"rebirth_coins": 1, "skills": {"qol_keys": 1, "qol_chaff": 1, "money": 1}})
+	_check("los nodos quitados devuelven sus monedas al cargar",
+		Game.rebirth_coins == 4 and Game.skill_owned("money")
+		and not Game.skills.has("qol_keys"))
+
+	# EL CAMINO DEL REBIRTH Y EL VIP.
+	Game.skills = {}
+	var pide := Game.rebirth_require()
+	Game.money = LootDB.REBIRTH_REQUIRE
+	var paga := Game.pending_rebirth_coins()
+	var vip := Game.vip_mult()
+	Game.skills = {"money": 1, "locker": 1, "require": 1, "coins": 1, "happy": 1, "vip": 1}
+	_check("la REBAJA baja el requisito un 15 %",
+		Game.rebirth_require() == roundi(pide * 0.85) and Game.money >= Game.rebirth_require())
+	_check("y CADA REBIRTH PAGA MAS da una moneda de mas",
+		Game.pending_rebirth_coins() == paga + 1)
+	_check("y el PAGO VIP sube de x2 a x3",
+		is_equal_approx(Game.vip_mult(), vip * 1.5) and is_equal_approx(Game.vip_mult(), 3.0))
+
+	# LEYENDA: pide los dos fondos de arriba Y los dos lados, da de todo y las
+	# habilidades se recargan el doble de rapido.
+	Game.skills = {"money": 1, "damage": 1, "damage_2": 1, "damage_3": 1,
+		"speed": 1, "speed_2": 1, "speed_3": 1}
+	_check("LEYENDA pide tambien los dos lados (con los de arriba no basta)",
+		not Game.skill_unlocked(SkillTree.LEGEND)
+		and Game.skill_missing_req(SkillTree.LEGEND) == "sweet")
+	Game.skills.merge({"combo": 1, "streak": 1, "sweet": 1,
+		"happy": 1, "vip": 1, "boss": 1, "golden": 1})
+	var sin_leyenda := [Game.skill_bonus("money"), Game.skill_bonus("damage"),
+		Game.skill_bonus("speed"), Game.skill_bonus("spikes")]
+	Game.rebirth_coins = SkillTree.COST_LEGEND
+	_check("y con los cuatro se compra", Game.buy_skill(SkillTree.LEGEND))
+	_check("y da +100 % dinero y +50 % dano, velocidad y pinchos",
+		is_equal_approx(Game.skill_bonus("money"), float(sin_leyenda[0]) + 1.0)
+		and is_equal_approx(Game.skill_bonus("damage"), float(sin_leyenda[1]) + 0.5)
+		and is_equal_approx(Game.skill_bonus("speed"), float(sin_leyenda[2]) + 0.5)
+		and is_equal_approx(Game.skill_bonus("spikes"), float(sin_leyenda[3]) + 0.5))
+	Game.skills[Gameplay.ABIL_CHARGE] = 1
+	Game.cooldowns = {}
+	Game.use_ability(Gameplay.ABIL_CHARGE)
+	_check("y las habilidades recargan el doble de rapido",
+		is_equal_approx(Game.ability_left(Gameplay.ABIL_CHARGE),
+			float(Gameplay.ability(Gameplay.ABIL_CHARGE)["cooldown"]) * 0.5))
+	Game.cooldowns = {}
+	Game.charged_next = false
+	_check("y LEYENDA es el nodo mas grande, y los finales de camino tambien crecen",
+		SkillTree.scale_of(SkillTree.LEGEND) > SkillTree.scale_of("cap_damage")
+		and SkillTree.scale_of("cap_damage") > 1.0
+		and is_equal_approx(SkillTree.scale_of("money"), 1.0))
+	# CADA CAMINO ACABA EN UN NODO GRANDE, que cuelga del ultimo del camino.
+	var finales := {"cap_damage": "damage_3", "cap_speed": "speed_3",
+		"cap_spikes": "spikes_3", "cap_rebirth": "coins", "cap_aim": "sweet",
+		"cap_events": "golden"}
+	var finales_ok := true
+	for cap in finales:
+		finales_ok = finales_ok and SkillTree.req_of(cap) == finales[cap] \
+				and SkillTree.scale_of(cap) > 1.0
+	_check("cada camino acaba en un nodo grande", finales_ok)
+	# FABRICA: los Pinchos y el PC al empezar y lo automatico no se apaga.
+	Game.skills = {SkillTree.FACTORY: 1}
+	for i in Game.items.size():
+		Game.items[i] = 0
+	Game.auto_open = true
+	Game.auto_buy = true
+	Game.money = LootDB.REBIRTH_REQUIRE
+	Game.do_rebirth()
+	_check("con FABRICA la partida empieza con Pinchos y PC y abriendo y comprando sola",
+		Game.has_item(LootDB.AUTO_ITEM_OPEN) and Game.has_item(LootDB.AUTO_ITEM_BUY)
+		and Game.auto_open and Game.auto_buy)
+	Game.auto_open = false
+	Game.auto_buy = false
+
+	# EL GUARDADO DE LAS PRUEBAS NO ES EL DE VERDAD, Y HAY COPIA.
+	_check("las pruebas guardan en su propio fichero", Game.save_path == Game.TEST_SAVE_PATH)
+	Game.money = 12345
+	Game.save_game()
+	Game.money = 999
+	Game.save_game()
+	var guardado_roto := FileAccess.open(Game.save_path, FileAccess.WRITE)
+	guardado_roto.store_string("{esto no es json")
+	guardado_roto.close()
+	Game.load_game()
+	_check("con el guardado roto se carga la copia", Game.money == 12345)
+
+	# EL TIEMPO CON EL JUEGO CERRADO: solo con Pinchos, poco y con tope.
+	Game.skills = {}
+	Game.items[LootDB.item_index("pinchos")] = 0
+	Game.play_seconds = 100.0
+	Game.lifetime_earned = 100000
+	_check("sin Pinchos no se gana nada con el juego cerrado", Game._pay_offline(600.0) == 0)
+	Game.items[LootDB.item_index("pinchos")] = 1
+	_check("con Pinchos se gana el 10 % del ritmo de la partida",
+		Game._pay_offline(600.0) == roundi(1000.0 * Game.OFFLINE_RATE * 600.0))
+	Game.lifetime_earned = 100000
+	_check("y como mucho una hora",
+		Game._pay_offline(99999.0) == roundi(1000.0 * Game.OFFLINE_RATE * Game.OFFLINE_MAX))
+	Game.offline_earned = 0
+
 	print("")
 	if _fails.is_empty():
 		print("HUMO: todo correcto.")
@@ -3679,7 +3795,7 @@ func _check_autostore_y_ficha() -> void:
 	Game.skills = {}
 	_check("sin la mejora el auto guardar no se enciende",
 		not Game.set_autostore(true) and not Game.autostore_active())
-	Game.skills = {"money": 1, SkillTree.QOL_KEYS: 1, SkillTree.QOL_AUTOSTORE: 1}
+	Game.skills = {"money": 1, SkillTree.QOL_AUTOSTORE: 1}
 	_check("con la mejora si", Game.set_autostore(true) and Game.autostore_active())
 	Game.autostore_kinds = ["vinyls"]
 	Game.autostore_grades = [2, 10]

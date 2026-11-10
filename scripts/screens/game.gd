@@ -337,6 +337,16 @@ func _ready() -> void:
 	# mesa que se lleva cada guardado la saca esta pantalla.
 	_restore_table()
 	Game.table_provider = _snapshot_table
+	# Lo ganado con el juego cerrado (ver Game.OFFLINE_RATE), contado una vez.
+	if Game.offline_earned > 0:
+		_show_offline.call_deferred(Game.offline_earned)
+		Game.offline_earned = 0
+
+
+func _show_offline(amount: int) -> void:
+	if _main() != null:
+		_main().banner("MIENTRAS NO ESTABAS",
+				"LOS PINCHOS GANARON %s" % LootDB.short_number(amount))
 
 
 func _exit_tree() -> void:
@@ -1115,7 +1125,7 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 	var mult := 1.0
 	if el.broken_by_hit:
 		_combo = _combo + 1 if _combo_left > 0.0 else 1
-		_combo_left = Gameplay.COMBO_WINDOW
+		_combo_left = _combo_window()
 		mult = Gameplay.combo_mult(_combo)
 		_refresh_combo()
 		_on_pack_broken(el)
@@ -1157,11 +1167,8 @@ func _deliver(item: Dictionary) -> void:
 	if Game.autostore_active():
 		_autostore(item)
 		return
-	# Dos formas de vender sin pasar por la mesa: la venta automatica de los
-	# ajustes (todo) y la mejora SIN FICHA del arbol (solo la chatarra, ver
-	# Game.auto_sell_chaff). La de los ajustes va primero porque es la que pidio el
-	# jugador para TODA la partida.
-	if Game.auto_sell or Game.auto_sell_chaff(item):
+	# La venta automatica de los ajustes: todo se vende sin pasar por la mesa.
+	if Game.auto_sell:
 		_sell_quietly(item)
 		return
 	# LA FICHA SOLO PARA LO QUE MERECE PARARSE (Ajustes > FICHA): lo demas cae en
@@ -1781,7 +1788,8 @@ static func _pack_kind(pack_id: String) -> String:
 func _events_step(delta: float) -> void:
 	_golden_timer -= delta
 	if _golden_timer <= 0.0:
-		_golden_timer = Gameplay.between(_rng, Gameplay.GOLDEN_EVERY)
+		_golden_timer = Gameplay.between(_rng, Gameplay.GOLDEN_EVERY) \
+				/ (1.0 + Game.skill_bonus("golden"))
 		spawn_golden()
 	_boss_timer -= delta
 	if _boss_timer <= 0.0:
@@ -1793,7 +1801,7 @@ func _events_step(delta: float) -> void:
 		if Game.buyer.is_empty():
 			Game.start_buyer()
 			Sound.play("sfx_rare")
-			_main().banner("COMPRADOR VIP  %s" % Gameplay.mult_text(Gameplay.VIP_MULT),
+			_main().banner("COMPRADOR VIP  %s" % Gameplay.mult_text(Game.vip_mult()),
 					event_texts()[0].split("  -  ")[0].get_slice(": ", 1))
 	_happy_timer -= delta
 	if _happy_timer <= 0.0:
@@ -1914,7 +1922,8 @@ func _on_streak_changed(streak: int) -> void:
 	_streak_label.visible = streak >= 2
 	if streak >= 2:
 		_streak_label.text = "RACHA %d  %s" % [streak,
-				Gameplay.mult_text(snappedf(Gameplay.streak_mult(streak), 0.01))]
+				Gameplay.mult_text(snappedf(Gameplay.streak_mult(streak,
+						Game.skill_bonus("streak")), 0.01))]
 		UIKit.punch(_streak_label, 1.2)
 	elif antes:
 		# Se ha roto con algo de racha: que se note que se ha perdido.
@@ -1931,7 +1940,7 @@ func _combo_step(delta: float) -> void:
 		_combo = 0
 		_refresh_combo()
 		return
-	_combo_bar.size.x = 200.0 * _combo_left / Gameplay.COMBO_WINDOW
+	_combo_bar.size.x = 200.0 * _combo_left / _combo_window()
 
 
 func _refresh_combo() -> void:
@@ -1943,7 +1952,7 @@ func _refresh_combo() -> void:
 	if hay:
 		_combo_label.text = "COMBO %d  +%d %%" % [_combo,
 				roundi((Gameplay.combo_mult(_combo) - 1.0) * 100.0)]
-		_combo_bar.size.x = 200.0 * _combo_left / Gameplay.COMBO_WINDOW
+		_combo_bar.size.x = 200.0 * _combo_left / _combo_window()
 		UIKit.punch(_combo_label, 1.15)
 
 
@@ -1956,11 +1965,12 @@ func spawn_boss() -> TableElement:
 		return null
 	var el := TableElement.new()
 	el.setup_pack(LootDB.pack_by_id(Game.golden_pack_id()))
-	el.setup_boss(Game.damage_per_hit() * Gameplay.BOSS_HITS, Gameplay.BOSS_LIFE)
+	var vida := Gameplay.BOSS_LIFE * (1.0 + Game.skill_bonus("boss"))
+	el.setup_boss(Game.damage_per_hit() * Gameplay.BOSS_HITS, vida)
 	_add_element(el)
 	Sound.play("sfx_rare", 0.0, 0.6)
 	_shake(2.5)
-	_main().banner("JEFE DE SOBRE", "ROMPELO EN %d S" % roundi(Gameplay.BOSS_LIFE))
+	_main().banner("JEFE DE SOBRE", "ROMPELO EN %d S" % roundi(vida))
 	return el
 
 
@@ -2006,7 +2016,7 @@ func event_texts() -> Array:
 	if not Game.buyer.is_empty():
 		out.append("COMPRADOR VIP: %s CON NOTA %d O MAS PAGA %s  -  %d S" % [
 			str(LootDB.kind_row(str(Game.buyer["kind"]))["name"]),
-			int(Game.buyer["grade"]), Gameplay.mult_text(Gameplay.VIP_MULT),
+			int(Game.buyer["grade"]), Gameplay.mult_text(Game.vip_mult()),
 			ceili(float(Game.buyer["left"]))])
 	if not Game.happy.is_empty():
 		out.append("HORA FELIZ: LOS OBJETOS DE %s VALEN %s  -  %d S" % [
@@ -2155,8 +2165,8 @@ func _main() -> MainRoot:
 	return MainRoot.get_root()
 
 
-## Los atajos de la mejora ATAJOS: T la tienda, A el armario, R el rebirth y V
-## vende la mesa. Todo lo que estaba a un viaje de raton a la barra.
+## Las teclas de la mesa: 1, 2 y 3 usan las habilidades (los atajos T/A/R/V
+## se quitaron con la mejora ATAJOS).
 ##
 ## SE MIRAN ANTES QUE EL ESC y solo con la partida DESPEJADA: si hay una ficha de
 ## revelado o cualquier panel abierto, la letra no hace nada. Si no fuera asi, la
@@ -2178,20 +2188,12 @@ func _hotkey(event: InputEvent) -> bool:
 		if n >= 0 and n < Gameplay.ABILITIES.size():
 			_use_ability(str(Gameplay.ABILITIES[n]["id"]))
 			return true
-	if not Game.skill_owned(SkillTree.QOL_KEYS) or not _table_clear():
-		return false
-	match code:
-		KEY_T:
-			_open_shop()
-		KEY_A:
-			_open_locker()
-		KEY_R:
-			_open_rebirth()
-		KEY_V:
-			_sell_all_table()
-		_:
-			return false
-	return true
+	return false
+
+
+## Lo que aguanta el combo entre sobre y sobre, con el nodo COMBO del arbol.
+func _combo_window() -> float:
+	return Gameplay.COMBO_WINDOW * (1.0 + Game.skill_bonus("combo"))
 
 
 ## ¿No hay nada abierto encima de la mesa? Es la condicion de los atajos.

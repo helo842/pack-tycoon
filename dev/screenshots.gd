@@ -219,7 +219,7 @@ func _run() -> void:
 		# (que se come 150 px de arriba): mas arriba se corta el ultimo rotulo, y
 		# mas abajo se cuelan los nodos por debajo de la barra.
 		hucha._set_offset(Vector2(hucha._offset.x, hucha.BAR_H
-			- (float(SkillTree.node_by_id(SkillTree.QOL_CHAFF)["pos"].y) - hucha.NODE * 0.5)))
+			- (float(SkillTree.node_by_id(SkillTree.QOL_TABLE)["pos"].y) - hucha.NODE * 0.5)))
 		await _frames(3)
 		await _shot("03g_arbol_calidad")
 		hucha._close()

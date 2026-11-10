@@ -1,7 +1,8 @@
 # Game - el estado del juego. Es un autoload (ver project.godot), asi que vive
 # durante toda la sesion y no depende de que pantalla este puesta.
 #
-# Guarda en user://packtycoon.json. Se guarda al salir y cada 30 segundos si ha
+# Guarda en user://packtycoon.json (con copia en .bak; las pruebas en otro
+# fichero, ver TEST_SAVE_PATH). Se guarda al salir y cada 30 segundos si ha
 # cambiado algo, no en cada venta: escribir el fichero en cada operacion ralentiza
 # el juego en cuanto se tienen 200 objetos.
 extends Node
@@ -41,8 +42,25 @@ signal abilities_changed()
 signal streak_changed(streak: int)
 
 const SAVE_PATH := "user://packtycoon.json"
+## Las pruebas y las capturas (las escenas de res://dev/) guardan AQUI y no en la
+## partida de verdad: el test de humo hace hard_reset(), y con el mismo fichero
+## se llevaba por delante la partida del jugador (paso el 2026-11-10).
+const TEST_SAVE_PATH := "user://packtycoon_test.json"
+## La copia de la partida anterior: se hace antes de cada guardado y se carga si
+## el guardado de verdad falta o no se puede leer.
+const BACKUP_SUFFIX := ".bak"
+## Lo que se gana con el juego cerrado: esta parte de lo que se ganaba por
+## segundo en la partida, como mucho OFFLINE_MAX segundos, y solo con los Pinchos
+## comprados (son lo que sigue abriendo sobres sin el jugador). Poco a proposito:
+## jugar tiene que valer diez veces mas que dejarlo cerrado.
+const OFFLINE_RATE := 0.10
+const OFFLINE_MAX := 3600.0
+const OFFLINE_MIN := 60.0
 const AUTOSAVE_EVERY := 30.0
 const START_MONEY := 500
+## Lo minimo que paga el PRIMER rebirth: lo bastante para el centro del arbol y
+## un par de nodos de 1, que es lo que hace que reiniciar la primera vez apetezca.
+const FIRST_REBIRTH_COINS := 3
 ## Huecos del inventario. 50 y no 10 porque el inventario ya no es una tira de
 ## diez ranuras debajo de la mesa: es la columna de la IZQUIERDA del armario (ver
 ## LockerPanel), y ahi cabe una rejilla larga con scroll. Ampliarlo de verdad
@@ -166,6 +184,18 @@ var _rng_play := RandomNumberGenerator.new()
 
 var _dirty := false
 var _autosave_left := AUTOSAVE_EVERY
+## Donde se guarda: SAVE_PATH, o TEST_SAVE_PATH si se ha arrancado una escena de
+## pruebas (ver _ready).
+var save_path := SAVE_PATH
+## Segundos jugados en esta partida (se ponen a cero con el rebirth). Con
+## lifetime_earned dan lo que se gana por segundo, que es lo que paga el tiempo
+## con el juego cerrado.
+var play_seconds := 0.0
+## Cuantas veces se ha hecho rebirth (de la cuenta, no se pierde).
+var rebirth_count := 0
+## Lo que se ha ganado con el juego cerrado al cargar, para que la pantalla de
+## juego lo cuente una vez (y lo ponga a cero).
+var offline_earned := 0
 
 
 func _ready() -> void:
@@ -182,6 +212,9 @@ func _ready() -> void:
 	# de margen antes de salir (ver _on_close). Sin esto, el motor cierra de
 	# golpe en cuanto llega el aviso de la ventana.
 	get_tree().auto_accept_quit = false
+	for arg in OS.get_cmdline_args():
+		if str(arg).begins_with("res://dev/"):
+			save_path = TEST_SAVE_PATH
 	load_game()
 	if missions.is_empty():
 		_fill_missions()
@@ -194,6 +227,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	play_seconds += delta
 	_tick_play(delta)
 	_autosave_left -= delta
 	if _autosave_left <= 0.0:
@@ -533,6 +567,16 @@ func rebirth_multiplier() -> float:
 	return 1.0 + kind_bonus("electronics") + album_bonus("rebirth")
 
 
+## Lo que pide el rebirth en el contador, con la REBAJA del arbol.
+func rebirth_require() -> int:
+	return roundi(float(LootDB.REBIRTH_REQUIRE) * (1.0 - skill_bonus("require")))
+
+
+## Lo que paga el comprador VIP, con el nodo PAGO VIP del arbol.
+func vip_mult() -> float:
+	return Gameplay.VIP_MULT * (1.0 + skill_bonus("vip"))
+
+
 # --------------------------------------------------------------------------- #
 # Rebirth (la hucha)
 # --------------------------------------------------------------------------- #
@@ -542,7 +586,7 @@ func rebirth_multiplier() -> float:
 ## romperse: el rebirth pide juntar esa cifra y no gastarla, y por eso guardar el
 ## dinero sube las monedas del premio Y adelanta el reinicio.
 func can_rebirth() -> bool:
-	return money >= LootDB.REBIRTH_REQUIRE
+	return money >= rebirth_require()
 
 
 ## Las monedas que daria reiniciar AHORA, con la Electronica del armario dentro.
@@ -554,14 +598,22 @@ func can_rebirth() -> bool:
 ## al comprar sobres y mejoras, que es justo la informacion que necesita el
 ## jugador para decidir si le queda una moneda mas o si reinicia ya.
 func pending_rebirth_coins() -> int:
-	return LootDB.rebirth_coins_for(money, rebirth_multiplier())
+	var coins := LootDB.rebirth_coins_for(money, rebirth_multiplier())
+	if rebirth_count == 0:
+		coins = maxi(coins, FIRST_REBIRTH_COINS)
+	return coins + int(skill_bonus(SkillTree.COINS_STAT))
+
+
+## El dinero con el que empieza cada partida (el centro del arbol suma).
+func start_money() -> int:
+	return START_MONEY + int(skill_bonus("start"))
 
 
 ## Lo que falta para poder reiniciar (0 si ya se puede). Es dinero del contador,
 ## como el requisito: se puede decir con la misma cifra que enseña la barra de
 ## arriba sin traducir nada.
 func rebirth_missing() -> int:
-	return maxi(0, LootDB.REBIRTH_REQUIRE - money)
+	return maxi(0, rebirth_require() - money)
 
 
 ## Reiniciar la partida: se pierde TODO lo de la partida (dinero, items, armario
@@ -580,6 +632,7 @@ func do_rebirth() -> int:
 		return 0
 	var coins := pending_rebirth_coins()
 	rebirth_coins += coins
+	rebirth_count += 1
 	# LA MESA SE VACIA, y lo primero: lo que hay encima es de la partida que se va.
 	# Antes se quedaba puesta, y el botin sin vender se cobraba DESPUES del rebirth,
 	# o sea que se podia pasar dinero de una partida a la siguiente dejando la mesa
@@ -595,20 +648,25 @@ func do_rebirth() -> int:
 	charged_next = false
 	frenzy_left = 0.0
 	_fill_missions()
-	money = START_MONEY
+	money = start_money()
 	items = []
 	while items.size() < LootDB.item_count():
 		items.append(0)
 	inventory = []
 	locker = []
 	lifetime_earned = 0
+	play_seconds = 0.0
 	# Lo que sobraba de un golpe era de la partida que se va: la nueva empieza sin
 	# nada en el aire.
 	carry_damage = 0.0
 	# Las automatizaciones se caen con las piezas, que se han ido: si no, la
 	# partida nueva empezaria con la mesa abriendose sola y sin Pinchos.
-	auto_open = false
-	auto_buy = false
+	# Con FABRICA la partida empieza con los Pinchos y el PC, y lo automatico que
+	# estaba encendido sigue encendido.
+	var fabrica := skill_owned(SkillTree.FACTORY)
+	_factory_pieces()
+	auto_open = fabrica and auto_open
+	auto_buy = fabrica and auto_buy
 	auto_buy_packs = _all_pack_ids()
 	_dirty = true
 	money_changed.emit(money)
@@ -649,8 +707,19 @@ func skill_owned(id: String) -> bool:
 func skill_unlocked(id: String) -> bool:
 	if not SkillTree.has_node(id):
 		return false
-	var req := SkillTree.req_of(id)
-	return req == "" or skill_owned(req)
+	for req in SkillTree.reqs_of(id):
+		if not skill_owned(str(req)):
+			return false
+	return true
+
+
+## El primer requisito de un nodo que aun no se tiene ("" si no falta ninguno):
+## es lo que dicen la ficha y la barra en un nodo cerrado.
+func skill_missing_req(id: String) -> String:
+	for req in SkillTree.reqs_of(id):
+		if not skill_owned(str(req)):
+			return str(req)
+	return ""
 
 
 ## Lo que cuesta el siguiente nivel de un nodo, o -1 si no hay nada que comprar:
@@ -686,6 +755,7 @@ func buy_skill(id: String) -> bool:
 		return false
 	rebirth_coins -= cost
 	skills[id] = skill_level(id) + 1
+	_factory_pieces()
 	_dirty = true
 	skills_changed.emit()
 	# Y con el arbol cambian los multiplicadores de la partida en curso (el dano
@@ -699,6 +769,16 @@ func buy_skill(id: String) -> bool:
 	return true
 
 
+## FABRICA: los Pinchos y el PC, como poco a nivel 1 (al comprarla y al empezar
+## cada partida).
+func _factory_pieces() -> void:
+	if not skill_owned(SkillTree.FACTORY):
+		return
+	for piece in [LootDB.AUTO_ITEM_OPEN, LootDB.AUTO_ITEM_BUY]:
+		var i := LootDB.item_index(piece)
+		items[i] = maxi(int(items[i]), 1)
+
+
 ## Lo que suma un stat entre todos los nodos comprados. Los de porcentaje suman
 ## fracciones (0.5 = +50 %) y el armario suma huecos: cada uno se lo pide a
 ## SkillTree, que es quien sabe que es cada nodo.
@@ -706,9 +786,9 @@ func skill_bonus(stat: String) -> float:
 	var total := 0.0
 	for id in skills:
 		var n := SkillTree.node_by_id(str(id))
-		if n.is_empty() or str(n["stat"]) != stat:
+		if n.is_empty():
 			continue
-		total += float(n["value"]) * float(skill_level(str(id)))
+		total += SkillTree.node_bonus(n, stat) * float(skill_level(str(id)))
 	return total
 
 
@@ -810,17 +890,6 @@ func keep_carry(amount: float) -> void:
 	carry_damage = amount
 
 
-## ¿Este objeto es chatarra para la mejora SIN FICHA? Es una nota, no un precio:
-## lo que vale un objeto sube con el escalon del sobre -una zapatilla comun vale
-## cuarenta veces lo que una carta comun-, asi que un umbral en dinero tendria que
-## cambiar con cada escalon y el jugador no sabria nunca cual es. La nota va de 1
-## a 10 en todos los sobres y se ve en la ficha como estrellas, o sea que la
-## mejora se puede explicar en una linea: "de tres estrellas o menos".
-func auto_sell_chaff(item: Dictionary) -> bool:
-	return skill_owned(SkillTree.QOL_CHAFF) \
-			and int(item.get("grade", LootDB.GRADE_MAX)) <= LootDB.AUTO_SELL_GRADE
-
-
 ## Un paquete pide abrirse. game.gd decide cuantos mas arranca a la vez.
 func request_open(element: Object) -> void:
 	open_requested.emit(element)
@@ -840,10 +909,10 @@ func payout(item: Dictionary) -> int:
 	if not happy.is_empty() and str(happy["kind"]) == kind:
 		value = roundi(float(value) * Gameplay.HAPPY_MULT)
 	if buyer_wants(item):
-		value = roundi(float(value) * Gameplay.VIP_MULT)
+		value = roundi(float(value) * vip_mult())
 		buyer = {}
 		events_changed.emit()
-		notice.emit("VENDIDO AL COMPRADOR VIP: " + Gameplay.mult_text(Gameplay.VIP_MULT),
+		notice.emit("VENDIDO AL COMPRADOR VIP: " + Gameplay.mult_text(vip_mult()),
 			Palette.GOLD_XL)
 		mission_event("vip", 1)
 	add_money(value)
@@ -856,7 +925,7 @@ func payout_preview(item: Dictionary) -> int:
 	if not happy.is_empty() and str(happy["kind"]) == LootDB.kind_of(item):
 		value = roundi(float(value) * Gameplay.HAPPY_MULT)
 	if buyer_wants(item):
-		value = roundi(float(value) * Gameplay.VIP_MULT)
+		value = roundi(float(value) * vip_mult())
 	return value
 
 
@@ -923,7 +992,7 @@ func start_buyer() -> void:
 func start_happy() -> void:
 	var kinds := LootDB.kind_ids()
 	happy = {"kind": kinds[_rng_play.randi_range(0, kinds.size() - 1)],
-		"left": Gameplay.HAPPY_LIFE}
+		"left": Gameplay.HAPPY_LIFE * (1.0 + skill_bonus("happy"))}
 	events_changed.emit()
 
 
@@ -948,7 +1017,8 @@ func ability_left(id: String) -> float:
 func use_ability(id: String) -> bool:
 	if not ability_ready(id):
 		return false
-	cooldowns[id] = float(Gameplay.ability(id).get("cooldown", 60.0))
+	cooldowns[id] = float(Gameplay.ability(id).get("cooldown", 60.0)) \
+			* (0.5 if skill_owned(SkillTree.LEGEND) else 1.0)
 	if id == Gameplay.ABIL_CHARGE:
 		charged_next = true
 	elif id == Gameplay.ABIL_FRENZY:
@@ -964,7 +1034,7 @@ func note_perfect(sweet: bool) -> float:
 	perfect_hits += 1
 	streak_changed.emit(streak)
 	return Gameplay.PERFECT_MULT * (Gameplay.SWEET_MULT if sweet else 1.0) \
-			* Gameplay.streak_mult(streak)
+			* Gameplay.streak_mult(streak, skill_bonus("streak"))
 
 
 ## La racha se rompe (se ha pasado un sobre o se ha pulsado antes de tiempo).
@@ -1350,8 +1420,11 @@ func hard_reset() -> void:
 	streak = 0
 	frenzy_left = 0.0
 	_dirty = true
-	if FileAccess.file_exists(SAVE_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	play_seconds = 0.0
+	rebirth_count = 0
+	for path in [save_path, save_path + BACKUP_SUFFIX]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	money_changed.emit(money)
 	inventory_changed.emit()
 	locker_changed.emit()
@@ -1391,6 +1464,9 @@ func to_dict() -> Dictionary:
 		"top_pack_price": top_pack_price,
 		"top_pack_index": top_pack_index,
 		"perfect_hits": perfect_hits,
+		"play_seconds": play_seconds,
+		"rebirth_count": rebirth_count,
+		"saved_at": Time.get_unix_time_from_system(),
 	}
 
 
@@ -1399,37 +1475,73 @@ func save_game() -> void:
 	# La foto de la mesa, si hay una partida en pantalla (ver `table`).
 	if table_provider.is_valid():
 		table = table_provider.call()
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if FileAccess.file_exists(save_path):
+		DirAccess.copy_absolute(ProjectSettings.globalize_path(save_path),
+				ProjectSettings.globalize_path(save_path + BACKUP_SUFFIX))
+	var f := FileAccess.open(save_path, FileAccess.WRITE)
 	if f == null:
-		push_warning("No se pudo guardar en %s: %s" % [SAVE_PATH, error_string(FileAccess.get_open_error())])
+		push_warning("No se pudo guardar en %s: %s" % [save_path, error_string(FileAccess.get_open_error())])
 		return
 	f.store_string(JSON.stringify(to_dict(), "\t"))
 	f.close()
 
 
 func load_game() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var raw := f.get_as_text()
-	f.close()
-	var parsed = JSON.parse_string(raw)
-	if typeof(parsed) != TYPE_DICTIONARY:
-		push_warning("Guardado ilegible; se empieza de cero.")
-		return
+	var parsed = _read_save(save_path)
+	if parsed == null:
+		parsed = _read_save(save_path + BACKUP_SUFFIX)
+		if parsed == null:
+			return
+		push_warning("Guardado ilegible o perdido; se carga la copia.")
 	_apply(parsed)
+	_pay_offline(Time.get_unix_time_from_system() - float(parsed.get("saved_at", 0.0)))
+
+
+## Un guardado leido como diccionario, o null si falta o no se puede leer.
+static func _read_save(path: String):
+	if not FileAccess.file_exists(path):
+		return null
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return null
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else null
+
+
+## Paga el tiempo con el juego cerrado (ver OFFLINE_RATE). Devuelve lo pagado.
+func _pay_offline(elapsed: float) -> int:
+	var fabrica := skill_owned(SkillTree.FACTORY)
+	if elapsed < OFFLINE_MIN or play_seconds < OFFLINE_MIN or spike_dps() <= 0.0:
+		return 0
+	var rate := float(lifetime_earned) / play_seconds
+	var tope := OFFLINE_MAX * (2.0 if fabrica else 1.0)
+	offline_earned = roundi(rate * OFFLINE_RATE * minf(elapsed, tope))
+	add_money(offline_earned)
+	return offline_earned
 
 
 func _apply(d: Dictionary) -> void:
 	money = int(d.get("money", START_MONEY))
 	rebirth_coins = int(d.get("rebirth_coins", 0))
+	play_seconds = float(d.get("play_seconds", 0.0))
+	# Un guardado de antes del contador: si ya tenia monedas o arbol, ya habia
+	# hecho rebirth (y no le toca otra vez el minimo del primero).
+	var tenia_arbol: bool = typeof(d.get("skills")) == TYPE_DICTIONARY \
+			and not (d["skills"] as Dictionary).is_empty()
+	rebirth_count = int(d.get("rebirth_count",
+			1 if int(d.get("rebirth_coins", 0)) > 0 or tenia_arbol else 0))
 	# El arbol de mejoras, limpio contra los nodos que existen de verdad: un
 	# guardado de antes del arbol no trae la clave (y sale vacio, que es lo
 	# correcto: nadie habia comprado nada) y uno tocado a mano no puede meter un
 	# nodo inventado ni un nivel de mas.
 	skills = SkillTree.clean_levels(d.get("skills", {}))
+	# Los nodos quitados del arbol devuelven lo que costaron (ver SkillTree.REFUND).
+	var raw_skills = d.get("skills", {})
+	if typeof(raw_skills) == TYPE_DICTIONARY:
+		for id in SkillTree.REFUND:
+			if int(raw_skills.get(id, 0)) > 0:
+				rebirth_coins += int(SkillTree.REFUND[id])
 	inventory = d.get("inventory", [])
 	if typeof(inventory) != TYPE_ARRAY:
 		inventory = []

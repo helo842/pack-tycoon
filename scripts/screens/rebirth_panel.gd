@@ -183,8 +183,10 @@ const DRAG_SLOP := 12.0
 ## (1 px de pantalla por pixel de arte: pequeno pero nitido). El 1/2 es la
 ## excepcion: entre los dos, con el texto un poco irregular a cambio de ver los
 ## tres anillos de los caminos con la letra mas grande.
-const ZOOM_STEPS: Array[float] = [1.0 / 3.0, 0.5, 2.0 / 3.0, 1.0, 4.0 / 3.0, 5.0 / 3.0]
-const ZOOM_DEFAULT := 3
+## El 1/4 se anadio con los finales de camino: el arbol ya no cabia entero a 1/3.
+## A ese tamano la letra no es nitida; es la vista de "donde esta cada cosa".
+const ZOOM_STEPS: Array[float] = [0.25, 1.0 / 3.0, 0.5, 2.0 / 3.0, 1.0, 4.0 / 3.0, 5.0 / 3.0]
+const ZOOM_DEFAULT := 4
 ## Las dos lupas: una encima de la otra, en la esquina de abajo a la derecha de
 ## la vista, que es la unica que no tapa ni la barra ni la cruz de cerrar.
 const ZOOM_SIDE := 72.0
@@ -220,13 +222,11 @@ class TreeLines extends Control:
 		if panel == null:
 			return
 		for n in SkillTree.NODES:
-			var req := str(n["req"])
-			if req == "":
-				continue
-			var base := SkillTree.node_by_id(req)
-			if base.is_empty():
-				continue
-			panel._draw_link(self, base["pos"], n["pos"], str(n["id"]))
+			for req in SkillTree.reqs_of(str(n["id"])):
+				var base := SkillTree.node_by_id(str(req))
+				if base.is_empty():
+					continue
+				panel._draw_link(self, base["pos"], n["pos"], str(n["id"]))
 
 ## La vista recortada, el mundo que se mueve dentro y los nodos dibujados, por id.
 var _view: Control
@@ -335,6 +335,10 @@ func _build_node(node: Dictionary) -> Dictionary:
 	view.size = Vector2(NODE, NODE)
 	view.position = center - view.size * 0.5
 	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# EL NODO GRANDE (LEYENDA) es el mismo nodo escalado desde su centro: la chapa,
+	# el precio y el rotulo crecen juntos y nada se descoloca.
+	view.pivot_offset = view.size * 0.5
+	view.scale = Vector2.ONE * SkillTree.scale_of(id)
 	_world.add_child(view)
 
 	# LA CHAPA VA EN SU PROPIA CAPA, y es lo que se oscurece segun el estado (ver
@@ -346,6 +350,13 @@ func _build_node(node: Dictionary) -> Dictionary:
 	body.size = view.size
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	view.add_child(body)
+	# El nodo grande lleva el brillo de lo legendario detras de la chapa.
+	if SkillTree.scale_of(id) > 1.0:
+		var brillo := UIKit.image("rarity_glow_legendary", Vector2(NODE, NODE) * 0.5,
+				Vector2(NODE, NODE) * 1.6)
+		brillo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		view.add_child(brillo)
+		view.move_child(brillo, 0)
 	body.add_child(UIKit.image("ui_slot", Vector2(NODE, NODE) * 0.5, Vector2(NODE, NODE)))
 	body.add_child(UIKit.fit_art(str(node["art"]), NODE_ART_CENTER, NODE_ART))
 
@@ -517,8 +528,8 @@ func _on_view_input(event: InputEvent) -> void:
 ## El id del nodo que hay en este punto del ARBOL (no de la vista), o "" si no
 ## hay ninguno. Las cajas no se solapan: SkillTree.SEP es mayor que NODE.
 func _node_at(tree_pos: Vector2) -> String:
-	var half := NODE * 0.5
 	for id in _nodes:
+		var half := NODE * 0.5 * SkillTree.scale_of(str(id))
 		var center: Vector2 = _nodes[id]["center"]
 		if absf(tree_pos.x - center.x) <= half and absf(tree_pos.y - center.y) <= half:
 			return str(id)
@@ -579,7 +590,7 @@ func _on_buy_skill(id: String) -> void:
 		return
 	if not Game.skill_unlocked(id):
 		Sound.play("sfx_error")
-		_hint("ANTES: " + SkillTree.effect_text(SkillTree.req_of(id)), Palette.RUST_L)
+		_hint("ANTES: " + SkillTree.effect_text(Game.skill_missing_req(id)), Palette.RUST_L)
 		return
 	if not Game.can_buy_skill(id):
 		Sound.play("sfx_error")
@@ -713,7 +724,9 @@ func _centered_offset() -> Vector2:
 	if zoom() < 1.0:
 		var medio := (BAR_H + EDGE + VIEW_SIZE.y) * 0.5
 		return _clamp_offset(Vector2(x, medio - b.get_center().y * zoom()))
-	return _clamp_offset(Vector2(x, CENTER_Y))
+	# De cerca se centra en el nodo del centro (x = 0), no en la caja del arbol:
+	# las ramas de los lados no miden lo mismo y la caja ya no esta centrada.
+	return _clamp_offset(Vector2(VIEW_SIZE.x * 0.5, CENTER_Y))
 
 
 # --------------------------------------------------------------------------- #
@@ -749,7 +762,7 @@ func refresh() -> void:
 		+ " la partida). Te llevas %d monedas (1 por cada 1,5 M que tengas) y la"
 		+ " Electronica del armario las multiplica: x%s. Lo que vendes ya no sube"
 		+ " con las monedas: se gastan en el arbol.") % [
-		PixelNumber.format(LootDB.REBIRTH_REQUIRE), premio,
+		PixelNumber.format(Game.rebirth_require()), premio,
 		LootDB.short_number(Game.rebirth_multiplier())]
 
 	var puede := Game.can_rebirth()
@@ -775,7 +788,18 @@ func _paint_node(id: String) -> void:
 	var coin: TextureRect = node["coin"]
 	var effect: Label = node["effect"]
 
-	(node["body"] as Control).modulate = STATE_TINT[state]
+	var body := node["body"] as Control
+	# LO QUE YA SE PUEDE COMPRAR LATE: con el arbol tan grande, un tinte un poco
+	# mas claro no bastaba para encontrarlo. El latido se para al cambiar de estado.
+	var latido = node.get("pulse")
+	if latido != null and (latido as Tween).is_valid():
+		(latido as Tween).kill()
+	body.modulate = STATE_TINT[state]
+	if state == "ready":
+		var t := body.create_tween().set_loops()
+		t.tween_property(body, "modulate", STATE_TINT["ready"] * 1.25, 0.6)
+		t.tween_property(body, "modulate", STATE_TINT["ready"], 0.6)
+		node["pulse"] = t
 	effect.add_theme_color_override("font_color", STATE_TEXT[state])
 	var owned := state == "owned"
 	# Comprado se enseña COMPRADO y no su precio: un numero que ya no sirve para

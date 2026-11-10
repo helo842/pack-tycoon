@@ -101,8 +101,17 @@ const EARLY_PENALTY := 0.15
 
 
 ## Lo que multiplica la racha al golpe perfecto (la primera vez, nada).
-static func streak_mult(streak: int) -> float:
-	return 1.0 + STREAK_STEP * float(clampi(streak - 1, 0, STREAK_MAX))
+## `bonus` es lo que suma el arbol al paso (SkillTree, nodo RACHA).
+static func streak_mult(streak: int, bonus := 0.0) -> float:
+	return 1.0 + STREAK_STEP * (1.0 + bonus) * float(clampi(streak - 1, 0, STREAK_MAX))
+
+
+## El tramo de la zona dorada (x desde, y hasta), ensanchado por el arbol (nodo
+## ZONA DORADA) a los dos lados de su centro y sin salirse del tramo perfecto.
+static func sweet_zone(bonus := 0.0) -> Vector2:
+	var mid := (SWEET_FROM + SWEET_TO) * 0.5
+	var half := (SWEET_TO - SWEET_FROM) * 0.5 * (1.0 + bonus)
+	return Vector2(maxf(mid - half, PERFECT_FROM), minf(mid + half, 1.0))
 
 
 # --------------------------------------------------------------------------- #
