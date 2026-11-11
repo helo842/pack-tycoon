@@ -2165,8 +2165,9 @@ func _main() -> MainRoot:
 	return MainRoot.get_root()
 
 
-## Las teclas de la mesa: 1, 2 y 3 usan las habilidades (los atajos T/A/R/V
-## se quitaron con la mejora ATAJOS).
+## Los atajos de teclado (van siempre, ya no se compran): T la tienda, A el armario, R el rebirth y V
+## vende la mesa. Todo lo que estaba a un viaje de raton a la barra. 1, 2 y 3
+## usan las habilidades.
 ##
 ## SE MIRAN ANTES QUE EL ESC y solo con la partida DESPEJADA: si hay una ficha de
 ## revelado o cualquier panel abierto, la letra no hace nada. Si no fuera asi, la
@@ -2188,7 +2189,20 @@ func _hotkey(event: InputEvent) -> bool:
 		if n >= 0 and n < Gameplay.ABILITIES.size():
 			_use_ability(str(Gameplay.ABILITIES[n]["id"]))
 			return true
-	return false
+	if not _table_clear():
+		return false
+	match code:
+		KEY_T:
+			_open_shop()
+		KEY_A:
+			_open_locker()
+		KEY_R:
+			_open_rebirth()
+		KEY_V:
+			_sell_all_table()
+		_:
+			return false
+	return true
 
 
 ## Lo que aguanta el combo entre sobre y sobre, con el nodo COMBO del arbol.

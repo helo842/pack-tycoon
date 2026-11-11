@@ -36,17 +36,42 @@ func _ready() -> void:
 	_move_knob()
 
 
+## Un pixel de arte, en pantalla: la pista (52x6 de arte) se pinta a 416x48 y el
+## mando (8x12) a 64x96, o sea 8 px por pixel de arte en los dos.
+const ART_PX := 8.0
+
+
 func _draw() -> void:
+	var pista := _track_rect()
 	var track := Sprites.tex("ui_slider_track")
 	if track != null:
-		draw_texture_rect(track, Rect2((size - track_size) * 0.5, track_size), false)
+		draw_texture_rect(track, pista, false)
+	# EL RELLENO: el hueco de la canaleta (filas 2-3 del arte, desde la columna 2)
+	# en dorado hasta el centro del mando, para que se lea el volumen de un vistazo.
+	# Se ajusta a la rejilla de 8 px para no romper el pixelado.
+	var desde := pista.position.x + ART_PX * 2.0
+	var hasta := snappedf(_knob_rect().get_center().x, ART_PX)
+	if hasta > desde:
+		draw_rect(Rect2(desde, pista.position.y + ART_PX * 2.0, hasta - desde, ART_PX),
+			Palette.GOLD_D)
+		draw_rect(Rect2(desde, pista.position.y + ART_PX * 3.0, hasta - desde, ART_PX),
+			Palette.GOLD)
 	var knob := Sprites.tex("ui_slider_knob")
 	if knob != null:
 		draw_texture_rect(knob, _knob_rect(), false)
 
 
+## Donde va la pista: centrada en el control. El control puede ser mas grande que
+## la pista (el panel de ajustes lo hace de 560 para que el clic sea comodo), y
+## por eso el mando se mueve DENTRO DE LA PISTA y no de punta a punta del control:
+## antes, a 0 se salia 72 px por la izquierda y se metia encima del rotulo.
+func _track_rect() -> Rect2:
+	return Rect2(((size - track_size) * 0.5).round(), track_size)
+
+
 func _knob_rect() -> Rect2:
-	var x := (size.x - knob_size.x) * value
+	var pista := _track_rect()
+	var x := pista.position.x + (pista.size.x - knob_size.x) * value
 	return Rect2(Vector2(x, (size.y - knob_size.y) * 0.5), knob_size)
 
 
@@ -65,11 +90,14 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_MOUSE_EXIT and _dragging:
-		_dragging = false
+## EL ARRASTRE NO SE CORTA AL SALIR DE LA BARRA: Godot sigue mandando el
+## movimiento al control en el que empezo el clic hasta que se suelta, y eso es lo
+## que deja llevar el pomo a 0 (o a 1) pasandose del borde. Antes se cortaba al
+## salir, y un arrastre rapido hacia la izquierda se quedaba en un 3-5 %: para
+## silenciar habia que ir despacito hasta el borde exacto.
 
 
 func _set_from_x(x: float) -> void:
-	var usable := maxf(1.0, size.x - knob_size.x)
-	value = (x - knob_size.x * 0.5) / usable
+	var pista := _track_rect()
+	var usable := maxf(1.0, pista.size.x - knob_size.x)
+	value = (x - pista.position.x - knob_size.x * 0.5) / usable

@@ -61,14 +61,19 @@ func _build_sliders() -> void:
 	add_child(UIKit.art("ui_icon_music", Vector2(300, y), 0.5))
 	add_child(UIKit.label_at("MUSICA", Vector2(660, y), Vector2(440, 60), 40,
 			Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
-	_music = _slider(Vector2(900, y), Game.music_volume, "music")
+	_music = _slider(Vector2(SLIDER_X, y), Game.music_volume, "music")
 	_last_sfx = Game.sfx_volume
 
 	y = ROW_SLIDER_2
 	add_child(UIKit.art("ui_icon_sound", Vector2(300, y), 0.5))
 	add_child(UIKit.label_at("SONIDOS", Vector2(660, y), Vector2(440, 60), 40,
 			Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
-	_sfx = _slider(Vector2(900, y), Game.sfx_volume, "sfx")
+	_sfx = _slider(Vector2(SLIDER_X, y), Game.sfx_volume, "sfx")
+
+
+## Las dos barras van centradas en x=SLIDER_X: a 900 la pista empezaba justo
+## donde acaba SONIDOS y el contorno se pegaba a la ultima letra.
+const SLIDER_X := 1000.0
 
 
 func _slider(center: Vector2, value: float, which: String) -> PixelSlider:

@@ -2476,21 +2476,35 @@ def draw_checkbox(s: Sprite, checked: bool) -> None:
 
 
 def draw_slider_track(s: Sprite) -> None:
-    """Canaleta del deslizador de volumen."""
+    """Canaleta del deslizador de volumen.
+
+    52x6 y no 26x6: el juego la pinta a 416x48, y con 26 de ancho cada pixel de
+    arte salia de 16x8 (aplastado). Con 52 sale cuadrado, de 8x8, como el mando.
+    El hueco de dentro (filas 2-3, columnas 2 a w-3) es donde PixelSlider pinta
+    el relleno dorado hasta el mando.
+    """
     w, h = s.w, s.h
     s.rect(1, 1, w - 2, h - 2, WOOD_L)
-    s.rect(1, 1, w - 2, 1, WOOD_DD)
-    s.rect(1, h - 2, w - 2, h - 2, BROWN_L)
+    s.rect(2, 1, w - 3, 1, WOOD_DD)                 # sombra dentro de la canaleta
+    s.rect(2, h - 2, w - 3, h - 2, BROWN_L)         # el labio de abajo
+    s.rect(1, 1, 1, h - 2, GOLD_D)                  # topes de metal
+    s.rect(w - 2, 1, w - 2, h - 2, GOLD_D)
+    s.dots([(w // 4, h - 2), (w // 2, h - 2), (3 * w // 4, h - 2)], GOLD_D)  # marcas
+    for cx, cy in ((1, 1), (w - 2, 1), (1, h - 2), (w - 2, h - 2)):
+        s.px(cx, cy, TRANSPARENT)
 
 
 def draw_slider_knob(s: Sprite) -> None:
-    """Mando del deslizador."""
+    """Mando del deslizador: una pieza dorada con tres estrias de agarre."""
     w, h = s.w, s.h
-    s.rect(1, 1, w - 2, h - 2, GOLD_D)
-    s.rect(1, 1, w - 2, 2, GOLD_L)
-    s.rect(2, 3, w - 3, h - 4, BROWN)
-    s.rect(2, 3, w - 3, 3, BROWN_L)
-    s.rect(w // 2 - 1, 5, w // 2, h - 6, WOOD_D)
+    s.rect(1, 1, w - 2, h - 2, GOLD)
+    s.rect(2, 1, w - 3, 1, GOLD_HI)                 # luz arriba
+    s.rect(1, 2, 1, h - 3, GOLD_L)                  # luz a la izquierda
+    s.rect(w - 2, 2, w - 2, h - 3, GOLD_D)          # sombra a la derecha
+    s.rect(2, h - 2, w - 3, h - 2, GOLD_D)          # sombra abajo
+    for y in (h // 2 - 2, h // 2, h // 2 + 2):      # estrias
+        s.rect(2, y, w - 3, y, BROWN)
+        s.rect(2, y + 1, w - 3, y + 1, GOLD_L)
     for cx, cy in ((1, 1), (w - 2, 1), (1, h - 2), (w - 2, h - 2)):
         s.px(cx, cy, TRANSPARENT)
 
@@ -3452,7 +3466,7 @@ UI_ITEMS: Dict[str, UiSpec] = {
     "button_close": UiSpec(16, 16, draw_button_close),
     "checkbox_on": UiSpec(10, 10, partial(draw_checkbox, checked=True)),
     "checkbox_off": UiSpec(10, 10, partial(draw_checkbox, checked=False)),
-    "slider_track": UiSpec(26, 6, draw_slider_track),
+    "slider_track": UiSpec(52, 6, draw_slider_track),
     "slider_knob": UiSpec(8, 12, draw_slider_knob),
     "arrow_left": UiSpec(10, 10, partial(draw_arrow, direction="left")),
     "arrow_right": UiSpec(10, 10, partial(draw_arrow, direction="right")),

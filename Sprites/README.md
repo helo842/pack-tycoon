@@ -499,7 +499,7 @@ ui_icon_music.png              ui_icon_plus.png
 | `ui_button_small.png` / `_pressed.png` | 320×144 | Botón compacto para acciones dentro de un panel. |
 | `ui_button_close.png` | 256×256 | Botón redondo de cerrar. |
 | `ui_checkbox_on/off.png` | 160×160 | Casilla de marcar. |
-| `ui_slider_track.png` | 416×96 | Canaleta del deslizador. |
+| `ui_slider_track.png` | 832×96 | Canaleta del deslizador (52×6 de arte, con marcas). |
 | `ui_slider_knob.png` | 128×192 | Mando del deslizador (más alto que la canaleta, es lo normal). |
 | `ui_arrow_left/right.png` | 160×160 | Flechas de navegación e idioma. |
 | `ui_icon_shop/sound/music/plus.png` | 256×256 | Iconos de sección y del botón de mejora. |
