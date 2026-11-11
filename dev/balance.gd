@@ -427,7 +427,7 @@ func _loot(levels: Array, locker: Array, pack_id: String, st: Dictionary,
 	_gp_mission("open", 1, pack_id.rstrip("0123456789"))
 	if fixed_loot:
 		return int(round(LootDB.pack_payout(pack_id) * mult))
-	var loot := LootDB.roll_pack(rng, pack_id, LootDB.luck(levels), mult)
+	var loot := LootDB.roll_pack(rng, pack_id, LootDB.luck(levels) * (1.0 + _album_bonus("luck")), mult)
 	return _gp_sell(_keep(levels, locker, loot, st))
 
 
@@ -681,7 +681,7 @@ func _gp_golden_loot(levels: Array, locker: Array, pack_id: String,
 				top += w * LootDB.grade_mult(g)
 				top_w += w
 		return roundi(LootDB.pack_payout(pack_id) * mult * (top / top_w) / (all / all_w))
-	var loot := LootDB.roll_pack(rng, pack_id, LootDB.luck(levels), mult)
+	var loot := LootDB.roll_pack(rng, pack_id, LootDB.luck(levels) * (1.0 + _album_bonus("luck")), mult)
 	var r: RandomNumberGenerator = _gp["rng"]
 	var vueltas := 0
 	while int(loot["grade"]) < min_grade and vueltas < 200:
@@ -748,6 +748,10 @@ func _ready() -> void:
 		return
 	if args.has("final"):
 		_final_report()
+		get_tree().quit(0)
+		return
+	if args.has("curva"):
+		_curve_report(args.has("arbol_entero"))
 		get_tree().quit(0)
 		return
 
@@ -1023,6 +1027,25 @@ func _tree_report(runs: int = 15) -> void:
 ## minuto que mas monedas por minuto da (probando unos cuantos) y gasta lo que
 ## tiene en el nodo mas barato que pueda comprar. Botin en su media (sin dado).
 ##   $G --headless --path . res://dev/BalanceTest.tscn final
+## LA CURVA DE UNA PARTIDA LARGA: el dinero del contador y las monedas que daria
+## reiniciar en cada minuto, sin reiniciar. Es lo que dice si aguantar sale a
+## cuenta: si las monedas por minuto crecen sin parar, el rebirth no compensa.
+##   $G --headless --path . res://dev/BalanceTest.tscn curva [arbol_entero]
+func _curve_report(full_tree: bool) -> void:
+	_sk = {}
+	if full_tree:
+		for id in SkillTree.ids():
+			_sk_add(str(id))
+	print("CURVA: dinero y monedas sin reiniciar%s" % (" (arbol entero)" if full_tree else ""))
+	for strat in STRATEGIES.size():
+		var linea := "  %-11s" % STRATEGIES[strat]["id"]
+		for m in [5, 10, 15, 20, 30, 45, 60]:
+			var r := simulate(strat, 0, true, false, -1.0, float(m))
+			linea += "  %dm %s/%.0f" % [m, String.num_scientific(snappedf(float(r["money"]), 1.0)), float(r["coins"])]
+		print(linea)
+	_sk = {}
+
+
 func _final_report() -> void:
 	var minutos := [2, 3, 4, 5, 6, 8, 10, 12, 15, 18, 22, 26, 30, 40, 50, 60]
 	print("FINAL: horas de juego hasta tener el arbol entero")

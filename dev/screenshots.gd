@@ -238,14 +238,17 @@ func _run() -> void:
 	# escalones 2 y 3, que es justo lo que cambio: antes los tres escalones de un
 	# tipo compartian sprite y en la columna se veia el mismo dibujo tres veces.
 	# Con dinero, que si no los caros salen apagados.
-	Game.money = 12000000
+	Game.money = 50000000
 	await _frames(3)
-	g._pack_scroll.scroll_vertical = int(g.PACK_ROW_STEP * 4.0)
+	g._pack_scroll.scroll_vertical = int(g.PACK_ROW_STEP * 5.0)
 	await _frames(4)
 	await _shot("03b_columna_oro")
-	g._pack_scroll.scroll_vertical = int(g.PACK_ROW_STEP * 8.0)
+	g._pack_scroll.scroll_vertical = int(g.PACK_ROW_STEP * 10.0)
 	await _frames(4)
 	await _shot("03c_columna_lujo")
+	g._pack_scroll.scroll_vertical = int(g.PACK_ROW_STEP * 15.0)
+	await _frames(4)
+	await _shot("03d_columna_mito")
 	g._pack_scroll.scroll_vertical = 0
 	await _frames(3)
 
@@ -298,8 +301,8 @@ func _run() -> void:
 	for e in g._elements.duplicate():
 		g._remove_from_table(e)
 	await _frames(2)
-	Game.money = 50000000
-	for id in ["cards", "cards2", "cards3", "vinyls3", "sneakers3", "electronics3"]:
+	Game.money = 200000000
+	for id in ["cards", "toys", "cards3", "toys4", "sneakers4", "electronics4"]:
 		g._buy_pack(id)
 	await _wait(0.8)
 	# A los tres de abajo se les quita vida para que salga su arte del tramo medio
@@ -376,6 +379,7 @@ func _run() -> void:
 
 	# Mesa con botin guardado. El inventario YA NO vive aqui: la tira de abajo es
 	# la vitrina, y lo que hay en el inventario se ve en el panel del armario.
+	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "toys"))
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "electronics"))
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
 	Game.store(LootDB.roll_pack(RandomNumberGenerator.new(), "sneakers"))
@@ -502,7 +506,8 @@ func _run() -> void:
 		Game.album = {}
 		for key in ["loot_card_common", "loot_card_edited", "loot_card_vintage",
 				"loot_card_foil", "loot_vinyl", "loot_vinyl_color", "loot_sneaker",
-				"loot_console", "loot_cartridge", "loot_watch"]:
+				"loot_console", "loot_cartridge", "loot_watch", "loot_teddy",
+				"loot_tin_rocket"]:
 			Game.album[key] = 3 + (key.length() % 8)
 		Game.missions = [
 			{"type": "open_any", "goal": 25, "progress": 17, "reward": 1140, "kind": ""},

@@ -868,21 +868,23 @@ func _run() -> void:
 	# La columna de sobres de la izquierda: doce, comprables sin abrir nada.
 	_check("la zona de sobres tiene una celda por sobre",
 		g._pack_cells.size() == LootDB.pack_count())
-	_check("hay doce sobres", LootDB.pack_count() == 12)
-	# Cuatro tipos y tres escalones de cada uno, en el mismo orden: sobre, vinilo,
-	# zapatillas, electronica, y otra vez con mas precio y mas botin. El NOMBRE
-	# tambien sube de escalon (ORO / LUJO), no solo el precio: el escalon 2 va de
-	# pan de oro y el 3 de laca con joya, y el rotulo lo dice.
-	_check("y son cuatro tipos repetidos tres veces",
+	_check("hay veinte sobres", LootDB.pack_count() == 20)
+	# Cinco tipos y cuatro escalones de cada uno, en el mismo orden: sobre, vinilo,
+	# zapatillas, electronica, juguetes, y otra vez con mas precio y mas botin. El
+	# NOMBRE tambien sube de escalon (ORO / LUJO / MITO), no solo el precio: el
+	# escalon 2 va de pan de oro, el 3 de laca con joya y el 4 holografico.
+	_check("y son cinco tipos repetidos cuatro veces",
 		LootDB.pack_at(0)["name"] == "SOBRES"
 		and LootDB.pack_at(1)["name"] == "VINILOS"
 		and LootDB.pack_at(2)["name"] == "ZAPATILLAS"
 		and LootDB.pack_at(3)["name"] == "ELECTRONICA"
-		and LootDB.pack_at(4)["name"] == "SOBRES ORO"
-		and LootDB.pack_at(8)["name"] == "SOBRES LUJO"
-		and LootDB.pack_at(11)["name"] == "ELECTRONICA LUJO")
-	_check("el que mas cuesta es el de diez millones",
-		LootDB.pack_at(LootDB.pack_count() - 1)["price"] == 10000000)
+		and LootDB.pack_at(4)["name"] == "JUGUETES"
+		and LootDB.pack_at(5)["name"] == "SOBRES ORO"
+		and LootDB.pack_at(10)["name"] == "SOBRES LUJO"
+		and LootDB.pack_at(15)["name"] == "SOBRES MITO"
+		and LootDB.pack_at(19)["name"] == "JUGUETES MITO")
+	_check("el que mas cuesta es el de treinta y tres millones",
+		LootDB.pack_at(LootDB.pack_count() - 1)["price"] == 33000000)
 	# El nombre mas largo tiene que caber a 28 en la caja del nombre. Si no,
 	# UIKit.row_size encoge los DOCE a la vez y el "SOBRES" de arriba se queda
 	# enano: es facil de romper sin querer (basta bautizar un escalon "DE
@@ -979,12 +981,19 @@ func _run() -> void:
 	# La escalera, tipo por tipo: cada escalon cuesta mas y multiplica mas el
 	# botin, y los tres dan la misma lista de objetos (que es de donde sale que
 	# subir de escalon no sea cambiar de juego).
-	for tipo in 4:
-		var escalones := [LootDB.pack_at(tipo), LootDB.pack_at(tipo + 4),
-				LootDB.pack_at(tipo + 8)]
+	for tipo in 5:
+		var escalones := [LootDB.pack_at(tipo), LootDB.pack_at(tipo + 5),
+				LootDB.pack_at(tipo + 10), LootDB.pack_at(tipo + 15)]
 		var uno: Dictionary = escalones[0]
 		var dos: Dictionary = escalones[1]
 		var tres: Dictionary = escalones[2]
+		var cuatro: Dictionary = escalones[3]
+		_check("el escalon 4 (MITO) de %s cuesta, aguanta y paga mas que el 3" % uno["name"],
+			int(cuatro["price"]) > int(tres["price"])
+			and LootDB.pack_hp(str(cuatro["id"])) > LootDB.pack_hp(str(tres["id"]))
+			and LootDB.tier_mult(str(cuatro["id"])) > LootDB.tier_mult(str(tres["id"]))
+			and LootDB.loot_table(str(cuatro["id"])).size()
+				== LootDB.loot_table(str(uno["id"])).size())
 		_check("el escalon 2 de %s cuesta mas que el 1" % uno["name"],
 			int(dos["price"]) > int(uno["price"]))
 		_check("el escalon 3 de %s cuesta mas que el 2" % uno["name"],
@@ -1001,7 +1010,7 @@ func _run() -> void:
 			LootDB.tier_mult(str(tres["id"])) > LootDB.tier_mult(str(dos["id"]))
 			and LootDB.tier_mult(str(dos["id"])) > LootDB.tier_mult(str(uno["id"])))
 		var tabla_uno := LootDB.loot_table(str(uno["id"]))
-		_check("los tres escalones de %s dan los mismos objetos" % uno["name"],
+		_check("los cuatro escalones de %s dan los mismos objetos" % uno["name"],
 			tabla_uno.size() > 0
 			and tabla_uno.size() == LootDB.loot_table(str(dos["id"])).size()
 			and tabla_uno.size() == LootDB.loot_table(str(tres["id"])).size())
@@ -2396,14 +2405,17 @@ func _run() -> void:
 	Game.money = LootDB.REBIRTH_REQUIRE
 	_check("con el requisito en el contador ya se puede reiniciar",
 		Game.can_rebirth() and Game.rebirth_missing() == 0
-		and Game.pending_rebirth_coins() == 1)
-	# Las monedas van con la RAIZ CUBICA del contador medido en requisitos: 8
-	# requisitos dan 2 y 64 dan 4 (ver LootDB.rebirth_coins_for).
-	Game.money = LootDB.REBIRTH_REQUIRE * 8
-	_check("ocho requisitos en el contador dan 2 monedas", Game.pending_rebirth_coins() == 2)
-	Game.money = LootDB.REBIRTH_REQUIRE * 64 + LootDB.REBIRTH_REQUIRE / 2
-	_check("y sesenta y cuatro dan 4 (raiz cubica, no una por cada tanto)",
-		Game.pending_rebirth_coins() == 4)
+		and Game.pending_rebirth_coins() == int(LootDB.REBIRTH_COIN_SCALE))
+	# Las monedas van con la RAIZ CUARTA del contador medido en requisitos, por
+	# REBIRTH_COIN_SCALE: 16 requisitos dan el doble que 1 y 256 el cuadruple (ver
+	# LootDB.rebirth_coins_for).
+	var escala := int(LootDB.REBIRTH_COIN_SCALE)
+	Game.money = LootDB.REBIRTH_REQUIRE * 16
+	_check("dieciseis requisitos en el contador dan el doble de monedas (%d)" % (2 * escala),
+		Game.pending_rebirth_coins() == 2 * escala)
+	Game.money = LootDB.REBIRTH_REQUIRE * 256 + LootDB.REBIRTH_REQUIRE / 2
+	_check("y doscientos cincuenta y seis dan el cuadruple (raiz cuarta, no una por cada tanto)",
+		Game.pending_rebirth_coins() == 4 * escala)
 	_check("y sin armario el multiplicador del rebirth es 1",
 		is_equal_approx(Game.rebirth_multiplier(), 1.0))
 	# La ELECTRONICA expuesta es lo unico que sube el premio del rebirth: por eso

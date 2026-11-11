@@ -3377,7 +3377,8 @@ for _familia, _escalones in PACK_TIERS.items():
 # paquete "misc" (que no esta en la columna) sigue saliendo de este fichero.
 # Ver la cabecera de pack_designs.py para el porque del rediseno.
 import pack_designs  # noqa: E402
-LOOT_ITEMS.update(pack_designs.install(sys.modules[__name__]))
+PACK_KEYS = pack_designs.install(sys.modules[__name__])
+LOOT_ITEMS.update(PACK_KEYS)
 
 # LOS DIBUJOS DEL BOTIN VIVEN EN tools/loot_designs.py: se SUSTITUYEN aqui los
 # veintiun dibujos base (diecisiete objetos y cuatro cartas) antes de montar sus
@@ -3397,6 +3398,7 @@ GRADED_ITEMS: List[str] = [
     "sneaker", "sneaker_leather", "sneaker_restore", "sneaker_limited",
     "console", "handheld", "cartridge", "headphones",
     "watch", "pocket_watch", "camera", "cable", "ingot",
+    "teddy", "tin_robot", "action_figure", "tin_rocket",
 ]
 
 for _base in GRADED_ITEMS:
@@ -3593,6 +3595,11 @@ for _familia in PACK_TIERS:
         ITEM_PREFIX[f"{_familia}{_escalon}_open"] = "pack"
         for _tramo in (1, 2, 3):
             ITEM_PREFIX[f"{_familia}{_escalon}_d{_tramo}"] = "pack"
+
+# Y todo lo que dibuja pack_designs (JUGUETES y el escalon 4, MITO, incluidos) es
+# un paquete: sin esto el sobre nuevo saldria con prefijo loot_.
+for _clave in PACK_KEYS:
+    ITEM_PREFIX.setdefault(_clave, "pack")
 
 
 # --------------------------------------------------------------------------- #

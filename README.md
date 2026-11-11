@@ -79,16 +79,22 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
 ## El bucle
 
 1. **Columna de sobres de la izquierda** → compras un paquete a ciegas, sin abrir
-   ningún menú. Cae en un punto al azar de la mesa. Hay **doce sobres: cuatro
-   tipos × tres escalones**, alternados en la columna (sobre, vinilo, zapatillas,
-   electrónica, y otra vez con más precio y más botín):
+   ningún menú. Cae en un punto al azar de la mesa. Hay **veinte sobres: cinco
+   tipos × cuatro escalones** (normal, ORO, LUJO y MITO), alternados en la
+   columna (sobre, vinilo, zapatillas, electrónica, juguetes, y otra vez con más
+   precio y más botín):
 
-   | | escalón 1 | escalón 2 | escalón 3 |
-   |---|---|---|---|
-   | **SOBRES** | gratis | 9.500 | 600.000 |
-   | **VINILOS** | 500 | 24.000 | 1.500.000 |
-   | **ZAPATILLAS** | 1.400 | 60.000 | 4.000.000 |
-   | **ELECTRÓNICA** | 3.800 | 150.000 | 10.000.000 |
+   | | escalón 1 | ORO | LUJO | MITO |
+   |---|---|---|---|---|
+   | **SOBRES** | gratis | 6.000 | 130.000 | 2.800.000 |
+   | **VINILOS** | 500 | 11.000 | 240.000 | 5.200.000 |
+   | **ZAPATILLAS** | 900 | 20.000 | 450.000 | 9.600.000 |
+   | **ELECTRÓNICA** | 1.700 | 38.000 | 830.000 | 18.000.000 |
+   | **JUGUETES** | 3.200 | 70.000 | 1.500.000 | 33.000.000 |
+
+   La escalera sube **×1,85 de sobre en sobre** y el de arriba del todo es un
+   **techo**: con ×2,5 (hasta 9.500 millones) el dinero de una partida larga
+   crecía sin parar y aguantar siempre daba más monedas que reiniciar.
 
    La columna **tiene scroll**: doce filas de 232 px son 2784 px de lista en una
    ventana de 752, así que la columna es una ventana a la lista larga (rueda del
@@ -127,25 +133,22 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
 
    El **SOBRES** del primer escalón es gratis en cualquier momento de la partida
    (su chapita pone GRATIS): además del sobre con el que se empieza, es el seguro
-   para no quedarse nunca sin poder abrir nada. Los tres escalones de un tipo dan
+   para no quedarse nunca sin poder abrir nada. Los escalones de un tipo dan
    **los mismos objetos**, multiplicados por el escalón (`vmult`), y el precio va
    en escalera de verdad: **ningún sobre de un escalón es más barato que los del
-   anterior**. El escalón 2 arranca en 9.500 (el 1 llega a 3.800) y el 3 en
-   600.000 (el 2 llega a 150.000). Los dos primeros escalones van a ×2,5–×2,7 de un
-   sobre al siguiente: con la escalera vieja (500, 1.900, 6.000, 15.000…) el salto
+   anterior**. Antes de los veinte, los dos primeros escalones iban a ×2,5–×2,7
+   de un sobre al siguiente: con la escalera vieja (500, 1.900, 6.000, 15.000…) el salto
    de las zapatillas a la electrónica se comía siete minutos de partida sin
    desbloquear nada. Cuando los escalones se cruzaban —SOBRES ORO a
    4.000, más barato que la ELECTRÓNICA del escalón 1— no había ninguna razón
    para comprar la electrónica ni las zapatillas del escalón 1: con el mismo
    precio por dinero y más botín arriba, lo racional era saltárselas, y se
-   quedaban sin comprar nunca. A cambio, **cada sobre paga entre un 30 y un 45 % más de lo que
-   cuesta**, sea cual sea el escalón: lo que compra subir de escalón es capital
+   quedaban sin comprar nunca. A cambio, **cada sobre paga un 35 % más de lo que
+   cuesta** (un 32 % del escalón ORO para arriba): lo que compra subir de escalón es capital
    (mueve más dinero por el mismo porcentaje), no rentabilidad, así que ni el de
    arriba es un chollo ni el de abajo una pérdida. Y aguantan más: la vida va con
-la **raíz** del precio (21,5 × √precio), así que los cuatro del escalón 1 son
-215 (el básico, que es gratis, va puesto a mano), 481, 804 y 1.325, los del 2
-son 2.096, 3.331, 5.266 y 8.327 y los del 3 son 16.654, 26.332, 43.000 y
-67.989. Un sobre que cuesta cuatro veces más no es
+la **raíz** del precio (21,5 × √precio): del 215 del básico (que es gratis y va
+puesto a mano) a los 123.508 de JUGUETES MITO. Un sobre que cuesta cuatro veces más no es
    cuatro veces más duro, es el doble: eso deja el ritmo de la partida en el
    **daño del jugador** —los items— y no en lo caro que sea el sobre, y es lo
    que hace que una partida dure unos quince minutos en vez de dos minutos. La
@@ -256,7 +259,7 @@ los demás items: **un hueco por nivel, de 1 a 8**, y los ocho marcos se dibujan
 siempre —los que no son tuyos, apagados— para que se vea que subirlo sirve para
 algo.
 
-**Los cuatro tipos de botín no dan lo mismo**, y cada uno va a su stat:
+**Los cinco tipos de botín no dan lo mismo**, y cada uno va a su stat:
 
 | Tipo de botín | Qué sube |
 |---|---|
@@ -264,16 +267,21 @@ algo.
 | **VINILOS** | el dinero que dan las ventas |
 | **ZAPATILLAS** | la velocidad de carga del clic |
 | **ELECTRÓNICA** | las monedas de rebirth |
+| **JUGUETES** | la suerte (más botín raro, épico y legendario, como el Trébol) |
+
+Los **JUGUETES** son PELUCHE (común), ROBOT DE HOJALATA (raro), FIGURA EN CAJA
+(épico) y COHETE DE HOJALATA (legendario), y su colección del álbum da **+10 %
+de suerte**.
 
 Cuánto aporta cada objeto (`LootDB.bonus_for`) sale de cuatro cosas:
 
 - **La nota PSA**: de un **2 % en la nota 1 a un 25 % en la 10**.
 - **La rareza** (×1 común, ×1,2 raro, ×1,45 épico, ×1,75 legendario) y **el
-  escalón del sobre** del que salió (×1, ×1,3, ×1,7): lo que vale más, da más.
+  escalón del sobre** del que salió (×1, ×1,3, ×1,7, ×2,2): lo que vale más, da más.
   Antes un común del sobre gratis daba lo mismo que un legendario de escalón 3
   con la misma nota.
-- **El tipo** (`LOCKER_KIND_WEIGHT`): cartas ×1, vinilos ×0,6, zapatillas ×1,2 y
-  electrónica ×0,4. No valen lo mismo: el dinero de los vinilos lo multiplica
+- **El tipo** (`LOCKER_KIND_WEIGHT`): cartas ×1, vinilos ×0,6, zapatillas ×1,2,
+  electrónica ×0,4 y juguetes ×1,5. No valen lo mismo: el dinero de los vinilos lo multiplica
   todo, y la electrónica multiplica las monedas directamente.
 - **Repetir tipo da menos** (`LOCKER_SAME_KIND`): de cada tipo, la mejor pieza
   cuenta entera, la segunda un 60 %, la tercera un 36 %...
@@ -518,15 +526,22 @@ el siguiente rebirth con el árbol a medias y entero (mediana de 15 partidas):
 
 | Árbol | Monedas | Normal | Optimizado | Automático |
 |---|---|---|---|---|
-| sin árbol | 0 | 16,3 | 9,9 | 9,3 |
-| centro + 4 caminos | 13 | 7,8 | 4,9 | 4,2 |
-| + puntería y eventos | 29 | 6,8 | 4,2 | 3,8 |
-| árbol entero (con LEYENDA y los finales) | 180 | 1,2 | 0,6 | 0,5 |
+| sin árbol | 0 | 12,8 | 8,4 | 8,1 |
+| centro + 4 caminos | 13 | 8,3 | 5,9 | 5,4 |
+| + puntería y eventos | 29 | 6,9 | 5,1 | 5,0 |
+| árbol entero (con LEYENDA y los finales) | 180 | 1,2 | 0,5 | 0,5 |
 
 Y `BalanceTest.tscn final` dice cuánto se tarda en tenerlo TODO (reiniciando en
-el minuto que más monedas por minuto da y comprando lo más barato): **11,7 h** el
-normal (69 rebirths, el primero a los 26 min), **7,7 h** el optimizado y **6,3 h**
-el automático.
+el minuto que más monedas por minuto da y comprando lo más barato): **2,0 h** el
+normal (18 rebirths), **1,2 h** el optimizado y **0,8 h** el automático. Es lo
+que se pidió (unas dos horas el que juega decente y hora y media el que juega
+bien; el simulador no falla clics, así que una persona va algo más lenta) para
+que la futura **ascensión** —volver al principio del todo, pero mucho mejor— sea
+una vuelta corta. Antes eran 11,7 h / 7,7 h / 6,3 h: lo que lo acortó son las
+monedas, que ahora van con la **raíz cuarta** del contador **por 7**
+(`REBIRTH_COIN_POWER`, `REBIRTH_COIN_SCALE`): 750.000 dan 7 y no 1. Y
+`BalanceTest.tscn curva` enseña el dinero y las monedas de una partida larga sin
+reiniciar, que es lo que dice si el techo de la escalera aguanta.
 
 La primera versión de las ramas de los lados (+50 %, 2-6 monedas) apenas bajaba
 de 7,8 a 7,7: se doblaron sus efectos y se bajaron sus precios. No modela el combo
@@ -541,10 +556,10 @@ algo, porque las monedas se ganan reiniciando y se gastan aquí. Lo que se pierd
 es la partida: dinero, items, inventario y armario.
 
 El primer rebirth —la primera moneda— pide **750.000 en el contador**, que son
-**unos diecisiete minutos de partida** (diez y medio el que juega rápido, acierta
-los golpes perfectos y compra bien, y nueve y medio con el PC y los Pinchos
-puestos; **doce de media** entre los tres, que es lo que se pidió al meter la
-racha, el combo y el jefe): lo justo para subir los dos primeros escalones
+**unos trece minutos de partida** con los veinte sobres (ocho y medio el que
+juega rápido, acierta los golpes perfectos y compra bien, y ocho con el PC y los
+Pinchos puestos; con los doce sobres de antes eran 17 / 10,5 / 9,5): lo justo
+para subir los dos primeros escalones
 de sobres, comprar treinta y tantas mejoras y llegar con ganas de reiniciar. Y
 por el camino **se nota que se va mejorando**: la primera mejora cae antes del
 primer minuto, sale un escalón de sobres nuevo cada dos o tres minutos y el rato

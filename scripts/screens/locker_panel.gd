@@ -61,9 +61,10 @@ const LOCK_SIDE := 128.0
 const LOCK_COLS := 4
 const LOCK_STEP := 136.0
 const LOCK_TOP := 424.0
-## Las cuatro lineas de los bonus, debajo de las vitrinas.
-const STAT_Y := 668.0
-const STAT_STEP := 40.0
+## Las cinco lineas de los bonus, debajo de las vitrinas. A 40 una de otra la
+## quinta (JUGUETES) caia encima de la nota de ayuda: van a 34 y desde 656.
+const STAT_Y := 656.0
+const STAT_STEP := 34.0
 ## La nota va a 824 y no mas abajo: el pie de la columna es del boton de vender
 ## (su chapa sube hasta 840) y con la nota a 856 el marco le comia el texto.
 const HINT_Y := 824.0
@@ -200,7 +201,7 @@ func _build_locker() -> void:
 		_locker_cells.append({"holder": holder, "button": b})
 
 
-## Las cuatro lineas de bonus, una por tipo de botin, en el orden de
+## Las lineas de bonus, una por tipo de botin, en el orden de
 ## LootDB.kind_ids(): el total que da el armario a cada stat.
 func _build_stats() -> void:
 	for i in LootDB.kind_ids().size():

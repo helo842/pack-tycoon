@@ -848,8 +848,9 @@ func crit_mult() -> float:
 	return LootDB.crit_mult(items)
 
 
+## La suerte: el Trebol, los Juguetes expuestos y la coleccion de JUGUETES.
 func luck() -> float:
-	return LootDB.luck(items)
+	return LootDB.luck(items) * (1.0 + kind_bonus("toys")) * (1.0 + album_bonus("luck"))
 
 
 func open_count() -> int:

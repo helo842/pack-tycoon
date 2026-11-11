@@ -491,10 +491,131 @@ def draw_card_foil(s) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# JUGUETES: peluche, robot de hojalata, figura en su blister y cohete de hojalata
+# --------------------------------------------------------------------------- #
+
+def draw_teddy(s) -> None:
+    """Osito de peluche sentado, con la tripa y el hocico claros y pajarita."""
+    for x0, y0, x1, y1 in ((4, 16, 10, 22), (21, 16, 27, 22)):      # brazos
+        s.ellipse(x0, y0, x1, y1, P("BROWN"))
+    s.ellipse(8, 15, 23, 28, P("BROWN"))                             # cuerpo
+    s.ellipse(9, 16, 14, 21, P("BROWN_L"))
+    s.ellipse(12, 18, 19, 26, P("CREAM_D"))                          # tripa
+    s.ellipse(13, 19, 17, 23, P("CREAM"))
+    for x0, x1 in ((6, 13), (18, 25)):                               # patas
+        s.ellipse(x0, 24, x1, 30, P("BROWN"))
+        s.ellipse(x0 + 2, 26, x1 - 2, 29, P("CREAM_D"))
+    s.ellipse(6, 3, 11, 8, P("BROWN"))                               # orejas
+    s.ellipse(20, 3, 25, 8, P("BROWN"))
+    s.ellipse(8, 5, 10, 7, P("BROWN_L"))
+    s.ellipse(21, 5, 23, 7, P("BROWN_L"))
+    s.ellipse(8, 4, 23, 17, P("BROWN"))                              # cabeza
+    s.arc(9, 5, 20, 15, 180, 260, P("BROWN_L"))
+    s.ellipse(13, 10, 18, 15, P("CREAM"))                            # hocico
+    s.rect(15, 11, 16, 11, P("OUTLINE"))
+    s.px(15, 13, P("BROWN_D"))
+    s.dots([(12, 8), (19, 8)], P("OUTLINE"))                         # ojos
+    s.dots([(12, 7), (19, 7)], P("WHITE"))
+    s.dots([(13, 16), (14, 17), (17, 17), (18, 16)], P("RED"))       # pajarita
+    s.rect(15, 16, 16, 17, P("RED_L"))
+
+
+def draw_tin_robot(s) -> None:
+    """Robot de hojalata de cuerda: cabeza de lata, pecho rojo y la llave."""
+    s.rect(27, 16, 29, 20, P("GOLD"))                                # la llave
+    s.rect(27, 16, 29, 16, P("GOLD_XL"))
+    s.rect(26, 18, 26, 18, P("GOLD_D"))
+    s.px(15, 1, P("RED_L"))                                          # antena
+    s.rect(15, 2, 15, 3, P("STEEL_D"))
+    s.rect(10, 4, 21, 11, P("STEEL"))                                # cabeza
+    s.rect(10, 4, 21, 4, P("WHITE"))
+    s.rect(10, 5, 10, 11, P("WHITE"))
+    s.rect(21, 5, 21, 11, P("STEEL_D"))
+    s.rect(12, 6, 13, 7, P("RED_L"))
+    s.rect(18, 6, 19, 7, P("RED_L"))
+    s.dots([(x, 9) for x in range(13, 19)], P("STEEL_DD"))
+    s.rect(14, 12, 17, 12, P("STEEL_DD"))                            # cuello
+    for x0, x1 in ((5, 7), (24, 26)):                                # brazos
+        s.rect(x0, 14, x1, 21, P("STEEL"))
+        s.rect(x0, 14, x1, 14, P("WHITE"))
+        s.dots([(x0, 22), (x1, 22)], P("STEEL_D"))                   # pinzas
+    s.rect(8, 13, 23, 23, P("RED"))                                  # cuerpo
+    s.rect(8, 13, 23, 13, P("RED_L"))
+    s.rect(8, 14, 8, 23, P("RED_L"))
+    s.rect(23, 14, 23, 23, P("RED_D"))
+    s.rect(11, 15, 20, 20, P("STEEL"))                               # el panel
+    s.rect(11, 15, 20, 15, P("WHITE"))
+    s.dots([(13, 17), (16, 17)], P("GOLD_XL"))
+    s.dots([(18, 18), (19, 18)], P("LCD"))
+    s.rect(12, 19, 15, 19, P("STEEL_DD"))
+    for x0, x1 in ((10, 14), (17, 21)):                              # piernas
+        s.rect(x0, 24, x1, 28, P("STEEL"))
+        s.rect(x0, 24, x0, 28, P("WHITE"))
+        s.rect(x0 - 1, 29, x1, 30, P("STEEL_DD"))
+
+
+def draw_action_figure(s) -> None:
+    """Figura de accion en su blister: carton con colgador y la burbuja."""
+    s.rect(6, 2, 25, 29, P("TEAL"))                                  # carton
+    s.rect(6, 8, 7, 29, P("TEAL_L"))
+    s.rect(24, 8, 25, 29, P("TEAL_D"))
+    s.rect(6, 2, 25, 7, P("GOLD_XL"))                                # cabecera
+    s.rect(6, 2, 25, 2, P("GOLD_HI"))
+    s.rect(14, 3, 17, 4, P("NIGHT"))                                 # colgador
+    s.dots([(x, 6) for x in range(8, 24, 2)], P("GOLD_D"))
+    s.rect(9, 9, 22, 27, P("TISSUE"))                                # burbuja
+    s.rect(9, 9, 22, 9, P("WHITE"))
+    s.rect(22, 10, 22, 27, P("STEEL"))
+    s.rect(12, 14, 19, 22, P("TEAL_D"))                              # capa
+    s.rect(11, 14, 12, 19, P("RED"))                                 # brazos
+    s.rect(19, 14, 20, 19, P("RED"))
+    s.rect(13, 14, 18, 20, P("RED"))                                 # cuerpo
+    s.rect(13, 14, 18, 14, P("RED_L"))
+    s.px(15, 16, P("GOLD_XL"))
+    s.px(16, 16, P("GOLD_HI"))
+    s.rect(13, 19, 18, 19, P("GOLD_XL"))                             # cinturon
+    s.rect(13, 21, 15, 25, P("DARK_SOFT"))                           # piernas
+    s.rect(16, 21, 18, 25, P("DARK_SOFT"))
+    s.rect(13, 21, 13, 25, P("SLATE"))
+    s.ellipse(14, 10, 17, 13, P("LEATHER_HI"))                       # cabeza
+    s.rect(14, 10, 17, 10, P("BROWN_D"))
+    s.dots([(15, 12), (16, 12)], P("OUTLINE"))
+    s.line([(10, 25), (13, 11)], P("WHITE"))                         # brillo
+
+
+def draw_tin_rocket(s) -> None:
+    """Cohete de hojalata con ojo de buey, aletas rojas y la llama."""
+    s.poly([(12, 26), (19, 26), (16, 30), (15, 30)], P("GOLD_XL"))   # llama
+    s.rect(14, 26, 17, 28, P("GOLD_HI"))
+    s.dots([(12, 27), (19, 27)], P("RED_L"))
+    s.poly([(11, 16), (6, 24), (11, 24)], P("RED"))                  # aletas
+    s.poly([(20, 16), (25, 24), (20, 24)], P("RED_D"))
+    s.rect(11, 9, 20, 23, P("CREAM"))                                # cuerpo
+    s.rect(11, 9, 12, 23, P("WHITE"))
+    s.rect(20, 9, 20, 23, P("CREAM_D"))
+    s.poly([(16, 1), (11, 9), (20, 9)], P("RED"))                    # morro
+    s.poly([(16, 1), (11, 9), (14, 9)], P("RED_L"))
+    s.dots([(12, y) for y in range(11, 23, 3)], P("STEEL_D"))        # remaches
+    s.dots([(19, y) for y in range(11, 23, 3)], P("STEEL_D"))
+    s.ellipse(13, 11, 18, 16, P("STEEL_D"))                          # ojo de buey
+    s.ellipse(14, 12, 17, 15, P("TEAL_L"))
+    s.px(14, 12, P("WHITE"))
+    s.rect(11, 18, 20, 19, P("RED"))                                 # franja
+    s.rect(15, 20, 16, 25, P("RED"))                                 # aleta central
+    s.rect(12, 24, 19, 25, P("STEEL_DD"))                            # tobera
+    s.dots([(4, 6), (27, 4), (26, 12), (5, 14)], P("GOLD_HI"))       # destellos
+    s.dots([(25, 5), (28, 4)], P("WHITE"))
+
+
+# --------------------------------------------------------------------------- #
 # Registro
 # --------------------------------------------------------------------------- #
 
 DRAWINGS: Dict[str, Callable] = {
+    "teddy": draw_teddy,
+    "tin_robot": draw_tin_robot,
+    "action_figure": draw_action_figure,
+    "tin_rocket": draw_tin_rocket,
     "vinyl": draw_vinyl,
     "vinyl_double": draw_vinyl_double,
     "vinyl_numbered": draw_vinyl_numbered,

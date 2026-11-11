@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""pack_designs.py - los dibujos de los paquetes (los cuatro tipos, tres escalones).
+"""pack_designs.py - los dibujos de los paquetes (los cinco tipos, cuatro escalones).
 
 Sustituye a los paquetes que habia en make_sprites.py, que eran rectangulos
 marrones o dorados casi iguales entre si (un sobre, una funda y dos cajas del
@@ -15,6 +15,8 @@ su motivo, para que en la columna y en la mesa se distingan sin leer el nombre:
                marca y la etiqueta de la talla
   ELECTRONICA  caja de producto con la foto de una consola, franja de color y
                cinta de precinto
+  JUGUETES     caja de juguete con colgador de tienda y ventana de celofan por
+               la que se ve un robot de hojalata, con la estrella de NUEVO
 
 El escalon cambia los MATERIALES y no el dibujo: el 1 es de colores, el 2 de pan
 de oro y el 3 de laca negra con joyas. Asi se reconoce el tipo por la forma y el
@@ -66,6 +68,13 @@ def _materials(kind: str, tier: int) -> Dict[str, tuple]:
     # El morado es el de la rareza epica, que ya es "lo caro" en todo el juego.
     lacquer = dict(hi=epic.light, l=epic.base, m=epic.dark, d=sh(epic.dark, -0.3),
                    dd=sh(epic.dark, -0.45))
+    # EL ESCALON 4 (MITO) ES HOLOGRAFICO: nacar con el tono medio en HOLO_KEY, que
+    # _holo() repinta despues en bandas de arcoiris en diagonal (las de la carta
+    # holografica). Asi el tipo se sigue leyendo por la forma y el escalon por un
+    # material que no se parece a ninguno de los otros tres.
+    holo = dict(hi=P["WHITE"], l=P["TISSUE"], m=holo_key(), d=epic.light, dd=epic.base)
+    pearl = dict(hi=P["WHITE"], l=P["TISSUE"], m=P["STEEL"], d=P["STEEL_D"],
+                 dd=P["STEEL_DD"])
     if kind == "cards":
         if tier == 1:
             return dict(body=dict(hi=P["TEAL_L"], l=sh(P["TEAL"], 0.25), m=P["TEAL"],
@@ -73,7 +82,21 @@ def _materials(kind: str, tier: int) -> Dict[str, tuple]:
                         trim=gold, accent=P["GOLD_XL"], star=P["GOLD_XL"])
         if tier == 2:
             return dict(body=gold, trim=cream, accent=P["CREAM"], star=P["RED"])
+        if tier == 4:
+            return dict(body=holo, trim=gold, accent=P["WHITE"], star=epic.base)
         return dict(body=lacquer, trim=gold, accent=epic.light, star=epic.base)
+    if kind == "toys":
+        if tier == 1:
+            return dict(box=dict(hi=P["LEATHER_HI"], l=P["LEATHER_L"], m=sh(P["LEATHER_L"], -0.15),
+                                 d=P["LEATHER"], dd=P["LEATHER_D"]),
+                        trim=dict(hi=P["TEAL_L"], l=sh(P["TEAL"], 0.25), m=P["TEAL"],
+                                  d=P["TEAL_D"], dd=sh(P["TEAL_D"], -0.35)),
+                        star=P["GOLD_XL"], star_d=P["GOLD"])
+        if tier == 2:
+            return dict(box=gold, trim=cream, star=P["RED_L"], star_d=P["RED"])
+        if tier == 4:
+            return dict(box=holo, trim=pearl, star=P["GOLD_XL"], star_d=P["GOLD"])
+        return dict(box=lacquer, trim=gold, star=P["TEAL_L"], star_d=P["TEAL"])
     if kind == "vinyls":
         if tier == 1:
             return dict(sky=dict(hi=P["GOLD_HI"], l=P["GOLD_XL"], m=P["GOLD_L"],
@@ -85,6 +108,9 @@ def _materials(kind: str, tier: int) -> Dict[str, tuple]:
                                  d=P["GOLD_XL"], dd=P["GOLD_L"]),
                         sleeve=gold, sun=P["WHITE"], disc=P["GOLD_D"],
                         disc_l=P["GOLD"], label=P["CREAM"], label_l=P["WHITE"])
+        if tier == 4:
+            return dict(sky=holo, sleeve=pearl, sun=P["WHITE"], disc=P["TEAL_D"],
+                        disc_l=P["TEAL_L"], label=P["GOLD_XL"], label_l=P["GOLD_HI"])
         # el disco de LUJO es de vinilo de color (morado), no negro: negro sobre
         # la columna oscura no se veia
         return dict(sky=dict(hi=epic.light, l=epic.base, m=epic.dark,
@@ -101,6 +127,9 @@ def _materials(kind: str, tier: int) -> Dict[str, tuple]:
         if tier == 2:
             return dict(box=gold, lid=cream, bolt=P["WHITE"], bolt_d=P["CREAM"],
                         tag=P["CREAM_L"])
+        if tier == 4:
+            return dict(box=holo, lid=pearl, bolt=P["GOLD_XL"], bolt_d=P["GOLD"],
+                        tag=P["WHITE"])
         return dict(box=lacquer, lid=gold, bolt=P["GOLD_XL"], bolt_d=P["GOLD"],
                     tag=P["GOLD_HI"])
     # electronics
@@ -112,6 +141,9 @@ def _materials(kind: str, tier: int) -> Dict[str, tuple]:
     if tier == 2:
         return dict(box=gold, band=P["DARK_SOFT"], band_l=P["SLATE"], band_d=P["NIGHT"],
                     tape=P["CREAM"], tape_d=P["CREAM_D"])
+    if tier == 4:
+        return dict(box=holo, band=P["STEEL_D"], band_l=P["WHITE"], band_d=P["STEEL_DD"],
+                    tape=P["GOLD_XL"], tape_d=P["GOLD"])
     return dict(box=lacquer, band=P["GOLD"], band_l=P["GOLD_HI"], band_d=P["GOLD_D"],
                 tape=P["TEAL_L"], tape_d=P["TEAL"])
 
@@ -182,7 +214,7 @@ def draw_cards(s, tier: int) -> None:
     # rotulo: una banda con letras de mentira
     s.rect(x0 + 2, 23, x1 - 2, 24, b["dd"])
     s.dots([(x, 23) for x in range(x0 + 3, x1 - 2, 2)], m["accent"])
-    if tier == 3:
+    if tier >= 3:
         _gem(s, 15, 6, tier)
 
 
@@ -270,7 +302,7 @@ def draw_vinyls(s, tier: int) -> None:
     # pegatina de precio en la esquina
     s.rect(ax0, ay0, ax0 + 3, ay0 + 2, P["CREAM_L"])
     s.px(ax0 + 1, ay0 + 1, P["RED"])
-    if tier == 3:
+    if tier >= 3:
         _gem(s, (ax0 + ax1) // 2, ay0 + 3, tier)
 
 
@@ -339,7 +371,7 @@ def draw_sneakers(s, tier: int) -> None:
     s.rect(21, 25, 27, 25, M.shade(m["tag"], -0.2))
     s.dots([(22, 23), (23, 23), (24, 23), (25, 23), (26, 24), (22, 24), (23, 22)],
            P["OUTLINE"] if tier != 3 else P["NIGHT"])
-    if tier == 3:
+    if tier >= 3:
         _gem(s, 15, 11, tier)
 
 
@@ -405,7 +437,7 @@ def draw_electronics(s, tier: int) -> None:
     s.rect(x0 + 3, 21, x1 - 3, 22, m["band_d"])
     s.dots([(x, 21) for x in range(x0 + 4, x1 - 3, 2)], m["band_l"])
     # el sello de calidad, abajo a la derecha (en el 3, una joya montada)
-    if tier == 3:
+    if tier >= 3:
         _gem(s, x1 - 4, y1 - 3, tier)
     else:
         s.ellipse(x1 - 6, y1 - 5, x1 - 2, y1 - 1, m["tape"])
@@ -437,6 +469,125 @@ def draw_electronics_open(s, tier: int) -> None:
     s.rect(x0 + 3, y0 + 4, x1 - 3, y0 + 5, m["band_d"])
     s.dots([(3, 3), (28, 5), (27, 1)], P["SHINE_HI"])
     s.dots([(4, 9), (28, 11)], P["GOLD_HI"])
+
+
+# --------------------------------------------------------------------------- #
+# JUGUETES: caja de juguete con colgador y ventana de celofan
+# --------------------------------------------------------------------------- #
+#
+# La silueta que la distingue de la ELECTRONICA (otra caja): el COLGADOR de
+# tienda arriba, con su agujero, y una ventana grande de celofan por la que se
+# ve el robot de hojalata. La estrella de "NUEVO" en la esquina es el acento.
+
+TOYS_BOX = (5, 6, 26, 28)
+
+
+def _toy_robot(s, cx: int, cy: int) -> None:
+    """La cabeza y el pecho del robot que se ve por la ventana."""
+    P = _pal()
+    s.rect(cx - 4, cy - 4, cx + 3, cy + 1, P["STEEL"])          # cabeza
+    s.rect(cx - 4, cy - 4, cx + 3, cy - 4, P["WHITE"])
+    s.rect(cx + 3, cy - 3, cx + 3, cy + 1, P["STEEL_D"])
+    s.dots([(cx - 2, cy - 2), (cx + 1, cy - 2)], P["RED_L"])    # ojos
+    s.rect(cx - 2, cy, cx + 1, cy, P["STEEL_DD"])               # boca
+    s.px(cx, cy - 6, P["RED_L"])                                # antena
+    s.px(cx, cy - 5, P["STEEL_D"])
+    s.rect(cx - 5, cy + 3, cx + 4, cy + 7, P["RED"])            # pecho
+    s.rect(cx - 5, cy + 3, cx + 4, cy + 3, P["RED_L"])
+    s.dots([(cx - 2, cy + 5), (cx, cy + 5), (cx + 2, cy + 5)], P["GOLD_XL"])
+
+
+def _toy_star(s, cx: int, cy: int, m) -> None:
+    """La estrella de NUEVO: un rombo de puntas con el centro claro."""
+    s.dots([(cx, cy - 2), (cx - 2, cy), (cx + 2, cy), (cx, cy + 2)], m["star_d"])
+    s.rect(cx - 1, cy - 1, cx + 1, cy + 1, m["star"])
+    s.px(cx, cy, M.shade(m["star"], 0.3))
+
+
+def draw_toys(s, tier: int) -> None:
+    m = _materials("toys", tier)
+    P = _pal()
+    bx, tr = m["box"], m["trim"]
+    x0, y0, x1, y1 = TOYS_BOX
+    # el colgador, con el agujero de la percha
+    s.rect(12, 2, 19, y0, tr["m"])
+    s.rect(12, 2, 19, 2, tr["l"])
+    s.rect(19, 3, 19, y0, tr["d"])
+    s.rect(14, 3, 17, 4, P["NIGHT"])
+    # la caja
+    s.rect(x0, y0, x1, y1, bx["m"])
+    s.rect(x0, y0, x1, y0, bx["hi"])
+    s.rect(x0, y0 + 1, x0 + 1, y1, bx["l"])
+    s.rect(x1 - 1, y0 + 1, x1, y1, bx["d"])
+    s.rect(x0, y1, x1, y1, bx["dd"])
+    # la ventana: marco del color de la marca y celofan con su brillo
+    s.rect(x0 + 3, y0 + 3, x1 - 3, y1 - 6, tr["d"])
+    s.rect(x0 + 4, y0 + 4, x1 - 4, y1 - 7, P["TISSUE"])
+    _toy_robot(s, 16, 15)
+    s.line([(x0 + 5, y1 - 9), (x0 + 9, y0 + 5)], P["WHITE"])
+    s.line([(x0 + 7, y1 - 8), (x0 + 11, y0 + 6)], P["WHITE"])
+    # la franja de la marca con letras de mentira
+    s.rect(x0 + 3, y1 - 4, x1 - 3, y1 - 2, tr["m"])
+    s.dots([(x, y1 - 3) for x in range(x0 + 4, x1 - 3, 2)], tr["hi"])
+    _toy_star(s, x0 + 3, y0 + 3, m)
+    if tier >= 3:
+        _gem(s, x1 - 4, y1 - 3, tier)
+
+
+def draw_toys_open(s, tier: int) -> None:
+    """La caja abierta por arriba: el robot entero asomando y un peluche."""
+    m = _materials("toys", tier)
+    P = _pal()
+    bx, tr = m["box"], m["trim"]
+    x0, x1, y0, y1 = 5, 26, 15, 28
+    # el peluche, detras a la izquierda
+    s.ellipse(6, 7, 15, 16, P["LEATHER"])
+    s.ellipse(5, 5, 8, 8, P["LEATHER"])
+    s.ellipse(13, 5, 16, 8, P["LEATHER"])
+    s.ellipse(8, 10, 13, 15, P["LEATHER_L"])
+    s.dots([(9, 10), (12, 10)], P["OUTLINE"])
+    s.px(10, 12, P["LEATHER_D"])
+    # el robot, a la derecha y mas alto
+    _toy_robot(s, 20, 7)
+    # las solapas abiertas
+    s.poly([(x0, y0), (x0 - 3, y0 - 4), (x0 + 4, y0 - 3), (x0 + 6, y0)], bx["l"])
+    s.poly([(x1, y0), (x1 + 3, y0 - 4), (x1 - 4, y0 - 3), (x1 - 6, y0)], bx["d"])
+    # la caja
+    s.rect(x0, y0, x1, y1, bx["m"])
+    s.rect(x0, y0, x1, y0, bx["dd"])
+    s.rect(x0, y0 + 1, x0 + 1, y1, bx["l"])
+    s.rect(x1 - 1, y0 + 1, x1, y1, bx["d"])
+    s.rect(x0, y1, x1, y1, bx["dd"])
+    s.rect(x0 + 3, y1 - 5, x1 - 3, y1 - 3, tr["m"])
+    s.dots([(x, y1 - 4) for x in range(x0 + 4, x1 - 3, 2)], tr["hi"])
+    _toy_star(s, x1 - 4, y0 + 4, m)
+    s.dots([(3, 3), (28, 2), (27, 12)], P["SHINE_HI"])
+    s.dots([(2, 12), (29, 6)], P["GOLD_HI"])
+
+
+# --------------------------------------------------------------------------- #
+# El acabado holografico del escalon 4 (MITO)
+# --------------------------------------------------------------------------- #
+
+def holo_key():
+    """El tono que marca 'aqui va holografico' en los materiales del escalon 4:
+    el claro de la rareza rara, que no lo usa ningun paquete de los otros tres."""
+    return M.RARITIES["rare"].light
+
+
+def _holo(s) -> None:
+    """Repinta cada pixel de HOLO_KEY con las bandas de arcoiris en diagonal de la
+    carta holografica (cada tres pixeles un color). Va despues del dibujo y antes
+    del dano, asi que el sobre roto sigue siendo holografico."""
+    P = _pal()
+    key = holo_key()
+    bands = [P["TEAL_L"], M.RARITIES["rare"].light, M.RARITIES["epic"].light,
+             P["RED_L"], P["GOLD_HI"], P["LCD"]]
+    px = s.img.load()
+    for y in range(s.h):
+        for x in range(s.w):
+            if px[x, y] == key:
+                px[x, y] = bands[((x + y) // 3) % len(bands)]
 
 
 # --------------------------------------------------------------------------- #
@@ -522,28 +673,37 @@ KINDS = {
     "vinyls": (draw_vinyls, draw_vinyls_open, VINYLS_BOX),
     "sneakers": (draw_sneakers, draw_sneakers_open, SNEAKERS_BOX),
     "electronics": (draw_electronics, draw_electronics_open, ELECTRONICS_BOX),
+    "toys": (draw_toys, draw_toys_open, TOYS_BOX),
 }
+
+## Los escalones: 1 de colores, 2 ORO, 3 LUJO y 4 MITO (holografico).
+TIERS = (1, 2, 3, 4)
 
 
 def items() -> Dict[str, Callable]:
-    """Las 60 claves de LOOT_ITEMS (sin el prefijo pack_): por tipo y escalon,
-    cerrado, abierto y los tres tramos de dano."""
+    """Las 100 claves de LOOT_ITEMS (sin el prefijo pack_): por tipo y escalon,
+    cerrado, abierto y los tres tramos de dano. El escalon 4 pasa por _holo()
+    despues de dibujarse (y antes del dano)."""
     out: Dict[str, Callable] = {}
     for kind, (closed, opened, box) in KINDS.items():
-        for tier in (1, 2, 3):
+        for tier in TIERS:
             key = kind if tier == 1 else f"{kind}{tier}"
             seed = hash(kind) % 997 + tier * 13 if False else (len(kind) * 37 + tier * 13)
 
             def c(s, f=closed, t=tier):
                 f(s, t)
+                if t == 4:
+                    _holo(s)
 
             def o(s, f=opened, t=tier):
                 f(s, t)
+                if t == 4:
+                    _holo(s)
             out[key] = c
             out[f"{key}_open"] = o
             for stage in (1, 2, 3):
-                def d(s, f=closed, t=tier, st=stage, b=box, sd=seed):
-                    f(s, t)
+                def d(s, f=c, st=stage, b=box, sd=seed):
+                    f(s)
                     damage(s, st, b, sd)
                 out[f"{key}_d{stage}"] = d
     return out

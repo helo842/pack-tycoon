@@ -21,8 +21,10 @@ const TITLE_Y := 240.0
 const HEAD_Y := 304.0
 
 const ALBUM_X := 320.0
-const ROW0_Y := 368.0
-const ROW_STEP := 96.0
+## Siete colecciones (con JUGUETES): a 96 la ultima se salia por abajo del
+## panel, asi que van a 84 y empiezan un poco mas arriba.
+const ROW0_Y := 360.0
+const ROW_STEP := 84.0
 const ICON := 64.0
 const ICON_X0 := 664.0
 const ICON_STEP := 76.0

@@ -267,7 +267,7 @@ es lo que cae en la mesa, y el roto, que es lo que se ve cuando termina de
 abrirse. El estado roto reutiliza el cuerpo del cerrado y le arranca la parte de
 arriba, así que se ve que es la misma caja y no otro objeto parecido.
 
-Los cuatro de categoría salen **en tres escalones**, y el escalón se ve en el
+Los cinco de categoría (con JUGUETES) salen **en cuatro escalones** (el 4, MITO, holográfico), y el escalón se ve en el
 dibujo, no solo en el precio: el 1 es el de siempre (cartón, plástico, madera),
 el 2 va forrado de pan de oro y el 3 es laca oscura con filetes de oro y una
 joya. El archivo lleva el escalón pegado al nombre (`pack_cards`,
@@ -298,6 +298,9 @@ separa el sobre del fondo.
 | `pack_misc_open.png` | El mismo abierto y arrugado, con objetos variados dentro |
 | `pack_*2.png` / `pack_*2_open.png` | El escalón **ORO**: el mismo sobre forrado de pan de oro, con el sello de lacre, la banda batida y los destellos |
 | `pack_*3.png` / `pack_*3_open.png` | El escalón **LUJO**: laca oscura con filete de oro, oro macizo y una joya tallada en turquesa |
+| `pack_*4.png` / `pack_*4_open.png` | El escalón **MITO**: nácar con el tono medio repintado en bandas de arcoíris en diagonal (`_holo()` en `tools/pack_designs.py`, las mismas bandas que la carta holográfica) y la joya |
+| `pack_toys*.png` | **JUGUETES**: caja con colgador y ventana de celofán con un robot de hojalata; abierta asoman el robot y un peluche |
+| `loot_teddy` / `loot_tin_robot` / `loot_action_figure` / `loot_tin_rocket` `_psa1..10` | El botín de JUGUETES: peluche, robot de hojalata, figura de acción en su blíster y cohete de hojalata (dibujos en `tools/loot_designs.py`) |
 | `pack_*_d1/d2/d3.png` | Los tres tramos de daño, por escalón: rayajos, esquina levantada y agujero. El dibujo del tramo sale del sobre CERRADO de su escalón |
 
 ### El flujo de apertura, revela y venta

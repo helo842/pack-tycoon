@@ -50,31 +50,31 @@ extends RefCounted
 # mas por segundo y la partida se acorta. Cuanto se sube lo dice dev/balance.gd,
 # que simula la partida entera: hoy el primer rebirth cae sobre los 15 minutos.
 #
-# LA ESCALERA DE PRECIOS ES MAS TUPIDA ABAJO (500, 1.400, 3.800, 9.500, 24.000,
-# 60.000, 150.000; el escalon 3 no se ha tocado). Antes iba 500, 1.900, 6.000,
-# 15.000, 40.000, 100.000, 250.000, y el salto de las zapatillas a la electronica
-# se comia SIETE minutos de partida en los que no se desbloqueaba nada: el
-# jugador giraba en el mismo sobre con el dinero justo para el y sin que le
-# llegara ninguna mejora. Con la escalera a x2,5-x2,7 sale un escalon nuevo cada
-# dos o tres minutos (lo mide dev/balance.gd, "primer sobre de cada escalon").
+# LA ESCALERA SUBE x1,85 DE SOBRE EN SOBRE (500, 900, 1.700, 3.200, 6.000...
+# hasta 33 M). Con veinte sobres se desbloquea uno cada minuto o minuto y medio
+# (lo mide dev/balance.gd, "primer sobre de cada escalon"), y lo que importa mas:
+# el de arriba del todo es un TECHO. Probado con x2,5 (hasta 9.500 M): sin techo,
+# el dinero de una partida larga crecia sin parar, aguantar daba siempre mas
+# monedas que reiniciar y el rebirth dejaba de tener sentido (ver el informe
+# "curva" de dev/balance.gd). Con el techo en decenas de millones, una vez
+# arriba el dinero crece en linea recta y reiniciar vuelve a compensar.
 #
-# SON DOCE: CUATRO TIPOS x TRES ESCALONES. Primero van los cuatro de siempre
-# -SOBRES, VINILOS, ZAPATILLAS, ELECTRONICA- y luego se repiten dos veces mas,
-# en el mismo orden, cada vez mas caros y con el botin multiplicado (ver
-# "vmult"). El primero de todos (SOBRES) cuesta 0: es el sobre inicial, gratis
-# en cualquier momento de la partida, para que nunca se quede sin poder abrir
-# nada. El ultimo (ELECTRONICA 3) cuesta diez millones.
+# SON VEINTE: CINCO TIPOS x CUATRO ESCALONES. Primero van los cinco de siempre
+# -SOBRES, VINILOS, ZAPATILLAS, ELECTRONICA, JUGUETES- y luego se repiten tres
+# veces mas (ORO, LUJO y MITO), en el mismo orden, cada vez mas caros y con el
+# botin multiplicado (ver "vmult"). El primero de todos (SOBRES) cuesta 0: es el
+# sobre inicial, gratis en cualquier momento de la partida, para que nunca se
+# quede sin poder abrir nada. El ultimo (JUGUETES MITO) cuesta 33 millones.
 #
-# LOS TRES ESCALONES DE UN TIPO COMPARTEN TABLA DE BOTIN. La escribe entera el
-# escalon 1 en su propio "loot", y los otros dos solo dicen de quien es
-# ("loot_id") y cuanto multiplican el valor ("vmult"). Subir de escalon es
-# pagar mas por el mismo botin multiplicado, y no hay que mantener doce listas
-# de objetos que se irian desincronizando (y con ellas los pesos y las rarezas).
+# LOS ESCALONES DE UN TIPO COMPARTEN TABLA DE BOTIN. La escribe entera el
+# escalon 1 en su propio "loot", y los otros solo dicen de quien es ("loot_id")
+# y cuanto multiplican el valor ("vmult"). Subir de escalon es pagar mas por el
+# mismo botin multiplicado, y no hay que mantener veinte listas de objetos que se
+# irian desincronizando (y con ellas los pesos y las rarezas).
 #
 # Lo que SI cambia con el escalon es el nombre y el dibujo del sobre: el 2 va de
-# pan de oro y el 3 de laca con joya. Antes los tres escalones de un tipo
-# compartian el mismo sprite, y en una columna de doce con el mismo dibujo
-# repetido tres veces no habia forma de saber cual valia un millon.
+# pan de oro, el 3 de laca con joya y el 4 (MITO) holografico. Asi se reconoce
+# el tipo por la forma y el escalon por el material.
 const PACKS: Array = [
 	{
 		"id": "cards", "name": "SOBRES", "price": 0, "hp": 215, "vmult": 0.8,
@@ -91,7 +91,7 @@ const PACKS: Array = [
 		],
 	},
 	{
-		"id": "vinyls", "name": "VINILOS", "price": 500, "hp": 481, "vmult": 1.132,
+		"id": "vinyls", "name": "VINILOS", "price": 500, "hp": 481, "vmult": 1.1335,
 		"art": "pack_vinyls", "art_open": "pack_vinyls_open",
 		"loot": [
 			{"id": "vinyl_c", "name": "VINILO", "art": "loot_vinyl", "graded": true,
@@ -105,7 +105,7 @@ const PACKS: Array = [
 		],
 	},
 	{
-		"id": "sneakers", "name": "ZAPATILLAS", "price": 1400, "hp": 804, "vmult": 0.8328,
+		"id": "sneakers", "name": "ZAPATILLAS", "price": 900, "hp": 645, "vmult": 0.5360,
 		"art": "pack_sneakers", "art_open": "pack_sneakers_open",
 		"loot": [
 			{"id": "shoe_c", "name": "ZAPATILLA BLANCA", "art": "loot_sneaker", "graded": true,
@@ -120,7 +120,7 @@ const PACKS: Array = [
 		],
 	},
 	{
-		"id": "electronics", "name": "ELECTRONICA", "price": 3800, "hp": 1325, "vmult": 0.7197,
+		"id": "electronics", "name": "ELECTRONICA", "price": 1700, "hp": 886, "vmult": 0.3224,
 		"art": "pack_electronics", "art_open": "pack_electronics_open",
 		"loot": [
 			{"id": "cons_c", "name": "CONSOLA", "art": "loot_console", "graded": true,
@@ -177,60 +177,75 @@ const PACKS: Array = [
 				"kind": "electronics", "rarity": "legendary", "value": 7600, "w": 2},
 		],
 	},
-	# --- los otros ocho sobres ------------------------------------------- #
+	{
+		"id": "toys", "name": "JUGUETES", "price": 3200, "hp": 1216, "vmult": 0.3982,
+		"art": "pack_toys", "art_open": "pack_toys_open",
+		"loot": [
+			{"id": "toy_c", "name": "PELUCHE", "art": "loot_teddy", "graded": true,
+				"kind": "toys", "rarity": "common", "value": 3000, "w": 50},
+			{"id": "toy_r", "name": "ROBOT DE HOJALATA", "art": "loot_tin_robot", "graded": true,
+				"kind": "toys", "rarity": "rare", "value": 4200, "w": 30},
+			{"id": "toy_e", "name": "FIGURA EN CAJA", "art": "loot_action_figure", "graded": true,
+				"kind": "toys", "rarity": "epic", "value": 6500, "w": 15},
+			{"id": "toy_l", "name": "COHETE DE HOJALATA", "art": "loot_tin_rocket", "graded": true,
+				"kind": "toys", "rarity": "legendary", "value": 10000, "w": 5},
+		],
+	},
+	# --- los otros quince sobres ----------------------------------------- #
 	# Mismo botin que su escalon 1, mas caro y multiplicado. El NOMBRE y el
-	# DIBUJO cambian con el escalon; la tabla de botin no. El escalon 2 va de pan
-	# de oro y el 3 de laca con joya (ver tools/make_sprites.py, seccion "escalones
-	# 2 y 3"), asi que de un vistazo se sabe cual se esta abriendo sin leer el
-	# precio. Los nombres tienen que caber a 28 px en la columna de la izquierda
-	# (16 caracteres: PACK_NAME_BOX.x / 28), o UIKit encoge los doce a la vez y el
-	# "SOBRES" de arriba se queda enano.
+	# DIBUJO cambian con el escalon; la tabla de botin no (ver tools/pack_designs.py).
+	# Los nombres tienen que caber a 28 px en la columna de la izquierda (16
+	# caracteres: PACK_NAME_BOX.x / 28), o UIKit encoge los veinte a la vez y el
+	# "SOBRES" de arriba se queda enano: por eso el escalon 4 se llama MITO y no
+	# DIAMANTE ("ELECTRONICA MITO" son 16 justos).
 	#
 	# DOS REGLAS, Y LAS DOS SE COMPRUEBAN (dev/smoke_test.gd). El precio y el vmult
 	# se tocan juntos: subir uno sin subir el otro es un timo.
 	#
-	# 1. NINGUN SOBRE DE UN ESCALON ES MAS BARATO QUE LOS DEL ANTERIOR. Antes no
-	#    era asi: SOBRES ORO costaba 4.000 y la ELECTRONICA del escalon 1 cuesta
-	#    6.000, o sea que un sobre de CALIDAD 2 era mas barato que el de calidad 1
-	#    MAS CARO. El escalon de arriba multiplica el botin, asi que lo racional era
-	#    saltarse la electronica y las zapatillas del escalon 1 -que no se compraban
-	#    nunca- y esperar al sobre de arriba. Cada escalon empieza por encima del
-	#    techo del anterior: el 2 empieza en 9.500 (el 1 llega a 3.800) y el 3 en
-	#    600.000 (el 2 llega a 150.000).
+	# 1. NINGUN SOBRE DE UN ESCALON ES MAS BARATO QUE LOS DEL ANTERIOR: si lo
+	#    fuera, lo racional seria saltarse los caros del escalon de abajo. La
+	#    escalera sube sin cruzarse: 3.200 -> 6.000, 70.000 -> 130.000 y 1,5 M ->
+	#    2,8 M en los cambios de escalon.
 	#
-	# 2. CADA SOBRE PAGA UN POCO MAS DE LO QUE CUESTA: entre un 30 y un 45 %, en cualquier
-	#    escalon. De ahi salen los vmult de abajo, que NO son el mismo numero para
-	#    los doce: lo que paga un sobre es lo que valen los objetos de su tabla, y
-	#    el escalon multiplica ese total. Un sobre que cuesta tres veces mas que
-	#    otro del mismo escalon tiene que multiplicar tres veces menos para pagar
-	#    lo mismo por dinero. Ese margen es TODO el margen de la partida, y esta
-	#    medido: con un 350 % (que es lo que habia) la partida se terminaba en dos
-	#    minutos, porque el capital se multiplicaba por 4,5 en cada sobre y no
-	#    habia forma de gastarlo. Ver dev/balance.gd y LootDB.pack_payout().
+	# 2. CADA SOBRE PAGA UN POCO MAS DE LO QUE CUESTA: un 35 % los de pago del
+	#    escalon 1 y un 32 % los demas. De ahi salen los vmult, que NO son el mismo
+	#    numero para los veinte: lo que paga un sobre es lo que valen los objetos de
+	#    su tabla, y el escalon multiplica ese total. Ese margen es TODO el margen
+	#    de la partida: con un 350 % la partida se terminaba en dos minutos. Ver
+	#    dev/balance.gd y LootDB.pack_payout(). Los vmult se recalculan si se toca
+	#    GRADE_WEIGHTS, GRADE_MULT o un "value" del botin.
 	#
-	#    Los tres de pago del escalon 1 van al 44 % y los demas al 39 %: el
-	#    principio de partida es donde mas se nota un sobre que no rinde, y un
-	#    punto mas de margen ahi es lo que deja comprar la primera mejora antes del
-	#    primer minuto. Los vmult se recalculan con la tabla de notas de ahora
-	#    (si se toca GRADE_WEIGHTS o GRADE_MULT, cambia lo que paga cada sobre).
-	#
-	# El SOBRES es el que mas multiplica de su escalon, y no es un capricho: su
-	# tabla es la que menos vale (cartas de 60 a 210) y su precio no puede bajar
-	# del techo del escalon de abajo, asi que sin un vmult mucho mas alto pagaria
-	# una decima parte de lo que cuesta. El ELECTRONICA hace lo contrario: su tabla
-	# es la mas cara y su vmult es el mas bajo.
-	{"id": "cards2", "name": "SOBRES ORO", "price": 9500, "hp": 2096, "vmult": 59.59,
+	# LA VIDA sigue siendo 21,5 x raiz(precio) en los veinte.
+	{"id": "cards2", "name": "SOBRES ORO", "price": 6000, "hp": 1665, "vmult": 38.17,
 		"loot_id": "cards", "art": "pack_cards2", "art_open": "pack_cards2_open"},
-	{"id": "vinyls2", "name": "VINILOS ORO", "price": 24000, "hp": 3331, "vmult": 52.46,
+	{"id": "vinyls2", "name": "VINILOS ORO", "price": 11000, "hp": 2255, "vmult": 24.38,
 		"loot_id": "vinyls", "art": "pack_vinyls2", "art_open": "pack_vinyls2_open"},
-	{"id": "sneakers2", "name": "ZAPATILLAS ORO", "price": 60000, "hp": 5266, "vmult": 34.45,
-		"loot_id": "sneakers", "art": "pack_sneakers2", "art_open": "pack_sneakers2_open"},{"id": "electronics2", "name": "ELECTRONICA ORO", "price": 150000, "hp": 8327, "vmult": 27.42, "loot_id": "electronics",
-		"art": "pack_electronics2", "art_open": "pack_electronics2_open"},
-	{"id": "cards3", "name": "SOBRES LUJO", "price": 600000, "hp": 16654, "vmult": 3763.0,
-		"loot_id": "cards", "art": "pack_cards3", "art_open": "pack_cards3_open"},{"id": "vinyls3", "name": "VINILOS LUJO", "price": 1500000, "hp": 26332, "vmult": 3278.0, "loot_id": "vinyls",
-		"art": "pack_vinyls3", "art_open": "pack_vinyls3_open"},{"id": "sneakers3", "name": "ZAPATILLAS LUJO", "price": 4000000, "hp": 43000, "vmult": 2297.0, "loot_id": "sneakers",
-		"art": "pack_sneakers3", "art_open": "pack_sneakers3_open"},{"id": "electronics3", "name": "ELECTRONICA LUJO", "price": 10000000, "hp": 67989, "vmult": 1828.0, "loot_id": "electronics",
-		"art": "pack_electronics3", "art_open": "pack_electronics3_open"},
+	{"id": "sneakers2", "name": "ZAPATILLAS ORO", "price": 20000, "hp": 3041, "vmult": 11.65,
+		"loot_id": "sneakers", "art": "pack_sneakers2", "art_open": "pack_sneakers2_open"},
+	{"id": "electronics2", "name": "ELECTRONICA ORO", "price": 38000, "hp": 4191, "vmult": 7.0460,
+		"loot_id": "electronics", "art": "pack_electronics2", "art_open": "pack_electronics2_open"},
+	{"id": "toys2", "name": "JUGUETES ORO", "price": 70000, "hp": 5688, "vmult": 8.5166,
+		"loot_id": "toys", "art": "pack_toys2", "art_open": "pack_toys2_open"},
+	{"id": "cards3", "name": "SOBRES LUJO", "price": 130000, "hp": 7752, "vmult": 826.95,
+		"loot_id": "cards", "art": "pack_cards3", "art_open": "pack_cards3_open"},
+	{"id": "vinyls3", "name": "VINILOS LUJO", "price": 240000, "hp": 10533, "vmult": 531.99,
+		"loot_id": "vinyls", "art": "pack_vinyls3", "art_open": "pack_vinyls3_open"},
+	{"id": "sneakers3", "name": "ZAPATILLAS LUJO", "price": 450000, "hp": 14423, "vmult": 262.05,
+		"loot_id": "sneakers", "art": "pack_sneakers3", "art_open": "pack_sneakers3_open"},
+	{"id": "electronics3", "name": "ELECTRONICA LUJO", "price": 830000, "hp": 19587, "vmult": 153.90,
+		"loot_id": "electronics", "art": "pack_electronics3", "art_open": "pack_electronics3_open"},
+	{"id": "toys3", "name": "JUGUETES LUJO", "price": 1500000, "hp": 26332, "vmult": 182.50,
+		"loot_id": "toys", "art": "pack_toys3", "art_open": "pack_toys3_open"},
+	{"id": "cards4", "name": "SOBRES MITO", "price": 2800000, "hp": 35976, "vmult": 17811.2,
+		"loot_id": "cards", "art": "pack_cards4", "art_open": "pack_cards4_open"},
+	{"id": "vinyls4", "name": "VINILOS MITO", "price": 5200000, "hp": 49028, "vmult": 11526.4,
+		"loot_id": "vinyls", "art": "pack_vinyls4", "art_open": "pack_vinyls4_open"},
+	{"id": "sneakers4", "name": "ZAPATILLAS MITO", "price": 9600000, "hp": 66615, "vmult": 5590.5,
+		"loot_id": "sneakers", "art": "pack_sneakers4", "art_open": "pack_sneakers4_open"},
+	{"id": "electronics4", "name": "ELECTRONICA MITO", "price": 18000000, "hp": 91217, "vmult": 3337.6,
+		"loot_id": "electronics", "art": "pack_electronics4", "art_open": "pack_electronics4_open"},
+	{"id": "toys4", "name": "JUGUETES MITO", "price": 33000000, "hp": 123508, "vmult": 4015.0,
+		"loot_id": "toys", "art": "pack_toys4", "art_open": "pack_toys4_open"},
 ]
 
 # --------------------------------------------------------------------------- #
@@ -544,6 +559,9 @@ const LOOT_KINDS: Array = [
 	{"id": "vinyls", "name": "VINILOS", "stat": "DINERO", "art": "pack_vinyls"},
 	{"id": "sneakers", "name": "ZAPATILLAS", "stat": "VELOCIDAD", "art": "pack_sneakers"},
 	{"id": "electronics", "name": "ELECTRONICA", "stat": "REBIRTH", "art": "pack_electronics"},
+	## Los JUGUETES dan SUERTE (lo mismo que el Trebol: mas botin raro, epico y
+	## legendario). Era el unico efecto que ningun tipo daba.
+	{"id": "toys", "name": "JUGUETES", "stat": "SUERTE", "art": "pack_toys"},
 ]
 ## Lo que aporta UN objeto expuesto segun su nota PSA: de un 2 % en la nota 1 a un
 ## 25 % en la nota 10, repartido a partes iguales (ver kind_bonus).
@@ -560,14 +578,15 @@ const KIND_BONUS_MAX := 0.25
 ## que salia. La rareza y el escalon del sobre son los que ponen el precio, asi
 ## que son los que multiplican (y se pueden leer en la ficha sin hacer cuentas).
 const LOCKER_RARITY := {"common": 1.0, "rare": 1.2, "epic": 1.45, "legendary": 1.75}
-const LOCKER_TIER: Array = [1.0, 1.3, 1.7]
+const LOCKER_TIER: Array = [1.0, 1.3, 1.7, 2.2]
 ## CADA TIPO PESA DISTINTO porque no vale lo mismo un 10 % de cada cosa. El
 ## dinero (vinilos) lo multiplica TODO, monedas de rebirth incluidas, y con los
 ## cuatro iguales llenar el armario de vinilos era siempre lo mejor; la
 ## velocidad (zapatillas) deja de notarse cuando el clic va mas lento que la
 ## carga, y el rebirth (electronica) solo cobra al reiniciar. Los pesos salen
 ## de medir (BalanceTest "armario"), no de gusto.
-const LOCKER_KIND_WEIGHT := {"cards": 1.0, "vinyls": 0.6, "sneakers": 1.2, "electronics": 0.4}
+const LOCKER_KIND_WEIGHT := {"cards": 1.0, "vinyls": 0.6, "sneakers": 1.2, "electronics": 0.4,
+		"toys": 1.5}
 ## Y CADA PIEZA DEL MISMO TIPO DA MENOS que la anterior (la mejor entera, la
 ## segunda un 75 %, la tercera un 56 %...): ocho del mismo tipo ya no son ocho
 ## veces una. Es lo que hace que mezclar tipos sea la jugada y no un capricho.
@@ -601,17 +620,31 @@ const LOCKER_SAME_KIND := 0.6
 ## les cuesta un minuto-, asi que se recorto tambien la racha y la zona dorada, y
 ## esto se subio hasta dejar 16,9 / 10,6 / 9,4 min (media 12,3).
 const REBIRTH_REQUIRE := 750000
-## LAS MONEDAS CRECEN CON LA RAIZ CUBICA DEL DINERO DEL CONTADOR (medido en
-## requisitos): 750.000 da 1, 6 M da 2, 20 M da 3, 750 M da 10. Se cuenta lo que
-## tengas EN EL MOMENTO de pulsar REBIRTH: el cerdo se lleva el dinero que hay
-## dentro, asi que guardarlo da monedas y gastarlo las cuesta.
+## LAS MONEDAS CRECEN CON LA RAIZ CUARTA DEL DINERO DEL CONTADOR (medido en
+## requisitos), por REBIRTH_COIN_SCALE: 750.000 da 7, 12 M da 14, 192 M da 28.
+## Se cuenta lo que tengas EN EL MOMENTO de pulsar REBIRTH: el cerdo se lleva el
+## dinero que hay dentro, asi que guardarlo da monedas y gastarlo las cuesta.
+##
+## ESTOS DOS NUMEROS DECIDEN CUANTO DURA EL JUEGO ENTERO (tener el arbol, que es
+## lo que hara falta para la ASCENSION): se pidio unas dos horas para el que
+## juega decente y hora y media para el que juega bien. Con la raiz cubica y una
+## moneda por requisito eran 11,7 h y 7,7 h. Barriendo con
+##   $G --headless --path . res://dev/BalanceTest.tscn final
+## la raiz cuarta por 7 da 2,0 h el normal y 1,2 h el optimizado (el simulador
+## no falla clics ni duda: una persona tarda algo mas). Y la cuarta y no la
+## cubica porque con la cubica al normal le salia mejor aguantar 60 minutos sin
+## reiniciar; con la cuarta reiniciar en cuanto se puede (7 monedas a los 14
+## min) rinde casi lo mismo por minuto que aguantar (21 a los 40).
 ##
 ## Antes era una moneda por cada 1,5 M, en linea recta, y el dinero de una
 ## partida crece MUCHO mas rapido que eso en cuanto llegan los sobres caros: el
 ## que aguantaba media hora sin reiniciar se llevaba ~170 monedas y el arbol
 ## entero de una vez. Con la raiz aguantar sigue dando mas, pero cada moneda
 ## cuesta mas que la anterior y reiniciar a menudo vuelve a ser buena idea.
-const REBIRTH_COIN_POWER := 1.0 / 3.0
+const REBIRTH_COIN_POWER := 1.0 / 4.0
+## Las monedas del requisito justo (750.000 en el contador). La raiz de arriba
+## manda en como crecen; esto, en cuantas son.
+const REBIRTH_COIN_SCALE := 7.0
 ## Y LAS MONEDAS SE GASTAN EN EL ARBOL DE MEJORAS, que es donde esta lo que dan
 ## (ver SkillTree): +30 % de dinero en el centro, +20 % de dano, +20 % de
 ## velocidad, +2 huecos de armario y +30 % de pinchos en el primer anillo, y dos
@@ -1059,7 +1092,8 @@ static func rebirth_coins_for(amount: int, mult: float = 1.0) -> int:
 ## son +50 % de monedas. Con el suelo primero, 1 moneda x1,5 seguia siendo 1 y la
 ## electronica del armario no daba nada.
 static func rebirth_coins_raw(amount: int, mult: float = 1.0) -> float:
-	return pow(float(maxi(0, amount)) / float(REBIRTH_REQUIRE), REBIRTH_COIN_POWER) \
+	return REBIRTH_COIN_SCALE \
+			* pow(float(maxi(0, amount)) / float(REBIRTH_REQUIRE), REBIRTH_COIN_POWER) \
 			* maxf(mult, 1.0)
 
 
