@@ -12,11 +12,12 @@ está todo lo del documento (el final está en *Qué falta*).
 ### La idea del juego, en corto
 
 Abres sobres en una mesa de trastienda. Cada sobre es de un tipo (cartas,
-vinilos, zapatillas o electrónica) y de un escalón (más caro, más vida, mejor
-botín). Lo que sale tiene **rareza** y **nota PSA** del 1 al 10, y con eso un
-precio. Con ese dinero se compran sobres más caros y **mejoras** en la tienda.
-Lo que vale la pena se **expone en el armario**, que da un bonus según el tipo
-(cartas daño, vinilos dinero, zapatillas velocidad, electrónica rebirth). Al
+vinilos, zapatillas, electrónica o juguetes) y de un escalón (normal, ORO, LUJO
+o MITO: más caro, más vida, mejor botín). Lo que sale tiene **rareza** y **nota
+PSA** del 1 al 10, y con eso un precio. Con ese dinero se compran sobres más
+caros y **mejoras** en la tienda. Lo que vale la pena se **expone en el
+armario**, que da un bonus según el tipo (cartas daño, vinilos dinero,
+zapatillas velocidad, electrónica rebirth, juguetes suerte). Al
 juntar 750.000 se puede hacer **rebirth**: empiezas de cero a cambio de monedas
 para un **árbol de mejoras** permanente, que también quita trabajo (auto guardar,
 automatizaciones...) y sube la racha, la zona dorada y los eventos. Por el camino hay **eventos** (sobre dorado,
@@ -31,7 +32,8 @@ comprador VIP, hora feliz), **encargos** y un **álbum** de colecciones.
 - **La tienda en cartón**: la caja de cartón con las fichas de papel, TIENDA en
   su cinta roja con las letras de los precios y el dinero en su etiqueta.
 - **Equilibrio**: el daño ya no lo sube cualquier compra (las Tijeras son el
-  item del daño), las monedas de rebirth crecen con la raíz cúbica del dinero y el
+  item del daño), las monedas de rebirth crecen con la raíz cuarta del dinero
+  (×7: 750.000 dan 7 monedas) y el
   armario da según nota, rareza, escalón y tipo, con menos por repetir tipo.
 - **Auto guardar**: un nodo del árbol (2 monedas) y un filtro en Ajustes con un
   botón por tipo, por nota PSA y por rareza. Lo que cumple se guarda; lo demás se
@@ -61,7 +63,7 @@ Y para jugar sin editor:
 $G --path .
 ```
 
-La primera vez Godot importa los 330 PNG de `Sprites/` (tarda unos segundos).
+La primera vez Godot importa los ~460 PNG de `Sprites/` (tarda unos segundos).
 A partir de ahí, botón de arriba a la derecha para jugar.
 
 ### El editor se ve vacío, ¿está roto?
@@ -96,9 +98,9 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
    **techo**: con ×2,5 (hasta 9.500 millones) el dinero de una partida larga
    crecía sin parar y aguantar siempre daba más monedas que reiniciar.
 
-   La columna **tiene scroll**: doce filas de 232 px son 2784 px de lista en una
+   La columna **tiene scroll**: veinte filas de 232 px son 4640 px de lista en una
    ventana de 752, así que la columna es una ventana a la lista larga (rueda del
-   ratón o la barra, fina y atenuada) en vez de doce filas apinadas. En la
+   ratón o la barra, fina y atenuada) en vez de veinte filas apiñadas. En la
    ventana se ven tres filas y pico. La columna es ancha lo que le deja la mesa:
    ensancharla pedía rehacer la mesa y su fondo, así que todo lo que creció
    (dibujo, nombre y precio, un 50 % más grandes) creció hacia abajo, y el scroll
@@ -151,7 +153,7 @@ la **raíz** del precio (21,5 × √precio): del 215 del básico (que es gratis 
 puesto a mano) a los 123.508 de JUGUETES MITO. Un sobre que cuesta cuatro veces más no es
    cuatro veces más duro, es el doble: eso deja el ritmo de la partida en el
    **daño del jugador** —los items— y no en lo caro que sea el sobre, y es lo
-   que hace que una partida dure unos quince minutos en vez de dos minutos. La
+   que hace que una partida dure unos trece minutos en vez de dos minutos. La
    **TIENDA** se ha quedado con los diez items.
 2. **Clic en el paquete** → arranca la carga. Sale un anillo que se llena **por
    detrás del paquete**, rodeándolo, y el paquete va temblando. Cada carga
@@ -167,21 +169,23 @@ puesto a mano) a los 123.508 de JUGUETES MITO. Un sobre que cuesta cuatro veces 
 3. Cuando la resistencia llega a cero, sale la **tarjeta de revelado**: objeto, rareza,
    estado de conservación, nota PSA de 1 a 10 y el valor final. Abajo tiene los
    dos botones de la decisión: **GUARDAR** (al inventario) y **VENDER** (dinero
-   ahora). Cerrarla sin elegir (`ESPACIO` o `ESC`) deja el objeto en la mesa, que
-   es la tercera salida. Un clic fuera de los botones ya no la cierra, y en su
-   primer medio segundo no hace caso a nada (ver *Auto guardar y la ficha del
-   objeto*). Además, la ficha solo sale con lo que merece la pena (raro o mejor,
-   PSA 8 o más, o nuevo en la libreta); lo demás cae en la mesa con un rótulo.
-4. El objeto se queda en la mesa. **Clic en él** y se vende; **arrastrarlo** lo
-   aparta y hace sitio, como en los juegos de cachivaches. Al inventario solo va
-   si se pulsa GUARDAR, y de ahí se vende **de uno en uno** (clic derecho en el
-   objeto) o de golpe con **VENDER TODO**, en el panel del armario, que es donde
-   vive el inventario desde que la tira de abajo de la pantalla es la vitrina.
+   ahora). **No hay tercera salida**: `ESPACIO`, `ENTER` y `ESC` son GUARDAR. Un
+   clic fuera de los botones no la cierra, y en su primer medio segundo no hace
+   caso a nada (ver *Auto guardar y la ficha del objeto*). Además, la ficha solo
+   sale con lo **épico y lo legendario** (la nota PSA no cuenta); **lo demás se
+   vende en el momento** con un rótulo que sube (nombre,
+   PSA y lo que ha pagado).
+4. **Nada se queda en la mesa.** Cada objeto acaba en el inventario o vendido en
+   el momento: en la mesa solo hay sobres. (Antes lo que no tenía ficha caía en la
+   mesa y se quedaba ahí en el limbo hasta venderlo; con eso se fueron también el
+   botón VENDER de la barra, la tecla `V` y la mejora MESA LIMPIA.) Lo guardado
+   se vende **de uno en uno** (clic derecho en el objeto) o de golpe con **VENDER
+   TODO**, en el panel del armario, que es donde vive el inventario.
 
 La mesa es una superficie de verdad, no una rejilla de huecos: el sprite
 `bg_table` la dibuja entera (1344×752, que es lo que le deja la columna de
-sobres) y los objetos caen donde quieren, con un
-sorteo de 40 puntos al azar que se queda con el que menos pisa a los demás.Se arrastran manteniendo pulsado y no pueden salirse de ella. Caben **8** a la vez
+sobres) y los sobres caen donde haya aire (ver más abajo cómo se elige el
+sitio). Se arrastran manteniendo pulsado y no pueden salirse de ella. Caben **8** a la vez
 (el **Cajón** amplía ese límite).
 
 Encima hay dos automatizaciones, los dos iconos de la barra superior. **Cada una
@@ -203,12 +207,12 @@ paquete. Son **diez** —los ocho del `Idea.pdf`, los **Guantes** (velocidad) y 
 
 - **Los ocho con niveles suben de nivel**, hasta **8**: cada nivel cuesta ×1,6
   el anterior —las **Tijeras** y los **Guantes** aparte: sus tres primeras
-  mejoras suben poco (×1,3 cada una, para que el principio no se ponga cuesta
-  arriba) y a partir de la cuarta el precio se dispara (×2,8); el **Dólar** usa
-  esa misma escalera suave con un salto menor (×2,3), de 1.500 a 163.000— y da
-  más efecto.
-  Cada nivel comprado de *cualquiera* de ellos sube el daño un 15 % sobre la
-  base y acelera un 3 % la carga. La fila lleva los **puntos de nivel** a la
+  mejoras suben poco (×1,4 cada una, `SOFT_COST_GROWTH`, para que el principio
+  no se ponga cuesta arriba) y a partir de la cuarta el precio se dispara (×2,8);
+  el **Dólar** usa esa misma escalera suave con un salto menor (×2,3), de 900 a
+  unos 113.500— y da más efecto.
+  Cada nivel comprado de *cualquiera* de ellos sube el daño un 4 % sobre la
+  base (`DAMAGE_PER_LEVEL`) y acelera un 3 % la carga. La fila lleva los **puntos de nivel** a la
   vista y, al llegar al tope, deja de enseñar precio y pone **AL TOPE**.
 - **El PC y los Pinchos son de compra única**: se pagan una vez y ya está. Su
   efecto es un sí o un no —la automatización está encendida o no—, así que
@@ -237,7 +241,7 @@ contesta `LootDB.item_max_level()`.
 
 | Item | Qué hace |
 |---|---|
-| **Tijeras** | El item de daño: **+15 % de daño por golpe por nivel** (las tres primeras mejoras salen baratas y suben poco; después el precio se dispara) |
+| **Tijeras** | El item de daño: **+35 % de daño por golpe por nivel** (más el 4 % que da cualquier nivel: un 39 %) (las tres primeras mejoras salen baratas y suben poco; después el precio se dispara) |
 | **Guantes** | El item de velocidad: **+15 % de velocidad de golpe por nivel** (misma escalera que las Tijeras, un poco más caros) |
 | **Trébol** | +2 % de peso a los objetos que no son comunes por nivel |
 | **Cajón** | +2 huecos de mesa por nivel, y +5 por nivel a partir del 5 |
@@ -252,7 +256,7 @@ contesta `LootDB.item_max_level()`.
 
 El armario es un **trato con vuelta atrás**: un objeto expuesto sale del
 inventario (ya no se puede vender) y a cambio da el bonus de su tipo, que es la
-única forma de subir los cuatro stats del juego. Se pulsa el objeto en el
+única forma de subir los cinco stats del juego. Se pulsa el objeto en el
 inventario y entra en la vitrina; se pulsa en la vitrina y vuelve. Sin la pieza
 comprada no hay huecos donde ponerlo, y por eso el armario sube de nivel como
 los demás items: **un hueco por nivel, de 1 a 8**, y los ocho marcos se dibujan
@@ -293,6 +297,11 @@ electrónica 11,6 (pero con un tercio menos de dinero) y **los cuatro mezclados
 14,3**. Antes eran 173 / 152 / 85 / 295 / 1.265: con este cambio y la fórmula
 nueva de las monedas (ver el rebirth) todo eso bajó.
 
+> Estas cifras se midieron con la raíz **cúbica** de las monedas y antes de los
+> JUGUETES. Con la raíz cuarta ×7 de ahora los números absolutos cambian; la
+> conclusión (mezclar tipos es lo mejor) hay que volver a medirla con
+> `BalanceTest armario`.
+
 Las zapatillas siguen siendo las flojas: cuando llevas varios sobres a la vez,
 lo que limita es el clic y no la carga, así que más velocidad apenas se nota.
 
@@ -315,21 +324,22 @@ inventario, que es la regla que ya tenía.
 
 La **barra de arriba** lleva, de izquierda a derecha: el dinero con su moneda, el
 **contador de monedas de rebirth** (el cerdito dorado y su número), el contador de
-la mesa, los tres iconos (apertura automática, compra automática y armario), el
-**VENDER**, la **TIENDA** y el **REBIRTH**, con los ajustes en el extremo. La
+la mesa, los tres iconos (apertura automática, compra automática y armario), la
+**TIENDA** y el **REBIRTH**, con los ajustes en el extremo (el VENDER que había
+entre el armario y la tienda se quitó: ya no hay objetos en la mesa que vender). La
 chapa del REBIRTH es **del mismo tamaño que la de TIENDA** (256 px de ancho, con
 el cerdito al lado de la palabra) y las monedas de rebirth tienen **contador
 propio en la barra**, no solo dentro del árbol de mejoras: son la moneda con la
 que se compra ese árbol, así que hay que saber cuántas quedan **sin abrir nada**. Como la barra ya iba justa, el grupo de la
 derecha se corrió otra vez a la izquierda: los tres iconos están a 808/904/1000,
-el VENDER a 1156, la TIENDA a 1400 y el REBIRTH a 1672; el dinero se ancla a 128
+la TIENDA a 1400 y el REBIRTH a 1672; el dinero se ancla a 128
 con 252 px de tope, el cerdito es **del mismo tamaño que la moneda del dinero** y
 va **pegado al último dígito** (se recoloca cada vez que el contador gana o
 pierde una cifra, así que no flota en medio de la barra cuando hay poco dinero), y
 el contador de la mesa pasó a 24 px de letra en una caja de 192 a x 656 para no
 tocarlos.
 
-Los objetos que salen de los sobres caen en la mesa **repartidos y con aire**: se
+Los sobres caen en la mesa **repartidos y con aire**: se
 recorre la mesa entera en una rejilla y se elige uno de los sitios que no pisan a
 nadie (16 px de hueco entre cajas, que con el dibujo de dentro son 44 px de aire
 a la vista), y solo cuando de verdad no cabe otro se apila. Antes se probaban 40
@@ -358,11 +368,13 @@ que hayas comprado con ellas, y por eso el rebirth se hace **desde dentro del
 árbol**: arriba está el botón, con lo que te llevas (cuántas monedas y cuánto
 multiplica la Electrónica del armario), y debajo, lo que se compra con ellas.
 
-**Cuántas monedas:** la **raíz cúbica** del dinero del contador, medido en
-requisitos (`LootDB.rebirth_coins_for`). 750.000 dan 1, 6 M dan 2, 20 M dan 3 y
-750 M dan 10, todo por el multiplicador de la Electrónica, que va **antes del
-redondeo** (antes iba después, y con una o dos monedas no sumaba nada). Antes era
-una moneda por cada 1,5 M en línea recta. El dinero crece mucho más rápido que
+**Cuántas monedas:** **7 × la raíz cuarta** del dinero del contador, medido en
+requisitos (`LootDB.rebirth_coins_for`, `REBIRTH_COIN_POWER` y
+`REBIRTH_COIN_SCALE`). 750.000 dan 7, 12 M dan 14 y 192 M dan 28, todo por el
+multiplicador de la Electrónica, que va **antes del redondeo** (antes iba
+después, y con una o dos monedas no sumaba nada). Antes fue la raíz cúbica con
+una moneda por requisito (el árbol entero costaba 11,7 h), y antes aún una
+moneda por cada 1,5 M en línea recta. El dinero crece mucho más rápido que
 eso con los sobres caros: aguantando media hora sin reiniciar te llevabas ~170
 monedas, o sea el árbol entero en una vez («a partir de 150.000 se desbalancea»).
 Ahora aguantar sigue dando más monedas, pero cada una cuesta más que la anterior.
@@ -397,7 +409,27 @@ misma regla: **la ficha no compra, pide la compra**, y quien cobra, suena y avis
 es el panel del árbol. Los números de la ficha salen de `Game.skill_bonus()` y del
 `value` del nodo, así que no pueden mentir.
 
-El árbol empieza con **una mejora en el centro** —**+30 % de dinero, una moneda**,
+**Cada nodo tiene nombre** (`effect` en `SkillTree.NODES`), que es lo que sale
+debajo de su chapa y de título en su ficha; el número (+25 %…) va en la ficha,
+en el AHORA y el AL COMPRARLO. Antes los de números se rotulaban con su efecto y
+el árbol era una lista de "+35 % DE VELOCIDAD". Los nombres:
+
+| Rama | Nodos (de dentro afuera) |
+|---|---|
+| Centro | TRASTIENDA |
+| Daño | NUDILLOS · PALANCA · MAZA · MARTILLO |
+| Velocidad | REFLEJOS · CARRERILLA · VELOCISTA · TURBO |
+| Pinchos | ESPINAS · CARDO · CACTUS · ERIZO |
+| Armario y rebirth | ESCAPARATE · REGATEO · PROPINA · HUCHA DE ORO |
+| Puntería | RITMO · EN RACHA · PUNTO DULCE · OJO DE HALCÓN |
+| Eventos | FIESTA · CLIENTE DE ORO · PRÓRROGA · FIEBRE DEL ORO · IMÁN |
+| Habilidades | GOLPE CARGADO · FRENESÍ · GOLDEN RAIN · TORMENTA DORADA |
+| Calidad de vida | AUTO GUARDAR · SOBRANTE · ARMARIO SOLO · APRENDIZ · AMULETO · ENCARGADO · FÁBRICA |
+| Arriba del todo | LEYENDA |
+
+(En el juego van sin tildes ni Ñ: la fuente de mapa de bits no las tiene.)
+
+El árbol empieza con **una mejora en el centro** —**+50 % de dinero, una moneda**,
 que es la puerta— y de ella salen **cuatro caminos en diagonal**, uno por cada
 lado, de **tres monedas cada uno**:
 
@@ -427,7 +459,11 @@ Cada nodo se pinta según lo que se pueda hacer con él: **en dorado** el compra
 (con la palabra COMPRADO en lugar del precio), **claro y latiendo** el que ya te llega,
 **apagado** el que no, y **cerrado** el que necesita el nodo anterior —y su
 ficha, la de ese y la de todos, dice cuál hay que comprar antes y cuántas monedas
-faltan—. Las líneas que los unen llevan el color de su camino.
+faltan—. **Las líneas que los unen son pixel art azul** (`RebirthPanel._draw_link`,
+`link_cells`): una escalera de celdas de 12 px con contorno oscuro y un filo de luz
+arriba, como los sprites, y no una raya lisa. Azul noche el camino cerrado, azul el
+que ya se puede comprar y celeste el comprado (`LINK_DIM`, `LINK_OPEN`,
+`LINK_DONE`).
 
 #### La calidad de vida: la rama de abajo
 
@@ -440,14 +476,22 @@ compran o no se compran—:
 |---|---|---|
 | **AUTO GUARDAR** | la puerta de la rama: guarda lo que eliges en Ajustes y vende lo demás | 2 |
 | **SOBRANTE** | el daño que le sobra a un golpe pasa al siguiente sobre | 2 |
-| **MESA LIMPIA** | lo que lleva doce segundos quieto en la mesa se vende solo | 3 |
 | **ARMARIO SOLO** | con el armario lleno, entra la mejor pieza de su tipo y la peor vuelve al inventario | 4 |
+| **APRENDIZ** | las **Tijeras** y los **Guantes** de la tienda se compran solos | 3 |
+| **AMULETO** (pide APRENDIZ) | el **Trébol** (suerte) y el **Ojo verde** (crítico) se compran solos | 4 |
+| **ENCARGADO** (pide ARMARIO SOLO) | el **Armario** y el **Láser** (daño crítico) se compran solos | 5 |
 
-Dos detalles que se ven poco y son los que las hacen buenas:
+**La compra automática de la tienda** (`SkillTree.AUTO_ITEMS`, `Game.auto_item_pick`,
+`game.gd::_auto_items_step`): cada medio segundo sube un nivel del item **más
+barato** de los que tienen el AUTO puesto, si llega el dinero; si el más barato no
+llega, espera a él en vez de saltar a uno más caro. En la tienda, debajo de cada
+item desbloqueado sale un botón **AUTO** (dorado encendido, gris apagado) para
+quitarlo o ponerlo; de serie, al comprar el nodo, se encienden. Lo apagado se
+guarda en `Game.auto_items_off` y el rebirth no lo toca. No compra con el árbol
+del rebirth ni los ajustes abiertos.
 
-- **MESA LIMPIA no corre con la ficha abierta.** La mesa se vacía mientras el
-  jugador está en la tienda o en el armario, no mientras está decidiendo qué hacer
-  con lo que acaba de salir.
+Un detalle que se ve poco y es lo que la hace buena:
+
 - **ARMARIO SOLO no empeora nunca el armario.** Solo cambia cuando el hueco falta
   y lo de dentro da menos; con sitio libre siempre se suma, porque dos piezas del
   mismo tipo suman las dos.
@@ -457,8 +501,10 @@ ella arrastrando, que es para lo que está el arrastre (el centro y los cuatro
 caminos sí se ven de entrada).
 
 **ATAJOS y SIN FICHA se quitaron** por inútiles (los botones de la barra ya hacen
-lo mismo que las teclas, y AUTO GUARDAR hace mejor lo de SIN FICHA). Una partida
-que los tuviera comprados **recupera sus monedas** al cargar (`SkillTree.REFUND`).
+lo mismo que las teclas, y AUTO GUARDAR hace mejor lo de SIN FICHA), **MESA
+LIMPIA** porque la mesa ya no guarda objetos, y el **TASADOR** porque lo sustituye
+la GOLDEN RAIN. Una partida que los tuviera comprados **recupera sus monedas** al
+cargar (`SkillTree.REFUND`).
 
 #### Las ramas de los lados: puntería y eventos
 
@@ -468,13 +514,13 @@ anillo), y cada rama va de barato a caro, de dentro afuera:
 
 | Rama | Nodo | Lo que da | Monedas |
 |---|---|---|---|
-| Puntería | **COMBO** | el combo de apertura aguanta el doble entre sobre y sobre | 1 |
-| Puntería | **RACHA** | cada paso de la racha de perfectos sube el golpe el doble | 2 |
-| Puntería | **ZONA ORO** | el tramo blanco del anillo el doble de ancho (sin salirse del perfecto) | 3 |
-| Eventos | **HORA FELIZ** | la hora feliz dura el doble | 1 |
-| Eventos | **PAGO VIP** | el comprador VIP paga x3 en vez de x2 | 2 |
-| Eventos | **TIEMPO JEFE** | el reloj del jefe de sobre dura un 60 % más | 3 |
-| Eventos | **DORADOS** | los sobres dorados salen un 75 % más a menudo y esperan un 75 % más | 4 |
+| Puntería | **RITMO** | el combo de apertura aguanta el doble entre sobre y sobre | 1 |
+| Puntería | **EN RACHA** | cada paso de la racha de perfectos sube el golpe el doble | 2 |
+| Puntería | **PUNTO DULCE** | el tramo blanco del anillo el doble de ancho (sin salirse del perfecto) | 3 |
+| Eventos | **FIESTA** | la hora feliz dura el doble | 1 |
+| Eventos | **CLIENTE DE ORO** | el comprador VIP paga x3 en vez de x2 | 2 |
+| Eventos | **PRÓRROGA** | el reloj del jefe de sobre dura un 60 % más | 3 |
+| Eventos | **FIEBRE DEL ORO** | los sobres dorados salen un 75 % más a menudo y esperan un 75 % más | 4 |
 
 #### El camino del rebirth (sigue al del armario)
 
@@ -484,8 +530,8 @@ rápido. Este camino es el que más se nota a largo plazo, por eso es el más ca
 
 | Nodo | Lo que da | Monedas |
 |---|---|---|
-| **REBAJA** | el rebirth pide un 15 % menos en el contador (las monedas se cuentan igual) | 6 |
-| **MONEDA EXTRA** | una moneda de rebirth más en cada rebirth | 10 |
+| **REGATEO** | el rebirth pide un 15 % menos en el contador (las monedas se cuentan igual) | 6 |
+| **PROPINA** | una moneda de rebirth más en cada rebirth | 10 |
 
 Es la base de la futura **ascensión** (un rebirth del rebirth).
 
@@ -497,9 +543,10 @@ Es la base de la futura **ascensión** (un rebirth del rebirth).
 - **El centro** da **+50 % de dinero** y cada partida **empieza con 25.000** en vez
   de 500 (`SkillTree.START_BONUS`, stat `start`): el sobre de VINILOS 2 nada más
   empezar, o sea que el primer rebirth se nota en el primer minuto.
-- **LEYENDA** (15 monedas) es el nodo grande de arriba del todo (`scale` x1,5 y
-  con el brillo legendario detrás). Pide **el fondo del daño y el de la velocidad
-  Y los dos lados** (ZONA ORO y DORADOS; `req` puede ser una lista) y da **+100 %
+- **LEYENDA** (15 monedas) es la corona del árbol: **muy grande** (`scale` x2,
+  con el brillo legendario detrás), **arriba del todo**, sin líneas, y **no se ve
+  hasta que tienes comprado todo lo demás** (pide el árbol entero: lo calcula
+  `SkillTree.reqs_of`, y la esconde `RebirthPanel.node_shown`). Da **+100 %
   de dinero, +50 % de daño, velocidad y Pinchos**, y **las habilidades recargan el
   doble de rápido**. Un nodo puede dar varias cosas con `bonus` (ver
   `SkillTree.node_bonus`).
@@ -516,8 +563,11 @@ Es la base de la futura **ascensión** (un rebirth del rebirth).
 | Eventos | **IMÁN** | dorados +50 %, hora feliz +50 %, VIP +25 %, jefe +40 % | 6 |
 | Calidad de vida | **FÁBRICA** | cada partida empieza con los Pinchos y el PC, lo automático sigue encendido tras el rebirth y el tiempo con el juego cerrado llega a dos horas | 8 |
 
-FÁBRICA pide las tres de su fila (MESA LIMPIA, SOBRANTE y ARMARIO SOLO). Con los
-finales el árbol ya no cabía entero a 1/3, y el zoom ganó un paso de **1/4**.
+FÁBRICA es **lo último de la rama de abajo**, como los finales de las demás:
+debajo de todo y en medio, colgando de lo último de cada columna: AMULETO a la
+izquierda, SOBRANTE en el centro y ENCARGADO a la derecha. Con los finales el árbol
+ya no cabía entero a 1/3 y el zoom ganó un paso de **1/4**; con LEYENDA grande
+arriba, otros dos: **1/5** y **1/6** (`ZOOM_STEPS`).
 
 #### Lo que dice el simulador del árbol
 
@@ -555,10 +605,10 @@ expuestas. Y **no se pierde al reiniciar**: es lo que hace que reiniciar signifi
 algo, porque las monedas se ganan reiniciando y se gastan aquí. Lo que se pierde
 es la partida: dinero, items, inventario y armario.
 
-El primer rebirth —la primera moneda— pide **750.000 en el contador**, que son
-**unos trece minutos de partida** con los veinte sobres (ocho y medio el que
-juega rápido, acierta los golpes perfectos y compra bien, y ocho con el PC y los
-Pinchos puestos; con los doce sobres de antes eran 17 / 10,5 / 9,5): lo justo
+El primer rebirth pide **750.000 en el contador**, que son **unos trece minutos
+y medio de partida** para el jugador normal del simulador (9,2 el que juega
+rápido, acierta los golpes perfectos y compra bien, y 8,2 con el PC y los
+Pinchos puestos; medianas de 25 partidas, medido el 2026-11-12): lo justo
 para subir los dos primeros escalones
 de sobres, comprar treinta y tantas mejoras y llegar con ganas de reiniciar. Y
 por el camino **se nota que se va mejorando**: la primera mejora cae antes del
@@ -572,7 +622,7 @@ también unos dieciocho minutos, así que el ritmo es el mismo; lo que cambió e
 
 El **requisito** y el **premio** se cuentan sobre lo mismo: **el dinero que hay en
 el contador**. Se piden **750.000** para poder reiniciar y las monedas crecen con
-la raíz cúbica de lo que haya (ver arriba), así que gastar en sobres y mejoras antes de reiniciar **aleja las dos
+la raíz cuarta de lo que haya (ver arriba), así que gastar en sobres y mejoras antes de reiniciar **aleja las dos
 cosas** y guardar el dinero las acerca. El número del requisito es bajo (en el
 contador de una partida se manejan miles, no millones) y **está medido**, no
 elegido: sale de barrer con `dev/balance.gd` y quedarse con el que deja la partida
@@ -611,7 +661,7 @@ y, al pulsarlo, el aviso dice **qué pieza falta** (`LootDB.AUTO_ITEM_OPEN` y
   jugador—, así que el item comprado no basta: hay que darle al interruptor.
 - La **compra automática** es el PC, y su botón abre un **mini menú**
   (`AutoBuyPanel`) donde se marca qué sobres se compran solos. Compra **el más
-  barato de los marcados** que puedas pagar: con los once marcados va subiendo de
+  barato de los marcados** que puedas pagar: con los diecinueve marcados va subiendo de
   escalón sola según te enriqueces, y marcando solo los de arriba se apunta a lo
   caro. El sobre gratuito no sale en la lista porque la compra automática lo
   salta siempre (si entrara, se quedaría en él para siempre).
@@ -663,13 +713,40 @@ minutos es siempre lo mismo. Para eso hay cuatro cosas más, con sus números en
   de ser pulsar y esperar.
 - **Habilidades** (teclas `1`, `2` y `3`), que se compran en una rama nueva del
   árbol del rebirth (hacia arriba): **golpe cargado** (el siguiente golpe ×5),
-  **frenesí** (8 s en los que la mesa se golpea sola) y **lupa del tasador** (en
-  la tarjeta, vuelve a tirar la nota del objeto). Cada una con su recarga.
+  **frenesí** (8 s en los que la mesa se golpea sola) y **golden rain** (los
+  sobres que compres pueden traer objetos holo, que valen el doble). Cada una con su recarga:
+
+  | Habilidad | Tecla | Monedas | Recarga | Pide |
+  |---|---|---|---|---|
+  | **GOLPE CARGADO** | `1` | 2 | 40 s | el centro |
+  | **FRENESÍ** | `2` | 3 | 90 s | golpe cargado |
+  | **GOLDEN RAIN** | `3` | 3 | 80 s | golpe cargado |
+  | **TORMENTA DORADA** (+10 s de golden rain) | — | 3 | — | golden rain |
+
+  LEYENDA hace que recarguen el doble de rápido.
+
+  **GOLDEN RAIN** (sustituye a la lupa del tasador): durante **10 s** (20 con
+  TORMENTA DORADA) los sobres que **compres** —a mano o con el PC— salen marcados
+  y brillan como un holo; cada objeto que salga de ellos tiene un **30 %** de
+  salir **HOLO**: brilla con un arcoíris (`UIKit.holo`, un shader que barre el
+  dibujo) en la tarjeta, el inventario y la vitrina, y **vale el doble**
+  (`Gameplay.make_holo`, `RAIN_TIME`, `RAIN_EXTRA`, `RAIN_HOLO_CHANCE`,
+  `HOLO_MULT`). Se marca el sobre al comprarlo, no al abrirlo: un sobre comprado
+  en la lluvia trae su suerte aunque se rompa después. El dorado y el jefe no se
+  compran, así que no cuentan.
 - **Libreta** (el botón de abajo a la izquierda):
-  - **Álbum**: seis colecciones (cartas, vinilos, zapatillas, consolas, tesoros y
-    perfección). Completar una da un bonus **para siempre** —un poco de daño,
-    dinero, velocidad, críticos, un hueco de mesa o monedas de rebirth— y no se
-    pierde al reiniciar.
+  - **Álbum**: siete colecciones (`Gameplay.SETS`). Completar una da un bonus
+    **para siempre** y no se pierde al reiniciar:
+
+    | Colección | Bonus |
+    |---|---|
+    | CARTAS | +5 % daño |
+    | VINILOS | +5 % dinero |
+    | ZAPATILLAS | +5 % velocidad |
+    | CONSOLAS (consola, portátil, cartucho, auriculares, cámara) | +3 % críticos |
+    | TESOROS (reloj, reloj de bolsillo, cable, lingote) | +1 hueco de mesa |
+    | JUGUETES | +10 % suerte |
+    | PERFECCIÓN (sacar notas 10) | +10 % rebirth |
   - **Encargos**: tres misiones cortas que se cobran solas al cumplirse: abre
     tantos sobres, saca una nota 8, 9 o 10, acierta golpes perfectos, abre un
     dorado, véndele al VIP... y **GUARDA 3 ZAPATILLAS CON PSA 2**, que pide un
@@ -691,21 +768,23 @@ minutos es siempre lo mismo. Para eso hay cuatro cosas más, con sus números en
   del centro y es la puerta de la rama de calidad de vida. En **Ajustes** su fila sale **en gris**
   hasta comprarlo, diciendo dónde se compra; comprado, sale en color con su
   casilla y el botón **ELEGIR**.
-- **ELEGIR** abre el filtro (`AutoStorePanel`): un botón por cada **tipo** (4),
+- **ELEGIR** abre el filtro (`AutoStorePanel`): un botón por cada **tipo** (5),
   cada **nota PSA** (10) y cada **rareza** (4), y cada uno se enciende por
   separado. Un objeto **se guarda** si su tipo, su nota y su rareza están
   encendidos; si no, **se vende solo**. En los dos casos, sin ficha. Con el
-  inventario lleno, lo que se quería guardar cae en la mesa en vez de venderse.
+  inventario lleno, lo que se quería guardar se vende (no hay mesa donde dejarlo).
   De serie vienen todos los tipos y rarezas y las notas 8, 9 y 10. El filtro es
   de la cuenta: el rebirth no lo toca.
 - **La ficha solo para lo bueno** (Ajustes → **FICHA DEL OBJETO**: siempre /
-  lo bueno / nunca, por defecto "lo bueno"). Sale si el objeto es **raro o
-  mejor**, tiene **PSA 8 o más** o es **nuevo en la libreta**. Lo demás cae en la
-  mesa con un rótulo que sube y se va (nombre, PSA y precio), sin parar la
-  partida.
+  lo bueno / nunca, por defecto "lo bueno"). En "lo bueno" sale **solo si el
+  objeto es épico o legendario**, sea cual sea su nota PSA
+  (`Game.CARD_GOOD_RARITIES`). Antes también salía con un raro, con PSA 8 o más o
+  con lo nuevo en la libreta, y paraba la partida demasiado. Lo demás **se
+  vende en el momento** con un rótulo que sube y se va (nombre, PSA y lo que
+  paga), sin parar la partida.
 - **La ficha ya no se salta sin querer**: en su primer **medio segundo** no hace
   caso a nada (`RevealCard.arm_delay_ms`), y un clic fuera de los botones **ya no
-  la cierra**. Para dejar el objeto en la mesa está **ESPACIO**. Antes, haciendo
+  la cierra**. Para guardar sin apuntar al botón está **ESPACIO**. Antes, haciendo
   spam de clics en los sobres, el clic siguiente cerraba la ficha recién salida.
 - Para hacer sitio a las dos filas, Ajustes **ya no tiene el selector de
   idioma**: solo había español y no hacía nada.
@@ -725,7 +804,8 @@ apertura y el **jefe** (ver `Gameplay`). Se pidió que la **media** de los tres
 jugadores del simulador llegue al primer rebirth sobre los **doce minutos**.
 Subir el requisito casi no frena a los rápidos, así que se recortaron también la
 racha (+8 % por paso, tope 3) y la zona dorada (×1,25), y el requisito subió a
-**750.000**: 16,9 / 10,6 / 9,4 min, media 12,3. Sin dado el normal sale en ~25,
+**750.000**: 16,9 / 10,6 / 9,4 min, media 12,3 (con los juguetes y el escalón
+MITO, la medida del 2026-11-12 da 13,5 / 9,2 / 8,2). Sin dado el normal sale en ~25,
 así que la banda del test de humo subió de 19 a 26.
 
 ### Animaciones
@@ -769,9 +849,12 @@ así que la banda del test de humo subió de 19 a 26.
 
 | Tecla | Qué hace |
 |---|---|
-| `ESPACIO` / `ENTER` | Cerrar la tarjeta sin elegir: el objeto se queda en la mesa |
-| `1` / `2` / `3` | Golpe cargado, frenesí y lupa del tasador (si están compradas en el árbol) |
-| `ESC` | Cierra el panel abierto; si no hay ninguno, vuelve al menú (la mesa se guarda tal cual: sobres con la vida que les queda y botín sin vender) |
+| `ESPACIO` / `ENTER` | GUARDAR el objeto de la tarjeta (también `ESC` con la tarjeta abierta) |
+| `1` / `2` / `3` | Golpe cargado, frenesí y golden rain (si están compradas en el árbol) |
+| `T` | Abre la tienda |
+| `A` | Abre el armario |
+| `R` | Abre el árbol del rebirth |
+| `ESC` | Cierra el panel abierto; si no hay ninguno, vuelve al menú (la mesa se guarda tal cual: sobres con la vida que les queda y su marca de golden rain) |
 
 La partida se guarda sola (cada 30 s si ha cambiado algo, y al salir) en
 `user://packtycoon.json`.
@@ -786,13 +869,13 @@ Cada carpeta tiene su propio README con el detalle. Este es el mapa:
 project.godot          1920x1080, estirado canvas_items/keep, filtro NEAREST
 icon.svg
 
-Sprites/               330 PNG, en subcarpetas (ver Sprites/README.md)
-  loot/                el botín: 17 objetos y 4 cartas, 10 notas PSA cada uno
-  packs/               los sobres que se compran: cerrado, abierto y 3 de daño
-                       (el juego usa cuatro: SOBRES, VINILOS, ZAPATILLAS y
-                       ELECTRONICA; el de VARIOS queda de reserva)
+Sprites/               ~460 PNG, en subcarpetas (ver Sprites/README.md)
+  loot/                el botín: 21 objetos y 4 cartas, 10 notas PSA cada uno
+  packs/               los sobres que se compran: cerrado, abierto y 3 de daño,
+                       un dibujo por tipo (SOBRES, VINILOS, ZAPATILLAS,
+                       ELECTRONICA, JUGUETES) y escalón (normal, ORO, LUJO, MITO)
   tools/               las herramientas antiguas (ya no se usan)
-  items/               los 9 items equipables de la tienda
+  items/               los 10 items de la tienda
   ui/panels/           los marcos de ventana
   ui/controls/         botones, deslizadores, casillas, flechas, ranuras
   ui/icons/            los iconos sueltos
@@ -869,7 +952,7 @@ G=/ruta/a/Godot_v4.7.2-stable_linux.x86_64
 # Cuánto dura una partida hasta el primer rebirth. Juega la partida entera con
 # los datos de verdad y saca el informe (mediana, dispersión, lo que paga cada
 # sobre) y el RITMO (cuándo se abre cada escalón y el rato más largo sin
-# comprar ninguna mejora). Hoy: unos 15 minutos el jugador normal y 11 el que
+# comprar ninguna mejora). Hoy: unos 13,5 minutos el jugador normal y 8 el que
 # juega rápido, compra bien y pone el PC y los Pinchos. Con `trace buys` saca
 # además cada compra de una partida.
 $G --headless --path . res://dev/BalanceTest.tscn
@@ -891,8 +974,8 @@ importar antes (`$G --headless --path . --import`) o los dos tests se caen con
 `Could not find type "LockerPanel"` y parece un fallo del juego cuando el que
 falta es el paso de la importación.
 
-`smoke_test` toca las 478 cosas que se pueden romper sin que se note
-mirando capturas: que la escalera de los doce sobres suba en precio, en botín, en
+`smoke_test` toca cientos de cosas que se pueden romper sin que se note
+mirando capturas: que la escalera de los veinte sobres suba en precio, en botín, en
 resistencia y **en dibujo** (los tres escalones de un tipo ya no comparten
 sprite, y el arte de cada uno tiene que traer sus tres tramos de daño), que
 **ningún sobre de un escalón baje del precio más alto del anterior** (con los
@@ -901,9 +984,9 @@ tenía ningún sentido), que **cada sobre pague de media entre un 30 y un 45 % m
 cuesta** y que **su resistencia vaya con la raíz de su precio** (la curva de la
 que sale cuánto dura la partida), y que **la partida dure lo que tiene que durar**
 (el test vuelve a medirla con `dev/balance.gd`: el jugador normal llega al primer
-rebirth entre 15 y 25 minutos, el que juega y compra bien al menos un minuto
+rebirth entre 12 y 26 minutos, el que juega y compra bien al menos un minuto
 antes, y con el PC y los Pinchos antes que haciendo clic), que el
-sobre inicial no cobre nunca y los demás sí, que las doce filas de la columna
+sobre inicial no cobre nunca y los demás sí, que las veinte filas de la columna
 caben sin pisarse, que la columna tenga su **fondo opaco** y que vaya **detrás**
 de los sobres, que el anillo avance y que se dibuje
 **detrás** del paquete, que cada redonda del botón saque su **número de daño**
@@ -915,16 +998,16 @@ repinten al comprar), que se compre desde esa misma ficha, que los items suban
 el daño y aceleren la carga, que el
 precio de un item suba con cada nivel y desaparezca en el tope, que el PC y los
 Pinchos no se puedan pagar dos veces (y que la tienda los marque con COMPRADO y
-con el rótulo COMPRA ÚNICA, con puntos de nivel solo en los seis que los tienen),
+con el rótulo COMPRA ÚNICA, con puntos de nivel solo en los ocho que los tienen),
 que una caja necesite varios golpes, que la mesa no pase de 8, que con la mesa llena no se cobre el sobre, que la tienda ya no venda sobres ni lleve título ni el rótulo del daño y sí la moneda del contador, que la moneda de los ajustes no salga gigante, que GUARDAR meta el
-objeto en el inventario y lo saque de la mesa (y VENDER al contrario), que con la
+objeto en el inventario sin pasar por la mesa (y VENDER lo cobre), que con la
 venta automática el objeto no llegue ni a la mesa, que un clic arranque un solo
 paquete y que el cupo sea el de la mesa (el que dice `Game.open_count()`, con el
 que espera entrando en cuanto se suelta un hueco), que la apertura automática
 se encienda solo con los
 Pinchos y la compra automática solo con el PC, que los Pinchos no toquen la mesa con la
 apertura apagada, que la compra automática compre solo lo marcado en su mini
-menú y coja el más barato de lo marcado, que arrastrar no venda el botín y que
+menú y coja el más barato de lo marcado, que arrastrar un sobre no lo abra y que
 no se pueda sacar de la mesa, que **cada tipo de botín dé su bonus** (cartas el
 daño, vinilos el dinero, zapatillas la velocidad y electrónica el rebirth) y que
 ese bonus vaya de un **2 % en la nota 1 a un 25 % en la 10**, que la probabilidad
@@ -959,7 +1042,10 @@ abrirlo (el rebirth se hace jugando, no en la pantalla de empezar) **ni lleve
 moneda en el pie**, que un objeto del inventario se pueda vender **de uno en uno**
 con el clic derecho (ese y solo ese, con el resto del inventario quieto), que la
 tienda cierre, que se guarde el fichero, que ningún sprite ni ningún sonido se
-quede fuera de su índice…
+quede fuera de su índice, que nada que no merezca ficha se quede en la mesa,
+que la golden rain marque los sobres que se compran (y TORMENTA DORADA la alargue
+10 s), que un holo valga el doble, y que la compra automática de la tienda compre
+solo lo desbloqueado, lo más barato primero, y respete el botón AUTO…
 
 `input_test` manda clics y arrastres de verdad, que es lo que `smoke_test` no
 puede hacer: pasa por el sistema de interfaz para pulsar GUARDAR y VENDER en la
@@ -989,7 +1075,7 @@ Dos reglas mandan sobre el precio de los sobres, y las dos se comprueban en
    precio hay que mirar el TECHO del escalón anterior, no solo los precios de su
    tipo.
 2. **Cada sobre paga de media entre un 30 y un 45 % más de lo que cuesta**, en cualquier
-   escalón. Por eso el `vmult` NO es el mismo número para los doce: lo que paga
+   escalón. Por eso el `vmult` NO es el mismo número para los veinte: lo que paga
    un sobre es lo que valen los objetos de su tabla, y el escalón multiplica ese
    total, así que un sobre que cuesta tres veces más que otro del mismo escalón
    tiene que multiplicar tres veces menos para pagar lo mismo por dinero. El
@@ -1022,7 +1108,7 @@ Dos reglas mandan sobre el precio de los sobres, y las dos se comprueban en
    sobres partida por el daño del jugador, así que subir la vida es alargar la
    partida y bajar el exponente (vida más cerca del precio) hace que los sobres
    caros paguen más por segundo. Es la curva que se toca cuando la partida dura
-   demasiado o demasiado poco, y el smoke test la comprueba sobre los doce
+   demasiado o demasiado poco, y el smoke test la comprueba sobre los veinte
    sobres (con el 21,5 escrito a mano en el test, para que una tabla y una
    constante malas las dos no pasen la prueba juntas).
 
@@ -1035,20 +1121,21 @@ las fórmulas y los datos de verdad:
 $G --headless --path . res://dev/BalanceTest.tscn
 ```
 
-Hoy dice que un jugador normal (un clic cada 0,35 s, la tarjeta leída, y pagando
-mejoras cuando le caben en el bolsillo) llega al primer rebirth en **unos
-quince minutos**; que el que juega rápido y compra bien —gastando a tirones
-de una quinta parte del dinero en vez de vaciarse en cada mejora— lo hace en
-**unos doce**; y que con el PC y los Pinchos, en **unos once**. Esos son los
-números **sin dado**, que es con lo que se mide el test (que exige al normal
-entre 12 y 19); con dado la mediana de veinticinco partidas sale 14,9 / 12,0 /
-11,1, y el 80 % central del normal va de 10,8 a 19,4.
+Hoy (medido el 2026-11-12) dice que un jugador normal (un clic cada 0,35 s, la
+tarjeta leída, y pagando mejoras cuando le caben en el bolsillo) llega al primer
+rebirth en **unos trece minutos y medio** (mediana de 25 partidas; el 80 %
+central va de 10,0 a 17,5); que el que juega rápido y compra bien —gastando a
+tirones de una quinta parte del dinero en vez de vaciarse en cada mejora— lo
+hace en **unos nueve**; y que con el PC y los Pinchos, en **unos ocho**. **Sin
+dado** (el botín en su media) salen 20,7 / 11,3 / 9,2: el test de humo exige al
+normal sin dado entre 12 y 26 minutos, y el propio simulador da por buena la
+mediana con dado si cae entre 12 y 19.
 
 El informe dice también **el ritmo**, que es lo que el minuto final no enseña: en
-qué minuto se abre por primera vez cada sobre (hoy zapatillas al 3,3, electrónica
-al 5,4, SOBRES ORO al 8, VINILOS ORO al 10,2 y ZAPATILLAS ORO al 13,1), cuándo
-cae la primera mejora (a los 40 segundos) y el rato más largo sin comprar ninguna
-(1,9 minutos de mediana). Una partida de quince minutos con diez seguidos sin
+qué minuto se abre por primera vez cada sobre (hoy zapatillas al 1,0, electrónica
+al 2,5, juguetes al 2,6, SOBRES ORO al 3,5, VINILOS ORO al 5,3, JUGUETES ORO al
+8,4 y SOBRES LUJO al 10,1), cuándo cae la primera mejora (a los 40 segundos) y
+el rato más largo sin comprar ninguna (1,5 minutos de mediana, 2,7 el peor). Una partida de quince minutos con diez seguidos sin
 nada que comprar se hace larga aunque el total salga en la banda, y eso era lo
 que pasaba antes: la electrónica llegaba al minuto 10 y había partidas con 10
 minutos sin una sola mejora. Desde que la barra va a 1,65 s por
@@ -1064,10 +1151,10 @@ lo que paga cada sobre y cuánto tarda cada escalón) sale al ejecutarlo, y
 ## Qué falta
 
 **Variedad de botín** — ya está resuelta. Cada objeto tiene su dibujo propio y
-cada sobre va por temas: cartas, vinilos, zapatillas y electrónica, que además
+cada sobre va por temas: cartas, vinilos, zapatillas, electrónica (que además
 absorbió los relojes, los lingotes y los cables para que ningún objeto se quede
-sin sobre del que salir. Quedan un par de objetos por añadir (una cámara de fotos
-y un violín), repartidos en `Sprites/PROMPTS.md`.
+sin sobre del que salir) y juguetes. La cámara de fotos ya está (en la
+electrónica); queda el violín, en `Sprites/PROMPTS.md`.
 
 > Lo que había era peor de lo que parecía: los sobres de vinilos y de zapatillas
 > tenían cuatro filas apuntando al mismo PNG, así que abrir 200 cajas era una
@@ -1107,8 +1194,8 @@ la cuenta, no de la partida).
 **Equilibrio pendiente** — las **zapatillas** del armario son las flojas: con
 varios sobres a la vez, lo que limita es el clic y no la carga, así que más
 velocidad apenas se nota. Arreglarlo es cambiar qué hacen, no un número. Y el
-"sin dado" del jugador normal va en 18,5 min con la banda en 19: un cambio
-pequeño lo puede sacar.
+"sin dado" del jugador normal va en 20,7 min con la banda del test en 26, pero
+con dado (13,5) ya roza el 12 de abajo.
 
 **Extras de la interfaz** — los deslizadores de volumen de los ajustes ya mueven
 sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta
@@ -1125,6 +1212,6 @@ llaman las pruebas).
   `packtycoon_test.json`: ya no pueden borrar la partida de verdad (el test de humo
   hace `hard_reset()`, y el 2026-11-10 se llevó una por delante).
 - **Con el juego cerrado** se gana el 10 % de lo que se ganaba por segundo en la
-  partida (`lifetime_earned / play_seconds`), como mucho una hora y **solo con
-  los Pinchos comprados**, que son lo que sigue abriendo sobres sin ti. Al volver
+  partida (`lifetime_earned / play_seconds`), como mucho una hora (dos con
+  FÁBRICA) y **solo con los Pinchos comprados**, que son lo que sigue abriendo sobres sin ti. Al volver
   sale un aviso: MIENTRAS NO ESTABAS. Las constantes son `Game.OFFLINE_*`.

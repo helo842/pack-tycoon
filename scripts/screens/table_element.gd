@@ -1,9 +1,9 @@
-# TableElement - lo que hay encima de la mesa.
+# TableElement - un sobre encima de la mesa.
 #
-# Un elemento es una de dos cosas y nunca las dos a la vez:
-#   - un PAQUETE cerrado: se le hace clic, se espera (las herramientas acortan
-#     la espera) y se abre solo.
-#   - un BOTIN: ya no hace falta abrirlo, se le hace clic y se vende.
+# Se le hace clic, carga el anillo y cada vuelta es un golpe; cuando la vida
+# llega a cero se rompe y avisa (opened). En la mesa SOLO hay sobres: lo que sale
+# de ellos se guarda o se vende en el momento (ver game.gd, _deliver), nunca se
+# queda encima de la mesa esperando.
 #
 # El elemento se encarga de su propio reloj y de su propio arte; quien decide
 # que hacer con el es game.gd, que es quien tiene la mesa.
@@ -12,8 +12,6 @@ extends Control
 
 ## El paquete se abrio: hay que tirar la carta de revelado.
 signal opened(pack_id: String)
-## Se vendio este botin por esta cantidad, en este punto de la pantalla.
-signal sold(value: int, at: Vector2)
 ## Ha terminado una redonda de la carga: este golpe ha quitado esto, y era
 ## critico o no. Lo pinta quien tiene la capa de los avisos (ver game.gd,
 ## _on_element_damaged()), que es el mismo que pinta los avisos de venta.
@@ -26,7 +24,7 @@ signal perfect_hit(sweet: bool, mult: float)
 ## y la racha se ha roto (ver Gameplay.EARLY_PENALTY).
 signal early_click()
 
-enum State { CLOSED, OPENING, OPENED, LOOT }
+enum State { CLOSED, OPENING, OPENED }
 
 const BOX := Vector2(300, 340)          # caja que ocupa el elemento en la mesa
 const ART_CENTER := Vector2(150, 140)   # centro del sprite, en coordenadas suyas
@@ -47,7 +45,9 @@ const DRAG_SLOP := 8.0
 
 var state: State = State.CLOSED
 var pack: Dictionary = {}
-var loot: Dictionary = {}
+## Comprado durante la GOLDEN RAIN: lo que salga de el puede ser HOLO (ver
+## Gameplay.RAIN_HOLO_CHANCE). El sobre brilla como un holo para que se vea.
+var rain := false
 
 ## Resistencia. Baja a golpes de carga (o de los Pinchos) hasta romper la caja.
 var hp: float = 1.0
@@ -115,10 +115,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	if loot.is_empty():
-		_build_pack()
-	else:
-		_build_loot()
+	_build_pack()
 
 
 # --------------------------------------------------------------------------- #
@@ -132,30 +129,11 @@ func setup_pack(pack_data: Dictionary) -> void:
 	hp = max_hp
 
 
-func setup_loot(item: Dictionary) -> void:
-	loot = item
-	state = State.LOOT
-
-
-## Cambia el botin de un objeto que ya esta en la mesa (la lupa del tasador le
-## cambia la nota): el dibujo y el aviso del boton, con el valor nuevo.
-func set_loot(item: Dictionary) -> void:
-	if state != State.LOOT:
-		return
-	loot = item
-	if _art != null:
-		_art.texture = Sprites.tex(str(item.get("art", "loot_vinyl")))
-	if _hit != null:
-		_hit.tooltip_text = "Vender por " + PixelNumber.format(int(item.get("value", 0)))
-
-
 ## La vida de un sobre que vuelve a la mesa desde un guardado (ver
 ## Game.table): se pone despues de montarlo, con el dibujo ya hecho, para que la
 ## caja salga agrietada como estaba. Nunca baja de 1: un sobre guardado a cero
 ## estaba rompiendose, y lo que tiene que pasar es que el siguiente golpe lo abra.
 func set_hp(value: float) -> void:
-	if state == State.LOOT:
-		return
 	hp = clampf(value, 1.0, max_hp)
 	_refresh_damage_art()
 
@@ -262,6 +240,8 @@ func _build_pack() -> void:
 		_art.modulate = Color(1.25, 1.1, 0.55)
 	elif boss:
 		_art.modulate = Color(1.35, 0.7, 0.65)
+	if rain:
+		UIKit.holo(_art)
 	add_child(UIKit.image("shadow_small", SHADOW_CENTER, SHADOW_SIZE,
 			Color(1, 1, 1, 0.55)))
 
@@ -276,33 +256,6 @@ func _build_pack() -> void:
 	#
 	# La zona de clic va la ultima de todas para que el clic lo coja el boton.
 	_hit = UIKit.hit_area(self, HIT_RECT, "Abrir %s" % pack.get("name", ""))
-	_hit.pressed.connect(_on_pressed)
-	_hit.gui_input.connect(_on_hit_input)
-	UIKit.juice(_hit, [_art], 1.06)
-
-
-func _build_loot() -> void:
-	var rarity_id := str(loot.get("rarity", "common"))
-	# Modulado en BLANCO (solo el alfa): el sprite ya trae el color de su rareza,
-	# y tintarlo otra vez con el mismo tono solo multiplicaba y lo oscurecia.
-	var glow := UIKit.image("rarity_glow_" + rarity_id, ART_CENTER, ART_SIZE,
-			Color(1, 1, 1, 0.5))
-	glow.modulate.a = 0.0
-	add_child(glow)
-	var tw := create_tween()
-	tw.tween_property(glow, "modulate:a", 0.9, 0.5)
-	tw.tween_property(glow, "modulate:a", 0.45, 0.9)
-	tw.set_loops()
-
-	_art = UIKit.image(str(loot.get("art", "loot_vinyl")), ART_CENTER, ART_SIZE)
-	add_child(_art)
-	add_child(UIKit.image("shadow_small", SHADOW_CENTER, SHADOW_SIZE,
-			Color(1, 1, 1, 0.55)))
-	# Sin chapita de valor, por lo mismo que el paquete. Lo que vale el botin se
-	# sigue diciendo en el aviso del boton y en su tarjeta de revelado.
-
-	_hit = UIKit.hit_area(self, HIT_RECT, "Vender por " + PixelNumber.format(
-			int(loot.get("value", 0))))
 	_hit.pressed.connect(_on_pressed)
 	_hit.gui_input.connect(_on_hit_input)
 	UIKit.juice(_hit, [_art], 1.06)
@@ -529,7 +482,7 @@ func _strike(perfect: bool = false, sweet: bool = false) -> void:
 ## Dano externo (los Pinchos) sin pasar por la carga del boton. Si rompe la caja
 ## se abre igual, y si estaba quieta tambien: los Pinchos trabajan solos.
 func take_damage(amount: float) -> void:
-	if _busy or state == State.LOOT or state == State.OPENED or amount <= 0.0:
+	if _busy or state == State.OPENED or amount <= 0.0:
 		return
 	hp = maxf(0.0, hp - amount)
 	if hp <= 0.0:
@@ -557,13 +510,13 @@ func _emit_opened() -> void:
 
 
 # --------------------------------------------------------------------------- #
-# Venta
+# Clic
 # --------------------------------------------------------------------------- #
 
 func _on_pressed() -> void:
 	# Si se ha arrastrado, el boton tambien suelta `pressed` al soltar dentro,
-	# pero lo que ha hecho el jugador es MOVER el objeto, no pulsarlo. Sin esto,
-	# mover un paquete lo abria y mover un botin lo vendia.
+	# pero lo que ha hecho el jugador es MOVER el sobre, no pulsarlo. Sin esto,
+	# mover un sobre lo abria.
 	if _travelled > DRAG_SLOP:
 		return
 	if _busy:
@@ -574,8 +527,6 @@ func _on_pressed() -> void:
 		Game.request_open(self)
 	elif state == State.OPENING:
 		try_perfect()
-	elif state == State.LOOT:
-		_sell()
 
 
 # --------------------------------------------------------------------------- #
@@ -643,40 +594,6 @@ func _raise() -> void:
 		p.move_child(self, p.get_child_count() - 1)
 
 
-func _sell() -> void:
-	if _busy:
-		return
-	_busy = true
-	var value := int(loot.get("value", 0))
-	var at := global_position + size * 0.5
-	var rise := position.y - 70.0
-	var tw := create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(self, "scale", Vector2(1.3, 1.3), 0.28)
-	tw.tween_property(self, "modulate:a", 0.0, 0.28)
-	tw.tween_property(self, "position:y", rise, 0.28).set_trans(Tween.TRANS_QUAD)
-	tw.chain().tween_callback(_emit_sold.bind(value, at))
-
-
-func _emit_sold(value: int, at: Vector2) -> void:
-	sold.emit(value, at)
-	queue_free()
-
-
-## Para el boton de "vender todo": devuelve el valor y se borra.
-##
-## Un botin que YA se esta vendiendo (el clic arranca una animacion corta y paga
-## al final, ver _sell) devuelve 0 y no se toca: su venta ya esta en marcha y la
-## paga ella. Antes lo cobraba otra vez aqui, y si la animacion acababa en el
-## mismo frame el objeto se pagaba dos veces.
-func sell_instant() -> int:
-	if state != State.LOOT or _busy:
-		return 0
-	var value := int(loot.get("value", 0))
-	queue_free()
-	return value
-
-
 ## Pulsar el sobre mientras carga: en el ultimo trozo del anillo es un GOLPE
 ## PERFECTO (sale ya y pega PERFECT_MULT, mas en la zona dorada y con racha);
 ## antes de ese trozo el anillo pierde Gameplay.EARLY_PENALTY de la vuelta y la
@@ -711,11 +628,6 @@ func is_opening() -> bool:
 	return state == State.OPENING
 
 
-func is_loot() -> bool:
-	return state == State.LOOT
-
-
-## ¿Esta a mitad de algo que ya no se puede parar? (abriendose del todo o
-## vendiendose). Quien vende a granel lo mira para no pisar esa venta.
+## ¿Esta a mitad de algo que ya no se puede parar? (rompiendose del todo).
 func is_busy() -> bool:
 	return _busy

@@ -25,8 +25,8 @@
 #
 # Y DEBAJO DEL CENTRO, LA CALIDAD DE VIDA. Los cuatro caminos diagonales son
 # numeros que suben; la rama de abajo son INTERRUPTORES que quitan trabajo de
-# encima (ver QOL_STAT): guardar lo que eliges, el golpe que sobra, la mesa que
-# se vacia y el armario que se ordena. Van aparte porque no se
+# encima (ver QOL_STAT): guardar lo que eliges, el golpe que sobra, la tienda que
+# se compra sola (AUTO_ITEMS) y el armario que se ordena. Van aparte porque no se
 # comparan con un +20 %: se compran o no se compran, y por eso son de un solo
 # nivel y mucho mas baratos. La rama baja en dos columnas para no alargar el
 # arbol como si fuera una cadena de cinco.
@@ -99,8 +99,13 @@ const QOL_WIDE := 352.0
 ## sea ocho rebirth, y se puede comprar por partes en cualquier orden dentro de
 ## su columna.
 const COST_QOL_CARRY := 2
-const COST_QOL_TABLE := 3
 const COST_QOL_LOCKER := 4
+## Las compras automaticas de la tienda: suben de una en una por la columna.
+const COST_QOL_AUTO_TOOLS := 3
+const COST_QOL_AUTO_LUCK := 4
+const COST_QOL_AUTO_CRIT := 5
+## TORMENTA DORADA, la que alarga la GOLDEN RAIN.
+const COST_RAIN_PLUS := 3
 ## El AUTO GUARDAR: la puerta de la rama (cuelga del centro) porque es el que
 ## mas trabajo quita en cuanto la partida se llena de fichas.
 const COST_QOL_AUTOSTORE := 2
@@ -133,9 +138,10 @@ const SIDE_START := 672.0
 const SIDE_STEP := 480.0
 
 ## Lo que se devuelve al cargar una partida que tenia comprado un nodo que ya no
-## existe (ATAJOS y SIN FICHA se quitaron por inutiles): sin esto, las monedas
-## gastadas en ellos se perdian sin aviso.
-const REFUND := {"qol_keys": 1, "qol_chaff": 2}
+## existe (ATAJOS y SIN FICHA se quitaron por inutiles, MESA LIMPIA porque la mesa
+## ya no guarda objetos y el TASADOR porque lo sustituye la GOLDEN RAIN): sin esto,
+## las monedas gastadas en ellos se perdian sin aviso.
+const REFUND := {"qol_keys": 1, "qol_chaff": 2, "qol_table": 3, "abil_appraise": 3}
 
 ## EL CAMINO DEL REBIRTH: el del armario sigue por su diagonal con dos nodos que
 ## hacen el rebirth mas fuerte, no obligatorio (la partida avanza igual sin el):
@@ -145,14 +151,14 @@ const REFUND := {"qol_keys": 1, "qol_chaff": 2}
 const COST_REQUIRE := 6
 const COST_COINS := 10
 
-## LEYENDA: el nodo del final, mas grande que los demas (BIG_SCALE). Pide el
-## fondo del dano Y el de la velocidad (`req` es una lista) y da de todo: +100 %
-## de dinero, +50 % de dano, velocidad y Pinchos, y la mesa abriendose sola desde
-## el principio de cada partida sin el PC. El mas caro del arbol porque es el
-## premio de haberlo subido casi entero.
+## LEYENDA: la corona del arbol, MUY grande (BIG_SCALE) y arriba del todo. Pide
+## TODO el arbol (ver reqs_of) y NO SE DIBUJA hasta tenerlo (ver rebirth_panel.gd,
+## node_shown): es el premio de haberlo comprado entero, no un nodo mas que se ve
+## desde el principio. Da de todo: +100 % de dinero, +50 % de dano, velocidad y
+## Pinchos, y las habilidades recargan el doble de rapido.
 const LEGEND := "legend"
 const COST_LEGEND := 15
-const BIG_SCALE := 1.5
+const BIG_SCALE := 2.0
 
 ## LOS FINALES DE CAMINO: un nodo grande (CAP_SCALE, menos que LEYENDA) al final
 ## de cada camino. Fuertes en lo suyo pero menos que LEYENDA. El de abajo
@@ -203,9 +209,22 @@ const COINS_STAT := "coins"
 ## mal escrito no da ningun error, solo una mejora que no hace nada.
 const QOL_STAT := "qol"
 const QOL_CARRY := "qol_carry"
-const QOL_TABLE := "qol_table"
 const QOL_LOCKER := "qol_locker"
 const QOL_AUTOSTORE := "qol_autostore"
+const QOL_AUTO_TOOLS := "qol_auto_tools"
+const QOL_AUTO_LUCK := "qol_auto_luck"
+const QOL_AUTO_CRIT := "qol_auto_crit"
+## El nodo que alarga la GOLDEN RAIN (ver Gameplay.RAIN_EXTRA).
+const RAIN_PLUS := "abil_rain_plus"
+
+## Que items de la tienda deja comprar solos cada nodo de compra automatica. Los
+## ids son los de LootDB.ITEMS. La tienda pone el boton AUTO en los que salgan
+## aqui con su nodo comprado.
+const AUTO_ITEMS := {
+	QOL_AUTO_TOOLS: ["tijeras", "guantes"],
+	QOL_AUTO_LUCK: ["trebol", "ojo_verde"],
+	QOL_AUTO_CRIT: ["armario", "laser"],
+}
 
 ## Los nodos, EN ORDEN. El primero es el centro y los otros cuatro son los
 ## caminos diagonales, en el sentido de las agujas del reloj desde arriba a la
@@ -242,6 +261,7 @@ const NODES: Array = [
 		"detail": "TODO LO QUE VENDES VALE UN 50 % MAS Y CADA PARTIDA EMPIEZA"
 			+ " CON 25.000 EN VEZ DE 500. ES LA PUERTA DEL ARBOL: NADA SE"
 			+ " ABRE SIN ELLA.",
+		"effect": "TRASTIENDA",
 	},
 	{
 		"id": "damage", "stat": "damage", "value": 0.20, "cost": COST_BRANCH,
@@ -250,6 +270,7 @@ const NODES: Array = [
 		"detail": "MULTIPLICA EL DANO DE CADA GOLPE, O SEA LO QUE TARDA UN SOBRE"
 			+ " EN ABRIRSE. SE SUMA A LAS CARTAS DEL ARMARIO. LOS PINCHOS VAN"
 			+ " POR SU CUENTA.",
+		"effect": "NUDILLOS",
 	},
 	{
 		"id": "speed", "stat": "speed", "value": 0.20, "cost": COST_BRANCH,
@@ -257,6 +278,7 @@ const NODES: Array = [
 		"desc": "CADA GOLPE TARDA MENOS",
 		"detail": "MULTIPLICA LA VELOCIDAD CON LA QUE AVANZA LA COLA DE LA MESA."
 			+ " SE SUMA A LO QUE DAN LAS ZAPATILLAS DEL ARMARIO.",
+		"effect": "REFLEJOS",
 	},
 	{
 		"id": "locker", "stat": "locker", "value": 2.0, "cost": COST_BRANCH,
@@ -265,6 +287,7 @@ const NODES: Array = [
 		"detail": "DOS HUECOS MAS DE ARMARIO, O SEA DOS OBJETOS EXPUESTOS MAS:"
 			+ " EL ARMARIO REPARTE LOS BONUS DE DANO, VELOCIDAD, DINERO Y"
 			+ " REBIRTH.",
+		"effect": "ESCAPARATE",
 	},
 	{
 		"id": "spikes", "stat": "spikes", "value": 0.30, "cost": COST_BRANCH,
@@ -273,6 +296,7 @@ const NODES: Array = [
 		"detail": "MULTIPLICA EL DANO DE LOS PINCHOS, QUE SE REPARTE ENTRE LOS"
 			+ " SOBRES DE LA MESA. SIN EL PC Y LOS PINCHOS NO HAY NADA QUE"
 			+ " SUBIR.",
+		"effect": "ESPINAS",
 	},
 
 	# --- EL SEGUNDO Y EL TERCER ANILLO ------------------------------------ #
@@ -289,6 +313,7 @@ const NODES: Array = [
 		"detail": "OTRO 25 % DE DANO ENCIMA DEL CAMINO DE ARRIBA. SE SUMA A EL"
 			+ " Y A LAS CARTAS DEL ARMARIO: CON EL CAMINO Y ESTE, EL GOLPE VA"
 			+ " POR ENCIMA DEL DOBLE.",
+		"effect": "PALANCA",
 	},
 	{
 		"id": "damage_3", "stat": "damage", "value": 0.35, "cost": COST_BRANCH3,
@@ -298,6 +323,7 @@ const NODES: Array = [
 		"detail": "EL FONDO DEL CAMINO DEL DANO: 35 % MAS, QUE CON LOS DOS"
 			+ " NODOS DE ARRIBA ES CASI EL DOBLE DE LO QUE PEGAS SIN EL"
 			+ " ARBOL. LOS PINCHOS VAN POR SU CAMINO.",
+		"effect": "MAZA",
 	},
 	{
 		"id": "speed_2", "stat": "speed", "value": 0.25, "cost": COST_BRANCH2,
@@ -306,6 +332,7 @@ const NODES: Array = [
 		"desc": "LA COLA DE LA MESA ACELERA",
 		"detail": "OTRO 25 % DE VELOCIDAD ENCIMA DEL CAMINO DE ARRIBA, QUE SE"
 			+ " SUMA A EL Y A LAS ZAPATILLAS DEL ARMARIO.",
+		"effect": "CARRERILLA",
 	},
 	{
 		"id": "speed_3", "stat": "speed", "value": 0.35, "cost": COST_BRANCH3,
@@ -315,6 +342,7 @@ const NODES: Array = [
 		"detail": "EL FONDO DEL CAMINO DE LA VELOCIDAD: 35 % MAS, QUE CON LOS"
 			+ " DOS NODOS DE ARRIBA ES CASI EL DOBLE DE RAPIDO QUE SIN EL"
 			+ " ARBOL.",
+		"effect": "VELOCISTA",
 	},
 	{
 		"id": "spikes_2", "stat": "spikes", "value": 0.35, "cost": COST_BRANCH2,
@@ -324,6 +352,7 @@ const NODES: Array = [
 		"detail": "OTRO 35 % DE DANO DE PINCHOS ENCIMA DEL CAMINO DE ARRIBA."
 			+ " SE REPARTE ENTRE LOS SOBRES DE LA MESA, ASI QUE CON LA MESA"
 			+ " LLENA ES DONDE MAS SE NOTA.",
+		"effect": "CARDO",
 	},
 	{
 		"id": "spikes_3", "stat": "spikes", "value": 0.50, "cost": COST_BRANCH3,
@@ -333,6 +362,7 @@ const NODES: Array = [
 		"detail": "EL FONDO DEL CAMINO DE LOS PINCHOS: 50 % MAS, EL NODO MAS"
 			+ " FUERTE DEL ARBOL EN PORCENTAJE. CON LOS DOS DE ARRIBA LOS"
 			+ " PINCHOS PEGAN MAS QUE NADA.",
+		"effect": "CACTUS",
 	},
 
 	# --- EL CAMINO DEL REBIRTH (sigue al del armario) ---------------------- #
@@ -343,6 +373,7 @@ const NODES: Array = [
 		"desc": "EL REBIRTH PIDE MENOS",
 		"detail": "EL REBIRTH SE PUEDE HACER CON UN 15 % MENOS DE DINERO EN EL"
 			+ " CONTADOR. LAS MONEDAS SE CUENTAN IGUAL.",
+		"effect": "REGATEO",
 	},
 	{
 		"id": "coins", "stat": COINS_STAT, "value": 1.0, "cost": COST_COINS,
@@ -351,17 +382,20 @@ const NODES: Array = [
 		"desc": "CADA REBIRTH PAGA MAS",
 		"detail": "UNA MONEDA DE REBIRTH MAS CADA VEZ QUE REINICIES, ENCIMA DE"
 			+ " LO QUE DE EL CONTADOR Y LA ELECTRONICA.",
+		"effect": "PROPINA",
 	},
 
 	# --- LEYENDA (el nodo grande del final) ------------------------------- #
 	{
 		"id": LEGEND, "stat": "money", "value": 1.0, "cost": COST_LEGEND,
 		"bonus": {"damage": 0.5, "speed": 0.5, "spikes": 0.5},
-		"pos": Vector2(0, -QOL_STEP * 3.0), "art": "ui_icon_achievement",
-		"req": ["damage_3", "speed_3", "sweet", "golden"], "scale": BIG_SCALE,
+		# Sin `req`: lo pide TODO, y eso lo calcula reqs_of() (escrito a mano aqui
+		# se quedaria corto en cuanto se anadiera un nodo).
+		"pos": Vector2(0, -QOL_STEP * 4.25), "art": "ui_icon_achievement",
+		"req": [], "scale": BIG_SCALE,
 		"desc": "LA MEJORA DEFINITIVA",
 		"detail": "+100 % DINERO Y +50 % DANO, VELOCIDAD Y PINCHOS. Y LAS"
-			+ " HABILIDADES SE RECARGAN EL DOBLE DE RAPIDO. PIDE LOS DOS LADOS.",
+			+ " HABILIDADES SE RECARGAN EL DOBLE DE RAPIDO. PIDE TODO EL ARBOL.",
 		"effect": "LEYENDA",
 	},
 
@@ -382,14 +416,38 @@ const NODES: Array = [
 			+ " QUE GOLPEES. CON LA CAJA A UN TOQUE, ESE GOLPE YA NO SE PIERDE.",
 		"effect": "SOBRANTE",
 	},
+	# LAS COMPRAS AUTOMATICAS DE LA TIENDA: APRENDIZ y AMULETO bajan por la
+	# izquierda y ENCARGADO (armario y laser) cuelga de ARMARIO SOLO por la
+	# derecha, para que la rama quede simetrica con FABRICA abajo en medio. Cada
+	# nodo deja comprar solos dos items (ver AUTO_ITEMS); en la tienda
+	# sale un boton AUTO en esos items, y de todos los que tengan el AUTO puesto se
+	# compra primero el mas barato (ver Game.auto_item_pick).
 	{
-		"id": QOL_TABLE, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_TABLE,
-		"pos": Vector2(-QOL_WIDE, QOL_STEP * 2.0), "art": "ui_icon_auto_open",
+		"id": QOL_AUTO_TOOLS, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_AUTO_TOOLS,
+		"pos": Vector2(-QOL_WIDE, QOL_STEP * 2.0), "art": "item_tijeras",
 		"req": QOL_AUTOSTORE,
-		"desc": "LA MESA SE VENDE SOLA",
-		"detail": "LO QUE LLEVA UN RATO EN LA MESA SE VENDE AL PRECIO DE"
-			+ " SIEMPRE. SIRVE PARA VOLVER DE LA TIENDA Y ENCONTRARLA LIBRE.",
-		"effect": "MESA LIMPIA",
+		"desc": "TIJERAS Y GUANTES SOLOS",
+		"detail": "LAS TIJERAS Y LOS GUANTES DE LA TIENDA SE COMPRAN SOLOS EN"
+			+ " CUANTO TE LLEGA. EN LA TIENDA, EL BOTON AUTO LOS APAGA.",
+		"effect": "APRENDIZ",
+	},
+	{
+		"id": QOL_AUTO_LUCK, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_AUTO_LUCK,
+		"pos": Vector2(-QOL_WIDE, QOL_STEP * 3.0), "art": "item_trebol",
+		"req": QOL_AUTO_TOOLS,
+		"desc": "TREBOL Y OJO VERDE SOLOS",
+		"detail": "LA SUERTE (TREBOL) Y LA PROBABILIDAD DE CRITICO (OJO VERDE)"
+			+ " SE COMPRAN SOLAS. PRIMERO SIEMPRE LO MAS BARATO.",
+		"effect": "AMULETO",
+	},
+	{
+		"id": QOL_AUTO_CRIT, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_AUTO_CRIT,
+		"pos": Vector2(QOL_WIDE, QOL_STEP * 3.0), "art": "item_laser",
+		"req": QOL_LOCKER,
+		"desc": "ARMARIO Y LASER SOLOS",
+		"detail": "EL ARMARIO Y EL DANO CRITICO (LASER) SE COMPRAN SOLOS."
+			+ " PRIMERO SIEMPRE LO MAS BARATO DE LO QUE TENGA EL AUTO.",
+		"effect": "ENCARGADO",
 	},
 	{
 		"id": QOL_LOCKER, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_LOCKER,
@@ -435,13 +493,23 @@ const NODES: Array = [
 		"effect": "FRENESI",
 	},
 	{
-		"id": "abil_appraise", "stat": QOL_STAT, "value": 1.0, "cost": COST_ABIL,
-		"pos": Vector2(QOL_SIDE, -QOL_STEP * 2.0), "art": "ui_icon_zoom_in",
+		"id": "abil_rain", "stat": QOL_STAT, "value": 1.0, "cost": COST_ABIL,
+		"pos": Vector2(QOL_SIDE, -QOL_STEP * 2.0), "art": "currency_coins",
 		"req": "abil_charge",
-		"desc": "OTRA OPORTUNIDAD PARA LA NOTA",
-		"detail": "HABILIDAD: EN LA TARJETA DEL OBJETO, LA LUPA VUELVE A TIRAR"
-			+ " SU NOTA. PUEDE SUBIR O BAJAR. SE RECARGA EN 75 S.",
-		"effect": "TASADOR",
+		"desc": "LLUEVEN OBJETOS HOLO",
+		"detail": "HABILIDAD (TECLA 3): 10 S EN LOS QUE CADA OBJETO DE LOS SOBRES"
+			+ " QUE COMPRES TIENE UN 30 % DE SALIR HOLO: BRILLA Y VALE EL"
+			+ " DOBLE. SE RECARGA EN 80 S.",
+		"effect": "GOLDEN RAIN",
+	},
+	{
+		"id": RAIN_PLUS, "stat": QOL_STAT, "value": 1.0, "cost": COST_RAIN_PLUS,
+		"pos": Vector2(QOL_SIDE, -QOL_STEP * 3.0), "art": "rarity_gem_legendary",
+		"req": "abil_rain",
+		"desc": "LA GOLDEN RAIN DURA MAS",
+		"detail": "LA GOLDEN RAIN DURA 10 S MAS: 20 S EN LOS QUE LOS SOBRES QUE"
+			+ " COMPRES PUEDEN TRAER OBJETOS HOLO.",
+		"effect": "TORMENTA DORADA",
 	},
 	# --- LA PUNTERIA (rama de la izquierda) ------------------------------- #
 	#
@@ -453,6 +521,7 @@ const NODES: Array = [
 		"desc": "EL COMBO AGUANTA MAS",
 		"detail": "EL TIEMPO ENTRE SOBRE Y SOBRE PARA NO PERDER EL COMBO DE"
 			+ " APERTURA DURA EL DOBLE.",
+		"effect": "RITMO",
 	},
 	{
 		"id": "streak", "stat": "streak", "value": 1.0, "cost": COST_STREAK,
@@ -460,6 +529,7 @@ const NODES: Array = [
 		"desc": "CADA PERFECTO SEGUIDO PEGA MAS",
 		"detail": "CADA PASO DE LA RACHA DE PERFECTOS SUBE EL GOLPE EL DOBLE"
 			+ " DE LO NORMAL. CON LA RACHA LLENA SE NOTA MUCHO.",
+		"effect": "EN RACHA",
 	},
 	{
 		"id": "sweet", "stat": "sweet", "value": 1.0, "cost": COST_SWEET,
@@ -467,6 +537,7 @@ const NODES: Array = [
 		"desc": "LA ZONA DORADA ES MAS ANCHA",
 		"detail": "EL TRAMO BLANCO DEL ANILLO ES EL DOBLE: MAS GOLPES EN LA"
 			+ " ZONA DORADA, QUE PEGAN MAS Y SUMAN DOS A LA RACHA.",
+		"effect": "PUNTO DULCE",
 	},
 
 	# --- LOS EVENTOS (rama de la derecha) --------------------------------- #
@@ -479,6 +550,7 @@ const NODES: Array = [
 		"desc": "LA HORA FELIZ DURA MAS",
 		"detail": "LA HORA FELIZ, LA QUE HACE QUE UN TIPO DE BOTIN VALGA MAS,"
 			+ " DURA EL DOBLE.",
+		"effect": "FIESTA",
 	},
 	{
 		"id": "vip", "stat": "vip", "value": 0.50, "cost": COST_VIP,
@@ -486,6 +558,7 @@ const NODES: Array = [
 		"desc": "EL COMPRADOR VIP PAGA MAS",
 		"detail": "EL COMPRADOR VIP PAGA UN 50 % MAS DE LO QUE YA PAGABA: DE X2"
 			+ " A X3.",
+		"effect": "CLIENTE DE ORO",
 	},
 	{
 		"id": "boss", "stat": "boss", "value": 0.60, "cost": COST_BOSS,
@@ -493,6 +566,7 @@ const NODES: Array = [
 		"desc": "MAS TIEMPO PARA EL JEFE",
 		"detail": "EL RELOJ DEL JEFE DE SOBRE DURA UN 60 % MAS. MAS JEFES ROTOS"
 			+ " SON MAS OBJETOS BUENOS.",
+		"effect": "PRORROGA",
 	},
 	{
 		"id": "golden", "stat": "golden", "value": 0.75, "cost": COST_GOLDEN,
@@ -501,6 +575,7 @@ const NODES: Array = [
 		"desc": "MAS SOBRES DORADOS",
 		"detail": "LOS SOBRES DORADOS SALEN UN 75 % MAS A MENUDO Y ESPERAN UN"
 			+ " 75 % MAS EN LA MESA ANTES DE IRSE.",
+		"effect": "FIEBRE DEL ORO",
 	},
 	# --- LOS FINALES DE CAMINO (nodos grandes, ver CAP_SCALE) -------------- #
 	{
@@ -559,8 +634,10 @@ const NODES: Array = [
 	},
 	{
 		"id": FACTORY, "stat": QOL_STAT, "value": 1.0, "cost": COST_FACTORY,
-		"pos": Vector2(0, QOL_STEP * 3.0), "art": "item_pc",
-		"req": [QOL_TABLE, QOL_CARRY, QOL_LOCKER], "scale": CAP_SCALE,
+		# EL FINAL DE LA RAMA, como en las demas: debajo de todo, en medio, y
+		# colgando de lo ultimo de cada columna (AMULETO, SOBRANTE y ENCARGADO).
+		"pos": Vector2(0, QOL_STEP * 4.0), "art": "item_pc",
+		"req": [QOL_AUTO_LUCK, QOL_CARRY, QOL_AUTO_CRIT], "scale": CAP_SCALE,
 		"desc": "LA PARTIDA SE JUEGA SOLA",
 		"detail": "CADA PARTIDA EMPIEZA CON LOS PINCHOS Y EL PC, Y LO AUTOMATICO"
 			+ " SIGUE ENCENDIDO TRAS EL REBIRTH. CERRADO GANAS HASTA DOS HORAS.",
@@ -603,8 +680,13 @@ static func req_of(id: String) -> String:
 	return str(r[0]) if not r.is_empty() else ""
 
 
-## TODOS los requisitos de un nodo. `req` es un id o una lista de ids.
+## TODOS los requisitos de un nodo. `req` es un id o una lista de ids. LEYENDA
+## pide todos los demas nodos del arbol.
 static func reqs_of(id: String) -> Array:
+	if id == LEGEND:
+		var todos := ids()
+		todos.erase(LEGEND)
+		return todos
 	var r = node_by_id(id).get("req", "")
 	if typeof(r) == TYPE_ARRAY:
 		return r

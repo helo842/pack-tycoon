@@ -164,11 +164,10 @@ func _run() -> void:
 			_check(_click(vender), "el clic en VENDER llega al boton")
 			await _frames(3)
 			_check(game._reveal == null, "VENDER cierra la tarjeta")
-			_check(game.table_count() == 0, "VENDER quita el objeto de la mesa")
+			_check(game.table_count() == 0, "el objeto no se queda en la mesa")
 
 	print("Arrastrar por la mesa:")
-	var botin: TableElement = game._spawn_loot(
-		LootDB.roll_pack(RandomNumberGenerator.new(), "electronics"))
+	var botin: TableElement = game._spawn_pack("electronics")
 	# Hay que dejarle aterrizar: mientras cae lo mueve el tween de la entrada, no
 	# el raton.
 	await _wait(0.9)
@@ -182,12 +181,13 @@ func _run() -> void:
 	_drag(desde, desde + Vector2(260, 130))
 	await _wait(0.4)
 	_check(botin.position.distance_to(rincon + Vector2(260, 130)) < 4.0,
-		"el objeto se queda pegado al raton")
-	# La venta tarda 0,28 s en desaparecer: se espera para que, si el arrastre se
-	# hubiera tomado por un clic, la mesa ya estuviera vacia y se viera aqui.
-	_check(botin.state == TableElement.State.LOOT,
-		"soltar tras arrastrar no vende el botin")
-	_check(game.table_count() == 1, "el objeto arrastrado sigue en la mesa")
+		"el sobre se queda pegado al raton")
+	# Si el arrastre se hubiera tomado por un clic, el sobre estaria cargando.
+	_check(botin.state == TableElement.State.CLOSED,
+		"soltar tras arrastrar no abre el sobre")
+	_check(game.table_count() == 1, "el sobre arrastrado sigue en la mesa")
+	game._remove_from_table(botin)
+	await _frames(2)
 
 	print("Zona de sobres:")
 	var celdas: Array = game._pack_cells
@@ -465,17 +465,6 @@ func _run() -> void:
 	if game._rebirth != null:
 		game._rebirth._close()
 	await _frames(3)
-	# Y LA V VACIA LA MESA DE VERDAD, por el mismo camino que el boton: el dinero
-	# entra y el objeto desaparece.
-	game._spawn_loot({"id": "card_c", "name": "CARTA COMUN",
-		"art": "loot_card_common_psa5", "rarity": "common", "grade": 5, "value": 600,
-		"kind": "cards"})
-	await _wait(0.9)
-	var dinero_antes: int = Game.money
-	_key(KEY_V)
-	await _frames(3)
-	_check(game.table_count() == 0 and Game.money >= dinero_antes + 600,
-		"y la V vende la mesa")
 	Game.skills = {}
 
 	print("Menu otra vez:")

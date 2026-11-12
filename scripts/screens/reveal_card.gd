@@ -12,21 +12,15 @@
 class_name RevealCard
 extends Control
 
-## Que ha decidido el jugador con el objeto: "store" (al inventario), "sell"
-## (venderlo) o "later" (cerrar sin decidir, y el objeto se queda en la mesa).
-##
-## Hay que decirlo, y no basta con "se ha cerrado": el objeto ya no se guarda
-## solo al salir de la tarjeta, asi que quien la cierre tiene que saber si el
-## jugador eligio guardar, vender o dejarlo.
+## Que ha decidido el jugador con el objeto: "store" (al inventario) o "sell"
+## (venderlo). No hay tercera salida: el objeto no se puede quedar en la mesa a
+## medio decidir (ver game.gd, _deliver), asi que la tarjeta solo se cierra
+## eligiendo. ESPACIO, ENTER y ESC son GUARDAR, que es lo que no pierde nada.
 signal resolved(action: String)
 
 const PANEL := "ui_panel_reveal"
 const ACTION_STORE := "store"
 const ACTION_SELL := "sell"
-const ACTION_LATER := "later"
-## La lupa del tasador: volver a tirar la nota (ver game.gd, _reroll_revealed).
-const ACTION_REROLL := "reroll"
-const LUPA_CENTER := Vector2(1456, 448)
 
 var item: Dictionary = {}
 
@@ -237,7 +231,9 @@ func _build_title() -> void:
 		filo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_card.add_child(filo)
 	# shrink: "CARTA EDICION LIMITADA" son 22 letras; a 49 no caben en 1200.
-	_card.add_child(UIKit.label_at(str(item.get("name", "OBJETO")),
+	# Un objeto HOLO (GOLDEN RAIN) lo dice delante del nombre.
+	var titulo := ("HOLO " if Gameplay.is_holo(item) else "") + str(item.get("name", "OBJETO"))
+	_card.add_child(UIKit.label_at(titulo,
 			BAND.get_center(), Vector2(1200, 70), 49, Palette.CREAM,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
@@ -263,6 +259,8 @@ func _build_object_column(rarity_id: String) -> void:
 	var art := UIKit.image(str(item.get("art", "loot_vinyl")), centre,
 			Vector2(SHOWCASE_ART, SHOWCASE_ART))
 	_card.add_child(art)
+	if Gameplay.is_holo(item):
+		UIKit.holo(art)
 	art.scale = Vector2(0.7, 0.7)
 	art.pivot_offset = art.size * 0.5
 	var tw := create_tween()
@@ -318,18 +316,6 @@ func _build_grade_column() -> void:
 	num.set_number(grade)
 	num.position = Vector2(cx, BADGE_Y) - num.size * 0.5
 
-	# LA LUPA DEL TASADOR, al lado del escudo: solo si esta comprada en el arbol.
-	# Recargando sale apagada con los segundos que le faltan.
-	if Game.ability_unlocked(Gameplay.ABIL_APPRAISE):
-		var lupa := UIKit.icon_button("ui_icon_zoom_in", LUPA_CENTER, 80.0,
-				"Lupa del tasador: vuelve a tirar la nota (puede subir o bajar)")
-		lupa.name = "Lupa"
-		UIKit.dim_icon_button(lupa, not Game.ability_ready(Gameplay.ABIL_APPRAISE))
-		lupa.pressed.connect(_reroll)
-		_card.add_child(lupa)
-		_card.add_child(UIKit.label_at("TASAR", LUPA_CENTER + Vector2(0, 62),
-				Vector2(120, 30), 21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0))
-
 	# La cinta va detras de las estrellas y a todo lo ancho de la columna.
 	_card.add_child(UIKit.image("grade_ribbon", Vector2(cx, RIBBON_Y), Vector2(680, 130)))
 	var stars := LootDB.grade_stars(grade)
@@ -358,8 +344,12 @@ func _build_value() -> void:
 	var cobro := Game.payout_preview(item)
 	num.set_number(cobro)
 	num.position = Vector2(cx + 16, VALUE_Y - num.size.y * 0.5)
+	var por := ""
 	if cobro > int(item.get("value", 0)):
-		var por := "EL COMPRADOR VIP LO QUIERE" if Game.buyer_wants(item) else "HORA FELIZ"
+		por = "EL COMPRADOR VIP LO QUIERE" if Game.buyer_wants(item) else "HORA FELIZ"
+	if Gameplay.is_holo(item):
+		por = "HOLO: VALE EL DOBLE" if por == "" else "HOLO X2 Y " + por
+	if por != "":
 		_card.add_child(UIKit.label_at(por, Vector2(cx, VALUE_Y + 46), Vector2(600, 30),
 				21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
@@ -377,8 +367,8 @@ func _build_buttons() -> void:
 	vender.pressed.connect(_sell)
 	_card.add_child(vender)
 
-	# La tercera salida (cerrar sin elegir), debajo de la rareza.
-	var hint := UIKit.label_at("ESPACIO PARA DEJARLO EN LA MESA",
+	# El atajo del teclado, debajo de la rareza.
+	var hint := UIKit.label_at("ESPACIO PARA GUARDAR",
 			Vector2(SHOWCASE.get_center().x, SHOWCASE.end.y + 148), Vector2(560, 32),
 			21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	_card.add_child(hint)
@@ -397,29 +387,10 @@ func armed() -> bool:
 	return Time.get_ticks_msec() >= _armed_at
 
 
-## La lupa: solo si esta lista. Si recarga, avisa y no cierra la tarjeta.
-func _reroll() -> void:
-	if not armed():
-		return
-	if not Game.ability_ready(Gameplay.ABIL_APPRAISE):
-		Sound.play("sfx_error")
-		Game.notice.emit("LA LUPA SE ESTA RECARGANDO: %d S"
-			% ceili(Game.ability_left(Gameplay.ABIL_APPRAISE)), Palette.RUST_L)
-		return
-	_finish(ACTION_REROLL)
-
-
 ## Dinero ahora.
 func _sell() -> void:
 	if armed():
 		_finish(ACTION_SELL)
-
-
-## Cerrar sin elegir: el objeto se queda en la mesa, donde se puede mover y
-## vender con un clic, como cualquier otro botin.
-func _dismiss() -> void:
-	if armed():
-		_finish(ACTION_LATER)
 
 
 func _finish(action: String) -> void:
@@ -428,8 +399,8 @@ func _finish(action: String) -> void:
 
 
 ## Un clic fuera de los botones YA NO CIERRA la tarjeta: era el que la cerraba sin
-## verla al hacer spam. Se come el clic (no pasa a la mesa) y ya esta; para dejar
-## el objeto en la mesa esta ESPACIO, escrito en la propia tarjeta.
+## verla al hacer spam. Se come el clic (no pasa a la mesa) y ya esta; para
+## guardar sin apuntar al boton esta ESPACIO, escrito en la propia tarjeta.
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		accept_event()
@@ -445,5 +416,5 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_accept") or event.is_action_pressed("ui_cancel"):
-		_dismiss()
+		_store()
 		get_viewport().set_input_as_handled()

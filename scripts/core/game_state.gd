@@ -127,7 +127,7 @@ var autostore_kinds: Array = []
 var autostore_grades: Array = []
 var autostore_rarities: Array = []
 ## Cuando sale la FICHA del objeto: "always" con cada objeto, "good" solo con
-## lo que merece pararse (ver card_worth) y "never" nunca (cae en la mesa).
+## lo epico y lo legendario (ver card_worth) y "never" nunca (se vende solo).
 const CARD_MODES: Array = ["always", "good", "never"]
 var card_mode: String = "good"
 var music_volume: float = 0.7
@@ -178,6 +178,14 @@ var happy: Dictionary = {}          # {kind, left}
 var cooldowns: Dictionary = {}      # id de habilidad -> segundos que le faltan
 var charged_next: bool = false
 var frenzy_left: float = 0.0
+## Segundos que le quedan a la GOLDEN RAIN (ver Gameplay.RAIN_TIME). Mientras es
+## mas que 0, los sobres que se compran salen marcados (ver game.gd, _buy_pack).
+var rain_left: float = 0.0
+## Los items de la tienda con la compra automatica APAGADA a mano (boton AUTO).
+## Se guarda lo apagado y no lo encendido: al comprar un nodo de compra
+## automatica sus items empiezan comprandose solos, que es para lo que se compra.
+## Es de la cuenta, como el filtro del auto guardar: el rebirth no lo toca.
+var auto_items_off: Array = []
 ## Golpes perfectos seguidos (ver Gameplay.STREAK_STEP). Es de este rato de juego.
 var streak: int = 0
 var _rng_play := RandomNumberGenerator.new()
@@ -647,6 +655,7 @@ func do_rebirth() -> int:
 	happy = {}
 	charged_next = false
 	frenzy_left = 0.0
+	rain_left = 0.0
 	_fill_missions()
 	money = start_money()
 	items = []
@@ -825,6 +834,50 @@ func buy_item(index: int) -> bool:
 	return true
 
 
+# --- la compra automatica de la tienda (nodos APRENDIZ, AMULETO y ENCARGADO) --- #
+
+## ¿Tiene este item su nodo de compra automatica comprado? (ver SkillTree.AUTO_ITEMS)
+func item_auto_unlocked(index: int) -> bool:
+	var item_id := str(LootDB.item_at(index)["id"])
+	for node in SkillTree.AUTO_ITEMS:
+		if (SkillTree.AUTO_ITEMS[node] as Array).has(item_id):
+			return skill_owned(str(node))
+	return false
+
+
+## ¿Se esta comprando solo? Desbloqueado y sin apagar con el boton AUTO.
+func item_auto_on(index: int) -> bool:
+	return item_auto_unlocked(index) 			and not auto_items_off.has(str(LootDB.item_at(index)["id"]))
+
+
+func set_item_auto(index: int, on: bool) -> void:
+	var item_id := str(LootDB.item_at(index)["id"])
+	auto_items_off.erase(item_id)
+	if not on:
+		auto_items_off.append(item_id)
+	_dirty = true
+	items_changed.emit()
+
+
+## El item que toca comprar solo: EL MAS BARATO de los que tienen el AUTO puesto y
+## aun suben. Devuelve -1 si no hay ninguno. No mira si llega el dinero a
+## proposito: si el mas barato no llega, se espera a el en vez de saltar a uno
+## mas caro (asi se reparte, que es lo que se pidio: primero lo barato).
+func auto_item_pick() -> int:
+	var best := -1
+	var best_cost := 0
+	for i in LootDB.item_count():
+		if not item_auto_on(i):
+			continue
+		var cost := item_cost(i)
+		if cost < 0:
+			continue
+		if best < 0 or cost < best_cost:
+			best = i
+			best_cost = cost
+	return best
+
+
 # --------------------------------------------------------------------------- #
 # Apertura de paquetes: vida, dano y estadisticas de los items
 # --------------------------------------------------------------------------- #
@@ -970,6 +1023,7 @@ func _tick_play(delta: float) -> void:
 	if cambio:
 		events_changed.emit()
 	frenzy_left = maxf(0.0, frenzy_left - delta)
+	rain_left = maxf(0.0, rain_left - delta)
 	var listas := false
 	for id in cooldowns.keys():
 		cooldowns[id] = float(cooldowns[id]) - delta
@@ -1011,10 +1065,15 @@ func ability_left(id: String) -> float:
 	return float(cooldowns.get(id, 0.0))
 
 
+## Lo que dura la GOLDEN RAIN: lo de serie y, con TORMENTA DORADA, mas.
+func rain_time() -> float:
+	return Gameplay.RAIN_TIME 			+ (Gameplay.RAIN_EXTRA if skill_owned(SkillTree.RAIN_PLUS) else 0.0)
+
+
 ## Gasta una habilidad (la pone a recargar). Devuelve false si no se puede usar.
 ## Lo que HACE cada una lo hace quien la usa: el golpe cargado lo cobra el
 ## siguiente golpe (take_charged), el frenesi lo mira la mesa (frenzy_left) y la
-## lupa la aplica la tarjeta de revelado (regrade).
+## golden rain la mira la compra de sobres (rain_left).
 func use_ability(id: String) -> bool:
 	if not ability_ready(id):
 		return false
@@ -1024,6 +1083,8 @@ func use_ability(id: String) -> bool:
 		charged_next = true
 	elif id == Gameplay.ABIL_FRENZY:
 		frenzy_left = Gameplay.FRENZY_TIME
+	elif id == Gameplay.ABIL_RAIN:
+		rain_left = rain_time()
 	abilities_changed.emit()
 	return true
 
@@ -1225,7 +1286,8 @@ static func _clean_table(raw) -> Array:
 				continue
 			var max_hp := float(LootDB.pack_hp(pack_id))
 			out.append({"pack": pack_id,
-				"hp": clampf(float(d.get("hp", max_hp)), 1.0, max_hp)})
+				"hp": clampf(float(d.get("hp", max_hp)), 1.0, max_hp),
+				"rain": bool(d.get("rain", false))})
 		elif d.has("loot") and typeof(d["loot"]) == TYPE_DICTIONARY:
 			var item: Dictionary = d["loot"]
 			if int(item.get("value", 0)) > 0:
@@ -1363,19 +1425,19 @@ func set_card_mode(mode: String) -> void:
 	settings_changed.emit()
 
 
-## ¿Merece este objeto la ficha grande? En "good": rareza rara o mejor, nota 8 o
-## mas, o la primera vez que sale (`is_new`, nuevo en la libreta).
-func card_worth(item: Dictionary, is_new: bool) -> bool:
+## ¿Merece este objeto la ficha grande? En "good" (LO BUENO): solo si es EPICO o
+## LEGENDARIO. La nota PSA no cuenta: la partida se para por la rareza, no por la
+## nota.
+func card_worth(item: Dictionary) -> bool:
 	match card_mode:
 		"always":
 			return true
 		"never":
 			return false
-	return str(item.get("rarity", "common")) != "common" \
-			or int(item.get("grade", 0)) >= CARD_GOOD_GRADE or is_new
+	return CARD_GOOD_RARITIES.has(str(item.get("rarity", "common")))
 
 
-const CARD_GOOD_GRADE := 8
+const CARD_GOOD_RARITIES: Array = ["epic", "legendary"]
 
 
 # --------------------------------------------------------------------------- #
@@ -1420,6 +1482,8 @@ func hard_reset() -> void:
 	charged_next = false
 	streak = 0
 	frenzy_left = 0.0
+	rain_left = 0.0
+	auto_items_off = []
 	_dirty = true
 	play_seconds = 0.0
 	rebirth_count = 0
@@ -1446,6 +1510,7 @@ func to_dict() -> Dictionary:
 		"auto_open": auto_open,
 		"auto_buy": auto_buy,
 		"auto_buy_packs": auto_buy_packs,
+		"auto_items_off": auto_items_off,
 		"auto_sell": auto_sell,
 		"autostore_on": autostore_on,
 		"autostore_kinds": autostore_kinds,
@@ -1577,6 +1642,11 @@ func _apply(d: Dictionary) -> void:
 				auto_buy_packs.append(pack_id)
 	else:
 		auto_buy_packs = _all_pack_ids()
+	auto_items_off = []
+	if typeof(d.get("auto_items_off")) == TYPE_ARRAY:
+		for item_id in d["auto_items_off"]:
+			if LootDB.item_index(str(item_id)) >= 0:
+				auto_items_off.append(str(item_id))
 	auto_sell = bool(d.get("auto_sell", false))
 	# El auto guardar: un guardado de antes no trae nada y sale lo de serie. Las
 	# listas se limpian contra lo que existe (JSON devuelve las notas como float).

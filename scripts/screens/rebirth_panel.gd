@@ -161,11 +161,16 @@ const NODE_TEXT_MAX_W := 440.0
 ## entero, rotulo incluido, no cabe entre la barra y el borde del panel.
 const CENTER_Y := TREE_TOP + SkillTree.SEP.y + NODE * 0.5
 
-## Las lineas que unen los nodos, por estado del camino.
-const LINK_W := 12.0
-const LINK_DIM := Color(0.36, 0.32, 0.45)
-const LINK_OPEN := Color(Palette.GOLD_D)
-const LINK_DONE := Color(Palette.GOLD_XL)
+## LAS LINEAS QUE UNEN LOS NODOS, EN PIXEL ART: una escalera de celdas de
+## LINK_CELL px (4 pixeles de arte) con su contorno oscuro y un filo de luz arriba,
+## como los sprites del juego, y no una raya lisa de las de marcar. Azules, por
+## estado del camino: azul noche el cerrado, azul el que ya se puede comprar y
+## celeste el comprado.
+const LINK_CELL := 12.0
+const LINK_EDGE := 3.0
+const LINK_DIM := Color8(44, 52, 92)
+const LINK_OPEN := Color8(58, 112, 196)
+const LINK_DONE := Color8(104, 188, 248)
 
 ## Cuanto se puede mover el arbol: al menos esto de su dibujo tiene que quedar
 ## dentro de la vista. Sin tope se puede lanzar fuera y quedarse mirando un
@@ -185,8 +190,12 @@ const DRAG_SLOP := 12.0
 ## tres anillos de los caminos con la letra mas grande.
 ## El 1/4 se anadio con los finales de camino: el arbol ya no cabia entero a 1/3.
 ## A ese tamano la letra no es nitida; es la vista de "donde esta cada cosa".
-const ZOOM_STEPS: Array[float] = [0.25, 1.0 / 3.0, 0.5, 2.0 / 3.0, 1.0, 4.0 / 3.0, 5.0 / 3.0]
-const ZOOM_DEFAULT := 4
+## Y el 1/5 con FABRICA al fondo de la rama de abajo (debajo de la compra
+## automatica), y el 1/6 con LEYENDA grande y arriba del todo: a 1/5 ya no cabia
+## de LEYENDA a FABRICA.
+const ZOOM_STEPS: Array[float] = [1.0 / 6.0, 0.2, 0.25, 1.0 / 3.0, 0.5, 2.0 / 3.0, 1.0,
+		4.0 / 3.0, 5.0 / 3.0]
+const ZOOM_DEFAULT := 6
 ## Las dos lupas: una encima de la otra, en la esquina de abajo a la derecha de
 ## la vista, que es la unica que no tapa ni la barra ni la cruz de cerrar.
 const ZOOM_SIDE := 72.0
@@ -222,6 +231,10 @@ class TreeLines extends Control:
 		if panel == null:
 			return
 		for n in SkillTree.NODES:
+			# LEYENDA no se une con nada: corona el arbol entero (pide todos los
+			# nodos) y treinta y tantas lineas hasta ella serian una maraña.
+			if str(n["id"]) == SkillTree.LEGEND:
+				continue
 			for req in SkillTree.reqs_of(str(n["id"])):
 				var base := SkillTree.node_by_id(str(req))
 				if base.is_empty():
@@ -402,10 +415,37 @@ func _build_node(node: Dictionary) -> Dictionary:
 	}
 
 
-## Una linea entre dos nodos, con el color de lo que se puede hacer con ese
-## camino (ver link_color).
+## Una linea entre dos nodos, en pixel art y con el color de lo que se puede
+## hacer con ese camino (ver link_color): primero el contorno de todas las celdas,
+## luego el relleno y luego el filo de luz, para que las celdas de una misma linea
+## se fundan en una sola tira.
 func _draw_link(canvas: CanvasItem, from: Vector2, to: Vector2, id: String) -> void:
-	canvas.draw_line(from, to, link_color(id), LINK_W, false)
+	var fill := link_color(id)
+	var light := fill.lightened(0.35)
+	var cells := link_cells(from, to)
+	var cell := Vector2.ONE * LINK_CELL
+	for p in cells:
+		canvas.draw_rect(Rect2(p - Vector2.ONE * LINK_EDGE, cell + Vector2.ONE * LINK_EDGE * 2.0),
+				Palette.OUTLINE)
+	for p in cells:
+		canvas.draw_rect(Rect2(p, cell), fill)
+	for p in cells:
+		canvas.draw_rect(Rect2(p, Vector2(LINK_CELL, LINK_EDGE)), light)
+
+
+## Las celdas de la rejilla (esquina de arriba a la izquierda) por las que pasa la
+## linea: una escalera, que es como se dibuja una diagonal en pixel art.
+static func link_cells(from: Vector2, to: Vector2) -> Array:
+	var out: Array = []
+	var vistas := {}
+	var pasos := maxi(1, ceili(from.distance_to(to) / (LINK_CELL * 0.5)))
+	for i in pasos + 1:
+		var p := from.lerp(to, float(i) / float(pasos)) - Vector2.ONE * LINK_CELL * 0.5
+		var celda := (p / LINK_CELL).round() * LINK_CELL
+		if not vistas.has(celda):
+			vistas[celda] = true
+			out.append(celda)
+	return out
 
 
 ## El color de la linea de un camino: dorado el comprado, ambar el que ya se
@@ -529,6 +569,8 @@ func _on_view_input(event: InputEvent) -> void:
 ## hay ninguno. Las cajas no se solapan: SkillTree.SEP es mayor que NODE.
 func _node_at(tree_pos: Vector2) -> String:
 	for id in _nodes:
+		if not node_shown(str(id)):
+			continue
 		var half := NODE * 0.5 * SkillTree.scale_of(str(id))
 		var center: Vector2 = _nodes[id]["center"]
 		if absf(tree_pos.x - center.x) <= half and absf(tree_pos.y - center.y) <= half:
@@ -779,9 +821,18 @@ func refresh() -> void:
 	_place_line(_hint_label, ROW_HINT)
 
 
+## ¿Se dibuja este nodo? Todos, menos LEYENDA hasta que se puede comprar (o sea,
+## hasta tener todo lo demas) o ya es tuya.
+static func node_shown(id: String) -> bool:
+	if id != SkillTree.LEGEND:
+		return true
+	return Game.skill_owned(id) or Game.skill_unlocked(id)
+
+
 ## Pinta un nodo entero segun lo que se puede hacer con el.
 func _paint_node(id: String) -> void:
 	var node: Dictionary = _nodes[id]
+	(node["view"] as Control).visible = node_shown(id)
 	var state := _state_of(id)
 	var cost: PixelNumber = node["cost"]
 	var done: Label = node["done"]

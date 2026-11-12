@@ -83,7 +83,7 @@ func _volcar_caso(nombre: String, pack: String, nota: int, item_id: String = "")
 	await _wait(0.7)
 	print("  volcando %s -> %s nota %d" % [nombre, card.item["art"], card.item["grade"]])
 	await _shot(nombre)
-	card._dismiss()
+	card._store()
 	await _frames(3)
 	await _wait(0.3)
 
@@ -219,7 +219,7 @@ func _run() -> void:
 		# (que se come 150 px de arriba): mas arriba se corta el ultimo rotulo, y
 		# mas abajo se cuelan los nodos por debajo de la barra.
 		hucha._set_offset(Vector2(hucha._offset.x, hucha.BAR_H
-			- (float(SkillTree.node_by_id(SkillTree.QOL_TABLE)["pos"].y) - hucha.NODE * 0.5)))
+			- (float(SkillTree.node_by_id(SkillTree.QOL_AUTO_TOOLS)["pos"].y) - hucha.NODE * 0.5)))
 		await _frames(3)
 		await _shot("03g_arbol_calidad")
 		hucha._close()
@@ -285,10 +285,10 @@ func _run() -> void:
 	await _wait(1.2)
 	await _shot("05_table")
 
-	# La mesa con objetos de verdad repartidos: es donde se ve si el sorteo de
-	# sitio los reparte o los apila, y si la mesa tiene superficie.
+	# La mesa llena de sobres repartidos (la mitad de la GOLDEN RAIN, con su
+	# brillo holo): es donde se ve si el sorteo de sitio los reparte o los apila.
 	for i in 5:
-		g._spawn_loot(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
+		g._spawn_pack("cards", i % 2 == 0)
 	await _wait(1.2)
 	await _shot("05b_mesa_llena")
 
@@ -321,7 +321,7 @@ func _run() -> void:
 	g._spawn_pack("cards")
 	g._spawn_pack("electronics")
 	for i in 5:
-		g._spawn_loot(LootDB.roll_pack(RandomNumberGenerator.new(), "cards"))
+		g._spawn_pack("cards", i % 2 == 0)
 	await _wait(1.2)
 
 	# Apertura a media carga, para ver el anillo
@@ -373,7 +373,7 @@ func _run() -> void:
 	await _wait(3.5)
 	await _shot("07_reveal")
 	if g._reveal != null:
-		g._reveal._dismiss()
+		g._reveal._store()
 	await _frames(4)
 	await _wait(1.0)
 
@@ -437,8 +437,19 @@ func _run() -> void:
 			["20_bolsillo", "electronics", "pwt_l"]]:
 		await _volcar_caso(caso[0], caso[1], 8, caso[2])
 
-	# Tienda con dinero para ver las herramientas
+	# Tienda con dinero para ver las herramientas, y con APRENDIZ y AMULETO
+	# comprados para que salgan los botones AUTO (el del trebol, apagado).
+	# Sin sobres en la mesa ni tarjeta abierta: un sobre que se rompiera a
+	# mitad de la captura sacaria su tarjeta encima de la tienda.
+	for e in g._elements.duplicate():
+		g._remove_from_table(e)
+	g._reveal_queue.clear()
+	if g._reveal != null:
+		g._reveal._finish(RevealCard.ACTION_STORE)
+	await _frames(3)
 	Game.money = 5000000
+	Game.skills = {SkillTree.QOL_AUTO_TOOLS: 1, SkillTree.QOL_AUTO_LUCK: 1}
+	Game.set_item_auto(LootDB.item_index("trebol"), false)
 	g._open_shop()
 	await _frames(4)
 	await _shot("09_shop_lleno")
@@ -475,7 +486,7 @@ func _run() -> void:
 		await _frames(2)
 		Game.money = 60000
 		Game.note_pack_bought("electronics", 3800)
-		for id in [Gameplay.ABIL_CHARGE, Gameplay.ABIL_FRENZY, Gameplay.ABIL_APPRAISE]:
+		for id in [Gameplay.ABIL_CHARGE, Gameplay.ABIL_FRENZY, Gameplay.ABIL_RAIN]:
 			Game.skills[id] = 1
 		Game.cooldowns = {Gameplay.ABIL_FRENZY: 52.0}
 		Game.abilities_changed.emit()
@@ -486,7 +497,7 @@ func _run() -> void:
 		var cargando: TableElement = g._spawn_pack("electronics")
 		g._spawn_pack("sneakers")
 		for i in 3:
-			g._spawn_loot(LootDB.roll_pack(RandomNumberGenerator.new(), "vinyls"))
+			g._spawn_pack("vinyls", i % 2 == 0)
 		await _wait(0.8)
 		cargando.start_opening()
 		# A mano en el 90 % del anillo, que es donde se ve en oro (la zona del golpe
@@ -522,13 +533,14 @@ func _run() -> void:
 		g._close_libreta()
 		await _frames(3)
 
-		# LA LUPA DEL TASADOR en la tarjeta de revelado.
-		var tasable: Dictionary = LootDB.roll_pack(RandomNumberGenerator.new(), "vinyls")
-		g._show_card(tasable, null)
-		await _wait(0.9)
-		await _shot("26_tasador")
+		# UN OBJETO HOLO (GOLDEN RAIN) en la tarjeta de revelado.
+		var holo: Dictionary = Gameplay.make_holo(
+				LootDB.roll_pack(RandomNumberGenerator.new(), "vinyls"))
+		g._reveal_item(holo)
+		await _wait(3.5)
+		await _shot("26_holo")
 		if g._reveal != null:
-			g._reveal._dismiss()
+			g._reveal._store()
 		await _frames(3)
 
 	print("capturas listas")

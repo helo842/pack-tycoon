@@ -1,6 +1,6 @@
 # AutoStorePanel - el filtro del AUTO GUARDAR.
 #
-# Un boton por cada valor que se puede guardar: los cuatro TIPOS, las diez notas
+# Un boton por cada valor que se puede guardar: los cinco TIPOS, las diez notas
 # PSA y las cuatro RAREZAS. Cada boton se enciende y se apaga por separado, asi
 # que se puede pedir "solo PSA 2 y PSA 10" o "solo vinilos". Un objeto se guarda
 # si su tipo, su nota y su rareza estan encendidos (las tres filas); si no, se
@@ -21,13 +21,18 @@ const ROW_KIND_Y := 400.0
 const ROW_GRADE_Y := 560.0
 const ROW_RARITY_Y := 700.0
 const HINT_Y := 850.0
-## Tipos y rarezas: cuatro chapas de 260 cada 280. Notas: diez de 104 cada 116.
-const WIDE_X0 := 620.0
-const WIDE_STEP := 280.0
-const WIDE_W := 260.0
-const NARROW_X0 := 560.0
-const NARROW_STEP := 116.0
+## Las tres filas empiezan en el mismo borde (ROW_X0) y no pasan de ROW_X1, que
+## queda dentro del interior del panel (hasta 1696). Tipos y rarezas: chapas de
+## 216 cada 236 (los cinco tipos ocupan 1160 px); notas: diez de 104 cada 116.
+## Con chapas de 260 cada 280 los cinco tipos se salian del panel por la derecha.
+const ROW_X0 := 480.0
+const ROW_X1 := 1640.0
+const WIDE_W := 216.0
+const WIDE_STEP := 236.0
+const WIDE_X0 := ROW_X0 + WIDE_W * 0.5
 const NARROW_W := 104.0
+const NARROW_STEP := 116.0
+const NARROW_X0 := ROW_X0 + NARROW_W * 0.5
 ## Un boton apagado se ve gris: encendido o no es lo unico que dice.
 const OFF := Color(0.42, 0.42, 0.5, 1.0)
 
@@ -45,7 +50,7 @@ func _ready() -> void:
 	close.pressed.connect(_close)
 	add_child(close)
 
-	# UN tamano de letra para los ocho botones anchos: con uno por boton,
+	# UN tamano de letra para los nueve botones anchos: con uno por boton,
 	# ZAPATILLAS y LEGENDARIO salian a la mitad que CARTAS y se leia como un fallo.
 	var kinds := LootDB.kind_ids()
 	var rarezas: Array = Palette.RARITY_ORDER

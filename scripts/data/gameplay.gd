@@ -158,7 +158,7 @@ const NEAR_MISS_CHANCE := 0.25
 
 const ABIL_CHARGE := "abil_charge"
 const ABIL_FRENZY := "abil_frenzy"
-const ABIL_APPRAISE := "abil_appraise"
+const ABIL_RAIN := "abil_rain"
 
 ## Las tres, en el orden de la barra (y de las teclas 1, 2 y 3).
 const ABILITIES: Array = [
@@ -168,12 +168,23 @@ const ABILITIES: Array = [
 	{"id": ABIL_FRENZY, "name": "FRENESI", "art": "skill_lightning",
 		"cooldown": 90.0,
 		"desc": "8 S: TODOS LOS SOBRES DE LA MESA SE GOLPEAN SOLOS"},
-	{"id": ABIL_APPRAISE, "name": "LUPA DEL TASADOR", "art": "ui_icon_zoom_in",
-		"cooldown": 75.0,
-		"desc": "EN LA TARJETA: VUELVE A TIRAR LA NOTA DEL OBJETO"},
+	{"id": ABIL_RAIN, "name": "GOLDEN RAIN", "art": "currency_coins",
+		"cooldown": 80.0,
+		"desc": "10 S: LOS SOBRES QUE COMPRES PUEDEN TRAER OBJETOS HOLO"},
 ]
 const CHARGE_MULT := 5.0
 const FRENZY_TIME := 8.0
+
+## GOLDEN RAIN: mientras dura, cada sobre que se COMPRA (a mano o con el PC) queda
+## marcado, y cada objeto que salga de el tiene RAIN_HOLO_CHANCE de salir HOLO:
+## brilla y vale HOLO_MULT veces mas. Se marca el sobre y no el momento de abrirlo
+## porque lo que se pidio es "las que compras nuevas": un sobre comprado en la
+## lluvia trae su suerte aunque se rompa despues. El nodo TORMENTA DORADA del
+## arbol le suma RAIN_EXTRA segundos.
+const RAIN_TIME := 10.0
+const RAIN_EXTRA := 10.0
+const RAIN_HOLO_CHANCE := 0.30
+const HOLO_MULT := 2.0
 
 # --------------------------------------------------------------------------- #
 # El album: colecciones
@@ -354,6 +365,22 @@ static func ability(id: String) -> Dictionary:
 		if str(a["id"]) == id:
 			return a
 	return {}
+
+
+## El objeto en su version HOLO (GOLDEN RAIN): marcado para que brille y con el
+## valor por HOLO_MULT. Una copia: el original no cambia. Uno que ya es holo no
+## se dobla otra vez.
+static func make_holo(item: Dictionary) -> Dictionary:
+	var out := item.duplicate(true)
+	if bool(item.get("holo", false)):
+		return out
+	out["holo"] = true
+	out["value"] = maxi(1, roundi(float(item.get("value", 0)) * HOLO_MULT))
+	return out
+
+
+static func is_holo(item: Dictionary) -> bool:
+	return bool(item.get("holo", false))
 
 
 static func set_by_id(id: String) -> Dictionary:

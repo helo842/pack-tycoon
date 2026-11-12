@@ -678,3 +678,35 @@ static func shake(node: CanvasItem) -> void:
 	var tw := node.create_tween()
 	for off in [10.0, -8.0, 6.0, -4.0, 0.0]:
 		tw.tween_property(node, "position:x", x0 + off, 0.04)
+
+
+## EL BRILLO HOLO (GOLDEN RAIN): un arcoiris que barre el dibujo en diagonal y un
+## destello blanco que pasa por encima, solo donde el sprite tiene tinta. Va como
+## material del dibujo, asi que sirve igual en la tarjeta, el inventario, la
+## vitrina o un sobre de la mesa. Un solo Shader para todos.
+const HOLO_SHADER := """
+shader_type canvas_item;
+uniform float strength = 0.5;
+vec3 hue(float h) {
+	return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+}
+void fragment() {
+	vec4 c = texture(TEXTURE, UV) * COLOR;
+	vec3 rainbow = hue(fract(UV.x * 1.4 + UV.y - TIME * 0.5));
+	float band = pow(0.5 + 0.5 * sin((UV.x + UV.y) * 8.0 - TIME * 3.0), 8.0);
+	c.rgb = mix(c.rgb, c.rgb * 0.55 + rainbow * 0.65, strength) + vec3(band * 0.45);
+	COLOR = c;
+}
+"""
+static var _holo_shader: Shader = null
+
+
+static func holo(node: CanvasItem) -> void:
+	if node == null:
+		return
+	if _holo_shader == null:
+		_holo_shader = Shader.new()
+		_holo_shader.code = HOLO_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = _holo_shader
+	node.material = m

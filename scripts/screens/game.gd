@@ -204,6 +204,9 @@ const SPOT_PAD := 16.0
 
 ## Cada cuanto se aplica el dano de los Pinchos a la mesa (segundos).
 const SPIKE_TICK := 0.25
+## Cada cuanto compra sola la tienda (un nivel cada vez): lo bastante lento para
+## que se vea cada compra y no se vacie el dinero de golpe en un frame.
+const AUTO_ITEMS_EVERY := 0.5
 
 var _table: Control
 var _fx: Control
@@ -236,7 +239,6 @@ var _auto_open_btn: Button = null
 var _auto_buy_btn: Button = null
 var _locker_btn: Button = null
 var _rebirth_btn: Button = null
-var _sell_btn: Button = null
 var _rng := RandomNumberGenerator.new()
 
 ## Los paquetes que el jugador ha empezado a abrir y que siguen en la mesa.
@@ -254,14 +256,14 @@ var _worked: Array = []
 ## los Pinchos otra vez en marcha por debajo. Lo que sale con una tarjeta abierta
 ## espera aqui su turno.
 var _reveal_queue: Array = []
-## El objeto de la tarjeta abierta y su elemento en la mesa (null si no cabia).
-## Hacen falta para la foto de la mesa (ver _snapshot_table): un objeto que no
-## cabia en la mesa solo existe en la tarjeta, y cerrar el juego con ella abierta
-## no puede tirarlo.
+## El objeto de la tarjeta abierta. Hace falta para la foto de la mesa (ver
+## _snapshot_table): solo existe en la tarjeta, y cerrar el juego con ella
+## abierta no puede tirarlo.
 var _reveal_data: Dictionary = {}
-var _reveal_el: TableElement = null
 
 var _buy_timer := 0.0
+## El reloj de la compra automatica de la tienda (ver _auto_items_step).
+var _items_timer := 0.0
 var _spike_timer := 0.0
 ## Los relojes que hacen APARECER los eventos (ver Gameplay). Solo corren con la
 ## mesa a la vista (ver _events_step).
@@ -285,7 +287,6 @@ var _abil_buttons: Array = []
 ## LIMPIA. Se lleva por elemento y no se le pregunta al elemento porque el reloj
 ## es de la pantalla: el objeto no sabe si el jugador esta mirando su ficha o
 ## comprando, y los dos son motivos para no venderlo.
-var _loot_age := {}
 
 
 func _ready() -> void:
@@ -665,11 +666,6 @@ func _build_top_bar() -> void:
 	_locker_btn.pressed.connect(_open_locker)
 	add_child(_locker_btn)
 
-	_sell_btn = UIKit.small_button("VENDER", "", Vector2(1156, 58), 200, 21,
-			"ui_button_sell", "ui_button_sell")
-	_sell_btn.pressed.connect(_sell_all_table)
-	add_child(_sell_btn)
-
 	var shop := UIKit.small_button("TIENDA", "ui_icon_shop", Vector2(1400, 58), 256, 32)
 	shop.pressed.connect(_open_shop)
 	add_child(shop)
@@ -853,11 +849,8 @@ func _add_element(el: TableElement) -> void:
 	# estan los demas, y el que se esta colocando todavia no esta.
 	var rest := _free_spot()
 	_elements.append(el)
-	if el.is_loot():
-		_loot_age[el] = 0.0
 	el.bounds = TABLE_RECT
 	el.opened.connect(_on_element_opened.bind(el))
-	el.sold.connect(_on_element_sold.bind(el))
 	el.damaged.connect(_on_element_damaged.bind(el))
 	el.perfect_hit.connect(_on_perfect_hit.bind(el))
 	el.early_click.connect(_on_early_click.bind(el))
@@ -937,7 +930,6 @@ func _burst(at: Vector2, color: Color, amount: int) -> void:
 
 func _drop_element(el: TableElement) -> void:
 	_elements.erase(el)
-	_loot_age.erase(el)
 	# El que se estaba trabajando suelta el turno al salir de la mesa: es lo que
 	# deja empezar con otro (ver _on_open_requested).
 	_worked.erase(el)
@@ -948,24 +940,22 @@ func _drop_element(el: TableElement) -> void:
 # La mesa guardada
 # --------------------------------------------------------------------------- #
 
-## La foto de la mesa para el guardado: cada sobre con la vida que le queda y cada
-## botin sin vender. Tambien entra lo que esta esperando tarjeta y el objeto de la
-## tarjeta abierta si no cabia en la mesa: los dos existen y no estan en ningun
-## otro sitio del guardado.
+## La foto de la mesa para el guardado: cada sobre con la vida que le queda (y si
+## lo trajo la GOLDEN RAIN). Tambien entra el objeto de la tarjeta abierta y los
+## que esperan tarjeta: existen y no estan en ningun otro sitio del guardado (al
+## volver se guardan en el inventario, ver _restore_table).
 func _snapshot_table() -> Array:
 	var out: Array = []
 	for el in _elements:
 		if not is_instance_valid(el):
 			continue
-		if el.is_loot():
-			out.append({"loot": (el.loot as Dictionary).duplicate(true)})
-		elif el.boss:
+		if el.boss:
 			# El jefe es un evento con reloj: no vuelve con la mesa guardada (volveria
 			# como un sobre normal con la vida de un jefe).
 			continue
-		else:
-			out.append({"pack": str(el.pack.get("id", "cards")), "hp": maxf(1.0, el.hp)})
-	if not _reveal_data.is_empty() and (_reveal_el == null or not _elements.has(_reveal_el)):
+		out.append({"pack": str(el.pack.get("id", "cards")), "hp": maxf(1.0, el.hp),
+				"rain": el.rain})
+	if not _reveal_data.is_empty():
 		out.append({"loot": _reveal_data.duplicate(true)})
 	for item in _reveal_queue:
 		out.append({"loot": (item as Dictionary).duplicate(true)})
@@ -979,24 +969,26 @@ func _restore_table() -> void:
 	for entry in saved:
 		var d: Dictionary = entry
 		if d.has("pack"):
-			var el := _spawn_pack(str(d["pack"]))
+			var el := _spawn_pack(str(d["pack"]), bool(d.get("rain", false)))
 			el.set_hp(float(d.get("hp", el.max_hp)))
 		elif d.has("loot"):
-			_spawn_loot(d["loot"])
+			# Un objeto que se quedo a medio decidir (o, en un guardado de antes, que
+			# estaba tirado en la mesa): la mesa ya no guarda objetos, asi que va al
+			# inventario. Con el inventario lleno, store() lo vende y avisa.
+			Game.store(d["loot"])
 
 
 ## La mesa se vacia sin cobrar nada: un rebirth o un reinicio (ver
 ## Game.table_reset). Los elementos salen de la lista EN EL ACTO, antes de que se
 ## borren de verdad, para que el guardado que viene detras ya no los vea y para
 ## que una venta o una apertura a medias no pueda pagar en la partida nueva (ver
-## los guardas de _on_element_opened y _on_element_sold).
+## el guarda de _on_element_opened).
 func _clear_table() -> void:
 	for el in _elements:
 		if is_instance_valid(el):
 			el.queue_free()
 	_elements.clear()
 	_worked.clear()
-	_loot_age.clear()
 	_reveal_queue.clear()
 	_combo = 0
 	_combo_left = 0.0
@@ -1004,19 +996,12 @@ func _clear_table() -> void:
 	_refresh_top()
 
 
-func _spawn_pack(pack_id: String) -> TableElement:
+## `rain`: comprado durante la GOLDEN RAIN (ver TableElement.rain). Va antes de
+## meterlo en la mesa porque el brillo se monta al entrar.
+func _spawn_pack(pack_id: String, rain: bool = false) -> TableElement:
 	var el := TableElement.new()
 	el.setup_pack(LootDB.pack_by_id(pack_id))
-	_add_element(el)
-	return el
-
-
-## Crea el botin en la mesa y DEVUELVE el elemento: quien lo pide lo necesita
-## para poder venderlo o quitarlo despues (la tarjeta de revelado, sin ir mas
-## lejos, decide sobre el objeto que ya esta puesto).
-func _spawn_loot(item: Dictionary) -> TableElement:
-	var el := TableElement.new()
-	el.setup_loot(item)
+	el.rain = rain
 	_add_element(el)
 	return el
 
@@ -1102,7 +1087,7 @@ func _buy_pack(pack_id: String) -> void:
 	Game.note_pack_bought(pack_id, price)
 	Sound.play("sfx_buy")
 	UIKit.punch(cell.get("art"), 1.2)
-	_spawn_pack(pack_id)
+	_spawn_pack(pack_id, Game.rain_left > 0.0)
 
 
 ## La celda de la columna de un sobre (para animarla al comprar o al fallar).
@@ -1149,16 +1134,20 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 		while int(item["grade"]) < min_grade and vueltas < 200:
 			item = Game.regrade(item)
 			vueltas += 1
+		# LA GOLDEN RAIN: lo que sale de un sobre comprado en la lluvia puede salir
+		# HOLO (brilla y vale el doble).
+		if el.rain and _rng.randf() < Gameplay.RAIN_HOLO_CHANCE:
+			item = Gameplay.make_holo(item)
 		_deliver(item)
 
 
 ## Lo que se hace con un objeto recien salido de un sobre: la libreta y luego, en
-## este orden, el auto guardar, la venta automatica, la mesa sin ficha o la ficha.
+## este orden, el auto guardar, la venta automatica, la venta sin ficha o la ficha.
+##
+## NADA SE QUEDA EN LA MESA. Antes lo que no tenia ficha caia en la mesa y se
+## quedaba ahi hasta que alguien lo vendia (el "limbo"); ahora cada objeto acaba
+## en el inventario o vendido en el momento, y en la mesa solo hay sobres.
 func _deliver(item: Dictionary) -> void:
-	# ¿Es la primera vez que sale? Se mira ANTES de apuntarlo: register_found lo
-	# mete en la libreta y despues ya no seria nuevo (ver Game.card_worth).
-	var nuevo := Gameplay.album_items().has(Gameplay.album_key(item)) \
-			and not Game.album.has(Gameplay.album_key(item))
 	# Encontrado es una cosa y guardado es otra: se apunta aqui, cuando sale,
 	# porque a partir de este punto puede venderse sin pasar por el inventario.
 	Game.register_found(item)
@@ -1171,45 +1160,40 @@ func _deliver(item: Dictionary) -> void:
 	if Game.auto_sell:
 		_sell_quietly(item)
 		return
-	# LA FICHA SOLO PARA LO QUE MERECE PARARSE (Ajustes > FICHA): lo demas cae en
-	# la mesa con un rotulo pequeño y la partida no se para.
-	if not Game.card_worth(item, nuevo):
-		_drop_quietly(item)
+	# LA FICHA SOLO PARA LO QUE MERECE PARARSE (Ajustes > FICHA; en LO BUENO, lo
+	# epico y lo legendario): lo demas se vende con un rotulo pequeño y la partida
+	# no se para.
+	if not Game.card_worth(item):
+		_sell_with_label(item)
 		return
 	_reveal_item(item)
 
 
 ## El AUTO GUARDAR: lo que cumple el filtro va al inventario y lo demas se vende,
-## los dos sin ficha. Con el inventario lleno, lo que se queria guardar cae en la
-## mesa en vez de venderse: se pidio guardarlo, y venderlo seria perderlo.
+## los dos sin ficha. Con el inventario lleno, Game.store() lo vende y avisa: no
+## hay otro sitio donde dejarlo.
 func _autostore(item: Dictionary) -> void:
 	if not Game.autostore_wants(item):
 		_sell_quietly(item)
 		return
-	if Game.inventory_free():
-		Game.store(item)
+	if Game.store(item):
 		Sound.play("sfx_click")
-		_float_label("GUARDADO", _table_point(), Palette.CREAM)
-		return
-	if table_free():
-		_spawn_loot(item)
-		_float_label("INVENTARIO LLENO", _table_point(), Palette.RUST_L)
-		return
-	_sell_quietly(item)
+		_float_label("GUARDADO" + (" HOLO" if Gameplay.is_holo(item) else ""),
+				_table_point(), Palette.CREAM)
+	else:
+		Sound.play("sfx_sell")
 
 
-## Un objeto que no merece ficha: a la mesa con un rotulo que sube y se va
-## (nombre, nota y precio). Sin sitio en la mesa, se guarda; y si tampoco cabe,
-## Game.store() lo vende y avisa.
-func _drop_quietly(item: Dictionary) -> void:
+## Un objeto que no merece ficha: se vende en el momento, con un rotulo que sube
+## y se va (nombre, nota y precio) para que se sepa que ha salido.
+func _sell_with_label(item: Dictionary) -> void:
 	Sound.play("sfx_open")
-	if not table_free():
-		Game.store(item)
-		return
-	var el := _spawn_loot(item)
-	_float_label("%s  PSA %d  %s" % [str(item.get("name", "")), int(item.get("grade", 0)),
-			PixelNumber.format(int(item.get("value", 0)))],
-			el.rest_spot + Vector2(TableElement.BOX.x * 0.5, 20.0), Palette.CREAM)
+	var value := Game.payout(item)
+	Sound.play("sfx_sell")
+	var at := _table_point()
+	_float_label("%s%s  PSA %d" % ["HOLO " if Gameplay.is_holo(item) else "",
+			str(item.get("name", "")), int(item.get("grade", 0))], at, Palette.CREAM)
+	_float_text("+" + PixelNumber.format(value), at + Vector2(0, 40), Palette.GOLD_XL)
 
 
 ## Un rotulo de texto que sube y se desvanece (el de _float_text es de cifras).
@@ -1242,115 +1226,53 @@ func _reveal_item(item: Dictionary) -> void:
 	# se ensena, al final del suspense (ver RevealCard._reveal_now).
 	Sound.play("sfx_open")
 
-	# El objeto cae en la mesa ANTES de la tarjeta, asi que cuando se cierra ya
-	# esta puesto, en su sitio, y se puede mover y vender como cualquier otro.
-	# Y NO se guarda solo en el inventario: eso lo decide el boton GUARDAR o
-	# VENDER. Antes se hacia las dos cosas y el objeto acababa duplicado, en la
-	# mesa y en el inventario a la vez.
-	var el: TableElement = null
-	if table_free():
-		el = _spawn_loot(item)
-	_show_card(item, el)
-
-
-## La tarjeta de un objeto que ya esta en la mesa (o que no cabia: `el` null).
-## Va aparte de _reveal_item para que la LUPA DEL TASADOR pueda volver a ensenar
-## el mismo objeto con la nota nueva sin dejar otro en la mesa.
-func _show_card(item: Dictionary, el: TableElement) -> void:
+	# El objeto NO va a la mesa: la tarjeta solo se cierra eligiendo GUARDAR o
+	# VENDER (ver RevealCard), asi que no hay un "luego" en el que dejarlo tirado.
 	var card := REVEAL_SCENE.instantiate() as RevealCard
 	card.show_item(item)
-	card.resolved.connect(_on_reveal_resolved.bind(item, el))
+	card.resolved.connect(_on_reveal_resolved.bind(item))
 	_reveal = card
 	_reveal_data = item
-	_reveal_el = el
 	_main().push_overlay(card)
 
 
-## Que hacer con el objeto cuando se cierra la tarjeta.
-func _on_reveal_resolved(action: String, item: Dictionary, el: TableElement) -> void:
+## Que hacer con el objeto cuando se cierra la tarjeta: GUARDAR o VENDER.
+func _on_reveal_resolved(action: String, item: Dictionary) -> void:
 	if _reveal != null:
 		_main().pop_overlay(_reveal)
 		_reveal = null
 	_reveal_data = {}
-	_reveal_el = null
-	if action == RevealCard.ACTION_REROLL:
-		_reroll_revealed(item, el)
-		return
-	if action == RevealCard.ACTION_STORE:
-		_store_revealed(item, el)
-	elif action == RevealCard.ACTION_SELL:
-		_sell_revealed(item, el)
-	elif el == null:
-		# Cerrada sin elegir y sin sitio en la mesa: se guarda, que es lo unico
-		# que no pierde el objeto. Con sitio, se queda en la mesa y ya esta.
-		_store_revealed(item, null)
+	if action == RevealCard.ACTION_SELL:
+		_sell_revealed(item)
+	else:
+		_store_revealed(item)
 	# Y la siguiente que estuviera esperando.
 	if not _reveal_queue.is_empty():
 		_reveal_item(_reveal_queue.pop_front())
 
 
-## LA LUPA DEL TASADOR: la nota del objeto se vuelve a tirar (puede subir o
-## bajar), el objeto de la mesa cambia de dibujo y la tarjeta se vuelve a abrir
-## con la nota nueva.
-func _reroll_revealed(item: Dictionary, el: TableElement) -> void:
-	if not Game.use_ability(Gameplay.ABIL_APPRAISE):
-		_show_card(item, el)
-		return
-	var nuevo := Game.regrade(item)
-	Game.note_regrade(nuevo)
-	Sound.play("sfx_rare" if int(nuevo["grade"]) > int(item["grade"]) else "sfx_open")
-	if el != null and is_instance_valid(el):
-		el.set_loot(nuevo)
-	_show_card(nuevo, el)
-
-
-## Al inventario. El objeto DEJA la mesa: no puede estar en los dos sitios.
-func _store_revealed(item: Dictionary, el: TableElement) -> void:
+## Al inventario.
+func _store_revealed(item: Dictionary) -> void:
 	var stored := Game.store(item)
-	_remove_from_table(el)
 	# store() ya vende y avisa solo cuando el inventario esta lleno; el sonido lo
 	# pone aqui para que se oiga igual que las demas ventas.
 	Sound.play("sfx_click" if stored else "sfx_sell")
 
 
-func _sell_revealed(item: Dictionary, el: TableElement) -> void:
-	var value := int(item.get("value", 0))
-	var at := TABLE_RECT.get_center()
-	if el != null and is_instance_valid(el):
-		at = el.global_position + el.size * 0.5
-		# sell_instant() coge el valor del elemento y lo borra, pero no ingresa
-		# nada: el dinero lo lleva siempre _sell_revealed. Si devuelve 0 es que el
-		# objeto ya se estaba vendiendo solo, y esa venta es la que paga.
-		var instant := el.sell_instant()
-		if instant <= 0:
-			return
-		_drop_element(el)
-	value = Game.payout(item)
+func _sell_revealed(item: Dictionary) -> void:
+	var value := Game.payout(item)
 	Sound.play("sfx_sell")
-	_float_text("+" + PixelNumber.format(value), at, Palette.GOLD_XL)
-	_refresh_top()
+	_float_text("+" + PixelNumber.format(value), TABLE_RECT.get_center(), Palette.GOLD_XL)
 
 
+## Un sobre que se va de la mesa sin abrirse (el dorado que nadie golpeo, el jefe
+## que se escapo).
 func _remove_from_table(el: TableElement) -> void:
 	if el == null or not is_instance_valid(el):
 		return
 	_drop_element(el)
 	el.queue_free()
 	_refresh_top()
-
-
-func _on_element_sold(value: int, at: Vector2, el: TableElement) -> void:
-	# Lo que se vendia cuando la mesa se vacio (un rebirth) no paga en la partida
-	# nueva.
-	if not _elements.has(el):
-		return
-	_drop_element(el)
-	if is_instance_valid(el):
-		value = Game.payout(el.loot)
-	else:
-		Game.add_money(value)
-	Sound.play("sfx_sell")
-	_float_text("+" + PixelNumber.format(value), at, Palette.GOLD_XL)
 
 
 ## Ha terminado una redonda de la carga de ese paquete: el numero del dano sale
@@ -1369,32 +1291,6 @@ func _on_element_damaged(amount: float, crit: bool, el: TableElement) -> void:
 	var at: Vector2 = el.global_position \
 			+ Vector2(TableElement.BOX.x * 0.5, TableElement.ART_CENTER.y - 36.0)
 	DamagePopup.pop(_fx, at, amount, crit)
-
-
-func _sell_all_table() -> void:
-	var total := 0
-	# Se suelta uno a uno con _drop_element() en vez de vaciar la lista de golpe.
-	#
-	# SOLO EL BOTIN. Antes se soltaban TODOS los elementos, tambien los sobres
-	# cerrados: sell_instant() no los vende (devuelve 0 y no los borra), asi que
-	# se quedaban dibujados en la mesa pero fuera de la lista. La mesa contaba
-	# huecos que no tenia, los Pinchos dejaban de golpearlos y la compra se podia
-	# pasar del tope. Y un botin que ya se estaba vendiendo tampoco se suelta: su
-	# venta paga sola al acabar (ver TableElement.sell_instant).
-	for el in _elements.duplicate():
-		if not is_instance_valid(el):
-			_drop_element(el)
-			continue
-		if not el.is_loot():
-			continue
-		var loot: Dictionary = el.loot
-		if el.sell_instant() > 0:
-			total += Game.payout(loot)
-			_drop_element(el)
-	if total > 0:
-		Sound.play("sfx_sell_all")
-		_float_text("+" + PixelNumber.format(total), Vector2(960, 500), Palette.GOLD_XL)
-	_refresh_top()
 
 
 # --------------------------------------------------------------------------- #
@@ -1418,38 +1314,7 @@ func _process(delta: float) -> void:
 			_buy_timer = Game.auto_buy_interval()
 			_auto_buy_step()
 	_spike_step(delta)
-	_table_broom_step(delta)
-
-
-## La mejora MESA LIMPIA: lo que lleva AUTO_SELL_TABLE_AFTER segundos quieto en la
-## mesa se vende solo, al mismo precio que si se pulsara.
-##
-## El reloj no corre con la ficha de revelado abierta (ver _process, que sale
-## antes), y esa es la mitad de la mejora: la mesa se vacia mientras el jugador
-## esta en otra pantalla, no mientras esta decidiendo que hacer con lo que acaba
-## de salir.
-##
-## Se vende con el camino de siempre (_on_element_sold) colgado de la venta
-## instantanea: el dinero, el sonido y el aviso flotante son los mismos que los
-## de un clic, que es lo que hace que la mejora no cambie las cuentas.
-func _table_broom_step(delta: float) -> void:
-	if not Game.skill_owned(SkillTree.QOL_TABLE):
-		# Sin la mejora no se lleva la cuenta: apagarla y volver a encenderla no
-		# puede vender de golpe lo que se acumulo mientras estaba apagada.
-		_loot_age.clear()
-		return
-	for el in _loot_age.keys():
-		if not is_instance_valid(el) or not _elements.has(el) or not el.is_loot():
-			_loot_age.erase(el)
-			continue
-		_loot_age[el] = float(_loot_age[el]) + delta
-		if float(_loot_age[el]) < LootDB.AUTO_SELL_TABLE_AFTER or el.is_busy():
-			continue
-		var at: Vector2 = el.global_position + el.size * 0.5
-		# Tipado a mano: `el` sale del diccionario y GDScript no sabe que es un
-		# TableElement, asi que no puede deducir el tipo de lo que devuelve.
-		var value: int = el.sell_instant()
-		_on_element_sold(value, at, el)
+	_auto_items_step(delta)
 
 
 ## Los Pinchos: con la apertura automatica ENCENDIDA danan solos los paquetes
@@ -1484,7 +1349,7 @@ func _spike_step(delta: float) -> void:
 		return
 	var packs: Array = []
 	for el in _elements:
-		if is_instance_valid(el) and not el.is_loot():
+		if is_instance_valid(el):
 			packs.append(el)
 	var amount := dps * _spike_timer / float(maxi(1, packs.size()))
 	_spike_timer = 0.0
@@ -1556,8 +1421,30 @@ func _auto_buy_step() -> void:
 		return
 	Game.spend(best_price)
 	Game.note_pack_bought(best, best_price)
-	_spawn_pack(best)
+	_spawn_pack(best, Game.rain_left > 0.0)
 	_refresh_packs()
+
+
+## LA COMPRA AUTOMATICA DE LA TIENDA (nodos APRENDIZ, AMULETO y ENCARGADO): cada
+## AUTO_ITEMS_EVERY segundos sube un nivel del item MAS BARATO de los que tienen
+## el AUTO puesto, si llega el dinero (ver Game.auto_item_pick). Con el rebirth
+## abierto no, por lo mismo que la compra de sobres: alli se decide con el
+## dinero que hay. Con la tienda abierta si: se ve subir el nivel en la caja.
+func _auto_items_step(delta: float) -> void:
+	_items_timer -= delta
+	if _items_timer > 0.0:
+		return
+	_items_timer = AUTO_ITEMS_EVERY
+	if _rebirth != null or _settings != null:
+		return
+	var i := Game.auto_item_pick()
+	if i < 0 or not Game.can_afford(Game.item_cost(i)):
+		return
+	if not Game.buy_item(i):
+		return
+	Sound.play("sfx_tool", -8.0)
+	_float_label("AUTO: %s NV %d" % [str(LootDB.item_at(i)["name"]), Game.item_level(i)],
+			Vector2(1400, 120), Palette.GOLD_XL)
 
 
 ## Enciende o apaga la apertura automatica: los Pinchos empiezan a golpear la
@@ -1705,8 +1592,6 @@ func _refresh_top() -> void:
 	# vitrina donde exponer nada.
 	if is_instance_valid(_locker_btn):
 		UIKit.dim_icon_button(_locker_btn, Game.locker_slots() <= 0)
-	if is_instance_valid(_sell_btn):
-		_sell_btn.disabled = _count_table_loot() == 0
 	_refresh_rebirth()
 
 
@@ -1753,9 +1638,13 @@ func _refresh_locker() -> void:
 		var item: Dictionary = Game.locker[i]
 		# fit_art y no square: los objetos no llenan igual su lienzo y escalados
 		# por el lienzo se verian de tres tamanos distintos en la misma fila.
-		holder.add_child(UIKit.fit_art(str(item.get("art", "loot_vinyl")),
+		var dibujo := UIKit.fit_art(str(item.get("art", "loot_vinyl")),
 				Vector2(LOCK_SIDE * 0.5, LOCK_SIDE * 0.5 - 8.0),
-				Vector2(LOCK_SIDE * 0.62, LOCK_SIDE * 0.62)))
+				Vector2(LOCK_SIDE * 0.62, LOCK_SIDE * 0.62))
+		# Un objeto HOLO (GOLDEN RAIN) brilla tambien aqui.
+		if Gameplay.is_holo(item):
+			UIKit.holo(dibujo)
+		holder.add_child(dibujo)
 		# A 0,22 y no a 0,15: a 0,15 la cifra media 11 px y no se leia desde la
 		# silla. Un poco mas abajo que antes para no tocar el dibujo.
 		var num := PixelNumber.new()
@@ -1765,14 +1654,6 @@ func _refresh_locker() -> void:
 		num.set_number(int(item.get("value", 0)))
 		num.position = Vector2(LOCK_SIDE * 0.5, LOCK_SIDE - 22.0) - num.size * 0.5
 		b.tooltip_text = "Armario: %s expuesto" % str(item.get("name", ""))
-
-
-func _count_table_loot() -> int:
-	var n := 0
-	for el in _elements:
-		if is_instance_valid(el) and el.is_loot():
-			n += 1
-	return n
 
 
 # --------------------------------------------------------------------------- #
@@ -1849,7 +1730,7 @@ func _frenzy_step() -> void:
 	if Game.frenzy_left <= 0.0:
 		return
 	for el in _elements:
-		if is_instance_valid(el) and not el.is_loot() and el.can_open():
+		if is_instance_valid(el) and el.can_open():
 			el.start_opening()
 
 
@@ -2064,11 +1945,6 @@ func _use_ability(id: String) -> void:
 		Sound.play("sfx_error")
 		Game.notice.emit("SE DESBLOQUEA EN EL ARBOL DEL REBIRTH", Palette.RUST_L)
 		return
-	# La lupa no se gasta desde aqui: se usa en la tarjeta del objeto.
-	if id == Gameplay.ABIL_APPRAISE:
-		Sound.play("sfx_error")
-		Game.notice.emit("LA LUPA SE USA EN LA TARJETA DEL OBJETO", Palette.CREAM_D)
-		return
 	if not Game.use_ability(id):
 		Sound.play("sfx_error")
 		Game.notice.emit("TODAVIA SE ESTA RECARGANDO", Palette.RUST_L)
@@ -2079,6 +1955,9 @@ func _use_ability(id: String) -> void:
 			UIKit.punch(a["button"], 1.25)
 	if id == Gameplay.ABIL_FRENZY:
 		_main().banner("FRENESI!", "TODOS LOS SOBRES SE GOLPEAN SOLOS %d S" % int(Gameplay.FRENZY_TIME))
+	elif id == Gameplay.ABIL_RAIN:
+		_main().banner("GOLDEN RAIN!", "%d S: LOS SOBRES QUE COMPRES PUEDEN SALIR HOLO"
+				% int(Game.rain_left))
 	else:
 		Game.notice.emit(str(Gameplay.ability(id)["name"]) + "!", Palette.GOLD_XL)
 
@@ -2096,7 +1975,8 @@ func _refresh_abilities() -> void:
 		var listo := Game.ability_ready(id)
 		UIKit.dim_icon_button(b, not listo)
 		var activo := (id == Gameplay.ABIL_CHARGE and Game.charged_next) \
-				or (id == Gameplay.ABIL_FRENZY and Game.frenzy_left > 0.0)
+				or (id == Gameplay.ABIL_FRENZY and Game.frenzy_left > 0.0) \
+				or (id == Gameplay.ABIL_RAIN and Game.rain_left > 0.0)
 		UIKit.set_icon_button_lit(b, activo)
 		var falta := ceili(Game.ability_left(id)) if tiene and not listo else 0
 		num.visible = falta > 0
@@ -2198,8 +2078,6 @@ func _hotkey(event: InputEvent) -> bool:
 			_open_locker()
 		KEY_R:
 			_open_rebirth()
-		KEY_V:
-			_sell_all_table()
 		_:
 			return false
 	return true

@@ -68,6 +68,10 @@ const LEVEL_DY := 188.0
 ## en la maqueta C (la de terciopelo) que eligio el usuario para el precio.
 const TAG := Vector2(BOX.x + 16.0, 64)
 const TAG_DY := 230.0
+## El boton AUTO (compra automatica), centrado debajo de la caja, en el hueco
+## entre las dos filas.
+const AUTO_DY := BOX.y + 56.0
+const AUTO_W := 128.0
 ## La caja es una ficha de papel crema sobre el carton del panel, con el texto
 ## en oscuro. La comprada (o al tope) se oscurece y lleva el filete en dorado,
 ## que es lo que se ve de un vistazo al mirar la rejilla entera.
@@ -278,9 +282,19 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 			"Ver ficha de " + str(item["name"]))
 	b.pressed.connect(_open_card.bind(index))
 	UIKit.juice(b, [art], 1.1)
+
+	# EL BOTON AUTO, debajo de la caja: solo en los items que tienen comprado su
+	# nodo de compra automatica en el arbol (ver SkillTree.AUTO_ITEMS). Encendido
+	# se compra solo; apagado, no. Va FUERA de la caja para no meterse en su zona
+	# de clic, que abre la ficha.
+	var auto := UIKit.small_button("AUTO", "", Vector2(x + BOX.x * 0.5, y + AUTO_DY),
+			AUTO_W, 21)
+	auto.name = "Auto%d" % index
+	auto.pressed.connect(_toggle_auto.bind(index))
+	add_child(auto)
 	return {"art": art, "back": back, "frame": frame, "owned": owned_label,
 			"cost": cost, "tag": tag, "tag_node": tag_node, "pips": pips,
-			"once": una_vez, "button": b}
+			"once": una_vez, "button": b, "auto": auto}
 
 
 func _rect(at: Vector2, size: Vector2, color: Color) -> ColorRect:
@@ -360,6 +374,12 @@ func _refresh_items() -> void:
 		# precio ni chapa: la chapa se ESCONDE en vez de dejarse vacia, que una
 		# chapa de precio en blanco se lee como un fallo de dibujo.
 		var cerrado := cost < 0
+		# El AUTO: visible si el arbol lo desbloquea, encendido (dorado) o apagado.
+		var auto: Button = cell["auto"]
+		auto.visible = Game.item_auto_unlocked(i)
+		auto.modulate = Color(1.25, 1.1, 0.55) if Game.item_auto_on(i) 				else Color(0.5, 0.5, 0.56, 1.0)
+		auto.tooltip_text = ("Compra automatica ENCENDIDA: pulsa para apagarla"
+				if Game.item_auto_on(i) else "Compra automatica APAGADA: pulsa para encenderla")
 		rotulo.text = "COMPRADO" if max_level <= 1 else "AL TOPE"
 		rotulo.visible = cerrado
 		(cell["tag_node"] as TextureRect).visible = not cerrado
@@ -450,6 +470,15 @@ func _on_item(index: int) -> void:
 	MainRoot.get_root().confetti()
 	Game.notice.emit("COMPRADO" if Game.item_max_level(index) <= 1
 			else "+1 NIVEL", Palette.GOLD_XL)
+	refresh()
+
+
+## Enciende o apaga la compra automatica de un item (el boton AUTO).
+func _toggle_auto(index: int) -> void:
+	if not Game.item_auto_unlocked(index):
+		return
+	Sound.play("sfx_toggle")
+	Game.set_item_auto(index, not Game.item_auto_on(index))
 	refresh()
 
 

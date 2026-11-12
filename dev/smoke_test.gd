@@ -1640,11 +1640,10 @@ func _run() -> void:
 			_check("la carta se desgasta", bool(carta["graded"]))
 			artes[str(carta["art"])] = true
 		_check("las cuatro cartas son dibujos distintos", artes.size() == 4)
-		# El objeto ya esta sobre la mesa cuando sale la tarjeta, y NO se ha
-		# guardado solo: ese era el fallo de tenerlo a la vez en la mesa y en el
-		# inventario. Ahora lo decide el jugador, con GUARDAR o con VENDER.
-		_check("el botin ya esta en la mesa con la tarjeta abierta",
-			g.table_count() == 1)
+		# El objeto NO va a la mesa (en la mesa solo hay sobres) y NO se ha
+		# guardado solo: lo decide el jugador, con GUARDAR o con VENDER.
+		_check("el botin no cae en la mesa con la tarjeta abierta",
+			g.table_count() == 0)
 		_check("el botin no se guarda solo", Game.inventory.is_empty())
 		_check("encontrar un objeto se apunta", Game.items_found == found_before + 1)
 		var boton_guardar := _boton_de(card, "GUARDAR")
@@ -1657,7 +1656,7 @@ func _run() -> void:
 			_check("los dos botones caben dentro del panel",
 				PANEL.encloses(marco_g) and PANEL.encloses(marco_v))
 			_check("los dos botones no se pisan", not marco_g.intersects(marco_v))
-		# GUARDAR: el objeto pasa al inventario y DEJA la mesa.
+		# GUARDAR: el objeto pasa al inventario.
 		if boton_guardar != null:
 			boton_guardar.pressed.emit()
 		await get_tree().process_frame
@@ -1666,7 +1665,7 @@ func _run() -> void:
 	_check_sounds()
 	_check("al elegir se cierra la tarjeta", g._reveal == null)
 	_check("guardar mete el objeto en el inventario", Game.inventory.size() == 1)
-	_check("guardar lo quita de la mesa", g.table_count() == 0)
+	_check("la mesa sigue sin objetos", g.table_count() == 0)
 
 	# --- vender desde el panel del armario ---
 	# El inventario YA NO esta en la pantalla de partida: vive en el panel del
@@ -1697,7 +1696,7 @@ func _run() -> void:
 			el_sell.start_opening()
 		await _wait(0.3)
 		clicks_sell += 1
-	_check("el objeto esta en la mesa antes de venderlo", g.table_count() == 1)
+	_check("el objeto no esta en la mesa antes de venderlo", g.table_count() == 0)
 	var money_card: int = Game.money
 	var vender: BaseButton = null
 	if g._reveal != null:
@@ -1710,49 +1709,40 @@ func _run() -> void:
 	_check("vender desde la tarjeta vacia la mesa", g.table_count() == 0)
 	_check("vender desde la tarjeta no guarda nada", Game.inventory.is_empty())
 
-	# --- cerrar sin elegir: el objeto se queda en la mesa ---
+	# --- sin limbo: ESPACIO guarda, no deja nada en la mesa ---
+	# La tarjeta ya no tiene "cerrar sin elegir": ESPACIO/ENTER/ESC es GUARDAR.
 	var suelto: Dictionary = LootDB.roll_pack(RandomNumberGenerator.new(), "electronics")
-	var el_free: TableElement = g._spawn_loot(suelto)
-	g._on_reveal_resolved(RevealCard.ACTION_LATER, suelto, el_free)
+	g._on_reveal_resolved(RevealCard.ACTION_STORE, suelto)
 	await get_tree().process_frame
-	_check("cerrar sin elegir deja el objeto en la mesa", g.table_count() == 1)
-	_check("cerrar sin elegir no lo guarda", Game.inventory.is_empty())
+	_check("cerrar la tarjeta guarda el objeto", Game.inventory.size() == 1)
+	_check("y no deja nada en la mesa", g.table_count() == 0)
+	Game.inventory.clear()
 
-	# --- arrastrar por la mesa ---
-	# El objeto cae con un rebote, asi que primero se le deja aterrizar: mientras
+	# --- arrastrar un sobre por la mesa ---
+	# El sobre cae con un rebote, asi que primero se le deja aterrizar: mientras
 	# cae lo mueve el tween de la caida, no el raton.
+	var el_free: TableElement = g._spawn_pack("cards")
 	await _wait(0.9)
-	_check("el objeto tiene la mesa por limites", el_free.bounds == g.TABLE_RECT)
+	_check("el sobre tiene la mesa por limites", el_free.bounds == g.TABLE_RECT)
 	el_free._move_to(Vector2(-9999, -9999))
 	_check("no se puede sacar por arriba ni por la izquierda",
 		el_free.position == g.TABLE_RECT.position)
 	el_free._move_to(Vector2(9999, 9999))
 	_check("no se puede sacar por abajo ni por la derecha",
 		el_free.position == g.TABLE_RECT.end - el_free.size)
-	# Y soltar tras arrastrar NO vende: para el boton eso fue moverlo, no un clic.
+	# Y soltar tras arrastrar NO lo abre: para el boton eso fue moverlo, no un clic.
 	el_free._travelled = TableElement.DRAG_SLOP + 10.0
 	el_free._on_pressed()
 	await get_tree().process_frame
-	_check("soltar tras arrastrar no vende el botin", g.table_count() == 1)
+	_check("soltar tras arrastrar no abre el sobre", el_free.can_open())
 	el_free._travelled = 0.0
-	g._sell_all_table()
-	await _wait(0.5)
-	_check("vender todo recoge lo que quedaba", g.table_count() == 0)
-	# Y suelta el turno de los paquetes a medias: si no, uno que se estaba
-	# abriendo seguiria ocupando un hueco de la mesa sin estar ya en ella.
+	g._remove_from_table(el_free)
+	await get_tree().process_frame
+	# Un paquete a medias ocupa su turno, y lo suelta al salir de la mesa.
 	Game.items[LootDB.item_index("tijeras")] = 1
 	var a_medias: TableElement = g._spawn_pack("cards")
 	g._on_open_requested(a_medias)
 	_check("un paquete a medias ocupa su hueco del turno", g._worked.size() == 1)
-	g._sell_all_table()
-	# VENDER solo vende BOTIN: un sobre (cerrado o a medio abrir) se queda en la
-	# mesa, en la lista y con su turno. Antes se soltaba de la lista pero seguia
-	# dibujado, y la mesa contaba un hueco libre que no tenia.
-	_check("vender todo no toca los sobres de la mesa",
-		g._elements.has(a_medias) and g.table_count() == 1)
-	_check("y el que se estaba abriendo conserva su turno", g._worked.has(a_medias))
-	# Se quita de la mesa a mano, por el camino de siempre, para que no siga
-	# cargando por detras.
 	g._drop_element(a_medias)
 	a_medias.queue_free()
 	_check("y al salir de la mesa suelta el turno", g._worked.is_empty())
@@ -2541,7 +2531,7 @@ func _run() -> void:
 	# Dieciseis: el centro, cuatro caminos de los que tres siguen dos nodos mas
 	# (dano, velocidad y Pinchos) y cinco INTERRUPTORES de calidad de vida en la
 	# rama de abajo.
-	_check("el arbol trae treinta y cinco mejoras", SkillTree.node_count() == 35)
+	_check("el arbol trae treinta y ocho mejoras", SkillTree.node_count() == 38)
 	# LOS TRES CAMINOS QUE SIGUEN: cada anillo esta en SU diagonal (2 x SEP y
 	# 3 x SEP) y cuelga del nodo de antes, asi que un camino se compra de arriba
 	# abajo y no se puede empezar por el fondo.
@@ -2572,12 +2562,16 @@ func _run() -> void:
 	var interruptores: Array = []
 	var habilidades: Array = []
 	for id in SkillTree.ids():
-		if str(id) == "money":
+		# LEYENDA corona el arbol (pide todo), no es de ninguna rama.
+		if str(id) == "money" or str(id) == SkillTree.LEGEND:
 			continue
 		# Las habilidades son interruptores tambien, pero van en su propia rama
 		# (hacia arriba): se cuentan aparte.
-		if str(id).begins_with("abil_"):
+		if not Gameplay.ability(str(id)).is_empty():
 			habilidades.append(str(id))
+			continue
+		# TORMENTA DORADA alarga una habilidad: va en su rama, se mira aparte.
+		if str(id) == SkillTree.RAIN_PLUS:
 			continue
 		if SkillTree.is_qol(str(id)):
 			interruptores.append(str(id))
@@ -2612,8 +2606,8 @@ func _run() -> void:
 	# significa nada). Sus ids son los que consulta el juego para saber si quitar
 	# trabajo de encima, asi que si uno deja de existir, la mejora no hace nada y
 	# no da ningun error: se mira aqui.
-	_check("y debajo cuelgan cuatro interruptores de calidad de vida",
-		interruptores.size() == 5)
+	_check("y debajo cuelgan siete interruptores de calidad de vida (%d)" % interruptores.size(),
+		interruptores.size() == 7)
 	# LA RAMA DE LAS HABILIDADES: las tres de Gameplay.ABILITIES, por ENCIMA del
 	# centro, y el golpe cargado es la puerta de las otras dos.
 	var hab_arriba := true
@@ -2624,7 +2618,18 @@ func _run() -> void:
 		habilidades.size() == Gameplay.ABILITIES.size() and hab_arriba
 		and SkillTree.req_of(Gameplay.ABIL_CHARGE) == "money"
 		and SkillTree.req_of(Gameplay.ABIL_FRENZY) == Gameplay.ABIL_CHARGE
-		and SkillTree.req_of(Gameplay.ABIL_APPRAISE) == Gameplay.ABIL_CHARGE)
+		and SkillTree.req_of(Gameplay.ABIL_RAIN) == Gameplay.ABIL_CHARGE)
+	# TORMENTA DORADA: encima del centro, colgando de la GOLDEN RAIN, y alarga la
+	# lluvia de verdad.
+	var antes_rain := Game.rain_time()
+	var skills_rain: Dictionary = Game.skills.duplicate()
+	Game.skills[SkillTree.RAIN_PLUS] = 1
+	var con_rain := Game.rain_time()
+	Game.skills = skills_rain
+	_check("TORMENTA DORADA alarga la golden rain %d s" % int(Gameplay.RAIN_EXTRA),
+		float(SkillTree.node_by_id(SkillTree.RAIN_PLUS)["pos"].y) < 0.0
+		and SkillTree.req_of(SkillTree.RAIN_PLUS) == Gameplay.ABIL_RAIN
+		and is_equal_approx(con_rain - antes_rain, Gameplay.RAIN_EXTRA))
 	var qol_abajo := true
 	var qol_un_nivel := true
 	var qol_precios: Array = []
@@ -2634,14 +2639,16 @@ func _run() -> void:
 		if not is_equal_approx(float(SkillTree.levels_of(str(id))), 1.0):
 			qol_un_nivel = false
 		qol_precios.append(int(SkillTree.node_by_id(str(id))["cost"]))
-	_check("y los cinco van por debajo del centro", qol_abajo)
+	_check("y los siete van por debajo del centro", qol_abajo)
 	_check("y cada uno se compra una sola vez", qol_un_nivel)
 	# Los cinco ids tienen que ser los que usa el juego, no otros: un id mal
 	# escrito en la tabla seria una mejora que se paga y no hace nada.
 	_check("y son los interruptores que el juego consulta",
 		interruptores.has(SkillTree.QOL_AUTOSTORE)
 		and interruptores.has(SkillTree.QOL_CARRY)
-		and interruptores.has(SkillTree.QOL_TABLE)
+		and interruptores.has(SkillTree.QOL_AUTO_TOOLS)
+		and interruptores.has(SkillTree.QOL_AUTO_LUCK)
+		and interruptores.has(SkillTree.QOL_AUTO_CRIT)
 		and interruptores.has(SkillTree.QOL_LOCKER))
 	# Y EL PRECIO: baratos y en subida. Un interruptor cuesta menos que un camino
 	# (+20 %) porque quita trabajo, no potencia; y el armario, que es el que mas
@@ -2650,6 +2657,15 @@ func _run() -> void:
 		qol_precios.min() == SkillTree.COST_QOL_AUTOSTORE
 		and qol_precios.max() == SkillTree.COST_FACTORY
 		and Game.skill_cost(SkillTree.QOL_LOCKER) < SkillTree.COST_BRANCH * 2)
+	# FABRICA ES EL FINAL DE SU RAMA, como MARTILLO, TURBO o ERIZO en las suyas:
+	# el nodo mas bajo del arbol y colgando del ultimo de la compra automatica.
+	var mas_bajo := true
+	var y_fabrica := float(SkillTree.node_by_id(SkillTree.FACTORY)["pos"].y)
+	for id_bajo in SkillTree.ids():
+		if str(id_bajo) != SkillTree.FACTORY 				and float(SkillTree.node_by_id(str(id_bajo))["pos"].y) >= y_fabrica:
+			mas_bajo = false
+	_check("FABRICA es lo ultimo de la rama de abajo",
+		mas_bajo and SkillTree.reqs_of(SkillTree.FACTORY).has(SkillTree.QOL_AUTO_CRIT))
 	_check("la del centro da un 50 % mas de dinero y 25.000 al empezar",
 		is_equal_approx(float(SkillTree.node_by_id("money")["value"]), 0.50)
 		and is_equal_approx(SkillTree.node_bonus(SkillTree.node_by_id("money"), "start"),
@@ -2799,7 +2815,7 @@ func _run() -> void:
 	var arbol = g._rebirth
 	_check("la chapa del rebirth abre el arbol", arbol != null)
 	if arbol != null:
-		_check("y el panel dibuja los treinta y cinco nodos",
+		_check("y el panel dibuja los treinta y ocho nodos",
 			arbol._nodes.size() == SkillTree.node_count())
 		# AL ABRIRLO SE VE LO DE SIEMPRE: el centro y los cuatro caminos, dentro del
 		# marco y por DEBAJO de la barra del rebirth, que es lo unico fijo de la
@@ -2854,7 +2870,7 @@ func _run() -> void:
 		# porque la vista recorta lo que queda por debajo.
 		# Entre la ultima fila y FABRICA, que es lo que cabe de una vez.
 		arbol._set_offset(Vector2(offset_ini.x, arbol.VIEW_SIZE.y * 0.5
-			- (float(SkillTree.node_by_id(SkillTree.QOL_TABLE)["pos"].y)
+			- (float(SkillTree.node_by_id(SkillTree.QOL_AUTO_TOOLS)["pos"].y)
 				+ float(SkillTree.node_by_id(SkillTree.FACTORY)["pos"].y)) * 0.5))
 		_check_cabe("la rama de calidad de vida no saca texto de la vista", arbol, PANEL)
 		# Lo que queda DEBAJO de la barra del rebirth no cuenta: la barra va encima
@@ -3120,7 +3136,7 @@ func _run() -> void:
 			if f != null:
 				f._close()
 				await get_tree().process_frame
-		_check("la ficha de los treinta y cinco nodos se monta entera", fichas_rotas.is_empty())
+		_check("la ficha de los treinta y ocho nodos se monta entera", fichas_rotas.is_empty())
 		for f_rota in fichas_rotas:
 			print("         ficha rota: ", f_rota)
 		# Y SE MIRA UNA DE INTERRUPTOR ENTERA, con los mismos checks de encuadre
@@ -3251,36 +3267,99 @@ func _run() -> void:
 	_check("y sin ella el armario lleno no deja exponer nada",
 		not Game.locker_put(0) and Game.locker.size() == 2)
 
-	# MESA LIMPIA: lo que lleva un rato quieto en la mesa se vende solo, al mismo
-	# precio que el clic. Se prueba con un objeto puesto de verdad en la mesa, no
-	# con el reloj a mano, porque lo que hay que comprobar es que pasa por el
-	# camino de la venta de siempre (dinero, sonido y aviso).
 	var botin := {"id": "card_c", "name": "CARTA COMUN", "art": "loot_card_common_psa5",
 		"rarity": "common", "grade": 5, "value": 500, "kind": "cards"}
+
+	# SIN LIMBO: lo que no merece ficha se vende en el momento y no cae en la mesa,
+	# y el auto guardar con el inventario lleno vende en vez de dejarlo en la mesa.
+	await _empty_table(g)
 	Game.skills = {}
-	var esperando: TableElement = g._spawn_loot(botin.duplicate())
-	g._loot_age[esperando] = LootDB.AUTO_SELL_TABLE_AFTER + 30.0
-	g._table_broom_step(0.016)
-	_check("sin MESA LIMPIA, la mesa no vende nada sola", g._elements.has(esperando))
-	if is_instance_valid(esperando):
-		g._remove_from_table(esperando)
-	Game.skills = {SkillTree.QOL_TABLE: 1}
-	var dinero_antes: int = Game.money
-	var viejo: TableElement = g._spawn_loot(botin.duplicate())
-	g._loot_age[viejo] = LootDB.AUTO_SELL_TABLE_AFTER + 1.0
-	g._table_broom_step(0.016)
-	_check("y con ella, lo que lleva un rato en la mesa se vende solo",
-		not g._elements.has(viejo) and g._loot_age.is_empty())
-	_check("y el dinero entra igual que si se pulsara", Game.money == dinero_antes + 500)
-	# Y lo recien salido NO se toca: la mejora vende lo que se ha quedado, no lo
-	# que acaba de caer delante del jugador.
-	var recien: TableElement = g._spawn_loot(botin.duplicate())
-	g._loot_age[recien] = 0.0
-	g._table_broom_step(0.016)
-	_check("y no vende lo que acaba de salir", g._elements.has(recien))
-	if is_instance_valid(recien):
-		g._remove_from_table(recien)
+	Game.set_auto_sell(false)
+	Game.inventory = []
+	var modo_ficha: String = Game.card_mode
+	Game.set_card_mode("never")
+	var dinero_sin_ficha: int = Game.money
+	g._deliver(botin.duplicate())
+	# Como poco los 500: al salir puede cumplirse un encargo, que paga aparte.
+	_check("sin ficha, el objeto se vende al momento y no va a la mesa",
+		g.table_count() == 0 and Game.money >= dinero_sin_ficha + 500
+		and Game.inventory.is_empty())
+	Game.set_card_mode(modo_ficha)
+	Game.skills = {SkillTree.QOL_AUTOSTORE: 1}
+	Game.set_autostore(true)
+	var lleno: Array = []
+	for k in Game.INVENTORY_SLOTS:
+		lleno.append(botin.duplicate())
+	Game.inventory = lleno
+	var guardable := botin.duplicate()
+	guardable["grade"] = 10
+	var dinero_lleno: int = Game.money
+	g._autostore(guardable)
+	_check("el auto guardar con el inventario lleno vende y no deja nada en la mesa",
+		g.table_count() == 0 and Game.money > dinero_lleno)
+	Game.inventory = []
+	Game.set_autostore(false)
 	Game.skills = {}
+
+	# LA COMPRA AUTOMATICA DE LA TIENDA: cada nodo deja comprar solos sus dos items,
+	# se compra primero el MAS BARATO de los que tienen el AUTO puesto, y el boton
+	# AUTO lo apaga.
+	var i_tij := LootDB.item_index("tijeras")
+	var i_guan := LootDB.item_index("guantes")
+	var i_treb := LootDB.item_index("trebol")
+	_check("sin el nodo, las tijeras no se compran solas", not Game.item_auto_on(i_tij))
+	Game.skills = {SkillTree.QOL_AUTO_TOOLS: 1}
+	_check("con APRENDIZ, tijeras y guantes se compran solos y el trebol no",
+		Game.item_auto_on(i_tij) and Game.item_auto_on(i_guan) and not Game.item_auto_on(i_treb))
+	Game.items = []
+	while Game.items.size() < LootDB.item_count():
+		Game.items.append(0)
+	_check("y se elige el mas barato (tijeras %d, guantes %d)"
+			% [Game.item_cost(i_tij), Game.item_cost(i_guan)],
+		Game.auto_item_pick() == (i_tij if Game.item_cost(i_tij) <= Game.item_cost(i_guan) else i_guan))
+	Game.set_item_auto(i_tij, false)
+	_check("y con el AUTO apagado deja de comprarlo",
+		not Game.item_auto_on(i_tij) and Game.auto_item_pick() == i_guan)
+	Game.set_item_auto(i_tij, true)
+	Game.money = 1000000
+	g._items_timer = 0.0
+	g._auto_items_step(0.016)
+	_check("y la partida lo compra sola", Game.items[i_tij] + Game.items[i_guan] == 1)
+	Game.skills = {SkillTree.QOL_AUTO_TOOLS: 1, SkillTree.QOL_AUTO_LUCK: 1,
+		SkillTree.QOL_AUTO_CRIT: 1}
+	_check("AMULETO y ENCARGADO añaden trebol, ojo verde, armario y laser",
+		Game.item_auto_on(i_treb) and Game.item_auto_on(LootDB.item_index("ojo_verde"))
+		and Game.item_auto_on(LootDB.item_index("armario"))
+		and Game.item_auto_on(LootDB.item_index("laser"))
+		and not Game.item_auto_on(LootDB.item_index("cajon")))
+	Game.items = []
+	while Game.items.size() < LootDB.item_count():
+		Game.items.append(0)
+	Game.skills = {}
+
+	# LA GOLDEN RAIN: los sobres comprados mientras llueve salen marcados, y un
+	# objeto holo vale el doble.
+	var holo := Gameplay.make_holo(botin)
+	_check("un objeto holo vale el doble y lo dice",
+		Gameplay.is_holo(holo) and int(holo["value"]) == 1000
+		and int(Gameplay.make_holo(holo)["value"]) == 1000)
+	Game.skills = {"abil_charge": 1, Gameplay.ABIL_RAIN: 1}
+	Game.cooldowns = {}
+	_check("la golden rain se usa y dura %d s" % int(Gameplay.RAIN_TIME),
+		Game.use_ability(Gameplay.ABIL_RAIN)
+		and is_equal_approx(Game.rain_left, Gameplay.RAIN_TIME)
+		and is_equal_approx(Game.ability_left(Gameplay.ABIL_RAIN), 80.0))
+	Game.money = 1000000
+	g._buy_pack("vinyls")
+	var con_lluvia: bool = not g._elements.is_empty() and g._elements[-1].rain
+	Game.rain_left = 0.0
+	g._buy_pack("vinyls")
+	var sin_lluvia: bool = not g._elements.is_empty() and not g._elements[-1].rain
+	_check("el sobre comprado en la lluvia va marcado y el de despues no",
+		con_lluvia and sin_lluvia)
+	Game.cooldowns = {}
+	Game.skills = {}
+	await _empty_table(g)
 
 	# --- los fallos de la mesa que se arreglaron -------------------------- #
 	#
@@ -3316,58 +3395,40 @@ func _run() -> void:
 			cola_el.queue_free()
 	await _empty_table(g)
 
-	# UN BOTIN QUE YA SE ESTA VENDIENDO no se vuelve a cobrar con VENDER: el clic
-	# arranca una animacion que paga al final, y VENDER lo pagaba otra vez.
-	var vendiendo: TableElement = g._spawn_loot(botin.duplicate())
-	await get_tree().process_frame
-	var dinero_venta: int = Game.money
-	vendiendo._sell()
-	_check("un botin a medio vender no se vende otra vez de golpe",
-		vendiendo.sell_instant() == 0 and is_instance_valid(vendiendo))
-	g._sell_all_table()
-	await _wait(0.6)
-	_check("y se cobra una sola vez",
-		Game.money == dinero_venta + int(botin["value"]) and g.table_count() == 0)
-
-	# EL REBIRTH VACIA LA MESA. Antes la mesa se quedaba puesta y el botin sin
-	# vender se cobraba en la partida nueva: se podia pasar dinero de una partida a
-	# la siguiente dejando la mesa llena antes de reiniciar.
+	# EL REBIRTH VACIA LA MESA: los sobres pagados de la partida que se va no
+	# pasan a la siguiente.
 	await _empty_table(g)
 	var monedas_mesa: int = Game.rebirth_coins
-	var en_mesa: TableElement = g._spawn_loot(botin.duplicate())
 	g._spawn_pack("vinyls")
 	Game.money = LootDB.REBIRTH_REQUIRE
 	Game.do_rebirth()
 	_check("el rebirth vacia la mesa", g.table_count() == 0 and Game.table.is_empty())
-	var dinero_nuevo: int = Game.money
-	if is_instance_valid(en_mesa):
-		en_mesa._emit_sold(int(botin["value"]), Vector2.ZERO)
-	_check("y lo que quedaba en ella no paga en la partida nueva",
-		Game.money == dinero_nuevo)
 	Game.rebirth_coins = monedas_mesa
 	await get_tree().process_frame
 
-	# LA MESA SE GUARDA. Salir al menu tiraba los sobres ya pagados y el botin sin
-	# vender; ahora vuelven al entrar, el sobre con la vida que le quedaba.
-	var guardado_sobre: TableElement = g._spawn_pack("sneakers")
+	# LA MESA SE GUARDA. Salir al menu tiraba los sobres ya pagados; ahora vuelven
+	# al entrar, con la vida que les quedaba y la marca de la golden rain. Y un
+	# objeto de un guardado viejo (de cuando la mesa tenia objetos) va al inventario.
+	var guardado_sobre: TableElement = g._spawn_pack("sneakers", true)
 	guardado_sobre.set_hp(300.0)
-	g._spawn_loot(botin.duplicate())
 	_main.show_menu()
 	await get_tree().process_frame
-	_check("al salir al menu la mesa queda guardada", Game.table.size() == 2)
+	_check("al salir al menu la mesa queda guardada", Game.table.size() == 1)
+	Game.inventory = []
+	Game.table.append({"loot": botin.duplicate()})
 	_main.show_game()
 	await get_tree().process_frame
 	g = _screen()
 	var vuelto_sobre := false
-	var vuelto_botin := false
 	for mesa_vuelta in g._elements:
-		if mesa_vuelta.is_loot() and int(mesa_vuelta.loot.get("value", 0)) == int(botin["value"]):
-			vuelto_botin = true
-		elif not mesa_vuelta.is_loot() and str(mesa_vuelta.pack.get("id", "")) == "sneakers" \
-				and is_equal_approx(mesa_vuelta.hp, 300.0):
+		if str(mesa_vuelta.pack.get("id", "")) == "sneakers" \
+				and is_equal_approx(mesa_vuelta.hp, 300.0) and mesa_vuelta.rain:
 			vuelto_sobre = true
-	_check("y al volver estan los dos: el sobre con su vida y el botin",
-		g.table_count() == 2 and vuelto_sobre and vuelto_botin)
+	_check("y al volver esta el sobre con su vida y su lluvia",
+		g.table_count() == 1 and vuelto_sobre)
+	_check("y el objeto de un guardado viejo va al inventario",
+		Game.inventory.size() == 1 and int(Game.inventory[0]["value"]) == 500)
+	Game.inventory = []
 	await _empty_table(g)
 	Game.table = []
 
@@ -3563,7 +3624,7 @@ func _run() -> void:
 	_check("sin el arbol las habilidades no se pueden usar",
 		not Game.use_ability(Gameplay.ABIL_CHARGE))
 	Game.skills = {"money": 1, Gameplay.ABIL_CHARGE: 1, Gameplay.ABIL_FRENZY: 1,
-		Gameplay.ABIL_APPRAISE: 1}
+		Gameplay.ABIL_RAIN: 1}
 	_check("con el arbol el golpe cargado se usa", Game.use_ability(Gameplay.ABIL_CHARGE))
 	_check("y se queda recargando", not Game.ability_ready(Gameplay.ABIL_CHARGE))
 	gp_vida = gp_perfecto.hp
@@ -3584,22 +3645,12 @@ func _run() -> void:
 	_check("el frenesi pone a golpear solos los sobres de la mesa", gp_quieto.is_opening())
 	Game.frenzy_left = 0.0
 	await _empty_table(g)
-	# LA LUPA: la nota cambia y el valor y el dibujo van con ella.
-	var gp_tasado: Dictionary = Game.regrade(gp_vinilo)
-	_check("la lupa vuelve a tirar la nota y el valor va con ella",
-		int(gp_tasado["value"]) == roundi(1000.0 * LootDB.grade_mult(int(gp_tasado["grade"]))
-			/ LootDB.grade_mult(5))
-		and str(gp_tasado["art"]) == "loot_vinyl_psa%d" % int(gp_tasado["grade"]))
-	g._reveal_item(gp_vinilo.duplicate())
+	# EL HOLO EN LA TARJETA: lo dice en el titulo y en el valor.
+	g._reveal_item(Gameplay.make_holo(gp_vinilo))
 	await get_tree().process_frame
-	_check("con la lupa comprada la tarjeta trae el boton de tasar",
-		g._reveal != null and g._reveal.find_child("Lupa", true, false) != null)
-	if g._reveal != null:
-		g._reveal._reroll()
-	await get_tree().process_frame
-	await get_tree().process_frame
-	_check("y tasar vuelve a abrir la tarjeta con la lupa recargando",
-		g._reveal != null and not Game.ability_ready(Gameplay.ABIL_APPRAISE))
+	_check("la tarjeta de un holo lo dice",
+		g._reveal != null and _dice(g._reveal, "HOLO VINILO")
+		and _dice(g._reveal, "HOLO: VALE EL DOBLE"))
 	if g._reveal != null:
 		g._reveal._finish(RevealCard.ACTION_SELL)
 	await get_tree().process_frame
@@ -3705,19 +3756,23 @@ func _run() -> void:
 	_check("y el PAGO VIP sube de x2 a x3",
 		is_equal_approx(Game.vip_mult(), vip * 1.5) and is_equal_approx(Game.vip_mult(), 3.0))
 
-	# LEYENDA: pide los dos fondos de arriba Y los dos lados, da de todo y las
+	# LEYENDA: pide TODO el arbol, no se dibuja hasta tenerlo, da de todo y las
 	# habilidades se recargan el doble de rapido.
-	Game.skills = {"money": 1, "damage": 1, "damage_2": 1, "damage_3": 1,
-		"speed": 1, "speed_2": 1, "speed_3": 1}
-	_check("LEYENDA pide tambien los dos lados (con los de arriba no basta)",
+	Game.skills = {}
+	for id_todo in SkillTree.ids():
+		if str(id_todo) != SkillTree.LEGEND and str(id_todo) != SkillTree.FACTORY:
+			Game.skills[str(id_todo)] = 1
+	_check("LEYENDA pide todo el arbol (con uno solo que falte no se abre)",
 		not Game.skill_unlocked(SkillTree.LEGEND)
-		and Game.skill_missing_req(SkillTree.LEGEND) == "sweet")
-	Game.skills.merge({"combo": 1, "streak": 1, "sweet": 1,
-		"happy": 1, "vip": 1, "boss": 1, "golden": 1})
+		and Game.skill_missing_req(SkillTree.LEGEND) == SkillTree.FACTORY
+		and not RebirthPanel.node_shown(SkillTree.LEGEND)
+		and RebirthPanel.node_shown("money"))
+	Game.skills[SkillTree.FACTORY] = 1
+	_check("y con todo comprado aparece", RebirthPanel.node_shown(SkillTree.LEGEND))
 	var sin_leyenda := [Game.skill_bonus("money"), Game.skill_bonus("damage"),
 		Game.skill_bonus("speed"), Game.skill_bonus("spikes")]
 	Game.rebirth_coins = SkillTree.COST_LEGEND
-	_check("y con los cuatro se compra", Game.buy_skill(SkillTree.LEGEND))
+	_check("y se compra", Game.buy_skill(SkillTree.LEGEND))
 	_check("y da +100 % dinero y +50 % dano, velocidad y pinchos",
 		is_equal_approx(Game.skill_bonus("money"), float(sin_leyenda[0]) + 1.0)
 		and is_equal_approx(Game.skill_bonus("damage"), float(sin_leyenda[1]) + 0.5)
@@ -3834,17 +3889,38 @@ func _check_autostore_y_ficha() -> void:
 	Game.inventory.clear()
 	Game.set_autostore(false)
 
+	# --- el panel del filtro cabe entero ---
+	# Con los cinco tipos (al llegar los JUGUETES) las chapas se salian del panel
+	# por la derecha y ningun check lo veia: se monta y se mide aqui.
+	var filtro := AutoStorePanel.new()
+	_main.push_overlay(filtro)
+	await _wait(0.4)
+	_check_cabe("el filtro del auto guardar no saca nada del panel", filtro, PANEL)
+	_check_sin_encimarse("y no pone texto encima de sus chapas", filtro)
+	var chapas_fuera: Array = []
+	for e in filtro._buttons:
+		var marco := _marco_de_chapa(e["button"])
+		if not PANEL.grow(1.0).encloses(marco):
+			chapas_fuera.append("%s en %s" % [str(e["value"]), str(marco)])
+	_check("y sus chapas caben enteras dentro del panel", chapas_fuera.is_empty())
+	for f in chapas_fuera:
+		print("         fuera: ", f)
+	_main.pop_overlay(filtro)
+	await get_tree().process_frame
+
 	# --- la ficha: siempre, lo bueno o nunca ---
 	Game.card_mode = "good"
 	var comun := {"rarity": "common", "grade": 5}
-	_check("en LO BUENO un comun de nota 5 no saca ficha", not Game.card_worth(comun, false))
-	_check("pero si es nuevo en la libreta, si", Game.card_worth(comun, true))
-	_check("y un raro o una nota 8 tambien",
-		Game.card_worth({"rarity": "rare", "grade": 1}, false)
-		and Game.card_worth({"rarity": "common", "grade": 8}, false))
+	_check("en LO BUENO un comun de nota 5 no saca ficha", not Game.card_worth(comun))
+	_check("en LO BUENO sale con lo epico y lo legendario, sea cual sea la nota",
+		Game.card_worth({"rarity": "epic", "grade": 1})
+		and Game.card_worth({"rarity": "legendary", "grade": 2}))
+	_check("y no con un raro ni con una nota 10 comun",
+		not Game.card_worth({"rarity": "rare", "grade": 9})
+		and not Game.card_worth({"rarity": "common", "grade": 10}))
 	Game.card_mode = "never"
 	_check("en NUNCA no sale ni lo legendario",
-		not Game.card_worth({"rarity": "legendary", "grade": 10}, true))
+		not Game.card_worth({"rarity": "legendary", "grade": 10}))
 	Game.card_mode = "always"
 
 	# --- la ficha no se cierra en su primer medio segundo ---
@@ -3856,7 +3932,7 @@ func _check_autostore_y_ficha() -> void:
 	_main.push_overlay(ficha)
 	await get_tree().process_frame
 	ficha._sell()
-	ficha._dismiss()
+	ficha._store()
 	var click := InputEventMouseButton.new()
 	click.pressed = true
 	click.button_index = MOUSE_BUTTON_LEFT

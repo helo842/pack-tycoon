@@ -268,9 +268,13 @@ func _paint_inventory() -> void:
 		# 8 px por encima del centro y no 6: los dibujos que llenan su lienzo hasta
 		# abajo (un vinilo es un disco entero) bajaban 1,5 px por encima del precio
 		# de la casilla. Es la misma cuenta que la vitrina de la partida.
-		holder.add_child(UIKit.fit_art(str(item.get("art", "loot_vinyl")),
+		var dibujo := UIKit.fit_art(str(item.get("art", "loot_vinyl")),
 				Vector2(INV_SIDE * 0.5, INV_SIDE * 0.5 - 8.0),
-				Vector2(INV_SIDE * 0.6, INV_SIDE * 0.6)))
+				Vector2(INV_SIDE * 0.6, INV_SIDE * 0.6))
+		# Un objeto HOLO (GOLDEN RAIN) brilla tambien aqui.
+		if Gameplay.is_holo(item):
+			UIKit.holo(dibujo)
+		holder.add_child(dibujo)
 		_add_value(holder, int(item.get("value", 0)), INV_SIDE)
 		# El tooltip dice QUE pasa al pulsarlo, con lo que va a aportar: es lo
 		# unico que explica el intercambio (el objeto deja de poder venderse). Y
@@ -304,9 +308,13 @@ func _paint_locker() -> void:
 		if not hay:
 			continue
 		var item: Dictionary = Game.locker[i]
-		holder.add_child(UIKit.fit_art(str(item.get("art", "loot_vinyl")),
+		var dibujo := UIKit.fit_art(str(item.get("art", "loot_vinyl")),
 				Vector2(LOCK_SIDE * 0.5, LOCK_SIDE * 0.5 - 8.0),
-				Vector2(LOCK_SIDE * 0.62, LOCK_SIDE * 0.62)))
+				Vector2(LOCK_SIDE * 0.62, LOCK_SIDE * 0.62))
+		# Un objeto HOLO (GOLDEN RAIN) brilla tambien aqui.
+		if Gameplay.is_holo(item):
+			UIKit.holo(dibujo)
+		holder.add_child(dibujo)
 		_add_value(holder, int(item.get("value", 0)), LOCK_SIDE)
 		b.tooltip_text = "Guardar %s en el inventario (%s)" % [str(item.get("name", "")),
 				_kind_bonus_text(LootDB.kind_of(item), LootDB.bonus_for(item))]

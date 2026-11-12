@@ -14,14 +14,17 @@ core/       lo que esta siempre vivo
 
 data/       lo que se toca para reequilibrar el juego
   loot_db.gd      precios, tiempos, que cae en cada paquete, cuanto vale, los
-                  items de la tienda (siete con ocho niveles y dos piezas de
+                  items de la tienda (ocho con ocho niveles y dos piezas de
                   compra unica: ver item_max_level), con que pieza se enciende
-                  cada automatizacion, los cuatro tipos de botin con el stat que
+                  cada automatizacion, los cinco tipos de botin con el stat que
                   sube cada uno (LOOT_KINDS), los huecos del armario y el precio
                   del rebirth (el requisito y las monedas)
-  skill_tree.gd   el arbol de mejoras que se paga con monedas de rebirth: los
-                  cinco nodos (uno en el centro y cuatro caminos en diagonal),
-                  lo que cuesta cada uno, lo que da y donde se dibuja
+  gameplay.gd     eventos (dorado, VIP, hora feliz, jefe), golpe perfecto,
+                  racha, zona dorada, combo, habilidades, album y encargos
+  skill_tree.gd   el arbol de mejoras que se paga con monedas de rebirth: el
+                  centro, los caminos en diagonal con sus finales, las ramas de
+                  calidad de vida, habilidades, punteria y eventos, y LEYENDA;
+                  lo que cuesta cada nodo, lo que da y donde se dibuja
 
 ui/         las piezas de interfaz, reutilizables
   ui_kit.gd       fabrica de controles: etiquetas, botones, paneles, sprites
@@ -61,8 +64,8 @@ screens/    una clase por pantalla
                     la fila del AUTO GUARDAR (gris hasta comprarlo) y cuando
                     sale la FICHA del objeto (siempre / lo bueno / nunca)
   libreta_panel.gd  la libreta: el album y los encargos
-  table_element.gd  un objeto de la mesa: el paquete que se abre, el botin que
-                    se vende, y se arrastra por la mesa
+  table_element.gd  un sobre de la mesa: se golpea, se rompe y se arrastra (en la
+                    mesa solo hay sobres; el botin se guarda o se vende al salir)
 ```
 
 ## Que NO va aqui
@@ -94,7 +97,7 @@ suena es `game.gd`, que es quien vende. Si `Sound` supiera que existe algo
 llamado "vender" habria que tocar el audio cada vez que se toca una regla.
 
 **Quien decide es la pantalla, no la tarjeta.** `reveal_card.gd` dice QUE se ha
-elegido (`resolved("store")`, `"sell"` o `"later"`) y se cierra; quien mueve el
-dinero, el inventario y la mesa es `game.gd`, que es quien los tiene. Por eso
-GUARDAR no mete nada en el inventario por su cuenta: solo lo pide. Y por eso
-cerrar sin elegir es una tercera respuesta y no un "no ha pasado nada".
+elegido (`resolved("store")` o `"sell"`) y se cierra; quien mueve el dinero y el
+inventario es `game.gd`, que es quien los tiene. Por eso GUARDAR no mete nada en
+el inventario por su cuenta: solo lo pide. No hay tercera respuesta: un objeto
+nunca se queda en la mesa (ver `game.gd`, `_deliver`).

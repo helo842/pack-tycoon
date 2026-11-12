@@ -307,12 +307,6 @@ const GRADE_MAX := 10
 # el dia que la chatarra sea otra, se toca este numero y ya esta.
 
 
-## Segundos que un objeto puede quedarse quieto en la mesa antes de que la
-## mejora MESA LIMPIA lo venda. Doce: lo que tarda uno en mirar una ficha o en
-## comprar en la tienda, para que no se venda delante de sus narices lo que
-## acaba de salir. Mas corto y la mejora parece que roba; mas largo y la mesa se
-## llena igual, que es lo que quita.
-const AUTO_SELL_TABLE_AFTER := 12.0
 
 # --------------------------------------------------------------------------- #
 # Items equipables (ITEMS SHOP del Idea.pdf)
@@ -408,7 +402,7 @@ const ITEMS: Array = [
 		"detail": "CON LA APERTURA AUTOMATICA ENCENDIDA GOLPEAN TODOS LOS PAQUETES DE LA MESA A LA VEZ, SIN QUE LES HAGAS CLIC. SE PAGAN UNA SOLA VEZ."},
 	{"id": "armario", "name": "ARMARIO", "art": "item_armario", "base_cost": 35000,
 		"desc": "EXPONE BOTIN Y DA SUS BONUS",
-		"detail": "CADA OBJETO EXPUESTO DA EL BONUS DE SU TIPO SEGUN SU NOTA, RAREZA Y SOBRE: CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO, ELECTRONICA REBIRTH."},
+		"detail": "CADA OBJETO EXPUESTO DA EL BONUS DE SU TIPO: CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO, ELECTRONICA REBIRTH Y JUGUETES SUERTE."},
 	# EL NOVENO, Y VA AL FINAL A PROPOSITO: los niveles de un guardado se leen
 	# por POSICION, asi que anadir un item en medio muda de sitio los niveles de
 	# todos los que vienen detras y una partida vieja se encontraria el dano
