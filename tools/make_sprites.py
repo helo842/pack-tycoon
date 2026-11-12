@@ -3534,6 +3534,14 @@ for _letra in sorted(set(NUM_LETTERS)):
                               partial(lambda s, k: stamp_glyph(s, LETTERS[k]), k=_letra),
                               prefix="num", scale=FONT_SCALE)
 
+# LOS NODOS DEL ARBOL DEL REBIRTH: un dibujo propio por nodo, tree_<id>.png, que
+# vive en tree_designs.py (ver alli por que). Se registran como entradas de
+# interfaz de 32x32 con prefijo "tree"; la clave es el id del nodo.
+import tree_designs  # noqa: E402
+for _id, _fn in tree_designs.install(sys.modules[__name__]).items():
+    assert _id not in UI_ITEMS, f"{_id} ya es otra entrada de UI_ITEMS"
+    UI_ITEMS[_id] = UiSpec(BASE, BASE, _fn, prefix="tree")
+
 RARITY_PREFIX = {"gem": "rarity", "glow": "rarity"}
 
 # Prefijo de archivo para los objetos de LOOT_ITEMS que no son botin suelto.

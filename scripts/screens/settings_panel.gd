@@ -23,6 +23,7 @@ var _store_pick: Button = null
 var _card_label: Label = null
 var _filter: AutoStorePanel = null
 var _credits: CreditsPanel = null
+var _help: HelpPanel = null
 
 const ROW_SLIDER_1 := 330.0
 const ROW_SLIDER_2 := 430.0
@@ -36,6 +37,10 @@ const CREDITS_SCENE := preload("res://scenes/CreditsPanel.tscn")
 ## fila. Ahi no estorba (la flecha derecha de la FICHA acaba en x 1426; el boton
 ## empieza en 1480) y queda dentro del interior del panel (hasta x 1696).
 const CREDITS_POS := Vector2(1580, ROW_CARD)
+## AYUDA va justo encima, en la fila del AUTO GUARDAR: los dos botones al final
+## de los ajustes, uno sobre otro.
+const HELP_POS := Vector2(1580, ROW_STORE)
+const HELP_SCENE := preload("res://scenes/HelpPanel.tscn")
 const CARD_NAMES := {"always": "SIEMPRE", "good": "LO BUENO", "never": "NUNCA"}
 
 ## Ultimo valor del deslizador de SONIDOS al que ya se le ha dado el clic de
@@ -60,6 +65,11 @@ func _ready() -> void:
 	_build_checks()
 	_build_autostore()
 	_build_card_mode()
+
+	var help := UIKit.small_button("AYUDA", "", HELP_POS, 200, 22)
+	help.tooltip_text = "Como se juega"
+	help.pressed.connect(_open_help)
+	add_child(help)
 
 	var credits := UIKit.small_button("CREDITOS", "", CREDITS_POS, 200, 22)
 	credits.tooltip_text = "Creditos (musica)"
@@ -151,7 +161,7 @@ func _build_autostore() -> void:
 	add_child(l)
 	if not on:
 		add_child(UIKit.label_at("ARBOL DEL REBIRTH: %d MONEDAS"
-				% SkillTree.COST_QOL_AUTOSTORE, Vector2(1290, y), Vector2(620, 40), 21,
+				% SkillTree.COST_QOL_AUTOSTORE, Vector2(1220, y), Vector2(440, 40), 21,
 				Palette.PRICE_OFF, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 		return
 	_store_box = UIKit.image(_check_tex(Game.autostore_on), Vector2(1050, y), Vector2(96, 96))
@@ -236,6 +246,22 @@ func _on_credits_closed() -> void:
 	if _credits != null:
 		MainRoot.get_root().pop_veil(_credits)
 		_credits = null
+
+
+## La ayuda va en su propio panel, encima de los ajustes, como los creditos.
+func _open_help() -> void:
+	if _help != null:
+		return
+	Sound.click()
+	_help = HELP_SCENE.instantiate() as HelpPanel
+	_help.closed.connect(_on_help_closed)
+	MainRoot.get_root().push_veil(_help)
+
+
+func _on_help_closed() -> void:
+	if _help != null:
+		MainRoot.get_root().pop_veil(_help)
+		_help = null
 
 
 func _check_tex(on: bool) -> String:

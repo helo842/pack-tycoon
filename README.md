@@ -401,6 +401,17 @@ pulsación, así que no se podría empezar a arrastrar encima de un nodo, que es
 donde se empieza casi siempre. Un nodo son dibujos, y quien sabe cuál has pulsado
 es el propio panel.
 
+**Cada nodo tiene su propio dibujo** (`tree_<id>.png` en `Sprites/tree/`, que
+genera `tools/tree_designs.py`): el objeto de su nombre. BATE es un bate de
+madera, PALANCA una palanca, MAZA una maza con pinchos, MARTILLO un mazo,
+CACTUS un cactus, ERIZO un erizo de mar, FIESTA unos globos, FIEBRE DEL ORO un
+lingote, PRÓRROGA un reloj de arena, LEYENDA una corona, FÁBRICA una nave con
+chimenea... Un dibujo con varias piezas pequeñas (anillos, confeti, una flecha)
+se emborrona a 112 px: mejor un objeto solo y grande. Antes reutilizaban
+sprites del stat (el sobre de cartas para todo el camino del daño, las zapatillas
+para la velocidad, las tijeras para el MARTILLO) y media docena de nodos eran el
+mismo dibujo con nombres que no casaban.
+
 **Pulsar un nodo no compra: abre su ficha.** La compra se decide dentro, con la
 tela delante —lo que da el nodo, lo que cuesta y **lo que el árbol lleva sumado
 ya** frente a **lo que sumará al comprarlo**—, y se paga con el botón COMPRAR. Es
@@ -417,7 +428,7 @@ el árbol era una lista de "+35 % DE VELOCIDAD". Los nombres:
 | Rama | Nodos (de dentro afuera) |
 |---|---|
 | Centro | TRASTIENDA |
-| Daño | NUDILLOS · PALANCA · MAZA · MARTILLO |
+| Daño | BATE · PALANCA · MAZA · MARTILLO |
 | Velocidad | REFLEJOS · CARRERILLA · VELOCISTA · TURBO |
 | Pinchos | ESPINAS · CARDO · CACTUS · ERIZO |
 | Armario y rebirth | ESCAPARATE · REGATEO · PROPINA · HUCHA DE ORO |
@@ -568,6 +579,27 @@ debajo de todo y en medio, colgando de lo último de cada columna: AMULETO a la
 izquierda, SOBRANTE en el centro y ENCARGADO a la derecha. Con los finales el árbol
 ya no cabía entero a 1/3 y el zoom ganó un paso de **1/4**; con LEYENDA grande
 arriba, otros dos: **1/5** y **1/6** (`ZOOM_STEPS`).
+
+#### La ascensión (el árbol morado)
+
+Con **el árbol del rebirth entero comprado** (LEYENDA incluida, `Game.tree_maxed`)
+sale un botón morado **ASCENSION** abajo a la izquierda del árbol. Abre otra
+pantalla igual que la del árbol pero morada, con partículas moradas subiendo
+(`scripts/screens/ascension_panel.gd`). Arriba, la barra: los puntos de
+ascensión, si ya se puede ascender y el botón **ASCENDER**.
+
+**Ascender lo borra TODO** (`Game.do_ascension`): la partida, las monedas y el
+árbol del rebirth, el contador de rebirths (el primero vuelve a dar el mínimo),
+el álbum y lo automático. Solo se quedan los ajustes, las estadísticas de la
+cuenta y la propia ascensión. Da **1 punto de ascensión**. Pide dos
+pulsaciones: la primera solo avisa de que se borra todo.
+
+Los puntos se gastan en los hexágonos del árbol morado (`AscensionTree`). El
+primero es **HYPER**: un hexágono grande en el centro con una persona morada
+dentro, cuesta 1 punto y da **×3 de dinero** (multiplica, no suma, en
+`Game.value_multiplier`). Lo comprado ahí no se pierde nunca. En cuanto se ha
+ascendido una vez, el botón sigue saliendo aunque el árbol del rebirth esté
+vacío, para poder entrar a gastar el punto.
 
 #### Lo que dice el simulador del árbol
 
@@ -845,6 +877,22 @@ así que la banda del test de humo subió de 19 a 26.
   los lados y una luz suave que pasa por varios colores. Son unos cien papelitos,
   poca cosa a propósito: dura un segundo y no tapa la partida.
 
+### La intro y la ayuda
+
+- **La intro** (`IntroScreen`, `scripts/screens/intro.gd`) sale cada vez que se
+  abre el juego, antes del menú: un cuento mudo en cinco viñetas al estilo de
+  The Binding of Isaac (página de papel, paso de página). Un chaval de noche con
+  el móvil → un vídeo vertical de alguien que abre un sobre y le sale una carta
+  MITO con "+1.000.000" y mil corazones → ojos de dólar (dibujados en el pixel art) ("si abro cajas me hago
+  millonario") → rompe la hucha → la trastienda llena de sobres. Unos 17 s; **un
+  clic o una tecla la salta**. El chaval no tiene sprite: es pixel art escrito con
+  letras en el propio script (`KID`, clase `Pix`). Solo sale si `Main` es la
+  escena principal: las pruebas de `dev/` montan Main a mano y esperan el menú.
+- **AYUDA** (`HelpPanel`), en Ajustes encima de CREDITOS (los dos al final,
+  abajo a la derecha): a la izquierda un anillo de verdad cargando en bucle que
+  "pulsa" en la zona dorada, con la leyenda de colores; a la derecha el juego en
+  cinco pasos y las teclas. Los números salen de `Gameplay` y `LootDB`.
+
 ### Teclado
 
 | Tecla | Qué hace |
@@ -902,7 +950,7 @@ scenes/                un nodo raíz por pantalla (ver scenes/README.md)
   Main.tscn Game.tscn Menu.tscn ShopPanel.tscn AutoBuyPanel.tscn
   AutoStorePanel.tscn LockerPanel.tscn LibretaPanel.tscn RebirthPanel.tscn
   ItemCard.tscn SkillCard.tscn RevealCard.tscn SettingsPanel.tscn
-  CreditsPanel.tscn
+  CreditsPanel.tscn HelpPanel.tscn (la intro va sin .tscn: IntroScreen.new())
   ui/game_theme.tres   el tema: la fuente y los colores de la interfaz
 
 tools/                 los generadores de Python (ver tools/README.md)
@@ -943,6 +991,14 @@ paquete entero). Detrás, el paquete se come la mitad de dentro del anillo y sol
 se ven los arcos que sobresalen por los lados, que es lo que se quiere de un
 anillo de espera. Hay un check que lo fija: el anillo tiene que ir *antes* que el
 dibujo en el árbol.
+
+**Y el anillo mide 400 px, no 320.** La parte de color va de 6 a 7,6 celdas de
+radio (de 16): a 320 empezaba a 120 px del centro y las esquinas del sobre (hasta
+143 px en el tramo del perfecto, el de cartas; 158 las zapatillas) tapaban justo
+donde hay que pulsar. A 400 empieza a 150 y el tramo perfecto se ve entero en
+todos los sobres. Más grande (432) se come el anillo del vecino con la mesa
+llena. Como aun así es más ancho que la casilla, el sobre que empieza a cargar
+pasa delante de los demás (`move_to_front()` en `start_opening()`).
 
 ---
 

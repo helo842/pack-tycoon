@@ -47,7 +47,13 @@ func _ready() -> void:
 	# tienda, no de una pantalla concreta. Por eso arranca aqui, en la raiz, y
 	# no la para nadie al cambiar de pantalla.
 	Sound.play_music(Sound.MUSIC)
-	show_menu()
+	# La historia del principio (IntroScreen) sale al abrir el juego y acaba en
+	# el menu. Solo si Main es la escena principal: las pruebas de dev/ montan
+	# Main a mano y esperan el menu enseguida.
+	if get_tree().current_scene == self:
+		_swap(IntroScreen.new())
+	else:
+		show_menu()
 
 
 ## El raiz de la partida. Devuelve null solo si aun no se ha montado.

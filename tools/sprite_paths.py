@@ -23,6 +23,7 @@ nueva, solo le da sitio a lo que el nombre ya decia.
       packs/         pack_*                los sobres que se compran
       tools/         tool_*                las herramientas
       items/         item_*                los items de la tienda equipables
+      tree/          tree_*                un dibujo por nodo del arbol del rebirth
       ui/panels/     ui_panel_*            los marcos de ventana
       ui/controls/   ui_*, menos iconos    botones, deslizadores, casillas
       ui/icons/      ui_icon_*             los iconos sueltos
@@ -64,6 +65,7 @@ FOLDER_BY_PREFIX: Dict[str, str] = {
     "shadow": "ui/indicators",
     "fx": "ui/indicators",
     "skill": "ui/indicators",
+    "tree": "tree",
     "currency": "ui/indicators",
     "num": "font",
     "font": "font",

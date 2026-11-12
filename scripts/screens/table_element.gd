@@ -33,10 +33,14 @@ const ART_SIZE := Vector2(256, 256)     # el 512 del catalogo a la mitad
 const SHADOW_SIZE := Vector2(128, 128)
 ## Tamano del anillo de espera. Tiene que ser bastante mas grande que el dibujo
 ## del paquete para que se le vea la vuelta por fuera (ver _build_pack()): el
-## sprite ui_timer_track dibuja su banda de 2,3 a 8,5 celdas de radio, o sea que
-## a 320 px el aro llega hasta 171 px del centro y el paquete se queda en 128
-## por el lado corto.
-const RING_SIZE := Vector2(320, 320)
+## sprite ui_timer_track dibuja su banda de 2,3 a 8,5 celdas de radio, y la parte
+## de color (TimerRing.BAND_IN a BAND_OUT) va de 6 a 7,6 celdas. A 400 px eso es
+## de 150 a 190 px del centro. Medido pixel a pixel, en el tramo del golpe
+## perfecto (de las 9:36 a las 12) ningun sobre pasa de 143 px (el de cartas),
+## asi que esa zona se ve entera. A 320 empezaba en 120 y las esquinas del sobre
+## tapaban justo donde hay que pulsar. Mas grande (432 lo libra todo, hasta las
+## esquinas de las zapatillas a 158) se come el anillo del vecino con la mesa llena.
+const RING_SIZE := Vector2(400, 400)
 const HIT_RECT := Rect2(Vector2(20, 10), Vector2(260, 330))
 
 ## Cuanto hay que mover el raton para que un movimiento cuente como arrastre y
@@ -301,6 +305,9 @@ func start_opening() -> bool:
 	# automatizacion, que es la mitad de las aperturas de una partida larga.
 	Sound.play("sfx_rip")
 	_ring.modulate.a = 1.0
+	# Delante de los vecinos: el anillo es mas ancho que la casilla y, si no, el
+	# de al lado le tapa el tramo del perfecto.
+	move_to_front()
 	set_process(true)
 	_tap(false)
 	return true

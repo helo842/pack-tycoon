@@ -492,7 +492,11 @@ func _pisados(de: Node, tapado := Rect2()) -> Array:
 	while not pila.is_empty():
 		var n: Node = pila.pop_back()
 		var c := n as Control
-		if c != null and c.visible:
+		# Un control oculto no pinta a sus hijos (el boton de ASCENSION escondido
+		# contaba como dibujado encima del arbol).
+		if c != null and not c.visible:
+			continue
+		if c != null:
 			if c is Label or c is PixelNumber:
 				var r := _visible(c, true)
 				if r.size.x > 0.0 and r.size.y > 0.0:
@@ -597,7 +601,11 @@ func _check_sin_encimarse(what: String, de: Node, tapado := Rect2()) -> void:
 	while not pila.is_empty():
 		var n: Node = pila.pop_back()
 		var c := n as Control
-		if c != null and c.visible:
+		# Un control oculto no pinta a sus hijos (el boton de ASCENSION escondido
+		# contaba como dibujado encima del arbol).
+		if c != null and not c.visible:
+			continue
+		if c != null:
 			if c is Label or c is PixelNumber:
 				var r := _visible(c, true)
 				var tapada: bool = tapado.size.x > 0.0 and tapado.intersects(r)
@@ -3752,6 +3760,7 @@ func _run() -> void:
 	Game.items_changed.emit()
 
 	await _check_autostore_y_ficha()
+	await _check_ascension()
 
 	# Y EL MENU NO SABE NADA DE ESTO. El menu que se ve al arrancar (y al salir de
 	# la partida) no tiene hucha ni forma de abrirla: el rebirth se hace jugando, y
@@ -4008,3 +4017,54 @@ func _check_autostore_y_ficha() -> void:
 	Game.missions = []
 	Game._fill_missions()
 	Game.skills = {}
+
+
+## LA ASCENSION: el boton sale con el arbol entero, lo borra todo, da un punto y
+## HYPER multiplica el dinero x3. Deja la partida como la encontro (sin arbol).
+func _check_ascension() -> void:
+	var g = _main._current
+	Game.skills = {}
+	Game.ascensions = 0
+	Game.ascension_points = 0
+	Game.asc_skills = {}
+	g._open_rebirth()
+	await get_tree().process_frame
+	_check("sin el arbol entero no sale el boton de ASCENSION",
+		g._rebirth != null and not g._rebirth._asc.visible)
+	for id in SkillTree.ids():
+		Game.skills[str(id)] = SkillTree.levels_of(str(id))
+	Game.rebirth_coins = 7
+	Game.money = 123456
+	Game.album = {"x": 1}
+	g._rebirth.refresh()
+	_check("con el arbol entero si sale", Game.tree_maxed() and g._rebirth._asc.visible)
+	g._rebirth._on_ascension()
+	await get_tree().process_frame
+	_check("y abre la pantalla morada (y cierra la del rebirth)",
+		g._ascension != null and g._rebirth == null)
+	var asc = g._ascension
+	_check_cabe("la ascension no saca nada del panel", asc, PANTALLA)
+	asc._on_ascend()
+	_check("la primera pulsacion de ASCENDER solo avisa",
+		Game.ascensions == 0 and Game.tree_maxed())
+	asc._on_ascend()
+	_check("la segunda lo borra TODO y da un punto",
+		Game.ascensions == 1 and Game.ascension_points == 1 and Game.skills.is_empty()
+		and Game.rebirth_coins == 0 and Game.rebirth_count == 0 and Game.album.is_empty()
+		and Game.money == Game.START_MONEY)
+	_check("ya ascendido el boton sigue saliendo aunque el arbol este vacio",
+		Game.ascension_shown() and not Game.can_ascend())
+	var antes := Game.value_multiplier()
+	asc._on_buy("hyper")
+	_check("HYPER cuesta el punto y da x3 de dinero",
+		Game.asc_owned("hyper") and Game.ascension_points == 0
+		and is_equal_approx(Game.value_multiplier(), antes * 3.0))
+	var guardado := Game.to_dict()
+	Game.asc_skills = {}
+	Game._apply(JSON.parse_string(JSON.stringify(guardado)))
+	_check("la ascension se guarda y se carga", Game.asc_owned("hyper") and Game.ascensions == 1)
+	g._close_ascension()
+	await get_tree().process_frame
+	_check("y la pantalla morada se cierra", g._ascension == null)
+	Game.ascensions = 0
+	Game.asc_skills = {}

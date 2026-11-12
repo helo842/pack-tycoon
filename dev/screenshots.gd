@@ -229,6 +229,28 @@ func _run() -> void:
 		await _shot("03g_arbol_calidad")
 		hucha._close()
 	await _frames(3)
+
+	# LA ASCENSION: el arbol entero comprado saca el boton morado abajo a la
+	# izquierda, y el boton abre la pantalla morada (antes y despues de ascender).
+	for id_todo in SkillTree.ids():
+		Game.skills[str(id_todo)] = SkillTree.levels_of(str(id_todo))
+	g._open_rebirth()
+	await _frames(4)
+	await _shot("03l_arbol_con_ascension")
+	if g._rebirth != null:
+		g._rebirth._on_ascension()
+	await _frames(20)
+	await _shot("03m_ascension")
+	if g._ascension != null:
+		g._ascension._on_ascend()
+		g._ascension._on_ascend()
+		await _wait(2.5)
+		await _shot("03n_ascension_punto")
+		g._close_ascension()
+	Game.ascensions = 0
+	Game.ascension_points = 0
+	Game.asc_skills = {}
+	await _frames(3)
 	# Y el estado de vuelta a cero: las capturas que vienen detras son de una
 	# partida que empieza y no tienen que llevar el saldo de un rebirth ni las
 	# mejoras de otra partida encima.

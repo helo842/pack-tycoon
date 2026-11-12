@@ -48,6 +48,8 @@ class_name RebirthPanel
 extends Control
 
 signal closed()
+## El boton de la ASCENSION: game.gd cierra este panel y abre el morado.
+signal ascension_requested()
 
 const SKILL_CARD_SCENE := preload("res://scenes/SkillCard.tscn")
 
@@ -201,6 +203,13 @@ const ZOOM_DEFAULT := 6
 const ZOOM_SIDE := 72.0
 const ZOOM_IN_CENTER := Vector2(1612, 780)
 const ZOOM_OUT_CENTER := Vector2(1612, 866)
+## El boton de la ASCENSION, en la esquina de abajo a la izquierda (la de enfrente
+## de las lupas). Solo sale con el arbol entero comprado (Game.ascension_shown).
+## 256 de ancho y pegado al borde para no tapar el rotulo de ESCAPARATE (x 519)
+## con el arbol en su sitio de siempre.
+const ASC_CENTER := Vector2(368, 878)
+const ASC_W := 256.0
+const ASC_TINT := Color(0.85, 0.55, 1.25)
 
 ## El color de un nodo segun lo que se puede hacer con el. El "ready" va mas
 ## claro que los demas a proposito: el nodo que se puede comprar ahora mismo es
@@ -260,6 +269,7 @@ var _missing: Label
 var _missing_note: Label
 var _hint_label: Label
 var _go: Button
+var _asc: Button
 ## Donde esta el arbol ahora mismo, en coordenadas de la vista.
 var _offset := Vector2.ZERO
 ## El zoom: el paso de ZOOM_STEPS en el que esta la vista, y las dos lupas.
@@ -523,6 +533,12 @@ func _build_bar() -> void:
 	_go = UIKit.small_button("REBIRTH", "currency_piggy", GO_CENTER, GO_W, 32)
 	_go.pressed.connect(_on_rebirth)
 	add_child(_go)
+
+	_asc = UIKit.small_button("ASCENSION", "tree_asc_hyper", ASC_CENTER, ASC_W, 32)
+	_asc.modulate = ASC_TINT
+	_asc.tooltip_text = "El arbol morado: lo borra TODO a cambio de mejoras para siempre"
+	_asc.pressed.connect(_on_ascension)
+	add_child(_asc)
 
 	var close := UIKit.close_button(CLOSE_CENTER, CLOSE_SIDE)
 	close.pressed.connect(_close)
@@ -807,6 +823,7 @@ func refresh() -> void:
 		PixelNumber.format(Game.rebirth_require()), premio,
 		LootDB.short_number(Game.rebirth_multiplier())]
 
+	_asc.visible = Game.ascension_shown()
 	var puede := Game.can_rebirth()
 	_go.modulate = Color.WHITE if puede else Color(0.55, 0.55, 0.62, 1.0)
 	if puede:
@@ -991,6 +1008,13 @@ func _on_rebirth() -> void:
 	Sound.play("sfx_tool")
 	Sound.play("sfx_rare")
 	MainRoot.get_root().banner("REBIRTH", "+%s MONEDAS PARA EL ARBOL" % PixelNumber.format(coins))
+	_close()
+
+
+func _on_ascension() -> void:
+	if _card != null:
+		_close_card()
+	ascension_requested.emit()
 	_close()
 
 

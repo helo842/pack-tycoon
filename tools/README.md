@@ -18,6 +18,11 @@ make_sprites.py     el generador principal: el catalogo completo y el auditor.
                     num_T...): solo las que hacen falta, las de GRATIS y TIENDA
                     (NUM_LETTERS). Para una letra mas, se anade ahi y a
                     PixelNumber.GLYPHS, y se genera con --only <LETRA>
+tree_designs.py     un dibujo por NODO DEL ARBOL del rebirth (tree_<id>.png en
+                    Sprites/tree/): el objeto del nombre del nodo. Lo enchufa
+                    make_sprites.py como entradas de 32x32 con prefijo "tree".
+                    Uno nuevo: se dibuja ahi, se anade a DRAWINGS y se genera
+                    con --only <id>
 pack_designs.py     los dibujos de los PAQUETES (cuatro tipos, tres escalones,
                     cerrado, abierto y los tres tramos de dano). Lo enchufa
                     make_sprites.py, que es quien los escribe y los audita

@@ -20,6 +20,7 @@ const SETTINGS_SCENE := preload("res://scenes/SettingsPanel.tscn")
 const AUTO_BUY_SCENE := preload("res://scenes/AutoBuyPanel.tscn")
 const LOCKER_SCENE := preload("res://scenes/LockerPanel.tscn")
 const REBIRTH_SCENE := preload("res://scenes/RebirthPanel.tscn")
+const ASCENSION_SCENE := preload("res://scenes/AscensionPanel.tscn")
 const LIBRETA_SCENE := preload("res://scenes/LibretaPanel.tscn")
 
 ## La LIBRETA (album y encargos): su chapa va al lado de la del armario.
@@ -234,6 +235,7 @@ var _settings: SettingsPanel = null
 var _auto_buy_panel: AutoBuyPanel = null
 var _locker: LockerPanel = null
 var _rebirth: RebirthPanel = null
+var _ascension: AscensionPanel = null
 var _reveal: RevealCard = null
 var _auto_open_btn: Button = null
 var _auto_buy_btn: Button = null
@@ -1040,7 +1042,25 @@ func _open_rebirth() -> void:
 	Sound.click()
 	_rebirth = REBIRTH_SCENE.instantiate() as RebirthPanel
 	_rebirth.closed.connect(_close_rebirth)
+	_rebirth.ascension_requested.connect(_open_ascension)
 	_main().push_veil(_rebirth)
+
+
+## El arbol morado de la ascension. Se abre desde el boton del panel del rebirth,
+## que se cierra solo justo despues.
+func _open_ascension() -> void:
+	if _ascension != null:
+		return
+	_ascension = ASCENSION_SCENE.instantiate() as AscensionPanel
+	_ascension.closed.connect(_close_ascension)
+	_main().push_veil(_ascension)
+
+
+func _close_ascension() -> void:
+	if _ascension != null:
+		_main().pop_veil(_ascension)
+		_ascension = null
+	_refresh_rebirth()
 
 
 func _close_rebirth() -> void:

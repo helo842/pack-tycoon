@@ -79,6 +79,12 @@ var rebirth_coins: int = 0
 ## los sacan de aqui. Un diccionario y no una lista de ids porque el nivel de un
 ## nodo es parte del nodo (hoy todos son de una compra, ver SkillTree.LEVELS).
 var skills: Dictionary = {}
+## LA ASCENSION (ver AscensionTree): los puntos sin gastar, cuantas veces se ha
+## ascendido y los nodos del arbol morado comprados. Es lo UNICO que sobrevive a
+## una ascension, y por eso hard_reset es el unico que lo borra.
+var ascension_points: int = 0
+var ascensions: int = 0
+var asc_skills: Dictionary = {}
 
 # Inventario y estadisticas. "items_found" y "packs_opened" son para logros,
 # que todavia no estan.
@@ -565,7 +571,7 @@ func charge_multiplier() -> float:
 ## (+30 %) y las monedas se gastan ahi.
 func value_multiplier() -> float:
 	return (1.0 + kind_bonus("vinyls")) * (1.0 + skill_bonus("money")) \
-			* (1.0 + album_bonus("money"))
+			* (1.0 + album_bonus("money")) * asc_money_mult()
 
 
 ## Cuanto se multiplican las monedas de rebirth que da reiniciar (Electronica
@@ -641,6 +647,13 @@ func do_rebirth() -> int:
 	var coins := pending_rebirth_coins()
 	rebirth_coins += coins
 	rebirth_count += 1
+	_reset_run()
+	return coins
+
+
+## Lo que se pierde en CADA reinicio, sea rebirth o ascension: la partida entera
+## (dinero, mesa, piezas, inventario, armario, misiones). Guarda al acabar.
+func _reset_run() -> void:
 	# LA MESA SE VACIA, y lo primero: lo que hay encima es de la partida que se va.
 	# Antes se quedaba puesta, y el botin sin vender se cobraba DESPUES del rebirth,
 	# o sea que se podia pasar dinero de una partida a la siguiente dejando la mesa
@@ -684,7 +697,87 @@ func do_rebirth() -> int:
 	items_changed.emit()
 	settings_changed.emit()
 	save_game()
-	return coins
+
+
+# --------------------------------------------------------------------------- #
+# La ascension (el super-rebirth, ver AscensionTree)
+# --------------------------------------------------------------------------- #
+
+## ¿Esta el arbol del rebirth ENTERO comprado (LEYENDA incluida)?
+func tree_maxed() -> bool:
+	for id in SkillTree.ids():
+		if skill_level(str(id)) < SkillTree.levels_of(str(id)):
+			return false
+	return true
+
+
+## El boton de la ascension sale con el arbol al maximo, y ya para siempre en
+## cuanto se ha ascendido una vez: si no, quien asciende y cierra el panel sin
+## gastar el punto no podria volver a entrar hasta completar otro arbol.
+func ascension_shown() -> bool:
+	return tree_maxed() or ascensions > 0
+
+
+func can_ascend() -> bool:
+	return tree_maxed()
+
+
+## Ascender: se pierde TODO menos la propia ascension y los ajustes. La partida,
+## las monedas y el arbol del rebirth, el contador de rebirths (el primero vuelve
+## a dar el minimo), el album y lo automatico. Da un punto de ascension.
+## Devuelve los puntos ganados (0 si no se puede).
+func do_ascension() -> int:
+	if not can_ascend():
+		return 0
+	ascension_points += 1
+	ascensions += 1
+	# El arbol se va ANTES que la partida: _reset_run() mira FABRICA y el dinero
+	# inicial del centro del arbol, y con el arbol vacio salen los de serie.
+	skills = {}
+	rebirth_coins = 0
+	rebirth_count = 0
+	album = {}
+	auto_sell = false
+	autostore_on = false
+	auto_items_off = []
+	cooldowns = {}
+	streak = 0
+	perfect_hits = 0
+	_reset_run()
+	skills_changed.emit()
+	album_changed.emit()
+	abilities_changed.emit()
+	streak_changed.emit(streak)
+	return 1
+
+
+func asc_owned(id: String) -> bool:
+	return bool(asc_skills.get(id, false))
+
+
+func can_buy_asc(id: String) -> bool:
+	var n := AscensionTree.node_by_id(id)
+	return not n.is_empty() and not asc_owned(id) and ascension_points >= int(n["cost"])
+
+
+func buy_asc(id: String) -> bool:
+	if not can_buy_asc(id):
+		return false
+	ascension_points -= int(AscensionTree.node_by_id(id)["cost"])
+	asc_skills[id] = true
+	_dirty = true
+	skills_changed.emit()
+	items_changed.emit()
+	save_game()
+	return true
+
+
+## Lo que multiplican el dinero los nodos de la ascension comprados (HYPER x3).
+func asc_money_mult() -> float:
+	var m := 1.0
+	for id in asc_skills:
+		m *= float(AscensionTree.node_by_id(str(id)).get("money_mult", 1.0))
+	return m
 
 
 # --------------------------------------------------------------------------- #
@@ -1450,6 +1543,9 @@ func hard_reset() -> void:
 	money = START_MONEY
 	rebirth_coins = 0
 	skills = {}
+	ascension_points = 0
+	ascensions = 0
+	asc_skills = {}
 	inventory = []
 	locker = []
 	items = []
@@ -1504,6 +1600,9 @@ func to_dict() -> Dictionary:
 		"money": money,
 		"rebirth_coins": rebirth_coins,
 		"skills": skills,
+		"ascension_points": ascension_points,
+		"ascensions": ascensions,
+		"asc_skills": asc_skills,
 		"inventory": inventory,
 		"locker": locker,
 		"items": items,
@@ -1608,6 +1707,14 @@ func _apply(d: Dictionary) -> void:
 		for id in SkillTree.REFUND:
 			if int(raw_skills.get(id, 0)) > 0:
 				rebirth_coins += int(SkillTree.REFUND[id])
+	ascension_points = maxi(0, int(d.get("ascension_points", 0)))
+	ascensions = maxi(0, int(d.get("ascensions", 0)))
+	# Limpio contra los nodos que existen, como el arbol del rebirth.
+	asc_skills = {}
+	if typeof(d.get("asc_skills")) == TYPE_DICTIONARY:
+		for id in d["asc_skills"]:
+			if not AscensionTree.node_by_id(str(id)).is_empty() and bool(d["asc_skills"][id]):
+				asc_skills[str(id)] = true
 	inventory = d.get("inventory", [])
 	if typeof(inventory) != TYPE_ARRAY:
 		inventory = []
