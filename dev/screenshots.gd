@@ -108,6 +108,11 @@ func _run() -> void:
 	menu._on_settings()
 	await _frames(4)
 	await _shot("02_settings")
+	var ajustes = _main._veil_host.get_child(0) if _main._veil_host.get_child_count() > 0 else null
+	if ajustes is SettingsPanel:
+		ajustes._open_credits()
+		await _frames(20)
+		await _shot("02b_creditos")
 	for c in _main._veil_host.get_children():
 		_main.pop_veil(c)
 	await _frames(2)

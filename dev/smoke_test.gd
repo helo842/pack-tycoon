@@ -147,6 +147,14 @@ func _check_sounds() -> void:
 	_check("la musica esta en el indice", musica != null)
 	if musica != null:
 		_check("el bucle de la musica tiene fin", Sound.loop_end_frames(musica) > 1000)
+	# La musica que suena de verdad (Stream Cafe, OGG de una hora) y su bucle.
+	var ost := Sound.stream(Sound.MUSIC) as AudioStreamOggVorbis
+	_check("la musica de fondo (%s) esta importada" % Sound.MUSIC, ost != null)
+	if ost != null:
+		_check("la musica de fondo dura mas de 50 min", ost.get_length() > 3000.0)
+		var en_bucle := Sound._make_loop(ost) as AudioStreamOggVorbis
+		_check("la musica de fondo va en bucle", en_bucle != null and en_bucle.loop)
+		_check("el bucle no toca el recurso cacheado", not ost.loop)
 
 	# Que el volumen de los ajustes llegue de verdad al bus, que es lo que unia
 	# los dos deslizadores con el audio.
@@ -794,6 +802,26 @@ func _run() -> void:
 			ajustes._sell_box.texture == Sprites.tex("ui_checkbox_off"))
 		_check("las dos casillas estan separadas para no pisarse los clics",
 			absf(ajustes._sell_box.position.y - ajustes._screen_box.position.y) >= 96.0)
+	# CREDITOS: la musica de Stream Cafe pide el credito (artista y enlace).
+	if ajustes != null:
+		ajustes._open_credits()
+		await get_tree().process_frame
+		await _wait(0.3)
+		var creditos = ajustes._credits
+		_check("los creditos se abren desde los ajustes",
+			creditos != null and creditos.get_parent() == _main._veil_host)
+		if creditos != null:
+			_check_cabe("los creditos no sacan texto del panel", creditos, PANEL)
+			_check("los creditos nombran a Stream Cafe",
+				_main._veil_host.find_children("*", "Label", true, false).any(
+					func(l): return l.text == CreditsPanel.MUSIC_ARTIST))
+			_check("los creditos traen el enlace del video, en minusculas",
+				creditos.find_children("*", "Button", true, false).any(
+					func(b): return b.text == CreditsPanel.MUSIC_URL))
+			creditos._close()
+			await get_tree().process_frame
+			_check("los creditos se cierran", ajustes._credits == null
+				and not _main._veil_host.get_children().has(creditos))
 	for c in _main._veil_host.get_children():
 		_main.pop_veil(c)
 	await get_tree().process_frame

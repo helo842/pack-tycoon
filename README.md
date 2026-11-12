@@ -885,9 +885,10 @@ Sprites/               ~460 PNG, en subcarpetas (ver Sprites/README.md)
   mockups/             las maquetas de las pantallas
   index.tsv            nombre corto -> ruta. Lo lee el juego
 
-Sounds/                11 WAV, en subcarpetas (ver Sounds/README.md)
+Sounds/                11 WAV y 1 OGG, en subcarpetas (ver Sounds/README.md)
   sfx/                 los efectos: moneda, rasgado, revelado, error...
-  music/               la musica de fondo, un bucle que no llama la atencion
+  music/               la musica de fondo: Stream Cafe (OGG de 1 h, con credito
+                       en Ajustes > CREDITOS) y el bucle sintetizado de antes
   index.tsv            nombre corto -> ruta. Lo lee el juego
 
 scripts/               el código, por capas (ver scripts/README.md)
@@ -901,6 +902,7 @@ scenes/                un nodo raíz por pantalla (ver scenes/README.md)
   Main.tscn Game.tscn Menu.tscn ShopPanel.tscn AutoBuyPanel.tscn
   AutoStorePanel.tscn LockerPanel.tscn LibretaPanel.tscn RebirthPanel.tscn
   ItemCard.tscn SkillCard.tscn RevealCard.tscn SettingsPanel.tscn
+  CreditsPanel.tscn
   ui/game_theme.tres   el tema: la fuente y los colores de la interfaz
 
 tools/                 los generadores de Python (ver tools/README.md)
@@ -1167,7 +1169,8 @@ código (`apply_card_wear()`): roce de borde, humedad, esquina doblada, pliegue 
 mancha de anillo.
 
 **Sonido** — ya está: once WAV que genera `tools/make_sounds.py` (diez efectos y
-una música de fondo en bucle) y los deslizadores de MÚSICA y SONIDOS enchufados a
+una música en bucle que ya no suena), la música de fondo de **Stream Cafe** (una
+hora en OGG, con su crédito en Ajustes > CREDITOS) y los deslizadores de MÚSICA y SONIDOS enchufados a
 los buses de verdad. Ver `Sounds/README.md`. Queda **un sonido por material**: hoy
 el rasgado es el mismo en un sobre de cartón que en una caja de plástico, que era
 justo lo que pedía el documento.

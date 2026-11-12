@@ -46,7 +46,7 @@ func _ready() -> void:
 	# La musica es la misma en el menu y en la partida: es el fondo de la
 	# tienda, no de una pantalla concreta. Por eso arranca aqui, en la raiz, y
 	# no la para nadie al cambiar de pantalla.
-	Sound.play_music("music_backroom")
+	Sound.play_music(Sound.MUSIC)
 	show_menu()
 
 

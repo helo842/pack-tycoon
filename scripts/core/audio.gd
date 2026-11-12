@@ -30,6 +30,12 @@ const INDEX := "res://Sounds/index.tsv"
 ## distingue nada y solo suma ruido.
 const POOL := 12
 
+## La musica de fondo de todo el juego: el recopilatorio de una hora de Stream
+## Cafe (OGG). Es de uso libre dando el credito, que esta en Ajustes > CREDITOS
+## (CreditsPanel). La de antes, music_backroom, sigue en el indice porque la
+## genera tools/make_sounds.py, pero ya no suena.
+const MUSIC := "music_streamcafe"
+
 const BUS_MASTER := "Master"
 const BUS_MUSIC := "Music"
 const BUS_SFX := "Sfx"
@@ -239,8 +245,8 @@ func is_music_playing() -> bool:
 
 func _on_music_finished() -> void:
 	# Solo se llega aqui si el bucle del stream no ha podido montarse (un
-	# formato que no es WAV, por ejemplo). Se vuelve a empezar para que la
-	# musica no se quede muda a mitad de partida.
+	# formato que no es WAV ni OGG, por ejemplo). Se vuelve a empezar para que
+	# la musica no se quede muda a mitad de partida.
 	if _music_name != "":
 		_music.play()
 
@@ -250,8 +256,14 @@ func _on_music_finished() -> void:
 ## El importador de Godot deja los WAV en "sin bucle" a proposito, y no se puede
 ## poner el bucle por defecto en todos: los efectos, que son WAV iguales, se
 ## pondrian a repetirse sin parar. Asi que el bucle se monta aqui, y solo para
-## la musica.
+## la musica. Un OGG solo necesita su `loop`, que el importador tambien deja
+## apagado; se pone en una copia para no tocar el recurso cacheado.
 func _make_loop(s: AudioStream) -> AudioStream:
+	var ogg := s as AudioStreamOggVorbis
+	if ogg != null:
+		var looped := ogg.duplicate() as AudioStreamOggVorbis
+		looped.loop = true
+		return looped
 	var wav := s as AudioStreamWAV
 	if wav == null:
 		return s

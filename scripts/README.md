@@ -62,7 +62,10 @@ screens/    una clase por pantalla
   reveal_card.gd    la tarjeta de revelado
   settings_panel.gd los ajustes: volumen, pantalla completa, venta automatica,
                     la fila del AUTO GUARDAR (gris hasta comprarlo) y cuando
-                    sale la FICHA del objeto (siempre / lo bueno / nunca)
+                    sale la FICHA del objeto (siempre / lo bueno / nunca), y
+                    el boton CREDITOS
+  credits_panel.gd  los creditos: la musica de Stream Cafe con su enlace (en
+                    la fuente por defecto, que tiene minusculas; se puede pulsar)
   libreta_panel.gd  la libreta: el album y los encargos
   table_element.gd  un sobre de la mesa: se golpea, se rompe y se arrastra (en la
                     mesa solo hay sobres; el botin se guarda o se vende al salir)

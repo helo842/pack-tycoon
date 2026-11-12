@@ -2,6 +2,7 @@
 # Lo genera tools/make_sounds.py. No editar a mano.
 # El juego lo lee en scripts/core/audio.gd.
 music_backroom	music/music_backroom.wav
+music_streamcafe	music/music_streamcafe.ogg
 sfx_buy	sfx/sfx_buy.wav
 sfx_click	sfx/sfx_click.wav
 sfx_error	sfx/sfx_error.wav

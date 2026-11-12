@@ -1,6 +1,7 @@
 # Sounds
 
-Los sonidos del juego. **No hay ni un fichero descargado de internet**: los once
+Los sonidos del juego. **Solo la música de fondo viene de fuera** (Stream Cafe,
+ver *La música de Stream Cafe* al final); los once
 WAV salen de `../tools/make_sounds.py`, que los sintetiza con ondas cuadradas,
 triangulares y ruido filtrado. Es la misma idea que `Sprites/` y por el mismo
 motivo: once sonidos que tienen que sonar a la misma familia se cambian todos a
@@ -53,7 +54,8 @@ volver a ejecutarlo, no el código.
 | `sfx_sell_all` | VENDER o VENDER TODO | 0,64 s |
 | `sfx_error` | No te llega el dinero, mesa llena, no hay nada que vender | 0,32 s |
 | `sfx_tool` | Comprar una mejora de herramienta | 0,74 s |
-| `music_backroom` | Siempre, de fondo, en bucle | 22,86 s |
+| `music_backroom` | Ya no suena: la sustituye `music_streamcafe` (sigue generándose) | 22,86 s |
+| `music_streamcafe` | Siempre, de fondo, en bucle (OGG, de fuera) | 58:52 |
 
 Tres decisiones que no se ven en la tabla:
 
@@ -70,7 +72,7 @@ Tres decisiones que no se ven en la tabla:
   deja de reconocerse. Está en la tabla `JITTER` de `../scripts/core/audio.gd`, y
   es una lista corta a propósito: solo `sfx_click` y `sfx_sell`.
 
-## La música
+## La música sintetizada (`music_backroom`, ya no suena)
 
 Un bucle de 8 compases a 84 BPM sobre cuatro acordes (Am - F - C - G, dos
 compases cada uno) con tres voces muy separadas de volumen:
@@ -173,3 +175,24 @@ se cuelan solos:
    arreglarlo.
 5. Que suene en algún sitio: `Sound.play("sfx_mi_sonido")` donde corresponda.
 6. `Sounds/index.tsv` **no se toca a mano**: lo reescribe el generador.
+
+## La música de Stream Cafe (`music_streamcafe`)
+
+Desde el 2026-11-12 la música de fondo es el recopilatorio **"1 hour of comfy &
+relaxing songs"** de **Stream Cafe**
+(https://www.youtube.com/watch?v=TQvXEza4fPc), entero (58:52) y en bucle. Es de
+uso libre **con crédito**, y al ser más de una pista el crédito tiene que ser
+*artista - enlace del vídeo*: "Stream Cafe - https://www.youtube.com/watch?v=TQvXEza4fPc".
+Va en **Ajustes > CREDITOS** (`scripts/screens/credits_panel.gd`). Quitar el
+crédito expone el juego a reclamaciones de copyright.
+
+- Es un **OGG Vorbis** (estéreo, 44,1 kHz, calidad 1, ~29 MB), no un WAV: una
+  hora en WAV serían 600 MB. El importador deja el OGG sin bucle; `Sound._make_loop`
+  pone `loop = true` en una copia.
+- No sale de `make_sounds.py`: el generador solo lo apunta en su tabla
+  `EXTERNAL` para que el índice no lo pierda al regenerarse.
+- Cómo se sacó (por si hay que repetirlo), con el `.venv` del proyecto:
+  `pip install yt-dlp imageio-ffmpeg`, `yt-dlp -f bestaudio <enlace>` y
+  `ffmpeg -i raw.webm -vn -ac 2 -ar 44100 -c:a libvorbis -q:a 1 music_streamcafe.ogg`
+  (el ffmpeg es el que trae `imageio_ffmpeg`).
+- El nombre que suena está en `Sound.MUSIC` (`scripts/core/audio.gd`).

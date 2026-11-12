@@ -22,6 +22,7 @@ var _store_box: TextureRect = null
 var _store_pick: Button = null
 var _card_label: Label = null
 var _filter: AutoStorePanel = null
+var _credits: CreditsPanel = null
 
 const ROW_SLIDER_1 := 330.0
 const ROW_SLIDER_2 := 430.0
@@ -30,6 +31,11 @@ const ROW_SELL := 626.0
 const ROW_STORE := 722.0
 const ROW_CARD := 818.0
 const AUTOSTORE_SCENE := preload("res://scenes/AutoStorePanel.tscn")
+const CREDITS_SCENE := preload("res://scenes/CreditsPanel.tscn")
+## El boton de CREDITOS: pequeno y abajo a la derecha, a la altura de la ultima
+## fila. Ahi no estorba (la flecha derecha de la FICHA acaba en x 1426; el boton
+## empieza en 1480) y queda dentro del interior del panel (hasta x 1696).
+const CREDITS_POS := Vector2(1580, ROW_CARD)
 const CARD_NAMES := {"always": "SIEMPRE", "good": "LO BUENO", "never": "NUNCA"}
 
 ## Ultimo valor del deslizador de SONIDOS al que ya se le ha dado el clic de
@@ -54,6 +60,11 @@ func _ready() -> void:
 	_build_checks()
 	_build_autostore()
 	_build_card_mode()
+
+	var credits := UIKit.small_button("CREDITOS", "", CREDITS_POS, 200, 22)
+	credits.tooltip_text = "Creditos (musica)"
+	credits.pressed.connect(_open_credits)
+	add_child(credits)
 
 
 func _build_sliders() -> void:
@@ -209,6 +220,22 @@ func _on_filter_closed() -> void:
 	if _filter != null:
 		MainRoot.get_root().pop_veil(_filter)
 		_filter = null
+
+
+## Los creditos van en su propio panel, encima de los ajustes, como el filtro.
+func _open_credits() -> void:
+	if _credits != null:
+		return
+	Sound.click()
+	_credits = CREDITS_SCENE.instantiate() as CreditsPanel
+	_credits.closed.connect(_on_credits_closed)
+	MainRoot.get_root().push_veil(_credits)
+
+
+func _on_credits_closed() -> void:
+	if _credits != null:
+		MainRoot.get_root().pop_veil(_credits)
+		_credits = null
 
 
 func _check_tex(on: bool) -> String:

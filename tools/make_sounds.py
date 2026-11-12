@@ -405,6 +405,15 @@ MUSIC: Dict[str, Callable[[], List[float]]] = {
     "music_backroom": music_backroom,
 }
 
+# Pistas que NO salen de este generador: se meten a mano en Sounds/ y aqui solo
+# se apuntan para que el indice no las pierda al regenerarlo. Cada una necesita
+# su credito en el panel de CREDITOS (scripts/screens/credits_panel.gd).
+#   music_streamcafe: Stream Cafe - https://www.youtube.com/watch?v=TQvXEza4fPc
+#   (la hora entera en OGG Vorbis; de uso libre dando el credito)
+EXTERNAL: Dict[str, str] = {
+    "music_streamcafe": f"{MUSIC_DIR}/music_streamcafe.ogg",
+}
+
 # Volumen final de cada cosa. Los efectos van mas altos que la musica a
 # proposito: la musica es fondo y el jugador la puede bajar aparte.
 SFX_PEAK = 0.85
@@ -413,6 +422,8 @@ MUSIC_PEAK = 0.55
 
 def rel_path(name: str) -> str:
     """La carpeta la decide el prefijo, igual que en los sprites."""
+    if name in EXTERNAL:
+        return EXTERNAL[name]
     return f"{MUSIC_DIR}/{name}.wav" if name.startswith("music_") else f"{SFX_DIR}/{name}.wav"
 
 
@@ -520,7 +531,7 @@ def main() -> None:
 
     print(f"\n{len(escritos)} sonidos escritos en {OUT}/")
 
-    names = list(SFX) + list(MUSIC)
+    names = list(SFX) + list(MUSIC) + list(EXTERNAL)
     write_index(os.path.join(out, "index.tsv"), names)
     print(f"Indice: {OUT}/index.tsv ({len(names)} entradas)")
 
