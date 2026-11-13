@@ -24,6 +24,7 @@ var _card_label: Label = null
 var _filter: AutoStorePanel = null
 var _credits: CreditsPanel = null
 var _help: HelpPanel = null
+var _admin: AdminPanel = null
 
 const ROW_SLIDER_1 := 330.0
 const ROW_SLIDER_2 := 430.0
@@ -41,6 +42,9 @@ const CREDITS_POS := Vector2(1580, ROW_CARD)
 ## de los ajustes, uno sobre otro.
 const HELP_POS := Vector2(1580, ROW_STORE)
 const HELP_SCENE := preload("res://scenes/HelpPanel.tscn")
+## ADMIN (trampas para probar) encima de AYUDA, y solo en depuracion.
+const ADMIN_POS := Vector2(1580, ROW_SELL)
+const ADMIN_SCENE := preload("res://scenes/AdminPanel.tscn")
 const CARD_NAMES := {"always": "SIEMPRE", "good": "LO BUENO", "never": "NUNCA"}
 
 ## Ultimo valor del deslizador de SONIDOS al que ya se le ha dado el clic de
@@ -70,6 +74,12 @@ func _ready() -> void:
 	help.tooltip_text = "Como se juega"
 	help.pressed.connect(_open_help)
 	add_child(help)
+
+	if OS.is_debug_build():
+		var admin := UIKit.small_button("ADMIN", "", ADMIN_POS, 200, 22)
+		admin.tooltip_text = "Trampas para probar (solo en depuracion)"
+		admin.pressed.connect(_open_admin)
+		add_child(admin)
 
 	var credits := UIKit.small_button("CREDITOS", "", CREDITS_POS, 200, 22)
 	credits.tooltip_text = "Creditos (musica)"
@@ -262,6 +272,21 @@ func _on_help_closed() -> void:
 	if _help != null:
 		MainRoot.get_root().pop_veil(_help)
 		_help = null
+
+
+func _open_admin() -> void:
+	if _admin != null:
+		return
+	Sound.click()
+	_admin = ADMIN_SCENE.instantiate() as AdminPanel
+	_admin.closed.connect(_on_admin_closed)
+	MainRoot.get_root().push_veil(_admin)
+
+
+func _on_admin_closed() -> void:
+	if _admin != null:
+		MainRoot.get_root().pop_veil(_admin)
+		_admin = null
 
 
 func _check_tex(on: bool) -> String:

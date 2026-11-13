@@ -21,6 +21,7 @@ const AUTO_BUY_SCENE := preload("res://scenes/AutoBuyPanel.tscn")
 const LOCKER_SCENE := preload("res://scenes/LockerPanel.tscn")
 const REBIRTH_SCENE := preload("res://scenes/RebirthPanel.tscn")
 const ASCENSION_SCENE := preload("res://scenes/AscensionPanel.tscn")
+const PET_SCENE := preload("res://scenes/PetPanel.tscn")
 const LIBRETA_SCENE := preload("res://scenes/LibretaPanel.tscn")
 
 ## La LIBRETA (album y encargos): su chapa va al lado de la del armario.
@@ -236,11 +237,14 @@ var _auto_buy_panel: AutoBuyPanel = null
 var _locker: LockerPanel = null
 var _rebirth: RebirthPanel = null
 var _ascension: AscensionPanel = null
+var _pets: PetPanel = null
 var _reveal: RevealCard = null
 var _auto_open_btn: Button = null
 var _auto_buy_btn: Button = null
 var _locker_btn: Button = null
 var _rebirth_btn: Button = null
+## La tienda de mascotas: sale al comprar HYPER (ver Game.pet_shop_shown).
+var _pets_btn: Button = null
 var _rng := RandomNumberGenerator.new()
 
 ## Los paquetes que el jugador ha empezado a abrir y que siguen en la mesa.
@@ -672,6 +676,13 @@ func _build_top_bar() -> void:
 	shop.pressed.connect(_open_shop)
 	add_child(shop)
 
+	# LA TIENDA DE MASCOTAS, a la izquierda de la TIENDA, en el hueco que dejo
+	# VENDER (1056..1256, con 16 px a cada lado). Escondida hasta comprar HYPER.
+	_pets_btn = UIKit.small_button("MASCOTAS", "tree_pet_capsule", Vector2(1156, 58), 200, 24)
+	_pets_btn.tooltip_text = "Tienda de mascotas: cuatro maquinas de gachapon"
+	_pets_btn.pressed.connect(_open_pets)
+	add_child(_pets_btn)
+
 	# LA HUCHA, AL LADO DE LA TIENDA Y DEL MISMO TAMANO QUE ELLA: misma chapa de
 	# 256 y mismo pedido de fuente, con el cerdito al lado de la palabra como la
 	# tienda lleva su icono. Antes era una chapa pequeña (200 y fuente 21) y se
@@ -1061,6 +1072,24 @@ func _close_ascension() -> void:
 		_main().pop_veil(_ascension)
 		_ascension = null
 	_refresh_rebirth()
+	_refresh_top()
+
+
+## La tienda de mascotas (el gachapon, ver PetPanel).
+func _open_pets() -> void:
+	if _pets != null:
+		return
+	Sound.click()
+	_pets = PET_SCENE.instantiate() as PetPanel
+	_pets.closed.connect(_close_pets)
+	_main().push_veil(_pets)
+
+
+func _close_pets() -> void:
+	if _pets != null:
+		_main().pop_veil(_pets)
+		_pets = null
+	_refresh_top()
 
 
 func _close_rebirth() -> void:
@@ -1612,6 +1641,8 @@ func _refresh_top() -> void:
 	# vitrina donde exponer nada.
 	if is_instance_valid(_locker_btn):
 		UIKit.dim_icon_button(_locker_btn, Game.locker_slots() <= 0)
+	if is_instance_valid(_pets_btn):
+		_pets_btn.visible = Game.pet_shop_shown()
 	_refresh_rebirth()
 
 

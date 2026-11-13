@@ -45,8 +45,8 @@ const PURPLE := Color8(150, 80, 230)
 ## El nodo HYPER: un hexagono grande en el centro de lo que queda debajo de la
 ## barra, con la persona morada dentro, y su nombre, lo que da y el precio debajo.
 const HEX_CENTER := Vector2(960, 560)
-const HEX_SIDE := 360.0
-const HEX_ART := Vector2(190, 190)
+const HEX_SIDE := 320.0
+const HEX_ART := Vector2(120, 120)
 const NAME_Y := 790.0
 const DESC_Y := 840.0
 const COST_Y := 885.0
@@ -191,7 +191,7 @@ func _build_bar() -> void:
 	add_child(edge)
 
 	var icono_x := RebirthPanel.BANK_X
-	add_child(UIKit.fit_art("tree_asc_hyper", Vector2(icono_x, ROW_BANK),
+	add_child(UIKit.fit_art("tree_asc_star", Vector2(icono_x, ROW_BANK),
 		Vector2(RebirthPanel.BANK_ART, RebirthPanel.BANK_ART)))
 	_points = PixelNumber.new()
 	_points.color = LILA
@@ -206,7 +206,7 @@ func _build_bar() -> void:
 	_hint_label = UIKit.label("", 21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT)
 	add_child(_hint_label)
 
-	_go = UIKit.small_button("ASCENDER", "tree_asc_hyper", GO_CENTER, GO_W, 32)
+	_go = UIKit.small_button("ASCENDER", "tree_asc_star", GO_CENTER, GO_W, 32)
 	_go.pressed.connect(_on_ascend)
 	add_child(_go)
 

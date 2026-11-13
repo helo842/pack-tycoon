@@ -401,6 +401,10 @@ func _cycle(levels: Array, st: Dictionary) -> float:
 		charge *= 1.0 - float(st.get("perfect", 0.0)) * (1.0 - (1.0 + Gameplay.PERFECT_FROM) * 0.5)
 		charge /= 1.0 + _album_bonus("speed")
 	charge /= (1.0 + float(_tot["sneakers"])) * (1.0 + _skb("speed"))
+	# El tope de la carga (Gameplay.MIN_CHARGE): lo que sobra es dano, o sea
+	# golpes que valen por mas de uno; aqui, el ciclo dividido por eso.
+	var sobra := maxf(1.0, Gameplay.MIN_CHARGE / charge)
+	charge = maxf(charge, Gameplay.MIN_CHARGE)
 	var click := float(st["click"])
 	var best := charge + click
 	var slots := LootDB.table_slots(levels) + int(_album_bonus("table"))
@@ -408,7 +412,7 @@ func _cycle(levels: Array, st: Dictionary) -> float:
 	while k <= slots:
 		best = minf(best, maxf(charge, float(k) * click))
 		k += 1
-	return best
+	return best / sobra
 
 
 func _average_hit(levels: Array) -> float:

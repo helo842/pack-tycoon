@@ -41,6 +41,9 @@ RebirthPanel.tscn  el arbol de mejoras: aqui se gastan las monedas, y el
                    rebirth es el boton de la barra de arriba
 RevealCard.tscn    la tarjeta de revelado
 SettingsPanel.tscn los ajustes
+AscensionPanel.tscn la ascension (el arbol morado)
+PetPanel.tscn      la tienda de mascotas (el gachapon)
+AdminPanel.tscn    trampas para probar (sale en Ajustes solo en depuracion)
 ui/
   game_theme.tres  el tema: la fuente y los colores por defecto de la interfaz
 ```

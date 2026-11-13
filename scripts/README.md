@@ -20,7 +20,11 @@ data/       lo que se toca para reequilibrar el juego
                   sube cada uno (LOOT_KINDS), los huecos del armario y el precio
                   del rebirth (el requisito y las monedas)
   gameplay.gd     eventos (dorado, VIP, hora feliz, jefe), golpe perfecto,
-                  racha, zona dorada, combo, habilidades, album y encargos
+                  racha, zona dorada, tope de la carga (MIN_CHARGE), combo,
+                  habilidades, album y encargos
+  pet_db.gd       las mascotas del gachapon: las cuatro maquinas (lo que
+                  cuesta la tirada y con que se paga), sus seis mascotas cada
+                  una con el stat que suben, y la tirada por peso de rareza
   skill_tree.gd   el arbol de mejoras que se paga con monedas de rebirth: el
                   centro, los caminos en diagonal con sus finales, las ramas de
                   calidad de vida, habilidades, punteria y eventos, y LEYENDA;
@@ -64,6 +68,11 @@ screens/    una clase por pantalla
                     la fila del AUTO GUARDAR (gris hasta comprarlo) y cuando
                     sale la FICHA del objeto (siempre / lo bueno / nunca), y
                     el boton CREDITOS
+  ascension_panel.gd la ascension: el arbol morado de hexagonos y ASCENDER
+  pet_panel.gd      la tienda de mascotas: una pagina por maquina, TIRAR y el
+                    revelado a pantalla completa
+  admin_panel.gd    trampas para probar (solo en depuracion): dar y quitar
+                    dinero, monedas, puntos, arbol, piezas y mascotas
   credits_panel.gd  los creditos: la musica de Stream Cafe con su enlace (en
                     la fuente por defecto, que tiene minusculas; se puede pulsar)
   libreta_panel.gd  la libreta: el album y los encargos

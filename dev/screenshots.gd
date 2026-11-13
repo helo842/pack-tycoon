@@ -230,6 +230,32 @@ func _run() -> void:
 		hucha._close()
 	await _frames(3)
 
+	# LA TIENDA DE MASCOTAS: con HYPER sale su chapa en la barra; dentro, el
+	# gachapon recien tirado y alguna mascota ya subida.
+	Game.asc_skills = {"hyper": true}
+	Game.pets = {"dog": 2, "fish": 1}
+	Game.rebirth_coins = 12
+	Game.items_changed.emit()
+	await _frames(3)
+	await _shot("03o_barra_mascotas")
+	g._open_pets()
+	await _frames(4)
+	await _shot("03p_mascotas")
+	if g._pets != null:
+		g._pets._on_roll()
+		await _wait(2.6)
+		await _shot("03q_mascotas_tirada")
+		g._pets._close_reveal()
+		# La segunda pagina: la maquina de oro y sus mascotas.
+		g._pets._step_page(1)
+		await _wait(0.3)
+		await _shot("03r_mascotas_oro")
+		g._close_pets()
+	Game.asc_skills = {}
+	Game.pets = {}
+	Game.rebirth_coins = 0
+	await _frames(3)
+
 	# LA ASCENSION: el arbol entero comprado saca el boton morado abajo a la
 	# izquierda, y el boton abre la pantalla morada (antes y despues de ascender).
 	for id_todo in SkillTree.ids():

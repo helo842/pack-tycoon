@@ -85,6 +85,9 @@ var skills: Dictionary = {}
 var ascension_points: int = 0
 var ascensions: int = 0
 var asc_skills: Dictionary = {}
+## LAS MASCOTAS del gachapon (ver PetDB): el nivel de cada una por su id. Como
+## la ascension, sobreviven a TODO menos a hard_reset.
+var pets: Dictionary = {}
 
 # Inventario y estadisticas. "items_found" y "packs_opened" son para logros,
 # que todavia no estan.
@@ -549,7 +552,7 @@ func kind_totals() -> Dictionary:
 ## juntan aqui y no en cada sitio que pega (el boton, los pinchos y la mesa).
 func damage_multiplier() -> float:
 	return (1.0 + kind_bonus("cards")) * (1.0 + skill_bonus("damage")) \
-			* (1.0 + album_bonus("damage"))
+			* (1.0 + album_bonus("damage")) * (1.0 + pet_bonus("damage")) * speed_overflow()
 
 
 ## Cuanto se acelera la CARGA del boton (Zapatillas expuestas y la mejora de
@@ -557,7 +560,7 @@ func damage_multiplier() -> float:
 ## que sin nada".
 func charge_multiplier() -> float:
 	return (1.0 + kind_bonus("sneakers")) * (1.0 + skill_bonus("speed")) \
-			* (1.0 + album_bonus("speed"))
+			* (1.0 + album_bonus("speed")) * (1.0 + pet_bonus("speed"))
 
 
 ## Cuanto sube el DINERO que se saca de cada objeto encontrado: lo que dan los
@@ -571,14 +574,15 @@ func charge_multiplier() -> float:
 ## (+30 %) y las monedas se gastan ahi.
 func value_multiplier() -> float:
 	return (1.0 + kind_bonus("vinyls")) * (1.0 + skill_bonus("money")) \
-			* (1.0 + album_bonus("money")) * asc_money_mult()
+			* (1.0 + album_bonus("money")) * asc_money_mult() * (1.0 + pet_bonus("money"))
 
 
 ## Cuanto se multiplican las monedas de rebirth que da reiniciar (Electronica
 ## expuesta). No toca el dinero: toca el PREMIO del rebirth, que es lo que le da
 ## sentido a exponer electronica.
 func rebirth_multiplier() -> float:
-	return 1.0 + kind_bonus("electronics") + album_bonus("rebirth")
+	return (1.0 + kind_bonus("electronics") + album_bonus("rebirth")) \
+			* (1.0 + pet_bonus("rebirth"))
 
 
 ## Lo que pide el rebirth en el contador, con la REBAJA del arbol.
@@ -778,6 +782,68 @@ func asc_money_mult() -> float:
 	for id in asc_skills:
 		m *= float(AscensionTree.node_by_id(str(id)).get("money_mult", 1.0))
 	return m
+
+
+# --------------------------------------------------------------------------- #
+# La tienda de mascotas (el gachapon, ver PetDB)
+# --------------------------------------------------------------------------- #
+
+## La tienda sale al comprar HYPER, y como HYPER no se pierde, ya para siempre.
+func pet_shop_shown() -> bool:
+	return asc_owned("hyper")
+
+
+func pet_level(id: String) -> int:
+	return int(pets.get(id, 0))
+
+
+## Lo que suman las mascotas a un stat (ver PetDB.STAT_NAMES): 0,25 es +25 %.
+func pet_bonus(stat: String) -> float:
+	var b := 0.0
+	for p in PetDB.PETS:
+		if str(p["stat"]) == stat:
+			b += float(p["per_level"]) * float(pet_level(str(p["id"])))
+	return b
+
+
+## Si la maquina `machine_id` ya no tiene nada que dar ("" = ninguna maquina).
+func pets_maxed(machine_id: String = "") -> bool:
+	if machine_id != "":
+		return PetDB.roll(pets, machine_id) == ""
+	for m in PetDB.MACHINES:
+		if PetDB.roll(pets, str(m["id"])) != "":
+			return false
+	return true
+
+
+## Lo que tiene ahora de la moneda con la que se paga en esa maquina.
+func pet_currency(machine_id: String) -> int:
+	return ascension_points if PetDB.machine(machine_id)["currency"] == "ascension" \
+			else rebirth_coins
+
+
+func can_roll_pet(machine_id: String = "basic") -> bool:
+	return pet_shop_shown() and pet_currency(machine_id) >= int(PetDB.machine(machine_id)["cost"]) \
+			and not pets_maxed(machine_id)
+
+
+## Una tirada: cobra lo que cueste la maquina y sube un nivel a la mascota que
+## sale. Devuelve su id ("" si no se puede tirar).
+func roll_pet(machine_id: String = "basic") -> String:
+	if not can_roll_pet(machine_id):
+		return ""
+	var id := PetDB.roll(pets, machine_id)
+	var cost := int(PetDB.machine(machine_id)["cost"])
+	if PetDB.machine(machine_id)["currency"] == "ascension":
+		ascension_points -= cost
+	else:
+		rebirth_coins -= cost
+	pets[id] = pet_level(id) + 1
+	_dirty = true
+	skills_changed.emit()
+	items_changed.emit()
+	save_game()
+	return id
 
 
 # --------------------------------------------------------------------------- #
@@ -983,11 +1049,22 @@ func damage_per_hit() -> float:
 
 ## Segundos que tarda un ciclo de carga. Las Zapatillas expuestas lo acortan.
 func charge_time() -> float:
+	return maxf(Gameplay.MIN_CHARGE, raw_charge_time())
+
+
+## Lo que tardaria la carga sin el tope de Gameplay.MIN_CHARGE.
+func raw_charge_time() -> float:
 	return LootDB.charge_time(items) / charge_multiplier()
 
 
+## La velocidad que pasa del tope, vuelta dano: x2 si sin tope cargaria el doble
+## de rapido. 1.0 mientras no se llega al tope.
+func speed_overflow() -> float:
+	return maxf(1.0, Gameplay.MIN_CHARGE / raw_charge_time())
+
+
 func crit_chance() -> float:
-	return LootDB.crit_chance(items) + album_bonus("crit")
+	return LootDB.crit_chance(items) + album_bonus("crit") + pet_bonus("crit")
 
 
 func crit_mult() -> float:
@@ -996,7 +1073,8 @@ func crit_mult() -> float:
 
 ## La suerte: el Trebol, los Juguetes expuestos y la coleccion de JUGUETES.
 func luck() -> float:
-	return LootDB.luck(items) * (1.0 + kind_bonus("toys")) * (1.0 + album_bonus("luck"))
+	return LootDB.luck(items) * (1.0 + kind_bonus("toys")) * (1.0 + album_bonus("luck")) \
+			* (1.0 + pet_bonus("luck"))
 
 
 func open_count() -> int:
@@ -1015,7 +1093,8 @@ func auto_buy_interval() -> float:
 ## Se multiplica AQUI y no dentro de LootDB.spike_dps() porque ese calculo es el
 ## de los Pinchos de la tienda, y el arbol no es una pieza de la tienda.
 func spike_dps() -> float:
-	return LootDB.spike_dps(items, float(money)) * (1.0 + skill_bonus("spikes"))
+	return LootDB.spike_dps(items, float(money)) * (1.0 + skill_bonus("spikes")) \
+			* (1.0 + pet_bonus("spikes"))
 
 
 ## El dano que espera al siguiente golpe, y se lleva por delante: el que lo pide
@@ -1546,6 +1625,7 @@ func hard_reset() -> void:
 	ascension_points = 0
 	ascensions = 0
 	asc_skills = {}
+	pets = {}
 	inventory = []
 	locker = []
 	items = []
@@ -1603,6 +1683,7 @@ func to_dict() -> Dictionary:
 		"ascension_points": ascension_points,
 		"ascensions": ascensions,
 		"asc_skills": asc_skills,
+		"pets": pets,
 		"inventory": inventory,
 		"locker": locker,
 		"items": items,
@@ -1715,6 +1796,13 @@ func _apply(d: Dictionary) -> void:
 		for id in d["asc_skills"]:
 			if not AscensionTree.node_by_id(str(id)).is_empty() and bool(d["asc_skills"][id]):
 				asc_skills[str(id)] = true
+	# Limpio contra las mascotas que existen y con el nivel entre 0 y el maximo.
+	pets = {}
+	if typeof(d.get("pets")) == TYPE_DICTIONARY:
+		for id in d["pets"]:
+			var nivel := clampi(int(d["pets"][id]), 0, PetDB.MAX_LEVEL)
+			if not PetDB.pet_by_id(str(id)).is_empty() and nivel > 0:
+				pets[str(id)] = nivel
 	inventory = d.get("inventory", [])
 	if typeof(inventory) != TYPE_ARRAY:
 		inventory = []

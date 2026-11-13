@@ -95,6 +95,13 @@ const STREAK_MAX := 3
 const SWEET_FROM := 0.92
 const SWEET_TO := 0.97
 const SWEET_MULT := 1.25
+## LO MAS RAPIDO QUE CARGA UN SOBRE. Sin tope, con las piezas al maximo y el
+## arbol entero la vuelta duraba 0,14 s (el tramo perfecto, 27 ms) y con las
+## mascotas 0,05 s: imposible acertar un perfecto. Con 0,6 s el perfecto dura
+## 120 ms y la zona dorada 30 ms. La velocidad que pase del tope NO se pierde:
+## se vuelve dano en la misma proporcion (ver Game.speed_overflow), asi que el
+## dano por segundo es el mismo que sin tope.
+const MIN_CHARGE := 0.6
 ## Pulsar ANTES del tramo perfecto ya no es gratis: el anillo pierde esta parte
 ## de la vuelta y la racha se rompe. Sin esto, machacar el sobre no costaba nada.
 const EARLY_PENALTY := 0.15

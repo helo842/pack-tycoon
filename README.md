@@ -166,6 +166,16 @@ puesto a mano) a los 123.508 de JUGUETES MITO. Un sobre que cuesta cuatro veces 
    barra bajaba tan rápido que no daba tiempo a verla— y quien lo devuelve son
    los **Guantes**, un 15 % de velocidad por nivel. A medida que se daña, el
    sprite cambia (agrietado, roto...).
+
+   **La carga no baja de 0,6 s** (`Gameplay.MIN_CHARGE`). Sin tope, con las
+   piezas al máximo y el árbol entero la vuelta duraba 0,14 s (el tramo del
+   perfecto, 27 ms), y con las mascotas 0,05 s: imposible acertar un perfecto.
+   Con 0,6 s el perfecto dura 120 ms y la zona dorada 30 ms. **La velocidad que
+   pasa del tope no se pierde: se vuelve daño** en la misma proporción
+   (`Game.speed_overflow`, dentro de `Game.damage_multiplier`): si sin tope
+   cargarías el triple de rápido, cada golpe pega el triple. El daño por segundo
+   es el mismo; solo cambia que se puede apuntar. `Game.raw_charge_time` es la
+   carga sin tope, y el simulador aplica la misma regla.
 3. Cuando la resistencia llega a cero, sale la **tarjeta de revelado**: objeto, rareza,
    estado de conservación, nota PSA de 1 a 10 y el valor final. Abajo tiene los
    dos botones de la decisión: **GUARDAR** (al inventario) y **VENDER** (dinero
@@ -601,6 +611,43 @@ dentro, cuesta 1 punto y da **×3 de dinero** (multiplica, no suma, en
 ascendido una vez, el botón sigue saliendo aunque el árbol del rebirth esté
 vacío, para poder entrar a gastar el punto.
 
+#### La tienda de mascotas (el gachapón)
+
+Al comprar **HYPER** sale la chapa **MASCOTAS** en la barra de arriba, al lado
+de la TIENDA (`Game.pet_shop_shown`). Abre `PetPanel`: a la izquierda la
+máquina y el botón **TIRAR**, a la derecha las seis fichas de la máquina (la
+mascota, sus cinco puntos de nivel y lo que da). Hay **cuatro máquinas**, una
+por página, que se cambian con las flechas de encima de la máquina
+(`PetDB.MACHINES`):
+
+| Máquina | Tirada | Común (30) | Común (30) | Rara (15) | Rara (15) | Legendaria (5) | Legendaria (5) |
+|---|---|---|---|---|---|---|---|
+| **NORMAL** | 1 moneda de rebirth | PERRO +5 % dinero | GATO +5 % rebirth | RANA +10 % dinero | PEZ +10 % rebirth | ZORRO +25 % dinero | DRAGON +25 % rebirth |
+| **ORO** | 10 monedas | HAMSTER +5 % velocidad | CONEJO +10 % suerte | BUHO +1 % crítico | LORO +20 % dinero | TORTUGA +40 % pinchos | OSO +40 % daño |
+| **HIELO** | 100 monedas | PINGUINO +10 % velocidad | FOCA +20 % dinero | PULPO +40 % pinchos | LOBO +40 % daño | YETI +2 % crítico | BALLENA +80 % rebirth |
+| **COSMICA** | 1 punto de ascensión | ROBOT +20 % velocidad | ALIEN +40 % suerte | FANTASMA +3 % crítico | FENIX +80 % rebirth | UNICORNIO +160 % dinero | GOLEM +160 % daño |
+
+Los números son **por nivel**; cada mascota llega a nivel 5 (`PetDB.MAX_LEVEL`)
+y repetirla la sube uno. Entre paréntesis, el peso de salir (por rareza,
+`PetDB.RARITY_WEIGHT`); las que están al máximo ya no salen, así que ninguna
+tirada se tira. Lo que da cada una se suma por stat en `Game.pet_bonus` y entra
+en su multiplicador: dinero, monedas de rebirth, daño, velocidad (la carga),
+suerte y Pinchos multiplican; el crítico **suma** probabilidad. Los números de
+ORO, HIELO y COSMICA están puestos a ojo, sin simular. **Las mascotas no se
+pierden nunca, ni al ascender** (solo `hard_reset`).
+
+Cada mascota tiene su **dibujo propio** (`tree_pet_<id>.png`, en
+`tools/tree_designs.py`). Las máquinas caras son la de siempre repintada en oro,
+hielo o morado con un recoloreado por luminancia (`_Recolor` en ese fichero).
+
+**La tirada se ve en grande en el centro de la pantalla**, como la carta de la
+intro, y no con un letrero arriba: se oscurece todo, la cápsula cae rebotando,
+tiembla tres veces cada vez más fuerte y revienta en un destello blanco. Sale la
+mascota con un rebote y flotando, con **dos brillos del color de su rareza**
+girando detrás (gris, azul o dorado, sumando luz) y chispas de ese color, y
+debajo "NUEVA MASCOTA!" o el nivel, el nombre, la rareza y lo que da. Un clic,
+Espacio o Esc lo cierra.
+
 #### Lo que dice el simulador del árbol
 
 `$G --headless --path . res://dev/BalanceTest.tscn arbol` mide los minutos hasta
@@ -892,6 +939,18 @@ así que la banda del test de humo subió de 19 a 26.
   abajo a la derecha): a la izquierda un anillo de verdad cargando en bucle que
   "pulsa" en la zona dorada, con la leyenda de colores; a la derecha el juego en
   cinco pasos y las teclas. Los números salen de `Gameplay` y `LootDB`.
+
+### El panel de ADMIN (solo para probar)
+
+En una versión de depuración (desde el editor o un export "con depuración")
+sale el botón **ADMIN** en Ajustes. En el juego exportado normal no existe.
+Abre `AdminPanel`: una fila por cosa con su valor de ahora y dos botones, el
+rojo **quita** y el marrón **da**: dinero (±1000 M), monedas de rebirth (±100),
+puntos de ascensión (±1), el árbol del rebirth (VACIAR / LLENAR), las piezas de
+la tienda (A CERO / MAXIMO) y las mascotas (QUITAR / MAXIMO). Quitar no baja de
+cero; vaciar el árbol o poner las piezas a cero apaga lo automático, como el
+rebirth. Cada botón guarda. Antes los botones medían 600 de ancho (270 de alto)
+con las filas a 120 y se montaban unos encima de otros; ahora son 200×90 a 100.
 
 ### Teclado
 

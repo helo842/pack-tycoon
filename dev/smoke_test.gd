@@ -810,6 +810,48 @@ func _run() -> void:
 			ajustes._sell_box.texture == Sprites.tex("ui_checkbox_off"))
 		_check("las dos casillas estan separadas para no pisarse los clics",
 			absf(ajustes._sell_box.position.y - ajustes._screen_box.position.y) >= 96.0)
+	# ADMIN: las trampas para probar dan lo que dicen (y aqui, en depuracion, salen).
+	if ajustes != null:
+		ajustes._open_admin()
+		await get_tree().process_frame
+		var adm = ajustes._admin
+		_check("ADMIN abre su panel", adm != null)
+		_check_cabe("el panel de ADMIN no saca texto del panel", adm, PANEL)
+		var antes_admin := [Game.money, Game.rebirth_coins, Game.ascension_points,
+			Game.skills.duplicate(), Game.items.duplicate(), Game.pets.duplicate(),
+			Game.lifetime_earned]
+		var dinero := Game.money
+		var monedas := Game.rebirth_coins
+		var puntos := Game.ascension_points
+		for i in adm._acciones.size():
+			adm._hacer(i, 3)
+		_check("ADMIN da dinero, monedas de rebirth y un punto de ascension",
+			Game.money == dinero + 1_000_000_000 and Game.rebirth_coins == monedas + 100
+			and Game.ascension_points == puntos + 1)
+		_check("ADMIN llena el arbol, las piezas y las mascotas",
+			Game.tree_maxed() and Game.pets_maxed()
+			and Game.item_level(0) == Game.item_max_level(0))
+		_check("ADMIN pinta el valor de cada fila",
+			adm._valores[2].text == "PUNTOS ASCENSION: %d" % Game.ascension_points)
+		for i in adm._acciones.size():
+			adm._hacer(i, 2)
+		_check("ADMIN tambien quita (y no baja de cero)",
+			Game.money == dinero and Game.rebirth_coins == monedas
+			and Game.ascension_points == puntos and Game.skills.is_empty()
+			and Game.pets.is_empty() and Game.item_level(0) == 0)
+		adm._hacer(2, 2)
+		_check("ADMIN no deja puntos en negativo", Game.ascension_points >= 0)
+		ajustes._on_admin_closed()
+		Game.money = antes_admin[0]
+		Game.rebirth_coins = antes_admin[1]
+		Game.ascension_points = antes_admin[2]
+		Game.skills = antes_admin[3]
+		Game.items = antes_admin[4]
+		Game.pets = antes_admin[5]
+		Game.lifetime_earned = antes_admin[6]
+		Game.money_changed.emit(Game.money)
+		Game.items_changed.emit()
+		Game.skills_changed.emit()
 	# CREDITOS: la musica de Stream Cafe pide el credito (artista y enlace).
 	if ajustes != null:
 		ajustes._open_credits()
@@ -2373,10 +2415,14 @@ func _run() -> void:
 	Game.locker.clear()
 	var dano_base: float = Game.damage_per_hit()
 	Game.store(LootDB.roll_pack(rng_tipo, "sneakers"))
-	var carga_base: float = Game.charge_time()
+	# Sin el tope (Gameplay.MIN_CHARGE), que aqui ya puede estar alcanzado: por
+	# encima la velocidad se vuelve dano, y eso es el tope, no la zapatilla.
+	var carga_base: float = Game.raw_charge_time()
+	var dano_sin_sobra: float = Game.damage_per_hit() / Game.speed_overflow()
 	Game.locker_put(0)
-	_check("una zapatilla expuesta acelera la carga", Game.charge_time() < carga_base)
-	_check("y no toca el dano", is_equal_approx(Game.damage_per_hit(), dano_base))
+	_check("una zapatilla expuesta acelera la carga", Game.raw_charge_time() < carga_base)
+	_check("y no toca el dano", is_equal_approx(Game.damage_per_hit() / Game.speed_overflow(),
+		dano_sin_sobra))
 	Game.inventory.clear()
 	Game.locker.clear()
 	Game.store(LootDB.roll_pack(rng_tipo, "vinyls"))
@@ -4066,5 +4112,110 @@ func _check_ascension() -> void:
 	g._close_ascension()
 	await get_tree().process_frame
 	_check("y la pantalla morada se cierra", g._ascension == null)
+	await _check_mascotas()
 	Game.ascensions = 0
 	Game.asc_skills = {}
+
+
+## LA TIENDA DE MASCOTAS: sale con HYPER, cada tirada cuesta 1 moneda de rebirth
+## y sube un nivel, las mascotas dan dinero y monedas de rebirth, y no se pierden
+## al ascender. Se llama con HYPER ya comprado.
+func _check_mascotas() -> void:
+	var g = _main._current
+	_check("con HYPER sale la chapa de MASCOTAS", g._pets_btn.visible)
+	Game.pets = {}
+	Game.rebirth_coins = 0
+	g._open_pets()
+	await get_tree().process_frame
+	var pp = g._pets
+	_check("la chapa abre la tienda de mascotas", pp != null)
+	_check_cabe("la tienda de mascotas no saca nada del panel", pp, PANTALLA)
+	pp._on_roll()
+	_check("sin monedas de rebirth no se tira", Game.pets.is_empty())
+	Game.rebirth_coins = 3
+	var dinero := Game.value_multiplier()
+	var rebirth := Game.rebirth_multiplier()
+	var id := Game.roll_pet()
+	_check("una tirada cuesta 1 moneda y da una mascota de nivel 1",
+		Game.rebirth_coins == 2 and Game.pet_level(id) == 1)
+	_check("la mascota sube el dinero o las monedas de rebirth",
+		Game.value_multiplier() > dinero or Game.rebirth_multiplier() > rebirth)
+	_check("antes de tirar no hay revelado", pp._reveal == null)
+	pp._on_roll()
+	await get_tree().create_timer(2.6).timeout
+	_check("la tirada se ve en grande en el centro de la pantalla",
+		pp._reveal != null and pp._busy)
+	pp._close_reveal()
+	_check("y un clic la cierra", pp._reveal == null and not pp._busy)
+	Game.rebirth_coins = 2
+	Game.pets = {}
+	for p in PetDB.pets_of("basic"):
+		Game.pets[str(p["id"])] = PetDB.MAX_LEVEL
+	_check("con todas al maximo ya no se tira", not Game.can_roll_pet()
+		and Game.roll_pet() == "" and Game.rebirth_coins == 2)
+	_check("al maximo: x3 de dinero y x3 de monedas de rebirth",
+		is_equal_approx(Game.pet_bonus("money"), 2.0)
+		and is_equal_approx(Game.pet_bonus("rebirth"), 2.0))
+	_check("hay cuatro maquinas de seis mascotas", PetDB.MACHINES.size() == 4
+		and PetDB.PETS.size() == 24 and PetDB.pets_of("cosmic").size() == 6)
+	Game.rebirth_coins = 9
+	_check("la de oro cuesta 10 monedas", Game.roll_pet("gold") == "")
+	Game.rebirth_coins = 10
+	var oro := Game.roll_pet("gold")
+	_check("y da una mascota de la maquina de oro",
+		Game.rebirth_coins == 0 and str(PetDB.pet_by_id(oro)["machine"]) == "gold")
+	Game.ascension_points = 1
+	var astral := Game.roll_pet("cosmic")
+	_check("la cosmica cuesta 1 punto de ascension",
+		Game.ascension_points == 0 and str(PetDB.pet_by_id(astral)["machine"]) == "cosmic")
+	var ids := {}
+	for p in PetDB.PETS:
+		ids[str(p["id"])] = true
+		_check("la mascota %s tiene su dibujo propio" % p["id"],
+			Sprites.tex(str(p["art"])) != null)
+	_check("las 24 mascotas son distintas", ids.size() == 24)
+	Game.pets = {"bear": 1, "hamster": 1, "owl": 1, "bunny": 1, "turtle": 1}
+	var golpe := Game.damage_multiplier()
+	var carga := Game.charge_multiplier()
+	var crit := Game.crit_chance()
+	var suerte := Game.luck()
+	Game.pets = {}
+	_check("hay mascotas de dano, velocidad, critico y suerte",
+		golpe > Game.damage_multiplier() and carga > Game.charge_multiplier()
+		and is_equal_approx(crit - Game.crit_chance(), 0.01) and suerte > Game.luck())
+	var antes_items := Game.items.duplicate()
+	for i in LootDB.item_count():
+		Game.items[i] = Game.item_max_level(i)
+	Game.pets = {"robot": PetDB.MAX_LEVEL, "penguin": PetDB.MAX_LEVEL}
+	var sin_tope := Game.raw_charge_time()
+	_check("la carga no baja del tope, para que el perfecto se pueda acertar",
+		sin_tope < Gameplay.MIN_CHARGE and is_equal_approx(Game.charge_time(), Gameplay.MIN_CHARGE))
+	_check("y la velocidad que sobra se vuelve dano (mismo dano por segundo)",
+		is_equal_approx(Game.speed_overflow(), Gameplay.MIN_CHARGE / sin_tope)
+		and is_equal_approx(Game.damage_per_hit() / Game.charge_time(),
+			LootDB.damage_per_hit(Game.items) * Game.damage_multiplier()
+			/ Game.speed_overflow() / sin_tope))
+	Game.items = antes_items
+	Game.pets = {oro: 1, astral: 1}
+	pp._step_page(-1)
+	await get_tree().process_frame
+	_check("la flecha pasa de pagina (y da la vuelta)", pp._page == 3
+		and pp._cells.has("golem"))
+	_check_cabe("la pagina cosmica no saca nada del panel", pp, PANTALLA)
+	pp._step_page(1)
+	Game.pets.erase(oro)
+	Game.pets.erase(astral)
+	Game.pets = {"dog": 2, "zzz": 4, "cat": 99}
+	Game._apply(JSON.parse_string(JSON.stringify(Game.to_dict())))
+	_check("las mascotas se guardan limpias (sin inventadas y con el nivel al tope)",
+		Game.pets == {"dog": 2, "cat": PetDB.MAX_LEVEL})
+	g._close_pets()
+	await get_tree().process_frame
+	_check("y la tienda de mascotas se cierra", g._pets == null)
+	for id2 in SkillTree.ids():
+		Game.skills[str(id2)] = SkillTree.levels_of(str(id2))
+	Game.do_ascension()
+	_check("las mascotas sobreviven a la ascension",
+		Game.pets == {"dog": 2, "cat": PetDB.MAX_LEVEL})
+	Game.ascension_points = 0
+	Game.pets = {}

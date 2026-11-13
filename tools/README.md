@@ -22,7 +22,9 @@ tree_designs.py     un dibujo por NODO DEL ARBOL del rebirth (tree_<id>.png en
                     Sprites/tree/): el objeto del nombre del nodo. Lo enchufa
                     make_sprites.py como entradas de 32x32 con prefijo "tree".
                     Uno nuevo: se dibuja ahi, se anade a DRAWINGS y se genera
-                    con --only <id>
+                    con --only <id>. Tambien las MASCOTAS del gachapon
+                    (tree_pet_<id>, una por mascota) y las maquinas de oro,
+                    hielo y cosmica (la de siempre repintada con _Recolor)
 pack_designs.py     los dibujos de los PAQUETES (cuatro tipos, tres escalones,
                     cerrado, abierto y los tres tramos de dano). Lo enchufa
                     make_sprites.py, que es quien los escribe y los audita
