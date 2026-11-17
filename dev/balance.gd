@@ -798,7 +798,7 @@ func report(runs: int = 25) -> void:
 	for i in STRATEGIES.size():
 		print("    %-11s %5.1f min" % [STRATEGIES[i]["id"], fixed_minutes(i)])
 	var normal := _normal_median(runs)
-	var verdict := "OK" if normal >= BAND.x and normal <= BAND.y else "FUERA DE BANDA"
+	var verdict := "OK" if normal >= BAND.x and normal <= BAND.y else "Fuera de banda"
 	print("  -> jugador normal %.1f min, banda %.0f-%.0f: %s"
 		% [normal, BAND.x, BAND.y, verdict])
 

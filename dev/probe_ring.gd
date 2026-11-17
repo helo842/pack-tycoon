@@ -55,5 +55,5 @@ func _ready() -> void:
 		await get_tree().process_frame
 	var img := vp.get_texture().get_image()
 	img.save_png("user://shots/_probe_ring.png")
-	print("SONDA: ", ProjectSettings.globalize_path("user://shots/_probe_ring.png"))
+	print("Sonda: ", ProjectSettings.globalize_path("user://shots/_probe_ring.png"))
 	get_tree().quit()

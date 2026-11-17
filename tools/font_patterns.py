@@ -469,3 +469,97 @@ DOLLAR_S: List[str] = [
     "110011",
     "011110",
 ]
+
+
+# --------------------------------------------------------------------------- #
+# Minusculas, enye, tildes y los signos de abrir (la fuente de TEXTO)
+# --------------------------------------------------------------------------- #
+#
+# La fuente de TEXTO (font_texto, ver make_font.py) es de mayusculas Y
+# minusculas: las frases largas (la ayuda, las descripciones, los avisos) se
+# leen mucho mejor asi. Cada glifo mide 5x11: 2 filas ENCIMA de la mayuscula
+# para las tildes, las 7 de la mayuscula y 2 de descenso para la g, la j, la p,
+# la q y la y (ver tall()).
+#
+# La tilde va siempre separada de la letra por una fila vacia: pegada se fundia
+# con ella (con el trazo doble de los titulos la Ñ se leia como una A).
+
+def pad9(rows: List[str]) -> List[str]:
+    """Un patron de 7 (o menos) filas, completado a 9 con filas vacias."""
+    return list(rows) + ["00000"] * (9 - len(rows))
+
+
+def tall(rows: List[str]) -> List[str]:
+    """Un patron de 9 filas (mayuscula + descenso) con las 2 de encima vacias."""
+    return ["00000", "00000"] + pad9(rows)
+
+
+def _low(body: List[str]) -> List[str]:
+    return tall(["00000", "00000"] + body)
+
+
+def _marked_low(mark: List[str], body: List[str]) -> List[str]:
+    """Minuscula con marca: la marca en las filas 1-2 (encima de la x), una fila
+    de aire y el cuerpo de 5 filas."""
+    return ["00000"] + mark + ["00000"] * (2 - len(mark)) + ["00000"] + body + ["00000", "00000"]
+
+
+_A = ["01110", "00001", "01111", "10001", "01111"]
+_E = ["01110", "10001", "11111", "10000", "01110"]
+_I = ["01100", "00100", "00100", "00100", "01110"]
+_N = ["10110", "11001", "10001", "10001", "10001"]
+_O = ["01110", "10001", "10001", "10001", "01110"]
+_U = ["10001", "10001", "10001", "10011", "01101"]
+_ACUTE = ["00010", "00100"]
+
+LOWER: Dict[str, List[str]] = {
+    "a": _low(_A),
+    "b": tall(["10000", "10000", "10110", "11001", "10001", "10001", "11110"]),
+    "c": _low(["01110", "10000", "10000", "10001", "01110"]),
+    "d": tall(["00001", "00001", "01101", "10011", "10001", "10001", "01111"]),
+    "e": _low(_E),
+    "f": tall(["00110", "01001", "01000", "11100", "01000", "01000", "01000"]),
+    "g": tall(["00000", "00000", "01111", "10001", "10001", "10001", "01111", "00001", "01110"]),
+    "h": tall(["10000", "10000", "10110", "11001", "10001", "10001", "10001"]),
+    "i": tall(["00100", "00000", "01100", "00100", "00100", "00100", "01110"]),
+    "j": tall(["00010", "00000", "00110", "00010", "00010", "00010", "00010", "10010", "01100"]),
+    "k": tall(["10000", "10000", "10010", "10100", "11000", "10100", "10010"]),
+    "l": tall(["01100", "00100", "00100", "00100", "00100", "00100", "01110"]),
+    "m": _low(["11010", "10101", "10101", "10101", "10101"]),
+    "n": _low(_N),
+    "o": _low(_O),
+    "p": tall(["00000", "00000", "11110", "10001", "10001", "10001", "11110", "10000", "10000"]),
+    "q": tall(["00000", "00000", "01111", "10001", "10001", "10001", "01111", "00001", "00001"]),
+    "r": _low(["10110", "11001", "10000", "10000", "10000"]),
+    "s": _low(["01111", "10000", "01110", "00001", "11110"]),
+    "t": tall(["01000", "01000", "11100", "01000", "01000", "01001", "00110"]),
+    "u": _low(_U),
+    "v": _low(["10001", "10001", "10001", "01010", "00100"]),
+    "w": _low(["10001", "10001", "10101", "10101", "01010"]),
+    "x": _low(["10001", "01010", "00100", "01010", "10001"]),
+    "y": tall(["00000", "00000", "10001", "10001", "10001", "10001", "01111", "00001", "01110"]),
+    "z": _low(["11111", "00010", "00100", "01000", "11111"]),
+    "ñ": _marked_low(["01101", "10110"], _N),
+    "á": _marked_low(_ACUTE, _A),
+    "é": _marked_low(_ACUTE, _E),
+    "í": _marked_low(_ACUTE, _I),
+    "ó": _marked_low(_ACUTE, _O),
+    "ú": _marked_low(_ACUTE, _U),
+    "ü": _marked_low(["01010"], _U),
+}
+
+## Signos de abrir y el punto medio. 7 filas, como el resto de signos.
+EXTRA_SIGNS: Dict[str, List[str]] = {
+    "¡": ["00100", "00000", "00100", "00100", "00100", "00100", "00100"],
+    "¿": ["00100", "00000", "00100", "01000", "10000", "10001", "01110"],
+    "·": ["00000", "00000", "00000", "00100", "00000", "00000", "00000"],
+}
+
+
+def marked_caps(letters: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    """Las mayusculas con marca, ya en 11 filas: la marca en la fila 0, una fila
+    de aire y la letra entera debajo (sobresale 1 px por encima de la linea)."""
+    marcas = {"Á": ("A", "00110"), "É": ("E", "00110"), "Í": ("I", "00110"),
+              "Ó": ("O", "00110"), "Ú": ("U", "00110"), "Ñ": ("N", "01110"),
+              "Ü": ("U", "01010")}
+    return {ch: [m, "00000"] + pad9(letters[base]) for ch, (base, m) in marcas.items()}

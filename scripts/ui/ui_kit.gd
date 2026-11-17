@@ -5,22 +5,23 @@
 # punto de la nota PSA) y asi se generan con un bucle. Las escenas .tscn se
 # quedan con un unico nodo raiz, para que la estructura se vea en el editor.
 #
-# LA FUENTE
-# ----------
-# El texto ya no usa la fuente de Godot: usa font_pack.fnt, que sale de
-# tools/make_font.py y es pixel art como todo lo demas. El glifo mide 5x7 de
-# arte, asi que el tamano 7 es su "1" y cualquiertamano sale entero.
+# LAS LETRAS (tres, ni una mas: elegidas el 2026-11-17)
+# ------------------------------------------------------
+#   TEXTO    font_texto.fnt: mayusculas y minusculas, cada letra con su ancho,
+#            sin contorno. Botones, fichas, avisos, la ayuda.
+#   TITULO   font_titulo.fnt: mayusculas de trazo doble con contorno y sombra.
+#            Las cabeceras y todo texto GRANDE (TITLE_MIN o mas), y los carteles
+#            que van encima de la mesa o de un brillo (los que piden `outline`).
+#   NUMEROS  PixelNumber: los digitos dorados del dinero, precios y saldos.
+# label() elige entre las dos primeras por esa regla, asi que nadie tiene que
+# acordarse: un texto grande es un titulo y uno normal es texto.
 #
-# FONT_STEP = 7 es lo que hace que eso sea cierto. Todo lo que se pasa como
-# font_size se ajusta al multiplo de 7 mas cercano ANTES de llegar a Godot, y
-# por eso el codigo puede pedir 40 y sale 42 sin que nadie se entere. Si se
-# pidiera 40 tal cual, Godot lo estiraria por 5.7 y cada pixel de la fuente
-# saldria de un tamano distinto. tools/check_font_size.py avisa si esto se
-# rompe.
-#
-# Por el mismo motivo el contorno oscuro se ha quitado: la fuente ya lo trae
-# pintado (1 px de #101020, el mismo que usa el resto del juego), y el contorno
-# de Godot por encima solo servia para la fuente suave de antes.
+# Las dos salen de tools/make_font.py y son pixel art: la mayuscula mide 7 px de
+# arte, asi que el tamano 7 es su "1". FONT_STEP = 7 hace que cualquier tamano
+# salga entero: todo font_size se ajusta al multiplo de 7 mas cercano ANTES de
+# llegar a Godot (40 -> 42). Si se pidiera 40 tal cual, Godot estiraria por 5.7
+# y cada pixel saldria de un tamano distinto. tools/check_font_size.py avisa si
+# esto se rompe. Y ningun texto baja de MIN_SIZE: por debajo no se lee.
 class_name UIKit
 extends RefCounted
 
@@ -32,18 +33,20 @@ const GRID := 16.0
 ## de arte, asi que 7, 14, 21, 28... son las unicas escalas enteras que existen.
 const FONT_STEP := 7
 
-## La fuente del juego, cargada de Sprites/font/font_pack.fnt.
-##
-## Se carga por ruta y no por nombre corto a proposito: el .fnt no es un sprite,
-## es una fuente, asi que no va en el indice de Sprites/index.tsv. El resto de la
-## interfaz si se pide por nombre corto (ver Sprites.tex).
-const FONT_PATH := "res://Sprites/font/font_pack.fnt"
+## El tamano mas pequeno de cualquier texto (x2). A 7 (x1) no se leia nada.
+const MIN_SIZE := 14
 
-## La fuente del TITULO de la pantalla de inicio: la misma, pero sin el contorno
-## oscuro que trae pintado font_pack. El borde negro se veia como una sombra
-## gorda sobre el fondo de la trastienda, y el titulo se lee mejor en plano.
-## La genera tools/make_font.py --name font_title --outline "#10102000".
-const TITLE_FONT_PATH := "res://Sprites/font/font_title.fnt"
+## Desde este tamano (x6) un texto es un TITULO y va con font_titulo.
+const TITLE_MIN := 42
+
+## `outline` de label() que obliga a la letra de TEXTO: los botones van siempre
+## con ella, sea cual sea su tamano (en la hoja elegida, los botones son TEXTO).
+const TEXT_ONLY := -1
+
+## La letra de TEXTO y la de TITULOS (ver arriba). Se cargan por ruta: el .fnt no
+## es un sprite y no va en Sprites/index.tsv.
+const FONT_PATH := "res://Sprites/font/font_texto.fnt"
+const TITLE_FONT_PATH := "res://Sprites/font/font_titulo.fnt"
 
 ## Margen del CUERPO OSCURO de las chapas de boton, en fraccion del sprite.
 ## El cuerpo no ocupa el sprite entero (alrededor hay un marco dorado y un
@@ -56,13 +59,14 @@ static var _font: Font = null
 static var _title_font: Font = null
 
 
+## La letra de TEXTO.
 static func font() -> Font:
 	if _font == null:
 		_font = load(FONT_PATH) as Font
 	return _font
 
 
-## La fuente sin contorno. Solo la usa el titulo de la pantalla de inicio.
+## La letra de TITULOS.
 static func title_font() -> Font:
 	if _title_font == null:
 		_title_font = load(TITLE_FONT_PATH) as Font
@@ -70,49 +74,53 @@ static func title_font() -> Font:
 
 
 ## Ajusta un tamano pedido al multiplo de FONT_STEP mas cercano. Nunca baja de
-## un paso, para que ningun texto se quede en un solo pixel de alto.
+## MIN_SIZE, para que ningun texto se quede tan pequeno que no se lea.
 static func font_step(size: int) -> int:
-	if size <= FONT_STEP:
-		return FONT_STEP
-	return maxi(FONT_STEP, int(round(float(size) / float(FONT_STEP))) * FONT_STEP)
+	return maxi(MIN_SIZE, int(round(float(size) / float(FONT_STEP))) * FONT_STEP)
 
 
-## Ancho en pixeles de un texto con la fuente del juego.
-##
-## No hace falta medir nada: el glifo mide 7 px de arte de celda (5 de tinta y
-## 2 de contorno) y el .fnt dice que su unidad es 1, asi que a tamano N cada
-## caracter ocupa N pixeles exactos. El texto es de ancho N x numero de
-## caracteres, y siempre cabe en la cuenta.
-##
-## Con la fuente suave de antes esto no era cierto (una "i" ocupaba menos que
-## una "W"), asi que los rotulos se dimensionaban a ojo. Ahora se puede calcular.
-static func text_width(text: String, font_size: int) -> float:
-	return float(font_step(font_size)) * float(text.length())
+## La letra que lleva un texto: TITULO si es grande o si pide contorno
+## (`cartel`), TEXTO si no. Un texto OSCURO nunca es titulo: la de titulos trae
+## contorno oscuro y en tinta oscura se empasta ("NORMAL 1/4" sobre el carton
+## salia una mancha); oscuro sobre papel o carton es el estilo de TEXTO.
+static func font_for(font_size: int, cartel := false, color := Color.WHITE) -> Font:
+	if color.get_luminance() < 0.35:
+		return font()
+	return title_font() if cartel or font_step(font_size) >= TITLE_MIN else font()
 
 
-## El mayor tamano (multiplo de FONT_STEP) con el que `text` cabe en `box_width`.
-## Se usa para que un rotulo largo no se salga de su caja: antes se ajustaba a
-## ojo y con la fuente nueva manyos se salian.
-static func fit_size(text: String, box_width: float, max_size: int = 96) -> int:
-	var n := maxi(1, text.length())
-	var best := FONT_STEP
-	for k in range(1, font_step(max_size) / FONT_STEP + 1):
-		var s := k * FONT_STEP
-		if float(s) * float(n) <= box_width:
-			best = s
-	return best
+## Ancho en pixeles de un texto con la letra que le toca (ver font_for). Cada
+## letra tiene su ancho (la I es estrecha), asi que se mide de verdad.
+static func text_width(text: String, font_size: int, cartel := false,
+		color := Color.WHITE) -> float:
+	var f := font_for(font_size, cartel, color)
+	if f == null:
+		return float(font_step(font_size)) * float(text.length())
+	return f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_step(font_size)).x
+
+
+## El mayor tamano (multiplo de FONT_STEP, sin bajar de MIN_SIZE) con el que
+## `text` cabe en `box_width`. Si ni al minimo cabe, el minimo: mejor que se
+## salga un poco que no se lea.
+static func fit_size(text: String, box_width: float, max_size: int = 96,
+		cartel := false, color := Color.WHITE) -> int:
+	var s := font_step(max_size)
+	while s > MIN_SIZE and text_width(text, s, cartel, color) > box_width:
+		s -= FONT_STEP
+	return s
 
 
 ## El tamano que hace caber TODA una lista de textos en la misma caja.
 ##
 ## Es lo que hay que usar cuando los nombres van en fila o en columna (los sobres
 ## de la zona de compra, los items de la tienda). Encoger cada uno por su cuenta hace que
-## "SOBRES" salga a 28 px y "ELECTRONICA" a 14, y una fila con tres tamanos
+## "Sobres" salga a 28 px y "Electrónica" a 14, y una fila con tres tamanos
 ## distintos se lee como un fallo, no como un diseno.
-static func row_size(texts: Array, box_width: float, max_size: int = 96) -> int:
+static func row_size(texts: Array, box_width: float, max_size: int = 96,
+		cartel := false) -> int:
 	var result := font_step(max_size)
 	for t in texts:
-		result = mini(result, fit_size(str(t), box_width, max_size))
+		result = mini(result, fit_size(str(t), box_width, max_size, cartel))
 	return result
 
 
@@ -120,27 +128,18 @@ static func snap(v: float) -> float:
 	return snappedf(v, GRID)
 
 
-## Parte un texto en lineas que caben en `box_width`, a un tamano dado.
-##
-## Se puede calcular sin medir nada porque la fuente es de ancho FIJO: cada
-## caracter ocupa exactamente font_step(size) px (ver text_width), asi que en una
-## caja de 860 px caben 860 / 21 = 40 caracteres a tamano 21 y ni uno mas. Se
-## parte por espacios y se llena la linea hasta el tope; una palabra sola mas
-## larga que la caja se queda entera en su linea, que se lee mejor que una
-## palabra cortada por la mitad.
-##
-## Existe para la ficha de la tienda, que es el unico sitio del juego con un
-## texto largo de verdad (la descripcion detallada de un item). Todo lo demas son
-## rotulos cortos, y ahi seguir partiendo el texto a mano seria peor.
+## Parte un texto en lineas que caben en `box_width`, a un tamano dado: se
+## llena cada linea por palabras, midiendo con la letra de verdad. Una palabra
+## sola mas larga que la caja se queda entera en su linea, que se lee mejor que
+## una palabra cortada por la mitad.
 static func wrap(text: String, box_width: float, font_size: int) -> PackedStringArray:
-	var por_linea := maxi(1, int(box_width / float(font_step(font_size))))
 	var lineas := PackedStringArray()
 	var actual := ""
 	for palabra in text.split(" ", false):
 		var p := str(palabra)
 		if actual == "":
 			actual = p
-		elif actual.length() + 1 + p.length() <= por_linea:
+		elif text_width(actual + " " + p, font_size) <= box_width:
 			actual += " " + p
 		else:
 			lineas.append(actual)
@@ -153,7 +152,10 @@ static func wrap(text: String, box_width: float, font_size: int) -> PackedString
 # --------------------------------------------------------------------------- #
 # Etiquetas
 # --------------------------------------------------------------------------- #
-## Etiqueta con la fuente del juego. El tamano se ajusta a escala entera sola.
+## Etiqueta con la letra que le toca (font_for: TITULO si es grande o lleva
+## `outline`, TEXTO si no). El tamano se ajusta a escala entera solo. `outline`
+## ya no pinta un contorno de Godot: 1 o mas pide la letra de titulos (que lo
+## trae), y TEXT_ONLY (-1) obliga a la de texto aunque sea grande (botones).
 static func label(text: String, font_size: int = 40, color: Color = Palette.CREAM,
 		align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT,
 		outline: int = 0) -> Label:
@@ -161,19 +163,13 @@ static func label(text: String, font_size: int = 40, color: Color = Palette.CREA
 	l.text = text
 	# La fuente es de mapa de bits a 7 px y se escala x3, x8...: sin NEAREST explicito
 	# Godot la estira con filtro lineal y la letra sale borrosa (dev/probe_font.gd no
-	# lo veia porque el contorno de font_pack lo tapa).
+	# lo veia porque el contorno de la fuente vieja lo tapaba).
 	l.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	# El texto pequeno (hasta x3) va SIN contorno: ahi el contorno de la fuente es tan
-	# gordo como la letra y sobre el carton de los paneles la empasta. Las dos
-	# fuentes miden igual, asi que nada se mueve.
-	var f := title_font() if font_step(font_size) <= FONT_STEP * 3 else font()
+	var f := font() if outline == TEXT_ONLY else font_for(font_size, outline > 0, color)
 	if f != null:
 		l.add_theme_font_override("font", f)
 	l.add_theme_font_size_override("font_size", font_step(font_size))
 	l.add_theme_color_override("font_color", color)
-	if outline > 0:
-		l.add_theme_color_override("font_outline_color", Palette.OUTLINE)
-		l.add_theme_constant_override("outline_size", outline)
 	l.horizontal_alignment = align
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -209,30 +205,22 @@ static func label_at(text: String, center: Vector2, box: Vector2,
 		outline: int = 0, shrink: bool = false) -> Label:
 	var size := font_size
 	if shrink:
-		size = fit_size(text, box.x, font_size)
+		size = fit_size(text, box.x, font_size, outline > 0, color)
 	var l := label(text, size, color, align, outline)
 	l.clip_text = false
 	l.autowrap_mode = TextServer.AUTOWRAP_OFF
-	var needed := Vector2(text_width(text, size), text_height(size))
+	var needed := Vector2(text_width(text, size, outline > 0, color), text_height(size))
 	l.size = Vector2(maxf(box.x, needed.x), maxf(box.y, needed.y))
 	l.position = center - l.size * 0.5
 	return l
 
 
-## Igual que label_at() pero con la fuente SIN contorno, para el titulo. Las dos
-## fuentes comparten rejilla, asi que miden igual y todo lo de label_at vale.
+## Lo mismo que label_at() sin encoger ni contorno. Se queda por los sitios que
+## ya la llaman: la letra la elige label() por el tamano, como en todos.
 static func title_label_at(text: String, center: Vector2, box: Vector2,
 		font_size: int = 40, color: Color = Palette.CREAM,
 		align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_CENTER) -> Label:
-	var l := label(text, font_size, color, align, 0)
-	if title_font() != null:
-		l.add_theme_font_override("font", title_font())
-	l.clip_text = false
-	l.autowrap_mode = TextServer.AUTOWRAP_OFF
-	var needed := Vector2(text_width(text, font_size), text_height(font_size))
-	l.size = Vector2(maxf(box.x, needed.x), maxf(box.y, needed.y))
-	l.position = center - l.size * 0.5
-	return l
+	return label_at(text, center, box, font_size, color, align)
 
 
 ## Alto en pixeles que ocupa una linea de texto, con la fuente del juego.
@@ -375,8 +363,9 @@ static func plate_button(text: String, icon: String, center: Vector2,
 		# mide (ver text_width) y se encoge, que es lo unico que se puede hacer
 		# sin rehacer la chapa.
 		var ancho_texto := maxf(28.0, inner_x1 - text_x0)
-		var l := label(text, fit_size(text, ancho_texto, font_size),
-			Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER)
+		# Medido con la letra de texto (el color oscuro la elige), que es la que va.
+		var l := label(text, fit_size(text, ancho_texto, font_size, false, Palette.OUTLINE),
+			Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, TEXT_ONLY)
 		l.anchor_left = 0.0
 		l.anchor_right = 1.0
 		l.anchor_top = 0.0
@@ -430,8 +419,8 @@ static func small_button(text: String, icon: String, center: Vector2,
 		b.add_child(_icon(icon, Vector2(inner_x0 + ih * 0.1, s.y * 0.5), ih))
 		text_x0 = inner_x0 + ih * 0.6 + 2.0
 	if text != "":
-		var l := label(text, fit_size(text, inner_x1 - text_x0, font_size),
-			Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER)
+		var l := label(text, fit_size(text, inner_x1 - text_x0, font_size, false,
+			Palette.OUTLINE), Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, TEXT_ONLY)
 		l.anchor_left = 0.0
 		l.anchor_right = 1.0
 		l.anchor_top = 0.0
@@ -678,6 +667,69 @@ static func shake(node: CanvasItem) -> void:
 	var tw := node.create_tween()
 	for off in [10.0, -8.0, 6.0, -4.0, 0.0]:
 		tw.tween_property(node, "position:x", x0 + off, 0.04)
+
+
+# --------------------------------------------------------------------------- #
+# Movimiento de ambiente (2026-11-17: "que se vea fluido y movido")
+# --------------------------------------------------------------------------- #
+
+## FLOTAR: el dibujo sube y baja `amp` px con una onda de `period` segundos, sin
+## parar. `phase` (en vueltas, 0..1) lo desfasa, para que una fila de dibujos no
+## se mueva a la vez como un bloque. En pixeles enteros, para no emborronar el
+## pixel art. El tween vive en el nodo: se acaba solo cuando el nodo se va.
+static func bob(node: Control, amp: float = 4.0, period: float = 2.6, phase: float = 0.0) -> void:
+	if node == null:
+		return
+	var base := node.position.y
+	var tw := node.create_tween().set_loops()
+	tw.tween_method(func(t: float) -> void:
+		if is_instance_valid(node):
+			node.position.y = roundf(base + sin(t) * amp),
+		TAU * phase, TAU * (phase + 1.0), period)
+
+
+## APARECER: los dibujos de un panel entran uno detras de otro, creciendo con un
+## rebote y encendiendose. Solo toca la escala y el self_modulate, asi que no
+## pisa el modulate que usa cada panel para decir apagado o bloqueado.
+static func pop_in(nodes: Array, step: float = 0.035, from: float = 0.35) -> void:
+	for i in nodes.size():
+		var n := nodes[i] as Control
+		if n == null or not is_instance_valid(n):
+			continue
+		n.pivot_offset = n.size * 0.5
+		n.scale = Vector2.ONE * from
+		n.self_modulate.a = 0.0
+		var tw := n.create_tween().set_parallel()
+		tw.tween_property(n, "scale", Vector2.ONE, 0.32).set_delay(step * i) \
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(n, "self_modulate:a", 1.0, 0.18).set_delay(step * i)
+
+
+## POLVO EN EL AIRE: motas claras que suben despacio por `area`, como en una
+## trastienda con luz. Va detras de lo que se pulsa; no recibe clics.
+static func dust(area: Rect2, amount: int = 28) -> CPUParticles2D:
+	var p := CPUParticles2D.new()
+	p.position = area.get_center()
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = area.size * 0.5
+	p.amount = amount
+	p.lifetime = 7.0
+	p.preprocess = 7.0
+	p.direction = Vector2(0.2, -1.0)
+	p.spread = 25.0
+	p.gravity = Vector2.ZERO
+	p.initial_velocity_min = 8.0
+	p.initial_velocity_max = 22.0
+	p.scale_amount_min = 3.0
+	p.scale_amount_max = 6.0
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0.0))
+	fade.set_color(1, Color(1, 1, 1, 0.0))
+	fade.add_point(0.3, Color(1, 1, 1, 1.0))
+	fade.add_point(0.7, Color(1, 1, 1, 1.0))
+	p.color_ramp = fade
+	p.color = Color(Palette.SHINE, 0.22)
+	return p
 
 
 ## EL BRILLO HOLO (GOLDEN RAIN): un arcoiris que barre el dibujo en diagonal y un

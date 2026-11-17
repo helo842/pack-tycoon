@@ -49,13 +49,6 @@ const TEST_SAVE_PATH := "user://packtycoon_test.json"
 ## La copia de la partida anterior: se hace antes de cada guardado y se carga si
 ## el guardado de verdad falta o no se puede leer.
 const BACKUP_SUFFIX := ".bak"
-## Lo que se gana con el juego cerrado: esta parte de lo que se ganaba por
-## segundo en la partida, como mucho OFFLINE_MAX segundos, y solo con los Pinchos
-## comprados (son lo que sigue abriendo sobres sin el jugador). Poco a proposito:
-## jugar tiene que valer diez veces mas que dejarlo cerrado.
-const OFFLINE_RATE := 0.10
-const OFFLINE_MAX := 3600.0
-const OFFLINE_MIN := 60.0
 const AUTOSAVE_EVERY := 30.0
 const START_MONEY := 500
 ## Lo minimo que paga el PRIMER rebirth: lo bastante para el centro del arbol y
@@ -88,6 +81,9 @@ var asc_skills: Dictionary = {}
 ## LAS MASCOTAS del gachapon (ver PetDB): el nivel de cada una por su id. Como
 ## la ascension, sobreviven a TODO menos a hard_reset.
 var pets: Dictionary = {}
+## Las mascotas EQUIPADAS (ids, como mucho PetDB.SLOTS): solo estas dan su bonus.
+## Sobreviven a la ascension igual que las mascotas.
+var pets_equipped: Array = []
 
 # Inventario y estadisticas. "items_found" y "packs_opened" son para logros,
 # que todavia no estan.
@@ -210,9 +206,6 @@ var save_path := SAVE_PATH
 var play_seconds := 0.0
 ## Cuantas veces se ha hecho rebirth (de la cuenta, no se pierde).
 var rebirth_count := 0
-## Lo que se ha ganado con el juego cerrado al cargar, para que la pantalla de
-## juego lo cuente una vez (y lo ponga a cero).
-var offline_earned := 0
 
 
 func _ready() -> void:
@@ -381,7 +374,7 @@ func inventory_free() -> bool:
 func store(item: Dictionary) -> bool:
 	if not inventory_free():
 		payout(item)
-		notice.emit("INVENTARIO LLENO: VENDIDO", Palette.GOLD)
+		notice.emit("Inventario lleno: vendido", Palette.GOLD)
 		return false
 	inventory.append(item.duplicate(true))
 	_dirty = true
@@ -797,13 +790,35 @@ func pet_level(id: String) -> int:
 	return int(pets.get(id, 0))
 
 
-## Lo que suman las mascotas a un stat (ver PetDB.STAT_NAMES): 0,25 es +25 %.
+## Lo que suman las mascotas EQUIPADAS a un stat (ver PetDB.STAT_NAMES): 0,25 es
+## +25 %. Las que se tienen sin equipar no dan nada.
 func pet_bonus(stat: String) -> float:
 	var b := 0.0
-	for p in PetDB.PETS:
-		if str(p["stat"]) == stat:
-			b += float(p["per_level"]) * float(pet_level(str(p["id"])))
+	for id in pets_equipped:
+		var p := PetDB.pet_by_id(str(id))
+		if not p.is_empty() and str(p["stat"]) == stat:
+			b += float(p["per_level"]) * float(pet_level(str(id)))
 	return b
+
+
+func pet_equipped(id: String) -> bool:
+	return pets_equipped.has(id)
+
+
+## Equipa o desequipa una mascota que se tiene. Con los huecos llenos no equipa
+## (devuelve false: hay que quitar otra antes).
+func toggle_pet_equip(id: String) -> bool:
+	if pets_equipped.has(id):
+		pets_equipped.erase(id)
+	elif pet_level(id) > 0 and pets_equipped.size() < PetDB.SLOTS:
+		pets_equipped.append(id)
+	else:
+		return false
+	_dirty = true
+	skills_changed.emit()
+	items_changed.emit()
+	save_game()
+	return true
 
 
 ## Si la maquina `machine_id` ya no tiene nada que dar ("" = ninguna maquina).
@@ -838,7 +853,16 @@ func roll_pet(machine_id: String = "basic") -> String:
 		ascension_points -= cost
 	else:
 		rebirth_coins -= cost
+	var completas := completed_sets()
 	pets[id] = pet_level(id) + 1
+	# Con esta mascota puede cerrarse la coleccion de su maquina en el album.
+	for set_id in completed_sets():
+		if not completas.has(set_id):
+			var s := Gameplay.set_by_id(set_id)
+			celebrate.emit("Colección %s" % s["name"], "%s para siempre" % s["effect"])
+	# Una mascota NUEVA se equipa sola si queda hueco: si no, la tirada no se nota.
+	if pets[id] == 1 and pets_equipped.size() < PetDB.SLOTS:
+		pets_equipped.append(id)
 	_dirty = true
 	skills_changed.emit()
 	items_changed.emit()
@@ -1138,7 +1162,7 @@ func payout(item: Dictionary) -> int:
 		value = roundi(float(value) * vip_mult())
 		buyer = {}
 		events_changed.emit()
-		notice.emit("VENDIDO AL COMPRADOR VIP: " + Gameplay.mult_text(vip_mult()),
+		notice.emit("Vendido al comprador VIP: " + Gameplay.mult_text(vip_mult()),
 			Palette.GOLD_XL)
 		mission_event("vip", 1)
 	add_money(value)
@@ -1327,21 +1351,25 @@ func _album_add(item: Dictionary) -> void:
 		_dirty = true
 		album_changed.emit()
 	if nuevo:
-		notice.emit("NUEVO EN EL ALBUM", Palette.CREAM)
+		notice.emit("Nuevo en el álbum", Palette.CREAM)
 	for set_id in completed_sets():
 		if not completas.has(set_id):
 			var s := Gameplay.set_by_id(set_id)
-			celebrate.emit("COLECCION %s" % s["name"], "%s PARA SIEMPRE" % s["effect"])
+			celebrate.emit("Colección %s" % s["name"], "%s para siempre" % s["effect"])
 			# Una coleccion de huecos de mesa cambia la mesa en el acto.
 			items_changed.emit()
 
 
 ## ¿Esta completa esta coleccion? La de PERFECCION pide una nota (cualquier
-## objeto con un 10); las demas, todos sus objetos vistos.
+## objeto con un 10); las de mascotas, las seis mascotas de su maquina; las
+## demas, todos sus objetos vistos.
 func set_complete(set_id: String) -> bool:
 	var s := Gameplay.set_by_id(set_id)
 	if s.is_empty():
 		return false
+	if s.has("machine"):
+		var p := set_progress(set_id)
+		return p.x == p.y
 	if s.has("grade"):
 		for key in album:
 			if int(album[key]) >= int(s["grade"]):
@@ -1355,6 +1383,13 @@ func set_complete(set_id: String) -> bool:
 
 func set_progress(set_id: String) -> Vector2i:
 	var s := Gameplay.set_by_id(set_id)
+	if s.has("machine"):
+		var tiene := 0
+		var mascotas := PetDB.pets_of(str(s["machine"]))
+		for p in mascotas:
+			if pet_level(str(p["id"])) > 0:
+				tiene += 1
+		return Vector2i(tiene, mascotas.size())
 	if s.has("grade"):
 		return Vector2i(1 if set_complete(set_id) else 0, 1)
 	var n := 0
@@ -1366,7 +1401,7 @@ func set_progress(set_id: String) -> Vector2i:
 
 func completed_sets() -> Array:
 	var out: Array = []
-	for s in Gameplay.SETS:
+	for s in Gameplay.all_sets():
 		if set_complete(str(s["id"])):
 			out.append(str(s["id"]))
 	return out
@@ -1375,7 +1410,7 @@ func completed_sets() -> Array:
 ## Lo que suman las colecciones completas a un stat.
 func album_bonus(stat: String) -> float:
 	var total := 0.0
-	for s in Gameplay.SETS:
+	for s in Gameplay.all_sets():
 		if str(s["stat"]) == stat and set_complete(str(s["id"])):
 			total += float(s["value"])
 	return total
@@ -1432,7 +1467,7 @@ func mission_event(type: String, value: int, kind: String = "") -> void:
 	for m in hechos:
 		missions.erase(m)
 		add_money(int(m["reward"]))
-		notice.emit("ENCARGO CUMPLIDO: +" + PixelNumber.format(int(m["reward"])),
+		notice.emit("Encargo cumplido: +" + PixelNumber.format(int(m["reward"])),
 			Palette.GOLD_XL)
 	if not hechos.is_empty():
 		_fill_missions()
@@ -1626,6 +1661,7 @@ func hard_reset() -> void:
 	ascensions = 0
 	asc_skills = {}
 	pets = {}
+	pets_equipped = []
 	inventory = []
 	locker = []
 	items = []
@@ -1684,6 +1720,7 @@ func to_dict() -> Dictionary:
 		"ascensions": ascensions,
 		"asc_skills": asc_skills,
 		"pets": pets,
+		"pets_equipped": pets_equipped,
 		"inventory": inventory,
 		"locker": locker,
 		"items": items,
@@ -1712,7 +1749,6 @@ func to_dict() -> Dictionary:
 		"perfect_hits": perfect_hits,
 		"play_seconds": play_seconds,
 		"rebirth_count": rebirth_count,
-		"saved_at": Time.get_unix_time_from_system(),
 	}
 
 
@@ -1739,8 +1775,8 @@ func load_game() -> void:
 		if parsed == null:
 			return
 		push_warning("Guardado ilegible o perdido; se carga la copia.")
+	# Con el juego cerrado no se gana nada (se quito el 2026-11-17: no hacia falta).
 	_apply(parsed)
-	_pay_offline(Time.get_unix_time_from_system() - float(parsed.get("saved_at", 0.0)))
 
 
 ## Un guardado leido como diccionario, o null si falta o no se puede leer.
@@ -1753,18 +1789,6 @@ static func _read_save(path: String):
 	var parsed = JSON.parse_string(f.get_as_text())
 	f.close()
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else null
-
-
-## Paga el tiempo con el juego cerrado (ver OFFLINE_RATE). Devuelve lo pagado.
-func _pay_offline(elapsed: float) -> int:
-	var fabrica := skill_owned(SkillTree.FACTORY)
-	if elapsed < OFFLINE_MIN or play_seconds < OFFLINE_MIN or spike_dps() <= 0.0:
-		return 0
-	var rate := float(lifetime_earned) / play_seconds
-	var tope := OFFLINE_MAX * (2.0 if fabrica else 1.0)
-	offline_earned = roundi(rate * OFFLINE_RATE * minf(elapsed, tope))
-	add_money(offline_earned)
-	return offline_earned
 
 
 func _apply(d: Dictionary) -> void:
@@ -1803,6 +1827,16 @@ func _apply(d: Dictionary) -> void:
 			var nivel := clampi(int(d["pets"][id]), 0, PetDB.MAX_LEVEL)
 			if not PetDB.pet_by_id(str(id)).is_empty() and nivel > 0:
 				pets[str(id)] = nivel
+	# Las equipadas: solo las que se tienen, sin repetir y sin pasar de SLOTS. Un
+	# guardado de antes de equipar no trae la clave: se equipan las primeras que
+	# tenga, para que no se quede de golpe sin ningun bonus.
+	pets_equipped = []
+	var equipadas = d.get("pets_equipped", pets.keys())
+	if typeof(equipadas) == TYPE_ARRAY:
+		for id in equipadas:
+			if pets.has(str(id)) and not pets_equipped.has(str(id)) \
+					and pets_equipped.size() < PetDB.SLOTS:
+				pets_equipped.append(str(id))
 	inventory = d.get("inventory", [])
 	if typeof(inventory) != TYPE_ARRAY:
 		inventory = []

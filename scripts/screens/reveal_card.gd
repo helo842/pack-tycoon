@@ -136,7 +136,7 @@ func _start_teaser(rarity_id: String) -> void:
 		# Se pasa a la siguiente, parpadea... y vuelve.
 		_teaser_tw.tween_callback(_teaser_show.bind(target + 1, ""))
 		_teaser_tw.tween_interval(0.35)
-		_teaser_tw.tween_callback(_teaser_show.bind(target, "CASI..."))
+		_teaser_tw.tween_callback(_teaser_show.bind(target, "Casi..."))
 		_teaser_tw.tween_interval(0.5)
 	if target == top:
 		# Lo legendario se hace esperar un poco mas.
@@ -232,7 +232,7 @@ func _build_title() -> void:
 		_card.add_child(filo)
 	# shrink: "CARTA EDICION LIMITADA" son 22 letras; a 49 no caben en 1200.
 	# Un objeto HOLO (GOLDEN RAIN) lo dice delante del nombre.
-	var titulo := ("HOLO " if Gameplay.is_holo(item) else "") + str(item.get("name", "OBJETO"))
+	var titulo := ("Holo " if Gameplay.is_holo(item) else "") + str(item.get("name", "Objeto"))
 	_card.add_child(UIKit.label_at(titulo,
 			BAND.get_center(), Vector2(1200, 70), 49, Palette.CREAM,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
@@ -276,7 +276,7 @@ func _build_object_column(rarity_id: String) -> void:
 	st.tween_property(shine, "modulate:a", 0.0, 0.35)
 	# La rareza, debajo de la vitrina: la gema y el nombre, juntos y centrados.
 	var fila_y := SHOWCASE.end.y + 44.0
-	var nombre := str(Palette.RARITY_NAME.get(rarity_id, "COMUN"))
+	var nombre := str(Palette.RARITY_NAME.get(rarity_id, "Común"))
 	var ancho := 72.0 + 16.0 + UIKit.text_width(nombre, 35)
 	var x0 := SHOWCASE.get_center().x - ancho * 0.5
 	_card.add_child(UIKit.square("rarity_gem_" + rarity_id, Vector2(x0 + 36, fila_y),
@@ -288,7 +288,7 @@ func _build_object_column(rarity_id: String) -> void:
 	# Y el estado de conservacion, en la fila de debajo y con el mismo dibujo:
 	# el icono y el nombre, centrados como la rareza.
 	var cond: Dictionary = item.get("condition", {})
-	var estado := str(cond.get("name", "BUEN ESTADO"))
+	var estado := str(cond.get("name", "Buen estado"))
 	var estado_y := fila_y + 52.0
 	var ancho_e := 48.0 + 16.0 + UIKit.text_width(estado, 28)
 	var e0 := SHOWCASE.get_center().x - ancho_e * 0.5
@@ -304,7 +304,7 @@ func _build_object_column(rarity_id: String) -> void:
 func _build_grade_column() -> void:
 	var cx := RIGHT.get_center().x
 	var grade := int(item.get("grade", 1))
-	_card.add_child(UIKit.label_at("NOTA PSA", Vector2(cx, GRADE_LABEL_Y),
+	_card.add_child(UIKit.label_at("Nota PSA", Vector2(cx, GRADE_LABEL_Y),
 			Vector2(600, 50), 35, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	# El escudo viene vacio a proposito: el numero se pinta encima con la fuente
 	# de numeros del juego.
@@ -332,7 +332,7 @@ func _build_grade_column() -> void:
 
 func _build_value() -> void:
 	var cx := RIGHT.get_center().x
-	_card.add_child(UIKit.label_at("VALOR", Vector2(RIGHT.position.x + 72, VALUE_Y),
+	_card.add_child(UIKit.label_at("Valor", Vector2(RIGHT.position.x + 72, VALUE_Y),
 			Vector2(144, 50), 35, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT, 0))
 	_card.add_child(UIKit.square("currency_coin", Vector2(cx - 40, VALUE_Y), 0.18))
 	var num := PixelNumber.new()
@@ -346,9 +346,9 @@ func _build_value() -> void:
 	num.position = Vector2(cx + 16, VALUE_Y - num.size.y * 0.5)
 	var por := ""
 	if cobro > int(item.get("value", 0)):
-		por = "EL COMPRADOR VIP LO QUIERE" if Game.buyer_wants(item) else "HORA FELIZ"
+		por = "El comprador VIP lo quiere" if Game.buyer_wants(item) else "Hora feliz"
 	if Gameplay.is_holo(item):
-		por = "HOLO: VALE EL DOBLE" if por == "" else "HOLO X2 Y " + por
+		por = "Holo: vale el doble" if por == "" else "Holo x2 y " + por
 	if por != "":
 		_card.add_child(UIKit.label_at(por, Vector2(cx, VALUE_Y + 46), Vector2(600, 30),
 				21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
@@ -357,18 +357,18 @@ func _build_value() -> void:
 ## Los dos botones de decision: GUARDAR (al inventario) y VENDER (dinero ahora),
 ## sin icono para que el texto salga grande: son LA decision de la pantalla.
 func _build_buttons() -> void:
-	var guardar := UIKit.plate_button("GUARDAR", "", Vector2(RIGHT.position.x + 152,
+	var guardar := UIKit.plate_button("Guardar", "", Vector2(RIGHT.position.x + 152,
 			BUTTONS_Y), Vector2(304, 152), 35)
 	guardar.pressed.connect(_store)
 	_card.add_child(guardar)
 
-	var vender := UIKit.plate_button("VENDER", "", Vector2(RIGHT.end.x - 152, BUTTONS_Y),
+	var vender := UIKit.plate_button("Vender", "", Vector2(RIGHT.end.x - 152, BUTTONS_Y),
 			Vector2(304, 152), 35)
 	vender.pressed.connect(_sell)
 	_card.add_child(vender)
 
 	# El atajo del teclado, debajo de la rareza.
-	var hint := UIKit.label_at("ESPACIO PARA GUARDAR",
+	var hint := UIKit.label_at("Espacio para guardar",
 			Vector2(SHOWCASE.get_center().x, SHOWCASE.end.y + 148), Vector2(560, 32),
 			21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	_card.add_child(hint)

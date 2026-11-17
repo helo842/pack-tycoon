@@ -215,6 +215,8 @@ var _fx: Control
 var _shake_tween: Tween = null
 var _money_shown := 0
 var _money: PixelNumber
+## La cuenta del contador del dinero cuando sube (ver _on_money_changed).
+var _money_tw: Tween = null
 ## El contador de monedas de rebirth de la barra: el cerdito y, a su derecha, el
 ## numero. Es la unica moneda del juego que no se gasta, asi que se lee de reojo
 ## mientras se juega. El cerdito se guarda para poder moverlo: va pegado al
@@ -344,16 +346,6 @@ func _ready() -> void:
 	# mesa que se lleva cada guardado la saca esta pantalla.
 	_restore_table()
 	Game.table_provider = _snapshot_table
-	# Lo ganado con el juego cerrado (ver Game.OFFLINE_RATE), contado una vez.
-	if Game.offline_earned > 0:
-		_show_offline.call_deferred(Game.offline_earned)
-		Game.offline_earned = 0
-
-
-func _show_offline(amount: int) -> void:
-	if _main() != null:
-		_main().banner("MIENTRAS NO ESTABAS",
-				"LOS PINCHOS GANARON %s" % LootDB.short_number(amount))
 
 
 func _exit_tree() -> void:
@@ -376,6 +368,9 @@ func _build_table_area() -> void:
 	# superficie (sprite generado con tools/make_background.py --table) y los
 	# objetos caen donde quieren y se pueden mover.
 	add_child(UIKit.image("bg_table", TABLE_RECT.get_center(), TABLE_RECT.size))
+	# Polvo flotando a la luz de la trastienda, encima de la mesa y debajo de todo
+	# lo que se pulsa: la pantalla nunca se queda quieta del todo.
+	add_child(UIKit.dust(TABLE_RECT, 26))
 
 	var line := ColorRect.new()
 	line.color = Color(Palette.GOLD_D, 0.55)
@@ -528,6 +523,8 @@ func _pack_cell(list: Control, pack: Dictionary, index: int) -> Dictionary:
 	# sobre llena el hueco que le toca en vez de quedarse pequeno en el centro.
 	var art := UIKit.fit_art(str(pack["art"]), centre, PACK_ART_BOX)
 	list.add_child(art)
+	# Cada sobre flota a su ritmo (desfasado con el de arriba): la columna respira.
+	UIKit.bob(art, 3.0, 2.8, float(index) * 0.17)
 
 	# El nombre va arriba y a lo ancho de TODA la columna, alineado a la izquierda
 	# con el dibujo de abajo (los dos empiezan a x 16). Uno por fila y todos a la
@@ -658,12 +655,12 @@ func _build_top_bar() -> void:
 	# reiniciar la partida). El armario va pegado a las automatizaciones por eso, y
 	# el rebirth pegado a la tienda por lo mismo.
 	_auto_open_btn = UIKit.icon_button("ui_icon_auto_open", Vector2(808, 58), 80.0,
-			"Apertura automatica (con los Pinchos): abre sola los paquetes de la mesa")
+			"Apertura automática (con los Pinchos): abre sola los paquetes de la mesa")
 	_auto_open_btn.pressed.connect(_toggle_auto_open)
 	add_child(_auto_open_btn)
 
 	_auto_buy_btn = UIKit.icon_button("ui_icon_auto_buy", Vector2(904, 58), 80.0,
-			"Compra automatica (con el PC): elige que sobres se compran solos")
+			"Compra automática (con el PC): elige qué sobres se compran solos")
 	_auto_buy_btn.pressed.connect(_open_auto_buy)
 	add_child(_auto_buy_btn)
 
@@ -672,14 +669,14 @@ func _build_top_bar() -> void:
 	_locker_btn.pressed.connect(_open_locker)
 	add_child(_locker_btn)
 
-	var shop := UIKit.small_button("TIENDA", "ui_icon_shop", Vector2(1400, 58), 256, 32)
+	var shop := UIKit.small_button("Tienda", "ui_icon_shop", Vector2(1400, 58), 256, 32)
 	shop.pressed.connect(_open_shop)
 	add_child(shop)
 
 	# LA TIENDA DE MASCOTAS, a la izquierda de la TIENDA, en el hueco que dejo
 	# VENDER (1056..1256, con 16 px a cada lado). Escondida hasta comprar HYPER.
-	_pets_btn = UIKit.small_button("MASCOTAS", "tree_pet_capsule", Vector2(1156, 58), 200, 24)
-	_pets_btn.tooltip_text = "Tienda de mascotas: cuatro maquinas de gachapon"
+	_pets_btn = UIKit.small_button("Mascotas", "tree_pet_capsule", Vector2(1156, 58), 200, 24)
+	_pets_btn.tooltip_text = "Tienda de mascotas: cuatro máquinas de gachapón"
 	_pets_btn.pressed.connect(_open_pets)
 	add_child(_pets_btn)
 
@@ -689,7 +686,7 @@ func _build_top_bar() -> void:
 	# leia como un boton secundario al lado del boton grande de la tienda, cuando es
 	# la otra forma de parar la partida. El rotulo se encoge lo que haga falta para
 	# caber al lado del dibujo, igual que en TIENDA (fit_size).
-	_rebirth_btn = UIKit.small_button("REBIRTH", "currency_piggy", REBIRTH_CENTER,
+	_rebirth_btn = UIKit.small_button("Rebirth", "currency_piggy", REBIRTH_CENTER,
 			REBIRTH_W, 32)
 	_rebirth_btn.pressed.connect(_open_rebirth)
 	add_child(_rebirth_btn)
@@ -708,7 +705,7 @@ func _build_top_bar() -> void:
 ## apuntar a la chapa para ver lo que hay dentro de un objeto seria un paso de
 ## mas para lo unico que se puede hacer con el, que es abrirlo.
 func _build_locker() -> void:
-	var open := UIKit.small_button("ARMARIO", "ui_icon_vitrine", LOCK_BTN_CENTER,
+	var open := UIKit.small_button("Armario", "ui_icon_vitrine", LOCK_BTN_CENTER,
 			LOCK_BTN_W, 21)
 	open.tooltip_text = "Armario: expone objetos y da sus bonus"
 	open.pressed.connect(_open_locker)
@@ -1123,13 +1120,13 @@ func _buy_pack(pack_id: String) -> void:
 	var cell := _pack_cell_of(pack_id)
 	if not table_free():
 		Sound.play("sfx_error")
-		Game.notice.emit("MESA LLENA", Palette.RUST_L)
+		Game.notice.emit("Mesa llena", Palette.RUST_L)
 		UIKit.shake(cell.get("art"))
 		return
 	var price := Game.pack_price(pack_id)
 	if not Game.can_afford(price):
 		Sound.play("sfx_error")
-		Game.notice.emit("NO TE LLEGA", Palette.RUST_L)
+		Game.notice.emit("No te llega", Palette.RUST_L)
 		UIKit.shake(cell.get("art"))
 		return
 	Game.spend(price)
@@ -1170,7 +1167,7 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 		Game.mission_event("golden", 1)
 	if el.boss:
 		Sound.play("sfx_sell_all")
-		_main().banner("JEFE DERROTADO", "%d OBJETOS CON NOTA %d O MAS" % [rolls, min_grade])
+		_main().banner("Jefe derrotado", "%d objetos con nota %d o más" % [rolls, min_grade])
 	Game.mission_event("open", 1, _pack_kind(pack_id))
 	for i in rolls:
 		# La suerte (Trebol) engorda el botin no comun y el multiplicador del Armario
@@ -1227,7 +1224,7 @@ func _autostore(item: Dictionary) -> void:
 		return
 	if Game.store(item):
 		Sound.play("sfx_click")
-		_float_label("GUARDADO" + (" HOLO" if Gameplay.is_holo(item) else ""),
+		_float_label("Guardado" + (" holo" if Gameplay.is_holo(item) else ""),
 				_table_point(), Palette.CREAM)
 	else:
 		Sound.play("sfx_sell")
@@ -1240,9 +1237,10 @@ func _sell_with_label(item: Dictionary) -> void:
 	var value := Game.payout(item)
 	Sound.play("sfx_sell")
 	var at := _table_point()
-	_float_label("%s%s  PSA %d" % ["HOLO " if Gameplay.is_holo(item) else "",
+	_float_label("%s%s  PSA %d" % ["Holo " if Gameplay.is_holo(item) else "",
 			str(item.get("name", "")), int(item.get("grade", 0))], at, Palette.CREAM)
 	_float_text("+" + PixelNumber.format(value), at + Vector2(0, 40), Palette.GOLD_XL)
+	_fly_coins(at, value)
 
 
 ## Un rotulo de texto que sube y se desvanece (el de _float_text es de cifras).
@@ -1263,7 +1261,9 @@ func _float_label(text: String, at: Vector2, color: Color) -> void:
 func _sell_quietly(item: Dictionary) -> void:
 	var value := Game.payout(item)
 	Sound.play("sfx_sell")
-	_float_text("+" + PixelNumber.format(value), _table_point(), Palette.GOLD_XL)
+	var at := _table_point()
+	_float_text("+" + PixelNumber.format(value), at, Palette.GOLD_XL)
+	_fly_coins(at, value)
 
 
 func _reveal_item(item: Dictionary) -> void:
@@ -1312,6 +1312,7 @@ func _sell_revealed(item: Dictionary) -> void:
 	var value := Game.payout(item)
 	Sound.play("sfx_sell")
 	_float_text("+" + PixelNumber.format(value), TABLE_RECT.get_center(), Palette.GOLD_XL)
+	_fly_coins(TABLE_RECT.get_center(), value)
 
 
 ## Un sobre que se va de la mesa sin abrirse (el dorado que nadie golpeo, el jefe
@@ -1428,7 +1429,7 @@ func _on_open_requested(el: Object) -> void:
 		var hueco := Game.open_count()
 		if _worked.size() >= hueco:
 			Sound.play("sfx_error")
-			Game.notice.emit("YA LLEVAS %d A LA VEZ" % hueco, Palette.RUST_L)
+			Game.notice.emit("Ya llevas %d a la vez" % hueco, Palette.RUST_L)
 			return
 		_worked.append(pack)
 	pack.start_opening()
@@ -1492,7 +1493,7 @@ func _auto_items_step(delta: float) -> void:
 	if not Game.buy_item(i):
 		return
 	Sound.play("sfx_tool", -8.0)
-	_float_label("AUTO: %s NV %d" % [str(LootDB.item_at(i)["name"]), Game.item_level(i)],
+	_float_label("AUTO: %s nv %d" % [str(LootDB.item_at(i)["name"]), Game.item_level(i)],
 			Vector2(1400, 120), Palette.GOLD_XL)
 
 
@@ -1506,8 +1507,8 @@ func _toggle_auto_open() -> void:
 	Sound.play("sfx_toggle")
 	Game.set_auto_open(not Game.auto_open)
 	_refresh_top()
-	var que := "PINCHOS ACTIVOS" if Game.auto_open else "NO"
-	Game.notice.emit("AUTO APERTURA: " + que, Palette.CREAM_D)
+	var que := "Pinchos activos" if Game.auto_open else "No"
+	Game.notice.emit("AUTO apertura: " + que, Palette.CREAM_D)
 
 
 ## El boton de la compra automatica ABRE su mini menu en vez de encenderse y
@@ -1540,7 +1541,7 @@ func _close_auto_buy() -> void:
 func _locked_notice(item_id: String) -> void:
 	Sound.play("sfx_error")
 	var name := str(LootDB.item_by_id(item_id)["name"])
-	Game.notice.emit("HACEN FALTA: " + name, Palette.RUST_L)
+	Game.notice.emit("Hacen falta: " + name, Palette.RUST_L)
 
 
 # --------------------------------------------------------------------------- #
@@ -1549,20 +1550,63 @@ func _locked_notice(item_id: String) -> void:
 
 func _on_money_changed(value: int) -> void:
 	if is_instance_valid(_money):
-		# El contador da un salto cuando entra dinero: es lo que se mira al vender.
-		if value > _money_shown:
-			UIKit.punch(_money, 1.15)
+		# El contador da un salto cuando entra dinero y SUBE CONTANDO hasta la
+		# cifra nueva (0,4 s): es lo que se mira al vender. Lo que se gasta baja de
+		# golpe, que es lo que se espera al pagar.
+		var antes := _money_shown
 		_money_shown = value
-		_money.set_number(value)
-		# El dinero cambio de ancho (o de cifras): el cerdito se vuelve a pegar a
-		# su ultimo digito.
-		_coloca_monedas_rebirth()
+		if _money_tw != null and _money_tw.is_valid():
+			_money_tw.kill()
+		if value > antes:
+			UIKit.punch(_money, 1.15)
+			_money_tw = _money.create_tween()
+			_money_tw.tween_method(_show_money, float(antes), float(value), 0.4) \
+					.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		else:
+			_show_money(float(value))
 	# Los sobres de la izquierda se apagan cuando no te llega su precio, asi que
 	# cualquier cambio de dinero los tiene que repintar.
 	_refresh_packs()
 	# Y la chapa de la hucha se enciende con lo GANADO en la partida: el dinero que
 	# entra es justo lo que mueve el requisito del rebirth, asi que se repinta aqui.
 	_refresh_rebirth()
+
+
+## Pinta una cifra en el contador del dinero (la del tween de _on_money_changed)
+## y vuelve a pegar el cerdito a su ultimo digito, que cambia de ancho.
+func _show_money(v: float) -> void:
+	if not is_instance_valid(_money):
+		return
+	_money.set_number(roundi(v))
+	_coloca_monedas_rebirth()
+
+
+## MONEDAS VOLANDO: al vender, unas monedas salen de donde se ha vendido y
+## vuelan en arco hasta el contador del dinero, que da un salto al llegar.
+func _fly_coins(from: Vector2, value: int) -> void:
+	if _fx == null:
+		return
+	var n := clampi(2 + int(log(maxf(float(value), 1.0)) / log(10.0)), 3, 8)
+	var to := Vector2(74, 58)
+	for i in n:
+		var c := UIKit.square("currency_coin", from, 0.07)
+		c.pivot_offset = c.size * 0.5
+		_fx.add_child(c)
+		var inicio := from + Vector2(randf_range(-50, 50), randf_range(-30, 30))
+		var alto := Vector2((inicio.x + to.x) * 0.5, minf(inicio.y, to.y) - randf_range(80, 180))
+		var tw := c.create_tween()
+		tw.tween_interval(0.05 * i)
+		tw.tween_method(func(t: float) -> void:
+			if is_instance_valid(c):
+				# Una curva de Bezier: sale, sube en arco y cae en el contador.
+				var p := inicio.lerp(alto, t).lerp(alto.lerp(to, t), t)
+				c.position = p - c.size * 0.5
+				c.rotation = t * TAU, 0.0, 1.0, 0.55).set_trans(Tween.TRANS_QUAD) \
+				.set_ease(Tween.EASE_IN)
+		tw.tween_callback(c.queue_free)
+	get_tree().create_timer(0.55 + 0.05 * n).timeout.connect(func() -> void:
+		if is_instance_valid(_money):
+			UIKit.punch(_money, 1.12))
 
 
 ## El estado de las celdas de sobres: apagadas si no te llega el precio y
@@ -1619,7 +1663,7 @@ func _coloca_monedas_rebirth() -> void:
 
 func _refresh_top() -> void:
 	if is_instance_valid(_table_label):
-		_table_label.text = "MESA %d/%d" % [table_count(), Game.table_slots()]
+		_table_label.text = "Mesa %d/%d" % [table_count(), Game.table_slots()]
 	# Las monedas de rebirth solo cambian al reiniciar, y eso emite
 	# settings_changed; pero el repintado va aqui, con el resto de la barra, para
 	# no tener un camino aparte que se pueda olvidar.
@@ -1671,7 +1715,7 @@ func _refresh_rebirth() -> void:
 ## La tira de la vitrina: el rotulo y los ocho huecos.
 func _refresh_locker() -> void:
 	if is_instance_valid(_locker_label):
-		_locker_label.text = "ARMARIO %d/%d EXPUESTOS" % [Game.locker_size(),
+		_locker_label.text = "Armario: %d/%d expuestos" % [Game.locker_size(),
 				Game.locker_slots()]
 	var slots := Game.locker_slots()
 	for i in _locker_slots.size():
@@ -1733,7 +1777,7 @@ func _events_step(delta: float) -> void:
 		if Game.buyer.is_empty():
 			Game.start_buyer()
 			Sound.play("sfx_rare")
-			_main().banner("COMPRADOR VIP  %s" % Gameplay.mult_text(Game.vip_mult()),
+			_main().banner("Comprador VIP  %s" % Gameplay.mult_text(Game.vip_mult()),
 					event_texts()[0].split("  -  ")[0].get_slice(": ", 1))
 	_happy_timer -= delta
 	if _happy_timer <= 0.0:
@@ -1741,7 +1785,7 @@ func _events_step(delta: float) -> void:
 		if Game.happy.is_empty():
 			Game.start_happy()
 			Sound.play("sfx_rare")
-			_main().banner("HORA FELIZ  %s" % Gameplay.mult_text(Gameplay.HAPPY_MULT),
+			_main().banner("Hora feliz  %s" % Gameplay.mult_text(Gameplay.HAPPY_MULT),
 					event_texts()[-1].split("  -  ")[0].get_slice(": ", 1))
 
 
@@ -1754,7 +1798,7 @@ func spawn_golden() -> TableElement:
 	el.setup_golden()
 	_add_element(el)
 	Sound.play("sfx_rare")
-	_main().banner("SOBRE DORADO", "ABRELO ANTES DE QUE SE VAYA")
+	_main().banner("Sobre dorado", "Ábrelo antes de que se vaya")
 	return el
 
 
@@ -1800,7 +1844,7 @@ func _on_perfect_hit(sweet: bool, mult: float, el: TableElement) -> void:
 	if not is_instance_valid(el) or _fx == null:
 		return
 	var at: Vector2 = el.global_position + Vector2(TableElement.BOX.x * 0.5, 40.0)
-	var texto := ("DORADO! " if sweet else "PERFECTO! ") + Gameplay.mult_text(snappedf(mult, 0.1))
+	var texto := ("¡Dorado! " if sweet else "¡Perfecto! ") + Gameplay.mult_text(snappedf(mult, 0.1))
 	var l := UIKit.label_at(texto, at, Vector2(300, 40), 35 if sweet else 28,
 			Palette.GOLD_HI if sweet else Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1817,7 +1861,7 @@ func _on_perfect_hit(sweet: bool, mult: float, el: TableElement) -> void:
 func _on_early_click(el: TableElement) -> void:
 	Sound.play("sfx_error", -10.0, 1.3)
 	if is_instance_valid(el):
-		_float_label("PRONTO", el.global_position + Vector2(TableElement.BOX.x * 0.5, 40.0),
+		_float_label("Pronto", el.global_position + Vector2(TableElement.BOX.x * 0.5, 40.0),
 				Palette.RUST_L)
 
 
@@ -1853,13 +1897,13 @@ func _on_streak_changed(streak: int) -> void:
 	var antes := _streak_label.visible
 	_streak_label.visible = streak >= 2
 	if streak >= 2:
-		_streak_label.text = "RACHA %d  %s" % [streak,
+		_streak_label.text = "Racha %d  %s" % [streak,
 				Gameplay.mult_text(snappedf(Gameplay.streak_mult(streak,
 						Game.skill_bonus("streak")), 0.01))]
 		UIKit.punch(_streak_label, 1.2)
 	elif antes:
 		# Se ha roto con algo de racha: que se note que se ha perdido.
-		_float_label("RACHA ROTA", _streak_label.position + _streak_label.size * 0.5,
+		_float_label("Racha rota", _streak_label.position + _streak_label.size * 0.5,
 				Palette.RUST_L)
 
 
@@ -1882,7 +1926,7 @@ func _refresh_combo() -> void:
 	_combo_label.visible = hay
 	_combo_bar.visible = hay
 	if hay:
-		_combo_label.text = "COMBO %d  +%d %%" % [_combo,
+		_combo_label.text = "Combo %d  +%d %%" % [_combo,
 				roundi((Gameplay.combo_mult(_combo) - 1.0) * 100.0)]
 		_combo_bar.size.x = 200.0 * _combo_left / _combo_window()
 		UIKit.punch(_combo_label, 1.15)
@@ -1902,7 +1946,7 @@ func spawn_boss() -> TableElement:
 	_add_element(el)
 	Sound.play("sfx_rare", 0.0, 0.6)
 	_shake(2.5)
-	_main().banner("JEFE DE SOBRE", "ROMPELO EN %d S" % roundi(vida))
+	_main().banner("Jefe de sobre", "Rómpelo en %d s" % roundi(vida))
 	return el
 
 
@@ -1915,7 +1959,7 @@ func _boss_step(delta: float) -> void:
 		el.boss_tick()
 		if el.boss_left <= 0.0 and not el.is_busy():
 			Sound.play("sfx_error")
-			Game.notice.emit("EL JEFE SE HA ESCAPADO", Palette.RUST_L)
+			Game.notice.emit("El jefe se ha escapado", Palette.RUST_L)
 			_remove_from_table(el)
 
 
@@ -1946,12 +1990,12 @@ func _build_event_band() -> void:
 func event_texts() -> Array:
 	var out: Array = []
 	if not Game.buyer.is_empty():
-		out.append("COMPRADOR VIP: %s CON NOTA %d O MAS PAGA %s  -  %d S" % [
+		out.append("Comprador VIP: %s con nota %d o más paga %s  -  %d s" % [
 			str(LootDB.kind_row(str(Game.buyer["kind"]))["name"]),
 			int(Game.buyer["grade"]), Gameplay.mult_text(Game.vip_mult()),
 			ceili(float(Game.buyer["left"]))])
 	if not Game.happy.is_empty():
-		out.append("HORA FELIZ: LOS OBJETOS DE %s VALEN %s  -  %d S" % [
+		out.append("Hora feliz: los objetos de %s valen %s  -  %d s" % [
 			str(LootDB.kind_row(str(Game.happy["kind"]))["name"]),
 			Gameplay.mult_text(Gameplay.HAPPY_MULT), ceili(float(Game.happy["left"]))])
 	return out
@@ -1994,23 +2038,23 @@ func _build_abilities() -> void:
 func _use_ability(id: String) -> void:
 	if not Game.ability_unlocked(id):
 		Sound.play("sfx_error")
-		Game.notice.emit("SE DESBLOQUEA EN EL ARBOL DEL REBIRTH", Palette.RUST_L)
+		Game.notice.emit("Se desbloquea en el árbol del rebirth", Palette.RUST_L)
 		return
 	if not Game.use_ability(id):
 		Sound.play("sfx_error")
-		Game.notice.emit("TODAVIA SE ESTA RECARGANDO", Palette.RUST_L)
+		Game.notice.emit("Todavía se está recargando", Palette.RUST_L)
 		return
 	Sound.play("sfx_tool")
 	for a in _abil_buttons:
 		if str(a["id"]) == id:
 			UIKit.punch(a["button"], 1.25)
 	if id == Gameplay.ABIL_FRENZY:
-		_main().banner("FRENESI!", "TODOS LOS SOBRES SE GOLPEAN SOLOS %d S" % int(Gameplay.FRENZY_TIME))
+		_main().banner("¡Frenesí!", "Todos los sobres se golpean solos %d s" % int(Gameplay.FRENZY_TIME))
 	elif id == Gameplay.ABIL_RAIN:
-		_main().banner("GOLDEN RAIN!", "%d S: LOS SOBRES QUE COMPRES PUEDEN SALIR HOLO"
+		_main().banner("¡Golden rain!", "%d s: los sobres que compres pueden salir holo"
 				% int(Game.rain_left))
 	else:
-		Game.notice.emit(str(Gameplay.ability(id)["name"]) + "!", Palette.GOLD_XL)
+		Game.notice.emit("¡" + str(Gameplay.ability(id)["name"]) + "!", Palette.GOLD_XL)
 
 
 ## Cada boton: apagado si no se tiene o si recarga (con los segundos encima) y
@@ -2039,8 +2083,8 @@ func _refresh_abilities() -> void:
 # --- la libreta ----------------------------------------------------------------- #
 
 func _build_libreta_button() -> void:
-	var b := UIKit.small_button("LIBRETA", "", LIBRETA_BTN_CENTER, LIBRETA_BTN_W, 21)
-	b.tooltip_text = "Libreta: el album de colecciones y los encargos"
+	var b := UIKit.small_button("Libreta", "", LIBRETA_BTN_CENTER, LIBRETA_BTN_W, 21)
+	b.tooltip_text = "Libreta: el álbum de colecciones y los encargos"
 	b.pressed.connect(_open_libreta)
 	add_child(b)
 

@@ -1,19 +1,13 @@
 [gd_resource type="Theme" load_steps=2 format=3]
 
-; El texto YA NO es lo unico que no es pixel art: usa font_pack.fnt, la fuente de
-; mapa de bits que genera tools/make_font.py desde los patrones de
-; tools/font_patterns.py. Los rotulos salen a escala entera porque UIKit ajusta
-; cada tamano al multiplo de 7 mas cercano (FONT_STEP), que es la altura de un
-; glifo de arte.
+; La letra por defecto es la de TEXTO, font_texto.fnt (mayusculas y minusculas,
+; pixel art, de tools/make_font.py). Los titulos y los numeros los ponen UIKit y
+; PixelNumber; ver la cabecera de scripts/ui/ui_kit.gd. Los tamanos salen a
+; escala entera porque UIKit los ajusta al multiplo de 7 (FONT_STEP).
 ;
-; El contorno oscuro de antes (outline_size) se ha quitado: la fuente trae su
-; propio contorno de 1 px de #101020 pintado en la hoja, igual que el resto del
-; juego. El de Godot solo hacia falta para la fuente suave anterior.
-;
-; Para cambiar el texto de color, default_font_color / el font_color de cada
-; Label. La fuente se pinta en blanco puro a proposito: Godot la tiñe.
+; La letra se pinta en blanco puro a proposito: Godot la tiñe con el font_color.
 
-[ext_resource type="FontFile" path="res://Sprites/font/font_pack.fnt" id="1_font"]
+[ext_resource type="FontFile" path="res://Sprites/font/font_texto.fnt" id="1_font"]
 
 [resource]
 default_font = ExtResource("1_font")

@@ -32,7 +32,7 @@ var _t := 0.0
 func _ready() -> void:
 	add_child(UIKit.veil(0.62))
 	add_child(UIKit.panel("ui_panel_shop"))
-	add_child(UIKit.label_at("AYUDA", Vector2(960, 220), Vector2(1400, 70),
+	add_child(UIKit.label_at("Ayuda", Vector2(960, 220), Vector2(1400, 70),
 			48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
@@ -43,7 +43,7 @@ func _ready() -> void:
 
 ## Columna izquierda: el anillo de muestra, la leyenda de colores y tres lineas.
 func _build_perfect() -> void:
-	add_child(UIKit.label_at("GOLPE PERFECTO", Vector2(LEFT_X, 310), Vector2(560, 50), 28,
+	add_child(UIKit.label_at("Golpe perfecto", Vector2(LEFT_X, 310), Vector2(560, 50), 28,
 			Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	_ring = TimerRing.new()
 	_ring.size = RING_SIZE
@@ -55,10 +55,10 @@ func _build_perfect() -> void:
 	_pack = UIKit.image("pack_cards", RING_CENTER, Vector2(160, 160))
 	add_child(_pack)
 
-	_legend(TimerRing.ZONE_COLOR, "TURQUESA: GOLPE X%s" % Gameplay.PERFECT_MULT, 680)
-	_legend(TimerRing.SWEET_COLOR, "BLANCO (DORADO): X%s MAS" % Gameplay.SWEET_MULT, 724)
-	_text("PULSA EL SOBRE CUANDO LA PUNTA DEL ANILLO PASE POR EL TURQUESA. SEGUIDOS"
-			+ " SUMAN RACHA. SI PULSAS ANTES, PIERDES UN TROZO DE VUELTA Y LA RACHA.",
+	_legend(TimerRing.ZONE_COLOR, "Turquesa: golpe x%s" % Gameplay.PERFECT_MULT, 680)
+	_legend(TimerRing.SWEET_COLOR, "Blanco (dorado): x%s más" % Gameplay.SWEET_MULT, 724)
+	_text("Pulsa el sobre cuando la punta del anillo pase por el turquesa. Seguidos"
+			+ " suman racha. Si pulsas antes, pierdes un trozo de vuelta y la racha.",
 			Rect2(250, 760, 560, 160), 14, Palette.CREAM_D)
 
 
@@ -75,16 +75,16 @@ func _legend(color: Color, text: String, y: float) -> void:
 
 ## Columna derecha: el juego en seis pasos.
 func _build_steps() -> void:
-	add_child(UIKit.label_at("COMO SE JUEGA", Vector2(RIGHT.get_center().x, 310),
+	add_child(UIKit.label_at("Cómo se juega", Vector2(RIGHT.get_center().x, 310),
 			Vector2(RIGHT.size.x, 50), 28, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	var steps := [
-		"1. COMPRA SOBRES EN LA COLUMNA DE LA IZQUIERDA: CAEN EN LA MESA.",
-		"2. PULSA UN SOBRE: SE CARGA SU ANILLO Y CADA VUELTA ES UN GOLPE. SIN VIDA, SE ABRE.",
-		"3. SALE UN OBJETO CON RAREZA Y NOTA DEL 1 AL 10. LO NORMAL SE VENDE SOLO; LO BUENO LO GUARDAS O LO VENDES.",
-		"4. MEJORA EN LA TIENDA Y EXPON LO MEJOR EN EL ARMARIO: DA BONUS.",
-		"5. CON %s HAZ REBIRTH: MONEDAS PARA EL ARBOL, QUE NO SE PIERDE." \
+		"1. Compra sobres en la columna de la izquierda: caen en la mesa.",
+		"2. Pulsa un sobre: se carga su anillo y cada vuelta es un golpe. Sin vida, se abre.",
+		"3. Sale un objeto con rareza y nota del 1 al 10. Lo normal se vende solo; lo bueno lo guardas o lo vendes.",
+		"4. Mejora en la tienda y expón lo mejor en el armario: da bonus.",
+		"5. Con %s haz rebirth: monedas para el árbol, que no se pierde." \
 				% PixelNumber.format(LootDB.REBIRTH_REQUIRE),
-		"TECLAS: T TIENDA, A ARMARIO, R ARBOL, 1 2 3 HABILIDADES, ESC MENU.",
+		"Teclas: T tienda, A armario, R árbol, 1 2 3 habilidades, Esc menú.",
 	]
 	_text("\n".join(steps), Rect2(RIGHT.position + Vector2(0, 60), RIGHT.size - Vector2(0, 60)),
 			21, Palette.CREAM)

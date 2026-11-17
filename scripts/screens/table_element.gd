@@ -158,10 +158,10 @@ func golden_tick() -> void:
 	if started():
 		modulate.a = 1.0
 		if _golden_tag != null:
-			_golden_tag.text = "DORADO"
+			_golden_tag.text = "Dorado"
 		return
 	if _golden_tag != null:
-		_golden_tag.text = "DORADO  %d S" % ceili(maxf(0.0, golden_left))
+		_golden_tag.text = "Dorado  %d s" % ceili(maxf(0.0, golden_left))
 
 
 ## Lo convierte en JEFE, con su vida y su reloj. Como setup_golden(): despues
@@ -177,7 +177,7 @@ func setup_boss(hp_value: float, life: float) -> void:
 func boss_tick() -> void:
 	if _boss_tag == null:
 		return
-	_boss_tag.text = "JEFE  %d %%  %d S" % [ceili(hp / maxf(1.0, max_hp) * 100.0),
+	_boss_tag.text = "Jefe  %d %%  %d s" % [ceili(hp / maxf(1.0, max_hp) * 100.0),
 			ceili(maxf(0.0, boss_left))]
 	_boss_tag.modulate = Color.WHITE if boss_left > 5.0 \
 			else (Color(1.6, 0.6, 0.5) if int(boss_left * 4.0) % 2 == 0 else Color.WHITE)

@@ -16,6 +16,10 @@ extends RefCounted
 ## maquina, asi que ninguna tirada se tira.
 const MAX_LEVEL := 5
 
+## Cuantas mascotas se pueden EQUIPAR a la vez: solo las equipadas dan su bonus
+## (ver Game.pets_equipped y el menu EQUIPAR de PetPanel).
+const SLOTS := 3
+
 ## Las MAQUINAS del gachapon, una por pagina de la tienda, cada una con SUS seis
 ## mascotas (dibujo y efecto propios). "currency" es con que se paga: "rebirth"
 ## (monedas de rebirth) o "ascension" (puntos de ascension). "suffix" es solo el
@@ -29,43 +33,43 @@ const MAX_LEVEL := 5
 ## shortcut: los per_level de ORO, HIELO y COSMICA estan puestos a ojo, sin
 ## simular; si rompen el ritmo, se ajustan aqui (BalanceTest no los mira).
 const MACHINES: Array = [
-	{"id": "basic", "name": "NORMAL", "suffix": "", "cost": 1, "currency": "rebirth", "pets": [
-		{"id": "dog", "name": "PERRO", "stat": "money", "per_level": 0.05, "rarity": "common"},
-		{"id": "cat", "name": "GATO", "stat": "rebirth", "per_level": 0.05, "rarity": "common"},
-		{"id": "frog", "name": "RANA", "stat": "money", "per_level": 0.10, "rarity": "rare"},
-		{"id": "fish", "name": "PEZ", "stat": "rebirth", "per_level": 0.10, "rarity": "rare"},
-		{"id": "fox", "name": "ZORRO", "stat": "money", "per_level": 0.25, "rarity": "legendary"},
-		{"id": "dragon", "name": "DRAGON", "stat": "rebirth", "per_level": 0.25,
+	{"id": "basic", "name": "Normal", "suffix": "", "cost": 1, "currency": "rebirth", "pets": [
+		{"id": "dog", "name": "Perro", "stat": "money", "per_level": 0.05, "rarity": "common"},
+		{"id": "cat", "name": "Gato", "stat": "rebirth", "per_level": 0.05, "rarity": "common"},
+		{"id": "frog", "name": "Rana", "stat": "money", "per_level": 0.10, "rarity": "rare"},
+		{"id": "fish", "name": "Pez", "stat": "rebirth", "per_level": 0.10, "rarity": "rare"},
+		{"id": "fox", "name": "Zorro", "stat": "money", "per_level": 0.25, "rarity": "legendary"},
+		{"id": "dragon", "name": "Dragón", "stat": "rebirth", "per_level": 0.25,
 			"rarity": "legendary"},
 	]},
-	{"id": "gold", "name": "ORO", "suffix": "_gold", "cost": 10, "currency": "rebirth", "pets": [
-		{"id": "hamster", "name": "HAMSTER", "stat": "speed", "per_level": 0.05, "rarity": "common"},
-		{"id": "bunny", "name": "CONEJO", "stat": "luck", "per_level": 0.10, "rarity": "common"},
-		{"id": "owl", "name": "BUHO", "stat": "crit", "per_level": 0.01, "rarity": "rare"},
-		{"id": "parrot", "name": "LORO", "stat": "money", "per_level": 0.20, "rarity": "rare"},
-		{"id": "turtle", "name": "TORTUGA", "stat": "spikes", "per_level": 0.40,
+	{"id": "gold", "name": "Oro", "suffix": "_gold", "cost": 10, "currency": "rebirth", "pets": [
+		{"id": "hamster", "name": "Hámster", "stat": "speed", "per_level": 0.05, "rarity": "common"},
+		{"id": "bunny", "name": "Conejo", "stat": "luck", "per_level": 0.10, "rarity": "common"},
+		{"id": "owl", "name": "Búho", "stat": "crit", "per_level": 0.01, "rarity": "rare"},
+		{"id": "parrot", "name": "Loro", "stat": "money", "per_level": 0.20, "rarity": "rare"},
+		{"id": "turtle", "name": "Tortuga", "stat": "spikes", "per_level": 0.40,
 			"rarity": "legendary"},
-		{"id": "bear", "name": "OSO", "stat": "damage", "per_level": 0.40, "rarity": "legendary"},
+		{"id": "bear", "name": "Oso", "stat": "damage", "per_level": 0.40, "rarity": "legendary"},
 	]},
-	{"id": "ice", "name": "HIELO", "suffix": "_ice", "cost": 100, "currency": "rebirth", "pets": [
-		{"id": "penguin", "name": "PINGUINO", "stat": "speed", "per_level": 0.10,
+	{"id": "ice", "name": "Hielo", "suffix": "_ice", "cost": 100, "currency": "rebirth", "pets": [
+		{"id": "penguin", "name": "Pingüino", "stat": "speed", "per_level": 0.10,
 			"rarity": "common"},
-		{"id": "seal", "name": "FOCA", "stat": "money", "per_level": 0.20, "rarity": "common"},
-		{"id": "octopus", "name": "PULPO", "stat": "spikes", "per_level": 0.40, "rarity": "rare"},
-		{"id": "wolf", "name": "LOBO", "stat": "damage", "per_level": 0.40, "rarity": "rare"},
-		{"id": "yeti", "name": "YETI", "stat": "crit", "per_level": 0.02, "rarity": "legendary"},
-		{"id": "whale", "name": "BALLENA", "stat": "rebirth", "per_level": 0.80,
+		{"id": "seal", "name": "Foca", "stat": "money", "per_level": 0.20, "rarity": "common"},
+		{"id": "octopus", "name": "Pulpo", "stat": "spikes", "per_level": 0.40, "rarity": "rare"},
+		{"id": "wolf", "name": "Lobo", "stat": "damage", "per_level": 0.40, "rarity": "rare"},
+		{"id": "yeti", "name": "Yeti", "stat": "crit", "per_level": 0.02, "rarity": "legendary"},
+		{"id": "whale", "name": "Ballena", "stat": "rebirth", "per_level": 0.80,
 			"rarity": "legendary"},
 	]},
-	{"id": "cosmic", "name": "COSMICA", "suffix": "_cosmic", "cost": 1, "currency": "ascension",
+	{"id": "cosmic", "name": "Cósmica", "suffix": "_cosmic", "cost": 1, "currency": "ascension",
 		"pets": [
-		{"id": "robot", "name": "ROBOT", "stat": "speed", "per_level": 0.20, "rarity": "common"},
-		{"id": "alien", "name": "ALIEN", "stat": "luck", "per_level": 0.40, "rarity": "common"},
-		{"id": "ghost", "name": "FANTASMA", "stat": "crit", "per_level": 0.03, "rarity": "rare"},
-		{"id": "phoenix", "name": "FENIX", "stat": "rebirth", "per_level": 0.80, "rarity": "rare"},
-		{"id": "unicorn", "name": "UNICORNIO", "stat": "money", "per_level": 1.60,
+		{"id": "robot", "name": "Robot", "stat": "speed", "per_level": 0.20, "rarity": "common"},
+		{"id": "alien", "name": "Alien", "stat": "luck", "per_level": 0.40, "rarity": "common"},
+		{"id": "ghost", "name": "Fantasma", "stat": "crit", "per_level": 0.03, "rarity": "rare"},
+		{"id": "phoenix", "name": "Fénix", "stat": "rebirth", "per_level": 0.80, "rarity": "rare"},
+		{"id": "unicorn", "name": "Unicornio", "stat": "money", "per_level": 1.60,
 			"rarity": "legendary"},
-		{"id": "golem", "name": "GOLEM", "stat": "damage", "per_level": 1.60,
+		{"id": "golem", "name": "Golem", "stat": "damage", "per_level": 1.60,
 			"rarity": "legendary"},
 	]},
 ]
@@ -74,10 +78,10 @@ const RARITY_WEIGHT := {"common": 30, "rare": 15, "legendary": 5}
 
 ## Lo que sube cada "stat", en largo y en corto (el corto cabe en la ficha).
 const STAT_NAMES := {
-	"money": ["DINERO", "DINERO"], "rebirth": ["MONEDAS DE REBIRTH", "REBIRTH"],
-	"damage": ["DANO", "DANO"], "speed": ["VELOCIDAD", "VELOCIDAD"],
-	"crit": ["DE CRITICO", "CRITICO"], "luck": ["SUERTE", "SUERTE"],
-	"spikes": ["PINCHOS", "PINCHOS"],
+	"money": ["Dinero", "Dinero"], "rebirth": ["Monedas de rebirth", "Rebirth"],
+	"damage": ["Daño", "Daño"], "speed": ["Velocidad", "Velocidad"],
+	"crit": ["De crítico", "Crítico"], "luck": ["Suerte", "Suerte"],
+	"spikes": ["Pinchos", "Pinchos"],
 }
 
 ## Todas las mascotas de todas las maquinas, cada una con su "machine", su
@@ -119,7 +123,7 @@ static func pet_by_id(id: String) -> Dictionary:
 ## Lo que da una mascota en texto ("+10% DINERO"), con el nivel que se le pase.
 ## `short` usa el nombre corto, para que quepa en la ficha.
 static func bonus_text(p: Dictionary, level: int, short := false) -> String:
-	var que: String = STAT_NAMES[str(p["stat"])][1 if short else 0]
+	var que: String = str(STAT_NAMES[str(p["stat"])][1 if short else 0]).to_lower()
 	return "+%d%% %s" % [roundi(float(p["per_level"]) * float(maxi(level, 1)) * 100.0), que]
 
 

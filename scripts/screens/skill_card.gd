@@ -62,11 +62,11 @@ const BUY_CENTER := Vector2(1190, 830)
 const BUY_W := 384.0
 
 ## Lo que dice la ficha cuando el nodo ya es tuyo, en el sitio del boton.
-const OWNED_TEXT := "COMPRADO"
+const OWNED_TEXT := "Comprado"
 ## Y lo que dicen el AHORA y el AL COMPRARLO de un interruptor de calidad de vida:
 ## son las dos unicas palabras que necesita una mejora que se tiene o no se tiene.
-const ON_TEXT := "ENCENDIDO"
-const OFF_TEXT := "APAGADO"
+const ON_TEXT := "Encendido"
+const OFF_TEXT := "Apagado"
 ## Y el nombre de lo que se paga: la moneda del rebirth, que es el cerdito. Va en
 ## el tooltip del precio porque en la chapa solo cabe el numero.
 const COIN_NAME := "monedas de rebirth"
@@ -176,9 +176,9 @@ func refresh() -> void:
 	# interruptor y solo se calcula el porcentaje cuando de verdad lo es.
 	var qol := SkillTree.is_qol(_id)
 	var ahora := Game.skill_bonus(stat)
-	var linea_ahora := "AHORA: " + (ON_TEXT if owned else OFF_TEXT)
+	var linea_ahora := "Ahora: " + (ON_TEXT if owned else OFF_TEXT)
 	if not qol:
-		linea_ahora = "AHORA, CON EL ARBOL: " + SkillTree.total_text(stat, ahora)
+		linea_ahora = "Ahora tienes: " + SkillTree.total_text(stat, ahora)
 	_add(UIKit.label_at(linea_ahora, Vector2(COL_MID, NOW_Y), Vector2(COL_W, LINE_STEP),
 			21, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER))
 	if cost < 0:
@@ -187,9 +187,9 @@ func refresh() -> void:
 		_add(UIKit.label_at(OWNED_TEXT, BUY_CENTER, Vector2(COL_W, 60), 42,
 				Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER))
 		return
-	var linea_siguiente := "AL COMPRARLO: " + ON_TEXT
+	var linea_siguiente := "Si lo compras: " + ON_TEXT
 	if not qol:
-		linea_siguiente = "AL COMPRARLO: " \
+		linea_siguiente = "Si lo compras: " \
 				+ SkillTree.total_text(stat, ahora + float(node["value"]))
 	_add(UIKit.label_at(linea_siguiente, Vector2(COL_MID, NEXT_Y), Vector2(COL_W, LINE_STEP),
 			21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER))
@@ -216,7 +216,7 @@ func refresh() -> void:
 	# o sin monedas: un boton muerto y callado no explica nada, y lo que falta ya
 	# lo dice la linea de arriba. Quien compra de verdad es el panel, que es el
 	# que comprueba (ver rebirth_panel.gd, _on_buy_skill).
-	var b := UIKit.small_button("COMPRAR", "currency_piggy", BUY_CENTER, BUY_W, 30)
+	var b := UIKit.small_button("Comprar", "currency_piggy", BUY_CENTER, BUY_W, 30)
 	b.pressed.connect(_on_buy)
 	_add(b)
 
@@ -230,10 +230,10 @@ func _state_text(cost: int) -> String:
 	if not Game.skill_unlocked(_id):
 		# Colgado de otro nodo: se dice CUAL y lo que da, que es lo que hay que
 		# comprar antes. El nombre del efecto es el idioma del arbol.
-		return "ANTES: " + SkillTree.effect_text(Game.skill_missing_req(_id))
+		return "Antes: " + SkillTree.effect_text(Game.skill_missing_req(_id))
 	if not Game.can_buy_skill(_id):
-		return "TE FALTAN %d MONEDAS" % Game.skill_missing_coins(_id)
-	return "COMPRA UNICA"
+		return "Te faltan %d monedas" % Game.skill_missing_coins(_id)
+	return "Compra única"
 
 
 func _add(n: Node) -> void:

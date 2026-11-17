@@ -14,7 +14,7 @@ extends RefCounted
 const NODES: Array = [
 	{
 		"id": "hyper", "name": "HYPER", "art": "tree_asc_hyper", "cost": 1,
-		"money_mult": 3.0, "desc": "X3 DE DINERO",
+		"money_mult": 3.0, "desc": "x3 de dinero",
 	},
 ]
 

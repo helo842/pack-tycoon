@@ -38,10 +38,10 @@ const RARITY := {
 }
 
 const RARITY_NAME := {
-	"common": "COMUN",
-	"rare": "RARO",
-	"epic": "EPICO",
-	"legendary": "LEGENDARIO",
+	"common": "Común",
+	"rare": "Raro",
+	"epic": "Épico",
+	"legendary": "Legendario",
 }
 
 const RARITY_ORDER: Array[String] = ["common", "rare", "epic", "legendary"]

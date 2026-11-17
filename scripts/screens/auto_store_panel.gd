@@ -44,7 +44,7 @@ var _wide_size := 28
 func _ready() -> void:
 	add_child(UIKit.veil(0.62))
 	add_child(UIKit.panel("ui_panel_shop"))
-	add_child(UIKit.label_at("AUTO GUARDAR", Vector2(960, TITLE_Y), Vector2(1400, 70),
+	add_child(UIKit.label_at("Auto guardar", Vector2(960, TITLE_Y), Vector2(1400, 70),
 			48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
@@ -61,7 +61,7 @@ func _ready() -> void:
 		textos.append(str(Palette.RARITY_NAME[r]))
 	_wide_size = UIKit.row_size(textos, WIDE_W * (1.0 - 2.0 * UIKit.SMALL_BODY.x), 28)
 
-	_row_label("TIPO", ROW_KIND_Y)
+	_row_label("Tipo", ROW_KIND_Y)
 	for i in kinds.size():
 		_toggle_button(str(LootDB.kind_row(kinds[i])["name"]), "kinds", kinds[i],
 				Vector2(WIDE_X0 + float(i) * WIDE_STEP, ROW_KIND_Y), WIDE_W, _wide_size)
@@ -69,12 +69,12 @@ func _ready() -> void:
 	for g in range(1, LootDB.GRADE_MAX + 1):
 		_toggle_button(str(g), "grades", g,
 				Vector2(NARROW_X0 + float(g - 1) * NARROW_STEP, ROW_GRADE_Y), NARROW_W, 28)
-	_row_label("RAREZA", ROW_RARITY_Y)
+	_row_label("Rareza", ROW_RARITY_Y)
 	for i in rarezas.size():
 		_toggle_button(str(Palette.RARITY_NAME[rarezas[i]]), "rarities", rarezas[i],
 				Vector2(WIDE_X0 + float(i) * WIDE_STEP, ROW_RARITY_Y), WIDE_W, _wide_size)
 
-	add_child(UIKit.label_at("SE GUARDA SI CUMPLE LAS TRES FILAS. LO DEMAS SE VENDE SOLO",
+	add_child(UIKit.label_at("Se guarda si cumple las tres filas. Lo demás se vende solo",
 			Vector2(960, HINT_Y), Vector2(1360, 40), 24, Palette.CREAM_D,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	refresh()

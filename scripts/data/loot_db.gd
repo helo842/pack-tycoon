@@ -77,117 +77,117 @@ extends RefCounted
 # el tipo por la forma y el escalon por el material.
 const PACKS: Array = [
 	{
-		"id": "cards", "name": "SOBRES", "price": 0, "hp": 215, "vmult": 0.8,
+		"id": "cards", "name": "Sobres", "price": 0, "hp": 215, "vmult": 0.8,
 		"art": "pack_cards", "art_open": "pack_cards_open",
 		"loot": [
-			{"id": "card_c", "name": "CARTA COMUN", "art": "loot_card_common", "graded": true,
+			{"id": "card_c", "name": "Carta común", "art": "loot_card_common", "graded": true,
 				"kind": "cards", "rarity": "common", "value": 60, "w": 55},
-			{"id": "card_r", "name": "CARTA EDICION LIMITADA", "art": "loot_card_edited", "graded": true,
+			{"id": "card_r", "name": "Carta edición limitada", "art": "loot_card_edited", "graded": true,
 				"kind": "cards", "rarity": "rare", "value": 85, "w": 30},
-			{"id": "card_e", "name": "CARTA VIEJA", "art": "loot_card_vintage", "graded": true,
+			{"id": "card_e", "name": "Carta vieja", "art": "loot_card_vintage", "graded": true,
 				"kind": "cards", "rarity": "epic", "value": 135, "w": 12},
-			{"id": "card_l", "name": "CARTA HOLOGRAFICA", "art": "loot_card_foil", "graded": true,
+			{"id": "card_l", "name": "Carta holográfica", "art": "loot_card_foil", "graded": true,
 				"kind": "cards", "rarity": "legendary", "value": 210, "w": 3},
 		],
 	},
 	{
-		"id": "vinyls", "name": "VINILOS", "price": 500, "hp": 481, "vmult": 1.1335,
+		"id": "vinyls", "name": "Vinilos", "price": 500, "hp": 481, "vmult": 1.1335,
 		"art": "pack_vinyls", "art_open": "pack_vinyls_open",
 		"loot": [
-			{"id": "vinyl_c", "name": "VINILO", "art": "loot_vinyl", "graded": true,
+			{"id": "vinyl_c", "name": "Vinilo", "art": "loot_vinyl", "graded": true,
 				"kind": "vinyls", "rarity": "common", "value": 170, "w": 52},
-			{"id": "vinyl_d", "name": "DOBLE LP", "art": "loot_vinyl_double", "graded": true,
+			{"id": "vinyl_d", "name": "Doble LP", "art": "loot_vinyl_double", "graded": true,
 				"kind": "vinyls", "rarity": "rare", "value": 235, "w": 31},
-			{"id": "vinyl_n", "name": "EDICION NUMERADA", "art": "loot_vinyl_numbered",
+			{"id": "vinyl_n", "name": "Edición numerada", "art": "loot_vinyl_numbered",
 				"graded": true, "kind": "vinyls", "rarity": "epic", "value": 380, "w": 14},
-			{"id": "vinyl_x", "name": "PRENSADO EN COLOR", "art": "loot_vinyl_color",
+			{"id": "vinyl_x", "name": "Prensado en color", "art": "loot_vinyl_color",
 				"graded": true, "kind": "vinyls", "rarity": "legendary", "value": 600, "w": 3},
 		],
 	},
 	{
-		"id": "sneakers", "name": "ZAPATILLAS", "price": 900, "hp": 645, "vmult": 0.5360,
+		"id": "sneakers", "name": "Zapatillas", "price": 900, "hp": 645, "vmult": 0.5360,
 		"art": "pack_sneakers", "art_open": "pack_sneakers_open",
 		"loot": [
-			{"id": "shoe_c", "name": "ZAPATILLA BLANCA", "art": "loot_sneaker", "graded": true,
+			{"id": "shoe_c", "name": "Zapatilla blanca", "art": "loot_sneaker", "graded": true,
 				"kind": "sneakers", "rarity": "common", "value": 620, "w": 48},
-			{"id": "shoe_l", "name": "ZAPATILLA DE PIEL", "art": "loot_sneaker_leather",
+			{"id": "shoe_l", "name": "Zapatilla de piel", "art": "loot_sneaker_leather",
 				"graded": true, "kind": "sneakers", "rarity": "rare", "value": 860, "w": 32},
-			{"id": "shoe_r", "name": "ZAPATILLA A RESTAURAR", "art": "loot_sneaker_restore",
+			{"id": "shoe_r", "name": "Zapatilla a restaurar", "art": "loot_sneaker_restore",
 				"graded": true, "kind": "sneakers", "rarity": "epic", "value": 1400, "w": 16},
-			{"id": "shoe_x", "name": "ZAPATILLA LIMITADA",
+			{"id": "shoe_x", "name": "Zapatilla limitada",
 				"art": "loot_sneaker_limited", "graded": true,
 				"kind": "sneakers", "rarity": "legendary", "value": 2200, "w": 4},
 		],
 	},
 	{
-		"id": "electronics", "name": "ELECTRONICA", "price": 1700, "hp": 886, "vmult": 0.3224,
+		"id": "electronics", "name": "Electrónica", "price": 1700, "hp": 886, "vmult": 0.3224,
 		"art": "pack_electronics", "art_open": "pack_electronics_open",
 		"loot": [
-			{"id": "cons_c", "name": "CONSOLA", "art": "loot_console", "graded": true,
+			{"id": "cons_c", "name": "Consola", "art": "loot_console", "graded": true,
 				"kind": "electronics", "rarity": "common", "value": 1900, "w": 30},
-			{"id": "head_c", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
+			{"id": "head_c", "name": "Auriculares", "art": "loot_headphones", "graded": true,
 				"kind": "electronics", "rarity": "common", "value": 1700, "w": 20},
-			{"id": "cam_c", "name": "CAMARA", "art": "loot_camera", "graded": true,
+			{"id": "cam_c", "name": "Cámara", "art": "loot_camera", "graded": true,
 				"kind": "electronics", "rarity": "common", "value": 2300, "w": 18},
-			{"id": "cart_c", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
+			{"id": "cart_c", "name": "Cartucho", "art": "loot_cartridge", "graded": true,
 				"kind": "electronics", "rarity": "common", "value": 1200, "w": 14},
-			{"id": "hand_c", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
+			{"id": "hand_c", "name": "Consola portátil", "art": "loot_handheld", "graded": true,
 				"kind": "electronics", "rarity": "common", "value": 2100, "w": 7},
-			{"id": "cons_r", "name": "CONSOLA", "art": "loot_console", "graded": true,
+			{"id": "cons_r", "name": "Consola", "art": "loot_console", "graded": true,
 				"kind": "electronics", "rarity": "rare", "value": 2600, "w": 12},
-			{"id": "head_r", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
+			{"id": "head_r", "name": "Auriculares", "art": "loot_headphones", "graded": true,
 				"kind": "electronics", "rarity": "rare", "value": 2200, "w": 10},
-			{"id": "cam_r", "name": "CAMARA", "art": "loot_camera", "graded": true,
+			{"id": "cam_r", "name": "Cámara", "art": "loot_camera", "graded": true,
 				"kind": "electronics", "rarity": "rare", "value": 2900, "w": 10},
-			{"id": "cart_r", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
+			{"id": "cart_r", "name": "Cartucho", "art": "loot_cartridge", "graded": true,
 				"kind": "electronics", "rarity": "rare", "value": 1700, "w": 5},
-			{"id": "hand_r", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
+			{"id": "hand_r", "name": "Consola portátil", "art": "loot_handheld", "graded": true,
 				"kind": "electronics", "rarity": "rare", "value": 2700, "w": 5},
-			{"id": "cons_e", "name": "CONSOLA", "art": "loot_console", "graded": true,
+			{"id": "cons_e", "name": "Consola", "art": "loot_console", "graded": true,
 				"kind": "electronics", "rarity": "epic", "value": 4400, "w": 8},
-			{"id": "head_e", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
+			{"id": "head_e", "name": "Auriculares", "art": "loot_headphones", "graded": true,
 				"kind": "electronics", "rarity": "epic", "value": 3600, "w": 7},
-			{"id": "cam_e", "name": "CAMARA", "art": "loot_camera", "graded": true,
+			{"id": "cam_e", "name": "Cámara", "art": "loot_camera", "graded": true,
 				"kind": "electronics", "rarity": "epic", "value": 5100, "w": 7},
-			{"id": "cart_e", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
+			{"id": "cart_e", "name": "Cartucho", "art": "loot_cartridge", "graded": true,
 				"kind": "electronics", "rarity": "epic", "value": 2900, "w": 2},
-			{"id": "hand_e", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
+			{"id": "hand_e", "name": "Consola portátil", "art": "loot_handheld", "graded": true,
 				"kind": "electronics", "rarity": "epic", "value": 4500, "w": 4},
-			{"id": "cons_l", "name": "CONSOLA", "art": "loot_console", "graded": true,
+			{"id": "cons_l", "name": "Consola", "art": "loot_console", "graded": true,
 				"kind": "electronics", "rarity": "legendary", "value": 6900, "w": 5},
-			{"id": "head_l", "name": "AURICULARES", "art": "loot_headphones", "graded": true,
+			{"id": "head_l", "name": "Auriculares", "art": "loot_headphones", "graded": true,
 				"kind": "electronics", "rarity": "legendary", "value": 5800, "w": 2},
-			{"id": "cam_l", "name": "CAMARA", "art": "loot_camera", "graded": true,
+			{"id": "cam_l", "name": "Cámara", "art": "loot_camera", "graded": true,
 				"kind": "electronics", "rarity": "legendary", "value": 8000, "w": 3},
-			{"id": "cart_l", "name": "CARTUCHO", "art": "loot_cartridge", "graded": true,
+			{"id": "cart_l", "name": "Cartucho", "art": "loot_cartridge", "graded": true,
 				"kind": "electronics", "rarity": "legendary", "value": 5000, "w": 1},
-			{"id": "hand_l", "name": "CONSOLA PORTATIL", "art": "loot_handheld", "graded": true,
+			{"id": "hand_l", "name": "Consola portátil", "art": "loot_handheld", "graded": true,
 				"kind": "electronics", "rarity": "legendary", "value": 7400, "w": 2},
 			# Los cuatro objetos que tenian sobre propio entran aqui: son los que le
 			# faltaban a esta tabla para ser "lo caro" del juego, y sin un sitio se
 			# quedaban sin salir nunca (y sus cuarenta sprites con ellos). Los
 			# valores van puestos al nivel de esta tabla, no al que tenian.
-			{"id": "cab_c", "name": "CABLE", "art": "loot_cable", "graded": true,
+			{"id": "cab_c", "name": "Cable", "art": "loot_cable", "graded": true,
 				"kind": "electronics", "rarity": "common", "value": 1400, "w": 6},
-			{"id": "wat_r", "name": "RELOJ", "art": "loot_watch", "graded": true,
+			{"id": "wat_r", "name": "Reloj", "art": "loot_watch", "graded": true,
 				"kind": "electronics", "rarity": "rare", "value": 2000, "w": 6},
-			{"id": "ing_e", "name": "LINGOTE DE ORO", "art": "loot_ingot", "graded": true,
+			{"id": "ing_e", "name": "Lingote de oro", "art": "loot_ingot", "graded": true,
 				"kind": "electronics", "rarity": "epic", "value": 3900, "w": 3},
-			{"id": "pwt_l", "name": "RELOJ DE BOLSILLO", "art": "loot_pocket_watch", "graded": true,
+			{"id": "pwt_l", "name": "Reloj de bolsillo", "art": "loot_pocket_watch", "graded": true,
 				"kind": "electronics", "rarity": "legendary", "value": 7600, "w": 2},
 		],
 	},
 	{
-		"id": "toys", "name": "JUGUETES", "price": 3200, "hp": 1216, "vmult": 0.3982,
+		"id": "toys", "name": "Juguetes", "price": 3200, "hp": 1216, "vmult": 0.3982,
 		"art": "pack_toys", "art_open": "pack_toys_open",
 		"loot": [
-			{"id": "toy_c", "name": "PELUCHE", "art": "loot_teddy", "graded": true,
+			{"id": "toy_c", "name": "Peluche", "art": "loot_teddy", "graded": true,
 				"kind": "toys", "rarity": "common", "value": 3000, "w": 50},
-			{"id": "toy_r", "name": "ROBOT DE HOJALATA", "art": "loot_tin_robot", "graded": true,
+			{"id": "toy_r", "name": "Robot de hojalata", "art": "loot_tin_robot", "graded": true,
 				"kind": "toys", "rarity": "rare", "value": 4200, "w": 30},
-			{"id": "toy_e", "name": "FIGURA EN CAJA", "art": "loot_action_figure", "graded": true,
+			{"id": "toy_e", "name": "Figura en caja", "art": "loot_action_figure", "graded": true,
 				"kind": "toys", "rarity": "epic", "value": 6500, "w": 15},
-			{"id": "toy_l", "name": "COHETE DE HOJALATA", "art": "loot_tin_rocket", "graded": true,
+			{"id": "toy_l", "name": "Cohete de hojalata", "art": "loot_tin_rocket", "graded": true,
 				"kind": "toys", "rarity": "legendary", "value": 10000, "w": 5},
 		],
 	},
@@ -216,35 +216,35 @@ const PACKS: Array = [
 	#    GRADE_WEIGHTS, GRADE_MULT o un "value" del botin.
 	#
 	# LA VIDA sigue siendo 21,5 x raiz(precio) en los veinte.
-	{"id": "cards2", "name": "SOBRES ORO", "price": 6000, "hp": 1665, "vmult": 38.17,
+	{"id": "cards2", "name": "Sobres oro", "price": 6000, "hp": 1665, "vmult": 38.17,
 		"loot_id": "cards", "art": "pack_cards2", "art_open": "pack_cards2_open"},
-	{"id": "vinyls2", "name": "VINILOS ORO", "price": 11000, "hp": 2255, "vmult": 24.38,
+	{"id": "vinyls2", "name": "Vinilos oro", "price": 11000, "hp": 2255, "vmult": 24.38,
 		"loot_id": "vinyls", "art": "pack_vinyls2", "art_open": "pack_vinyls2_open"},
-	{"id": "sneakers2", "name": "ZAPATILLAS ORO", "price": 20000, "hp": 3041, "vmult": 11.65,
+	{"id": "sneakers2", "name": "Zapatillas oro", "price": 20000, "hp": 3041, "vmult": 11.65,
 		"loot_id": "sneakers", "art": "pack_sneakers2", "art_open": "pack_sneakers2_open"},
-	{"id": "electronics2", "name": "ELECTRONICA ORO", "price": 38000, "hp": 4191, "vmult": 7.0460,
+	{"id": "electronics2", "name": "Electrónica oro", "price": 38000, "hp": 4191, "vmult": 7.0460,
 		"loot_id": "electronics", "art": "pack_electronics2", "art_open": "pack_electronics2_open"},
-	{"id": "toys2", "name": "JUGUETES ORO", "price": 70000, "hp": 5688, "vmult": 8.5166,
+	{"id": "toys2", "name": "Juguetes oro", "price": 70000, "hp": 5688, "vmult": 8.5166,
 		"loot_id": "toys", "art": "pack_toys2", "art_open": "pack_toys2_open"},
-	{"id": "cards3", "name": "SOBRES LUJO", "price": 130000, "hp": 7752, "vmult": 826.95,
+	{"id": "cards3", "name": "Sobres lujo", "price": 130000, "hp": 7752, "vmult": 826.95,
 		"loot_id": "cards", "art": "pack_cards3", "art_open": "pack_cards3_open"},
-	{"id": "vinyls3", "name": "VINILOS LUJO", "price": 240000, "hp": 10533, "vmult": 531.99,
+	{"id": "vinyls3", "name": "Vinilos lujo", "price": 240000, "hp": 10533, "vmult": 531.99,
 		"loot_id": "vinyls", "art": "pack_vinyls3", "art_open": "pack_vinyls3_open"},
-	{"id": "sneakers3", "name": "ZAPATILLAS LUJO", "price": 450000, "hp": 14423, "vmult": 262.05,
+	{"id": "sneakers3", "name": "Zapatillas lujo", "price": 450000, "hp": 14423, "vmult": 262.05,
 		"loot_id": "sneakers", "art": "pack_sneakers3", "art_open": "pack_sneakers3_open"},
-	{"id": "electronics3", "name": "ELECTRONICA LUJO", "price": 830000, "hp": 19587, "vmult": 153.90,
+	{"id": "electronics3", "name": "Electrónica lujo", "price": 830000, "hp": 19587, "vmult": 153.90,
 		"loot_id": "electronics", "art": "pack_electronics3", "art_open": "pack_electronics3_open"},
-	{"id": "toys3", "name": "JUGUETES LUJO", "price": 1500000, "hp": 26332, "vmult": 182.50,
+	{"id": "toys3", "name": "Juguetes lujo", "price": 1500000, "hp": 26332, "vmult": 182.50,
 		"loot_id": "toys", "art": "pack_toys3", "art_open": "pack_toys3_open"},
-	{"id": "cards4", "name": "SOBRES MITO", "price": 2800000, "hp": 35976, "vmult": 17811.2,
+	{"id": "cards4", "name": "Sobres mito", "price": 2800000, "hp": 35976, "vmult": 17811.2,
 		"loot_id": "cards", "art": "pack_cards4", "art_open": "pack_cards4_open"},
-	{"id": "vinyls4", "name": "VINILOS MITO", "price": 5200000, "hp": 49028, "vmult": 11526.4,
+	{"id": "vinyls4", "name": "Vinilos mito", "price": 5200000, "hp": 49028, "vmult": 11526.4,
 		"loot_id": "vinyls", "art": "pack_vinyls4", "art_open": "pack_vinyls4_open"},
-	{"id": "sneakers4", "name": "ZAPATILLAS MITO", "price": 9600000, "hp": 66615, "vmult": 5590.5,
+	{"id": "sneakers4", "name": "Zapatillas mito", "price": 9600000, "hp": 66615, "vmult": 5590.5,
 		"loot_id": "sneakers", "art": "pack_sneakers4", "art_open": "pack_sneakers4_open"},
-	{"id": "electronics4", "name": "ELECTRONICA MITO", "price": 18000000, "hp": 91217, "vmult": 3337.6,
+	{"id": "electronics4", "name": "Electrónica mito", "price": 18000000, "hp": 91217, "vmult": 3337.6,
 		"loot_id": "electronics", "art": "pack_electronics4", "art_open": "pack_electronics4_open"},
-	{"id": "toys4", "name": "JUGUETES MITO", "price": 33000000, "hp": 123508, "vmult": 4015.0,
+	{"id": "toys4", "name": "Juguetes mito", "price": 33000000, "hp": 123508, "vmult": 4015.0,
 		"loot_id": "toys", "art": "pack_toys4", "art_open": "pack_toys4_open"},
 ]
 
@@ -253,10 +253,10 @@ const PACKS: Array = [
 # --------------------------------------------------------------------------- #
 # No tiene peso ni multiplicador, es solo la etiqueta de la nota.
 const CONDITIONS: Array = [
-	{"id": "mint", "name": "COMO NUEVO", "art": "condition_mint", "min": 9},
-	{"id": "good", "name": "BUEN ESTADO", "art": "condition_good", "min": 7},
-	{"id": "worn", "name": "GASTADO", "art": "condition_worn", "min": 4},
-	{"id": "broken", "name": "ROTO", "art": "condition_broken", "min": 1},
+	{"id": "mint", "name": "Como nuevo", "art": "condition_mint", "min": 9},
+	{"id": "good", "name": "Buen estado", "art": "condition_good", "min": 7},
+	{"id": "worn", "name": "Gastado", "art": "condition_worn", "min": 4},
+	{"id": "broken", "name": "Roto", "art": "condition_broken", "min": 1},
 ]
 
 # --------------------------------------------------------------------------- #
@@ -379,43 +379,43 @@ const DOLAR_COST_GROWTH := 2.3
 ## va mejorando. Los niveles altos siguen siendo caros (x1,6 por nivel, y x2,8 en
 ## las Tijeras y los Guantes a partir del cuarto).
 const ITEMS: Array = [
-	{"id": "tijeras", "name": "TIJERAS", "art": "item_tijeras", "base_cost": 300,
-		"desc": "MAS DANO POR GOLPE",
-		"detail": "EL ITEM DEL DANO: UN 39 % MAS POR NIVEL (LOS DEMAS ITEMS SOLO SUMAN UN 4 %). LAS TRES PRIMERAS MEJORAS SON BARATAS; DESPUES EL PRECIO SE DISPARA."},
-	{"id": "trebol", "name": "TREBOL", "art": "item_trebol", "base_cost": 600,
-		"desc": "MAS BOTIN RARO",
-		"detail": "SUBE LAS PROBABILIDADES DE QUE SALGA BOTIN RARO, EPICO O LEGENDARIO. LA NOTA PSA NO CAMBIA. VALE PARA TODOS LOS SOBRES."},
-	{"id": "cajon", "name": "CAJON", "art": "item_cajon", "base_cost": 1100,
-		"desc": "MAS ESPACIO EN LA MESA",
-		"detail": "MAS HUECOS EN LA MESA PARA DEJAR PAQUETES Y OBJETOS A LA VEZ. A PARTIR DEL NIVEL 5 CADA NIVEL DA CINCO HUECOS EN VEZ DE DOS."},
-	{"id": "ojo_verde", "name": "OJO VERDE", "art": "item_ojo_verde", "base_cost": 1800,
-		"desc": "PROBABILIDAD DE CRITICO",
-		"detail": "CADA GOLPE TIENE ESTA PROBABILIDAD DE SER CRITICO, Y UN CRITICO HACE EL DOBLE DE DANO Y SALE EN AMARILLO."},
-	{"id": "laser", "name": "LASER", "art": "item_laser", "base_cost": 2600,
-		"desc": "MAS DANO CRITICO",
-		"detail": "SUBE EL DANO QUE HACE CADA GOLPE CRITICO. SIN CRITICOS NO HACE NADA, ASI QUE VA DETRAS DEL OJO VERDE."},
+	{"id": "tijeras", "name": "Tijeras", "art": "item_tijeras", "base_cost": 300,
+		"desc": "Más daño por golpe",
+		"detail": "El ítem del daño: un 39 % más por nivel (los demás ítems solo suman un 4 %). Las tres primeras mejoras son baratas; después el precio se dispara."},
+	{"id": "trebol", "name": "Trébol", "art": "item_trebol", "base_cost": 600,
+		"desc": "Más botín raro",
+		"detail": "Sube las probabilidades de que salga botín raro, épico o legendario. La nota PSA no cambia. Vale para todos los sobres."},
+	{"id": "cajon", "name": "Cajón", "art": "item_cajon", "base_cost": 1100,
+		"desc": "Más espacio en la mesa",
+		"detail": "Más huecos en la mesa para dejar paquetes y objetos a la vez. A partir del nivel 5 cada nivel da cinco huecos en vez de dos."},
+	{"id": "ojo_verde", "name": "Ojo verde", "art": "item_ojo_verde", "base_cost": 1800,
+		"desc": "Probabilidad de crítico",
+		"detail": "Cada golpe tiene esta probabilidad de ser crítico, y un crítico hace el doble de daño y sale en amarillo."},
+	{"id": "laser", "name": "Láser", "art": "item_laser", "base_cost": 2600,
+		"desc": "Más daño crítico",
+		"detail": "Sube el daño que hace cada golpe crítico. Sin críticos no hace nada, así que va detrás del ojo verde."},
 	{"id": "pc", "name": "PC", "art": "item_pc", "base_cost": 24000,
-		"desc": "COMPRA LOS SOBRES SOLO",
-		"detail": "COMPRA SOLO, AL RITMO QUE DICE AQUI, EL SOBRE MAS BARATO DE LOS QUE TENGAS MARCADOS EN SU MENU. SE PAGA UNA SOLA VEZ."},
-	{"id": "pinchos", "name": "PINCHOS", "art": "item_pinchos", "base_cost": 40000,
-		"desc": "ABRE LOS PAQUETES SOLO",
-		"detail": "CON LA APERTURA AUTOMATICA ENCENDIDA GOLPEAN TODOS LOS PAQUETES DE LA MESA A LA VEZ, SIN QUE LES HAGAS CLIC. SE PAGAN UNA SOLA VEZ."},
-	{"id": "armario", "name": "ARMARIO", "art": "item_armario", "base_cost": 35000,
-		"desc": "EXPONE BOTIN Y DA SUS BONUS",
-		"detail": "CADA OBJETO EXPUESTO DA EL BONUS DE SU TIPO: CARTAS DANO, ZAPATILLAS VELOCIDAD, VINILOS DINERO, ELECTRONICA REBIRTH Y JUGUETES SUERTE."},
+		"desc": "Compra los sobres solo",
+		"detail": "Compra solo, al ritmo que dice aquí, el sobre más barato de los que tengas marcados en su menú. Se paga una sola vez."},
+	{"id": "pinchos", "name": "Pinchos", "art": "item_pinchos", "base_cost": 40000,
+		"desc": "Abre los paquetes solo",
+		"detail": "Con la apertura automática encendida golpean todos los paquetes de la mesa a la vez, sin que les hagas clic. Se pagan una sola vez."},
+	{"id": "armario", "name": "Armario", "art": "item_armario", "base_cost": 35000,
+		"desc": "Expone botín y da sus bonus",
+		"detail": "Cada objeto expuesto da el bonus de su tipo: cartas daño, zapatillas velocidad, vinilos dinero, electrónica rebirth y juguetes suerte."},
 	# EL NOVENO, Y VA AL FINAL A PROPOSITO: los niveles de un guardado se leen
 	# por POSICION, asi que anadir un item en medio muda de sitio los niveles de
 	# todos los que vienen detras y una partida vieja se encontraria el dano
 	# donde tenia la suerte. Al final no mueve a nadie.
-	{"id": "guantes", "name": "GUANTES", "art": "item_guantes", "base_cost": 400,
-		"desc": "MAS VELOCIDAD DE GOLPE",
-		"detail": "ACELERA LA CARGA UN 15 % POR NIVEL: LOS GOLPES SALEN MAS SEGUIDOS. LAS TRES PRIMERAS SON BARATAS Y SUBEN POCO; DESPUES EL PRECIO SE DISPARA."},
+	{"id": "guantes", "name": "Guantes", "art": "item_guantes", "base_cost": 400,
+		"desc": "Más velocidad de golpe",
+		"detail": "Acelera la carga un 15 % por nivel: los golpes salen más seguidos. Las tres primeras son baratas y suben poco; después el precio se dispara."},
 	# EL DECIMO, TAMBIEN AL FINAL y por lo mismo: los niveles de una partida
 	# guardada se leen por POSICION (ver game_state.gd), asi que meterlo en medio
 	# le cambiaria el item a los niveles de todo el que viniera detras.
-	{"id": "dolar", "name": "DOLAR", "art": "item_dolar", "base_cost": 900,
-		"desc": "SOBRES MAS BARATOS",
-		"detail": "BAJA EL PRECIO DE TODOS LOS SOBRES UN 5 % POR NIVEL, HASTA UN 40 % CON LOS OCHO. LAS TRES PRIMERAS SON BARATAS Y LAS ULTIMAS MUY CARAS."},
+	{"id": "dolar", "name": "Dólar", "art": "item_dolar", "base_cost": 900,
+		"desc": "Sobres más baratos",
+		"detail": "Baja el precio de todos los sobres un 5 % por nivel, hasta un 40 % con los ocho. Las tres primeras son baratas y las últimas muy caras."},
 ]
 
 ## CADA AUTOMATIZACION VA CON SU PIEZA. Los Pinchos son la fuerza (golpean la
@@ -549,13 +549,13 @@ const LOCKER_SLOTS_MAX := 8
 ## sola en cuanto se anade un objeto con un nombre que no empiece por lo que
 ## toca. Aqui vive tambien como se llama el bonus para leerlo en la interfaz.
 const LOOT_KINDS: Array = [
-	{"id": "cards", "name": "CARTAS", "stat": "DANO", "art": "pack_cards"},
-	{"id": "vinyls", "name": "VINILOS", "stat": "DINERO", "art": "pack_vinyls"},
-	{"id": "sneakers", "name": "ZAPATILLAS", "stat": "VELOCIDAD", "art": "pack_sneakers"},
-	{"id": "electronics", "name": "ELECTRONICA", "stat": "REBIRTH", "art": "pack_electronics"},
+	{"id": "cards", "name": "Cartas", "stat": "Daño", "art": "pack_cards"},
+	{"id": "vinyls", "name": "Vinilos", "stat": "Dinero", "art": "pack_vinyls"},
+	{"id": "sneakers", "name": "Zapatillas", "stat": "Velocidad", "art": "pack_sneakers"},
+	{"id": "electronics", "name": "Electrónica", "stat": "Rebirth", "art": "pack_electronics"},
 	## Los JUGUETES dan SUERTE (lo mismo que el Trebol: mas botin raro, epico y
 	## legendario). Era el unico efecto que ningun tipo daba.
-	{"id": "toys", "name": "JUGUETES", "stat": "SUERTE", "art": "pack_toys"},
+	{"id": "toys", "name": "Juguetes", "stat": "Suerte", "art": "pack_toys"},
 ]
 ## Lo que aporta UN objeto expuesto segun su nota PSA: de un 2 % en la nota 1 a un
 ## 25 % en la nota 10, repartido a partes iguales (ver kind_bonus).
@@ -840,36 +840,36 @@ static func item_effect(index: int, level: int) -> String:
 			# aporta nada, y por eso el nivel 1 y el 2 salen distintos en la ficha
 			# (con lo acumulado los dos dirian "+15 %" y no se veria que comprar
 			# sirve de algo).
-			return "+%d%% DE DANO POR GOLPE" % (roundi((DAMAGE_PER_LEVEL
+			return "+%d%% de daño por golpe" % (roundi((DAMAGE_PER_LEVEL
 				+ TIJERAS_DAMAGE_PER_LEVEL) * 100.0) if level > 0 else 0)
 		"guantes":
 			# Lo mismo que las Tijeras, pero con la velocidad: lo que aporta ESTE
 			# nivel, no el acumulado (ver el comentario de arriba).
-			return "+%d%% DE VELOCIDAD" % (roundi(GLOVES_SPEED_PER_LEVEL * 100.0)
+			return "+%d%% de velocidad" % (roundi(GLOVES_SPEED_PER_LEVEL * 100.0)
 				if level > 0 else 0)
 		"trebol":
-			return "+%d%% DE BOTIN RARO" % roundi(LUCK_PER_LEVEL * float(level) * 100.0)
+			return "+%d%% de botín raro" % roundi(LUCK_PER_LEVEL * float(level) * 100.0)
 		"cajon":
-			return "%d HUECOS EN LA MESA" % table_slots(levels)
+			return "%d huecos en la mesa" % table_slots(levels)
 		"ojo_verde":
-			return "%d%% DE GOLPES CRITICOS" % roundi(crit_chance(levels) * 100.0)
+			return "%d%% de golpes críticos" % roundi(crit_chance(levels) * 100.0)
 		"laser":
-			return "X%s DE DANO EN UN CRITICO" % short_number(crit_mult(levels))
+			return "X%s de daño en un crítico" % short_number(crit_mult(levels))
 		"pc":
-			return "UN SOBRE CADA %s S" % short_number(auto_buy_interval(levels))
+			return "Un sobre cada %s s" % short_number(auto_buy_interval(levels))
 		"pinchos":
-			return "%d DE DANO POR SEGUNDO" % roundi(spike_dps(levels))
+			return "%d de daño por segundo" % roundi(spike_dps(levels))
 		"armario":
 			# En singular con uno: la ficha del primer nivel decia "1 OBJETOS
 			# EXPUESTOS", y eso se lee en la pantalla donde se decide comprarlo.
 			var huecos := locker_slots(levels)
-			return "1 OBJETO EXPUESTO" if huecos == 1 else "%d OBJETOS EXPUESTOS" % huecos
+			return "1 objeto expuesto" if huecos == 1 else "%d objetos expuestos" % huecos
 		"dolar":
 			# Aqui SI se lee el ACUMULADO y no lo que aporta el nivel, al contrario
 			# que en las Tijeras y los Guantes: un descuento del 5 % no dice gran
 			# cosa, y lo que hay que ver es que al nivel 8 el sobre vale un 40 %
 			# menos. En la ficha sale el de ahora y el del nivel siguiente.
-			return "-%d%% DE PRECIO EN LOS SOBRES" % roundi(
+			return "-%d%% de precio en los sobres" % roundi(
 					pack_discount(levels) * 100.0)
 	return ""
 

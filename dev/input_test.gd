@@ -27,7 +27,7 @@ var _main: MainRoot = null
 
 func _ready() -> void:
 	await _run()
-	print("RATON: %s" % ("todo correcto." if _fails == 0 else "%d fallos." % _fails))
+	print("Raton: %s" % ("todo correcto." if _fails == 0 else "%d fallos." % _fails))
 	# Al parar una voz, quien suelta su WAV es el hilo de audio. Si se sale en el
 	# mismo frame, el motor avisa de recursos sin soltar al salir. Ver
 	# Sound.stop_all(). El juego de verdad lo hace en Game._on_close().
@@ -43,7 +43,7 @@ func _check(ok: bool, what: String) -> void:
 		print("  OK    ", what)
 	else:
 		_fails += 1
-		print("  MAL   ", what)
+		print("  mal   ", what)
 
 
 func _run() -> void:
@@ -67,7 +67,7 @@ func _run() -> void:
 	await _frames(3)
 
 	print("Menu:")
-	var play := _find_button(_main._screen_host, "JUGAR")
+	var play := _find_button(_main._screen_host, "Jugar")
 	_check(play != null, "el boton JUGAR existe")
 	_check(_click(play), "el clic en JUGAR llega al boton")
 	await _frames(3)
@@ -75,7 +75,7 @@ func _run() -> void:
 		"JUGAR cambia a la pantalla de partida")
 
 	print("Partida:")
-	var shop := _find_button(_main._current, "TIENDA")
+	var shop := _find_button(_main._current, "Tienda")
 	_check(shop != null, "el boton TIENDA existe")
 	_check(_click(shop), "el clic en TIENDA llega al boton")
 	await _frames(3)
@@ -85,7 +85,7 @@ func _run() -> void:
 	# la caja abre la ficha del item, y desde la ficha se compra. El dinero se pone
 	# a mano porque una partida nueva no llega a las tijeras (540).
 	Game.money = 100000
-	var caja := _find_tooltip(_main._veil_host, "Ver ficha de TIJERAS")
+	var caja := _find_tooltip(_main._veil_host, "Ver ficha de Tijeras")
 	_check(caja != null, "cada item de la tienda se dibuja como una caja")
 	_check(_click(caja), "el clic en la caja llega al boton")
 	await _frames(3)
@@ -93,7 +93,7 @@ func _run() -> void:
 	_check(ficha != null, "y abre la ficha del item encima de la tienda")
 	if ficha != null:
 		var nivel_antes: int = Game.item_level(0)
-		var comprar := _find_button(ficha, "COMPRAR")
+		var comprar := _find_button(ficha, "Comprar")
 		_check(comprar != null, "la ficha trae el boton de comprar")
 		_check(_click(comprar), "el clic en COMPRAR llega al boton")
 		await _frames(3)
@@ -157,8 +157,8 @@ func _run() -> void:
 	var card: Node = game._reveal
 	_check(card != null, "el paquete se abre al insistir y sale la tarjeta")
 	if card != null:
-		_check(_find_button(card, "GUARDAR") != null, "la tarjeta trae el boton GUARDAR")
-		var vender := _find_button(card, "VENDER")
+		_check(_find_button(card, "Guardar") != null, "la tarjeta trae el boton GUARDAR")
+		var vender := _find_button(card, "Vender")
 		_check(vender != null, "la tarjeta trae el boton VENDER")
 		if vender != null:
 			_check(_click(vender), "el clic en VENDER llega al boton")
@@ -223,7 +223,7 @@ func _run() -> void:
 	# el clic tiene que llegar igual (es lo unico que permite explicar que falta)
 	# pero no puede abrir nada.
 	var auto_btn := _find_tooltip(game,
-			"Compra automatica (con el PC): elige que sobres se compran solos")
+			"Compra automática (con el PC): elige qué sobres se compran solos")
 	_check(auto_btn != null, "el boton de la compra automatica existe")
 	_check(_click(auto_btn), "el clic en el boton bloqueado llega igual")
 	await _frames(3)
@@ -336,7 +336,7 @@ func _run() -> void:
 		# VENDER TODO es la unica forma de vaciar el inventario de golpe desde
 		# que vive aqui y no en la pantalla de partida.
 		var money_inv: int = Game.money
-		var vender_todo := _find_button(armario, "VENDER TODO")
+		var vender_todo := _find_button(armario, "Vender todo")
 		_check(vender_todo != null, "el panel del armario trae VENDER TODO")
 		_check(_click(vender_todo), "el clic en VENDER TODO llega al boton")
 		await _frames(3)
@@ -362,7 +362,7 @@ func _run() -> void:
 	Game.rebirth_coins = 0
 	game._refresh_rebirth()
 	await _frames(2)
-	var rebirth_btn := _find_button(game, "REBIRTH")
+	var rebirth_btn := _find_button(game, "Rebirth")
 	_check(rebirth_btn != null, "la barra de la partida trae la chapa de REBIRTH")
 	_check(_click(rebirth_btn), "el clic en la chapa de REBIRTH llega al boton")
 	await _frames(3)
@@ -400,7 +400,7 @@ func _run() -> void:
 		_check(ficha_nodo != null, "el clic en un nodo abre su ficha de compra")
 		_check(not Game.skill_owned("money"), "y no la compra por su cuenta")
 		if ficha_nodo != null:
-			var comprar := _find_button(ficha_nodo, "COMPRAR")
+			var comprar := _find_button(ficha_nodo, "Comprar")
 			_check(comprar != null, "la ficha del nodo trae el boton de comprar")
 			if comprar != null:
 				_check(_click(comprar), "el clic en COMPRAR llega al boton")
@@ -421,7 +421,7 @@ func _run() -> void:
 		# Y LA BARRA NO SE VA CON EL ARBOL: el boton de reiniciar se queda en su
 		# sitio (es lo unico de la pantalla que no se mueve).
 		var go_antes: Rect2 = hucha._go.get_global_rect()
-		var boton := _find_button(hucha, "REBIRTH")
+		var boton := _find_button(hucha, "Rebirth")
 		_check(boton != null, "la barra del arbol trae la chapa de REBIRTH")
 		_check(hucha._go.get_global_rect() == go_antes,
 			"y el boton de reiniciar no se mueve cuando el arbol se arrastra")
@@ -475,7 +475,7 @@ func _run() -> void:
 		and not menu.has_method("_refresh_rebirth"),
 		"el menu ya no sabe abrir el rebirth")
 
-	var settings := _find_button(_main._screen_host, "AJUSTES")
+	var settings := _find_button(_main._screen_host, "Ajustes")
 	_check(_click(settings), "el clic en AJUSTES llega al boton")
 	await _frames(3)
 	_check(_main.has_veil(), "AJUSTES abre su panel")

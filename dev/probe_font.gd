@@ -14,7 +14,7 @@ const REVEAL_SCENE := preload("res://scenes/RevealCard.tscn")
 func _ready() -> void:
 	var card := REVEAL_SCENE.instantiate() as RevealCard
 	card.show_item({
-		"name": "CARTA EDICION LIMITADA", "art": "loot_card_edited_psa10",
+		"name": "Carta edición limitada", "art": "loot_card_edited_psa10",
 		"rarity": "epic", "grade": 10, "value": 4200,
 		"condition": LootDB.condition_for_grade(10),
 	})

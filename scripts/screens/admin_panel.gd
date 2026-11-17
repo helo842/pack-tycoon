@@ -22,18 +22,18 @@ const HINT_Y := 915.0
 
 ## Cada fila: nombre, lo que se ve de valor, y [rotulo, accion] de quitar y de dar.
 var _acciones := [
-	["DINERO", func() -> String: return LootDB.short_number(Game.money),
+	["Dinero", func() -> String: return LootDB.short_number(Game.money),
 		["-1000 M", _quitar_dinero], ["+1000 M", _dar_dinero]],
-	["MONEDAS REBIRTH", func() -> String: return str(Game.rebirth_coins),
+	["Monedas rebirth", func() -> String: return str(Game.rebirth_coins),
 		["-100", _quitar_monedas], ["+100", _dar_monedas]],
-	["PUNTOS ASCENSION", func() -> String: return str(Game.ascension_points),
+	["Puntos ascensión", func() -> String: return str(Game.ascension_points),
 		["-1", _quitar_punto], ["+1", _dar_punto]],
-	["ARBOL REBIRTH", func() -> String: return "%d NODOS" % Game.skills.size(),
-		["VACIAR", _arbol_vacio], ["LLENAR", _arbol_entero]],
-	["PIEZAS", _texto_piezas,
-		["A CERO", _piezas_a_cero], ["MAXIMO", _piezas_al_maximo]],
-	["MASCOTAS", func() -> String: return "%d/%d" % [Game.pets.size(), PetDB.PETS.size()],
-		["QUITAR", _mascotas_fuera], ["MAXIMO", _mascotas_al_maximo]],
+	["Árbol rebirth", func() -> String: return "%d nodos" % Game.skills.size(),
+		["Vaciar", _arbol_vacio], ["Llenar", _arbol_entero]],
+	["Piezas", _texto_piezas,
+		["A cero", _piezas_a_cero], ["Máximo", _piezas_al_maximo]],
+	["Mascotas", func() -> String: return "%d/%d" % [Game.pets.size(), PetDB.PETS.size()],
+		["Quitar", _mascotas_fuera], ["Máximo", _mascotas_al_maximo]],
 ]
 var _valores: Array[Label] = []
 
@@ -61,7 +61,7 @@ func _ready() -> void:
 			b.pressed.connect(_hacer.bind(i, lado))
 			add_child(b)
 	_refrescar()
-	add_child(UIKit.label_at("SOLO PARA PROBAR: NO SALE EN EL JUEGO EXPORTADO",
+	add_child(UIKit.label_at("Solo para probar: no sale en el juego exportado",
 			Vector2(960, HINT_Y), Vector2(1360, 40), 24, Palette.CREAM_D,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
@@ -92,7 +92,7 @@ func _texto_piezas() -> String:
 	for i in LootDB.item_count():
 		n += Game.item_level(i)
 		tope += Game.item_max_level(i)
-	return "NIVEL %d/%d" % [n, tope]
+	return "Nivel %d/%d" % [n, tope]
 
 
 func _dar_dinero() -> void:
@@ -154,6 +154,7 @@ func _mascotas_al_maximo() -> void:
 
 func _mascotas_fuera() -> void:
 	Game.pets = {}
+	Game.pets_equipped = []
 
 
 ## Quien lo abrio (Ajustes) lo saca del velo con pop_veil.

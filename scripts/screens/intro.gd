@@ -91,7 +91,7 @@ const ICON_COLORS := {
 	"H": Color8(240, 56, 88), "W": Color.WHITE, "Y": Palette.GOLD_HI,
 	"G": Color8(150, 150, 170), "B": Color8(120, 72, 40),
 }
-const COMMENTS := ["NO PUEDE SER", "QUE SUERTE", "YO TAMBIEN QUIERO", "MILLONARIO"]
+const COMMENTS := ["No puede ser", "Que suerte", "Yo también quiero", "Millonario"]
 
 var _page: Control
 var _stage: Control
@@ -148,7 +148,7 @@ func _ready() -> void:
 	sway.tween_property(_page, "rotation", 0.006, 1.6).set_trans(Tween.TRANS_SINE)
 	sway.tween_property(_page, "rotation", -0.006, 1.6).set_trans(Tween.TRANS_SINE)
 
-	var hint := UIKit.label_at("CLIC PARA SALTAR", Vector2(1720, 1060), Vector2(360, 30), 14,
+	var hint := UIKit.label_at("Clic para saltar", Vector2(1720, 1060), Vector2(360, 30), 14,
 			Palette.CREAM_D, HORIZONTAL_ALIGNMENT_RIGHT)
 	add_child(hint)
 	var ht := hint.create_tween().set_loops()
@@ -271,11 +271,11 @@ func _scene_video(w: Control) -> void:
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	scr.add_child(bg)
 	scr.add_child(_rect(Vector2.ZERO, sz, Color(0, 0, 0, 0.25)))
-	scr.add_child(UIKit.label_at("PACKMILLONARIO", Vector2(150, 34), Vector2(260, 30), 14,
+	scr.add_child(UIKit.label_at("Packmillonario", Vector2(150, 34), Vector2(260, 30), 14,
 			Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 4))
 	var live := _rect(Vector2(sz.x - 120, 20), Vector2(100, 30), Color8(232, 40, 72))
 	scr.add_child(live)
-	live.add_child(UIKit.label_at("EN VIVO", Vector2(50, 15), Vector2(96, 26), 14, Color.WHITE))
+	live.add_child(UIKit.label_at("En vivo", Vector2(50, 15), Vector2(96, 26), 14, Color.WHITE))
 
 	var center := Vector2(165, 320)
 	var pack := UIKit.image("pack_cards4", center, Vector2(250, 250))

@@ -5,19 +5,16 @@
 # Cafe. Es de uso libre con una condicion: el credito tiene que decir el artista
 # y el enlace del video ("stream cafe - <enlace>"), porque es mas de una pista.
 #
-# POR QUE EL ENLACE VA CON OTRA FUENTE
-# ------------------------------------
-# La fuente del juego (font_pack.fnt) solo tiene mayusculas, y el id de un video
-# de YouTube distingue mayusculas de minusculas: escrito en mayusculas el enlace
-# no lleva a ninguna parte. Por eso el enlace va con la fuente por defecto de
-# Godot, que tiene minusculas, y ademas se puede pulsar para abrirlo.
+# El enlace va con la letra de TEXTO, que tiene minusculas: el id de un video de
+# YouTube distingue mayusculas de minusculas, y escrito todo en mayusculas no
+# llevaria a ninguna parte. Ademas se puede pulsar para abrirlo.
 class_name CreditsPanel
 extends Control
 
 signal closed()
 
-const MUSIC_ARTIST := "STREAM CAFE"
-const MUSIC_TITLE := "1 HOUR OF COMFY AND RELAXING SONGS"
+const MUSIC_ARTIST := "Stream Café"
+const MUSIC_TITLE := "1 Hour of Comfy and Relaxing Songs"
 const MUSIC_URL := "https://www.youtube.com/watch?v=TQvXEza4fPc"
 
 ## Mismas medidas que el resto de paneles de ui_panel_shop: interior de x 224 a
@@ -33,33 +30,35 @@ const HINT_Y := 850.0
 func _ready() -> void:
 	add_child(UIKit.veil(0.62))
 	add_child(UIKit.panel("ui_panel_shop"))
-	add_child(UIKit.label_at("CREDITOS", Vector2(960, TITLE_Y), Vector2(1400, 70),
+	add_child(UIKit.label_at("Créditos", Vector2(960, TITLE_Y), Vector2(1400, 70),
 			48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
 	add_child(close)
 
-	add_child(UIKit.label_at("MUSICA", Vector2(960, SECTION_Y), Vector2(1200, 50),
+	add_child(UIKit.label_at("Música", Vector2(960, SECTION_Y), Vector2(1200, 50),
 			35, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	add_child(UIKit.label_at(MUSIC_ARTIST, Vector2(960, ARTIST_Y), Vector2(1200, 70),
 			56, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	add_child(UIKit.label_at(MUSIC_TITLE, Vector2(960, TRACK_Y), Vector2(1300, 50),
 			28, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	add_child(_link_button())
-	add_child(UIKit.label_at("MUSICA DE USO LIBRE CON CREDITO", Vector2(960, HINT_Y),
+	add_child(UIKit.label_at("Música de uso libre con crédito", Vector2(960, HINT_Y),
 			Vector2(1360, 40), 24, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 
-## El enlace: texto plano con la fuente por defecto (ver arriba) y pulsable.
+## El enlace: pulsable y con la letra de TEXTO, que ya tiene minusculas y los
+## signos de una URL (antes iba con la de Godot, y era una cuarta letra).
 func _link_button() -> Button:
 	var b := Button.new()
 	b.flat = true
 	b.focus_mode = Control.FOCUS_NONE
 	b.text = MUSIC_URL
-	b.tooltip_text = "Abrir el video en el navegador"
+	b.tooltip_text = "Abrir el vídeo en el navegador"
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	b.add_theme_font_override("font", ThemeDB.fallback_font)
-	b.add_theme_font_size_override("font_size", 34)
+	b.add_theme_font_override("font", UIKit.font())
+	b.add_theme_font_size_override("font_size", UIKit.font_step(28))
+	b.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	for state in ["font_color", "font_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(state, Palette.GOLD_XL)
 	b.add_theme_color_override("font_hover_color", Palette.CREAM)

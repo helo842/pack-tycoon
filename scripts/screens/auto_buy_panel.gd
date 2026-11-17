@@ -58,7 +58,7 @@ func _ready() -> void:
 	add_child(UIKit.veil(0.62))
 	add_child(UIKit.panel("ui_panel_shop"))
 
-	add_child(UIKit.label_at("COMPRA AUTOMATICA", Vector2(960, TITLE_Y),
+	add_child(UIKit.label_at("Compra automática", Vector2(960, TITLE_Y),
 			Vector2(1400, 70), 48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
@@ -78,13 +78,13 @@ func _ready() -> void:
 ## motivo: es un interruptor, y en este juego un interruptor ya se dibuja asi.
 func _build_toggle() -> void:
 	add_child(UIKit.image("ui_icon_auto_buy", Vector2(540, TOGGLE_Y), Vector2(112, 112)))
-	add_child(UIKit.label_at("ENCENDIDA", Vector2(880, TOGGLE_Y - 18.0),
+	add_child(UIKit.label_at("Encendida", Vector2(880, TOGGLE_Y - 18.0),
 			Vector2(560, 50), 35, Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
 	# La regla, escrita donde se decide: sin esto el jugador no sabe por que a
 	# veces compra el de 1.000 y a veces el de 400.000. Y a tamano 16 en una caja
 	# de 560 (29 caracteres son 464 px): con la caja justa, shrink lo encogia
 	# hasta que dejaba de leerse.
-	add_child(UIKit.label_at("EL MAS BARATO DE LOS MARCADOS",
+	add_child(UIKit.label_at("El más barato de los marcados",
 			Vector2(880, TOGGLE_Y + 28.0), Vector2(560, 34), 16, Palette.CREAM_D,
 			HORIZONTAL_ALIGNMENT_LEFT, 0, true))
 	_box = UIKit.image(_check_tex(Game.auto_buy), Vector2(1260, TOGGLE_Y),
@@ -214,9 +214,9 @@ static func _check_tex(on: bool) -> String:
 func _toggle() -> void:
 	Sound.click()
 	if not Game.set_auto_buy(not Game.auto_buy):
-		Game.notice.emit("PRIMERO LOS PINCHOS Y EL PC", Palette.RUST_L)
+		Game.notice.emit("Primero los pinchos y el PC", Palette.RUST_L)
 		return
-	Game.notice.emit("AUTO COMPRA: " + ("SI" if Game.auto_buy else "NO"),
+	Game.notice.emit("Auto compra: " + ("Sí" if Game.auto_buy else "No"),
 			Palette.CREAM_D)
 	refresh()
 

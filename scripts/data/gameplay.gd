@@ -169,15 +169,15 @@ const ABIL_RAIN := "abil_rain"
 
 ## Las tres, en el orden de la barra (y de las teclas 1, 2 y 3).
 const ABILITIES: Array = [
-	{"id": ABIL_CHARGE, "name": "GOLPE CARGADO", "art": "item_guantes",
+	{"id": ABIL_CHARGE, "name": "Golpe cargado", "art": "item_guantes",
 		"cooldown": 40.0,
-		"desc": "EL SIGUIENTE GOLPE HACE X5 DE DANO"},
-	{"id": ABIL_FRENZY, "name": "FRENESI", "art": "skill_lightning",
+		"desc": "El siguiente golpe hace x5 de daño"},
+	{"id": ABIL_FRENZY, "name": "Frenesí", "art": "skill_lightning",
 		"cooldown": 90.0,
-		"desc": "8 S: TODOS LOS SOBRES DE LA MESA SE GOLPEAN SOLOS"},
-	{"id": ABIL_RAIN, "name": "GOLDEN RAIN", "art": "currency_coins",
+		"desc": "8 s: todos los sobres de la mesa se golpean solos"},
+	{"id": ABIL_RAIN, "name": "Golden rain", "art": "currency_coins",
 		"cooldown": 80.0,
-		"desc": "10 S: LOS SOBRES QUE COMPRES PUEDEN TRAER OBJETOS HOLO"},
+		"desc": "10 s: los sobres que compres pueden traer objetos holo"},
 ]
 const CHARGE_MULT := 5.0
 const FRENZY_TIME := 8.0
@@ -204,32 +204,54 @@ const HOLO_MULT := 2.0
 # dinero, completarlas seria mas de lo mismo, que es justo lo que se quiere
 # arreglar. `stat` es lo que suma (ver Game.album_bonus) y `value` cuanto.
 const SETS: Array = [
-	{"id": "cards", "name": "CARTAS", "stat": "damage", "value": 0.05,
-		"effect": "+5 % DANO",
+	{"id": "cards", "name": "Cartas", "stat": "damage", "value": 0.05,
+		"effect": "+5 % daño",
 		"items": ["loot_card_common", "loot_card_edited", "loot_card_vintage",
 			"loot_card_foil"]},
-	{"id": "vinyls", "name": "VINILOS", "stat": "money", "value": 0.05,
-		"effect": "+5 % DINERO",
+	{"id": "vinyls", "name": "Vinilos", "stat": "money", "value": 0.05,
+		"effect": "+5 % dinero",
 		"items": ["loot_vinyl", "loot_vinyl_double", "loot_vinyl_numbered",
 			"loot_vinyl_color"]},
-	{"id": "sneakers", "name": "ZAPATILLAS", "stat": "speed", "value": 0.05,
-		"effect": "+5 % VELOCIDAD",
+	{"id": "sneakers", "name": "Zapatillas", "stat": "speed", "value": 0.05,
+		"effect": "+5 % velocidad",
 		"items": ["loot_sneaker", "loot_sneaker_leather", "loot_sneaker_restore",
 			"loot_sneaker_limited"]},
-	{"id": "games", "name": "CONSOLAS", "stat": "crit", "value": 0.03,
-		"effect": "+3 % CRITICOS",
+	{"id": "games", "name": "Consolas", "stat": "crit", "value": 0.03,
+		"effect": "+3 % críticos",
 		"items": ["loot_console", "loot_handheld", "loot_cartridge",
 			"loot_headphones", "loot_camera"]},
-	{"id": "treasure", "name": "TESOROS", "stat": "table", "value": 1.0,
-		"effect": "+1 HUECO MESA",
+	{"id": "treasure", "name": "Tesoros", "stat": "table", "value": 1.0,
+		"effect": "+1 hueco mesa",
 		"items": ["loot_watch", "loot_pocket_watch", "loot_cable", "loot_ingot"]},
-	{"id": "toys", "name": "JUGUETES", "stat": "luck", "value": 0.10,
-		"effect": "+10 % SUERTE",
+	{"id": "toys", "name": "Juguetes", "stat": "luck", "value": 0.10,
+		"effect": "+10 % suerte",
 		"items": ["loot_teddy", "loot_tin_robot", "loot_action_figure", "loot_tin_rocket"]},
-	{"id": "perfect", "name": "PERFECCION", "stat": "rebirth", "value": 0.10,
-		"effect": "+10 % REBIRTH", "grade": 10,
+	{"id": "perfect", "name": "Perfección", "stat": "rebirth", "value": 0.10,
+		"effect": "+10 % rebirth", "grade": 10,
 		"items": []},
 ]
+
+## LAS COLECCIONES DE MASCOTAS: una por maquina del gachapon (ver PetDB). Se
+## completan teniendo las seis mascotas de la maquina (a cualquier nivel) y,
+## como las de objetos, dan su bonus para siempre, esten equipadas o no: es lo
+## que hace que valga la pena tenerlas todas aunque solo se equipen tres.
+## Las mascotas no se pierden al ascender, asi que estas tampoco.
+const PET_SETS: Array = [
+	{"id": "pets_basic", "name": "Mascotas normales", "machine": "basic", "stat": "money",
+		"value": 0.10, "effect": "+10 % dinero", "items": []},
+	{"id": "pets_gold", "name": "Mascotas de oro", "machine": "gold", "stat": "damage",
+		"value": 0.15, "effect": "+15 % daño", "items": []},
+	{"id": "pets_ice", "name": "Mascotas de hielo", "machine": "ice", "stat": "speed",
+		"value": 0.15, "effect": "+15 % velocidad", "items": []},
+	{"id": "pets_cosmic", "name": "Mascotas cósmicas", "machine": "cosmic", "stat": "rebirth",
+		"value": 0.25, "effect": "+25 % rebirth", "items": []},
+]
+
+
+## Todas las colecciones: las de objetos y las de mascotas.
+static func all_sets() -> Array:
+	return SETS + PET_SETS
+
 
 # --------------------------------------------------------------------------- #
 # Encargos
@@ -265,13 +287,13 @@ const PERFECT_PER_PACK := 3.0
 ## Las clases de encargo. `goal` es lo que hay que llegar a contar (en "grade"
 ## y "store" se sortea, ver make_mission); `text` lleva el objetivo.
 const MISSION_TYPES: Array = [
-	{"type": "open_any", "goal": 25, "text": "ABRE %d SOBRES"},
-	{"type": "open_kind", "goal": 10, "text": "ABRE %d SOBRES DE %s"},
-	{"type": "grade", "goal": 9, "text": "SACA UNA NOTA %d O MAS"},
-	{"type": "perfect", "goal": 40, "text": "HAZ %d GOLPES PERFECTOS"},
-	{"type": "golden", "goal": 1, "text": "ABRE %d SOBRE DORADO"},
-	{"type": "vip", "goal": 1, "text": "VENDE %d OBJETO AL VIP"},
-	{"type": "store", "goal": 1, "text": "GUARDA %d %s CON PSA %d"},
+	{"type": "open_any", "goal": 25, "text": "Abre %d sobres"},
+	{"type": "open_kind", "goal": 10, "text": "Abre %d sobres de %s"},
+	{"type": "grade", "goal": 9, "text": "Saca una nota %d o más"},
+	{"type": "perfect", "goal": 40, "text": "Haz %d golpes perfectos"},
+	{"type": "golden", "goal": 1, "text": "Abre %d sobre dorado"},
+	{"type": "vip", "goal": 1, "text": "Vende %d objeto al VIP"},
+	{"type": "store", "goal": 1, "text": "Guarda %d %s con PSA %d"},
 ]
 
 
@@ -355,10 +377,10 @@ static func mission_text(m: Dictionary) -> String:
 			match str(m["type"]):
 				"open_kind":
 					return str(t["text"]) % [int(m["goal"]),
-						str(LootDB.kind_row(str(m["kind"]))["name"])]
+						str(LootDB.kind_row(str(m["kind"]))["name"]).to_lower()]
 				"store":
 					return str(t["text"]) % [int(m["goal"]),
-						str(LootDB.kind_row(str(m["kind"]))["name"]), int(m["grade"])]
+						str(LootDB.kind_row(str(m["kind"]))["name"]).to_lower(), int(m["grade"])]
 			return str(t["text"]) % int(m["goal"])
 	return ""
 
@@ -391,7 +413,7 @@ static func is_holo(item: Dictionary) -> bool:
 
 
 static func set_by_id(id: String) -> Dictionary:
-	for s in SETS:
+	for s in all_sets():
 		if str(s["id"]) == id:
 			return s
 	return {}
@@ -416,11 +438,11 @@ static func album_items() -> Array:
 	return out
 
 
-## Un multiplicador escrito como lo lee la gente: "X2", "X1,5".
+## Un multiplicador escrito como lo lee la gente: "x2", "x1,5".
 static func mult_text(m: float) -> String:
 	if is_equal_approx(m, roundf(m)):
-		return "X%d" % roundi(m)
-	return ("X%.1f" % m).replace(".", ",")
+		return "x%d" % roundi(m)
+	return ("x%.1f" % m).replace(".", ",")
 
 
 ## Un numero al azar entre los dos extremos de un Vector2.

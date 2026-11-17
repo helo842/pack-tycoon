@@ -51,7 +51,7 @@ const NAME_Y := 790.0
 const DESC_Y := 840.0
 const COST_Y := 885.0
 
-const STAND_HINT := "ASCENDER LO BORRA TODO Y DA 1 PUNTO PARA SIEMPRE"
+const STAND_HINT := "Ascender lo borra todo y da 1 punto para siempre"
 
 var _points: PixelNumber
 var _points_label: Label
@@ -198,7 +198,7 @@ func _build_bar() -> void:
 	_points.scale_factor = RebirthPanel.BANK_SCALE
 	_points.max_width = RebirthPanel.BANK_MAX_W
 	add_child(_points)
-	_points_label = UIKit.label("PUNTOS DE ASCENSION", 21, Palette.CREAM_D,
+	_points_label = UIKit.label("Puntos de ascensión", 21, Palette.CREAM_D,
 		HORIZONTAL_ALIGNMENT_LEFT)
 	add_child(_points_label)
 	_status = UIKit.label("", 21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_LEFT)
@@ -206,7 +206,7 @@ func _build_bar() -> void:
 	_hint_label = UIKit.label("", 21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT)
 	add_child(_hint_label)
 
-	_go = UIKit.small_button("ASCENDER", "tree_asc_star", GO_CENTER, GO_W, 32)
+	_go = UIKit.small_button("Ascender", "tree_asc_star", GO_CENTER, GO_W, 32)
 	_go.pressed.connect(_on_ascend)
 	add_child(_go)
 
@@ -224,21 +224,21 @@ func refresh() -> void:
 		return
 	_points.set_number(Game.ascension_points)
 	_points.position = Vector2(RebirthPanel.BANK_NUM_X, ROW_BANK - _points.size.y * 0.5)
-	_points_label.text = "PUNTO DE ASCENSION" if Game.ascension_points == 1 \
-		else "PUNTOS DE ASCENSION"
+	_points_label.text = "Punto de ascensión" if Game.ascension_points == 1 \
+		else "Puntos de ascensión"
 	_points_label.size = Vector2(UIKit.text_width(_points_label.text, 21), UIKit.text_height(21))
 	_points_label.position = Vector2(_points.position.x + _points.size.x
 		+ RebirthPanel.BANK_LABEL_GAP, ROW_BANK - _points_label.size.y * 0.5)
 
 	var puede := Game.can_ascend()
 	_go.modulate = BUTTON_TINT if puede else Color(0.5, 0.42, 0.62)
-	_go.tooltip_text = ("Lo borra TODO: la partida, las monedas y el arbol del rebirth,"
-		+ " los rebirths y el album. Te llevas 1 punto de ascension y lo comprado aqui.")
+	_go.tooltip_text = ("Lo borra TODO: la partida, las monedas y el árbol del rebirth,"
+		+ " los rebirths y el álbum. Te llevas 1 punto de ascensión y lo comprado aquí.")
 	if puede:
-		_status.text = "YA PUEDES ASCENDER"
+		_status.text = "Ya puedes ascender"
 		_status.add_theme_color_override("font_color", Palette.GOLD_XL)
 	else:
-		_status.text = "ANTES: COMPRA TODO EL ARBOL DEL REBIRTH"
+		_status.text = "Antes: compra todo el árbol del rebirth"
 		_status.add_theme_color_override("font_color", Palette.RUST_L)
 	_place_line(_status, ROW_STATUS)
 	_hint_label.text = _hint_text
@@ -250,11 +250,11 @@ func refresh() -> void:
 	_hex.scale = Vector2.ONE
 	if Game.asc_owned("hyper"):
 		_hex.modulate = Color.WHITE
-		_cost.text = "COMPRADO"
+		_cost.text = "Comprado"
 		_cost.add_theme_color_override("font_color", LILA)
 	else:
 		var coste := int(AscensionTree.node_by_id("hyper")["cost"])
-		_cost.text = "%d PUNTO%s" % [coste, "" if coste == 1 else "S"]
+		_cost.text = "%d punto%s" % [coste, "" if coste == 1 else "s"]
 		var listo := Game.can_buy_asc("hyper")
 		_cost.add_theme_color_override("font_color",
 			Palette.GOLD_XL if listo else Palette.RUST_L)
@@ -288,17 +288,17 @@ func _on_buy(id: String) -> void:
 	var n := AscensionTree.node_by_id(id)
 	if Game.asc_owned(id):
 		Sound.play("sfx_error")
-		_hint("YA TIENES " + str(n["name"]), Palette.CREAM_D)
+		_hint("Ya tienes " + str(n["name"]), Palette.CREAM_D)
 		return
 	if not Game.can_buy_asc(id):
 		Sound.play("sfx_error")
-		_hint("TE FALTAN PUNTOS: ASCIENDE PARA GANARLOS", Palette.RUST_L)
+		_hint("Te faltan puntos: asciende para ganarlos", Palette.RUST_L)
 		return
 	Game.buy_asc(id)
 	Sound.play("sfx_rare")
 	_burst()
 	MainRoot.get_root().banner(str(n["name"]), str(n["desc"]))
-	_hint("COMPRADO: " + str(n["name"]) + " " + str(n["desc"]), Palette.GOLD_XL)
+	_hint("Comprado: " + str(n["name"]) + " " + str(n["desc"]), Palette.GOLD_XL)
 
 
 ## Dos pulsaciones: la primera avisa de lo que se pierde, la segunda asciende.
@@ -306,20 +306,20 @@ func _on_ascend() -> void:
 	if not Game.can_ascend():
 		_confirm = false
 		Sound.play("sfx_error")
-		_hint("TE FALTA COMPRAR TODO EL ARBOL DEL REBIRTH", Palette.RUST_L)
+		_hint("Te falta comprar todo el árbol del rebirth", Palette.RUST_L)
 		return
 	if not _confirm:
 		_confirm = true
 		Sound.play("sfx_error")
-		_hint("SE BORRA TODO. PULSA OTRA VEZ PARA ASCENDER", Palette.RUST_L)
+		_hint("Se borra todo. Pulsa otra vez para ascender", Palette.RUST_L)
 		return
 	_confirm = false
 	var puntos := Game.do_ascension()
 	Sound.play("sfx_tool")
 	Sound.play("sfx_rare")
 	_burst()
-	MainRoot.get_root().banner("ASCENSION", "+%d PUNTO DE ASCENSION" % puntos)
-	_hint("HAS ASCENDIDO: GASTA EL PUNTO EN EL HEXAGONO", Palette.GOLD_XL)
+	MainRoot.get_root().banner("Ascensión", "+%d punto de ascensión" % puntos)
+	_hint("Has ascendido: gasta el punto en el hexágono", Palette.GOLD_XL)
 
 
 ## Un estallido de particulas moradas desde el hexagono.

@@ -27,7 +27,7 @@ func _check(what: String, ok: bool) -> void:
 	if ok:
 		print("  OK    ", what)
 	else:
-		print("  FALLA ", what)
+		print("  falla ", what)
 		_fails.append(what)
 
 
@@ -216,22 +216,28 @@ func _check_fonts() -> void:
 	_check_sprites()
 	_check("la fuente es la del proyecto, no la de Godot",
 			f.get_font_name() == "PackTycoon")
-	# El avance por caracter tiene que ser el tamano exacto, o el texto sale
-	# estirado. Se mide con dos letras de mas, para no contar el redondeo del
-	# ancho de la primera.
-	var uno: float = f.get_string_size("H", HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-	var dos: float = f.get_string_size("HH", HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-	_check("el avance por caracter es el tamano exacto",
-			absf((dos - uno) - 28.0) < 0.01)
+	# Cada letra ocupa SU ancho (la I estrecha, la M ancha), y a escala entera:
+	# a tamano 28 (x4) todo avance es multiplo de 4 pixeles.
+	var i_w: float = f.get_string_size("I", HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
+	var m_w: float = f.get_string_size("M", HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
+	_check("la letra de texto es de ancho ajustado (la I mas estrecha que la M)",
+			i_w < m_w and fmod(i_w, 4.0) == 0.0 and fmod(m_w, 4.0) == 0.0)
+	_check("la letra de texto tiene enye, tildes, minusculas y los signos de abrir",
+			_glifos_ok("ñÑáéíóúÁÉÍÓÚüÜ¡¿·abcxyz", f)
+			and _glifos_ok("ñÑáéíóúÁÉÍÓÚüÜ¡¿·abcxyz", UIKit.title_font()))
+	_check("ningun texto baja del minimo legible", UIKit.font_step(7) == UIKit.MIN_SIZE)
+	_check("los textos grandes y claros van con la letra de titulos",
+			UIKit.font_for(56, false, Palette.CREAM) == UIKit.title_font()
+			and UIKit.font_for(56, false, Palette.OUTLINE) == UIKit.font()
+			and UIKit.font_for(28) == UIKit.font())
 	_check("text_width coincide con la fuente",
-			absf(UIKit.text_width("SOBRES", 28)
-				- f.get_string_size("SOBRES", HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x) < 0.01)
+			absf(UIKit.text_width("Sobres", 28)
+				- f.get_string_size("Sobres", HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x) < 0.01)
 	# Ningun rotulo largo del juego puede salirse de su caja.
-	for caso in [["ELECTRONICA", 224.0], ["ZAPATILLAS", 224.0],
-			["AURICULARES", 340.0], ["CARTA EDICION LIMITADA", 620.0],
-			["PANTALLA COMPLETA", 560.0], ["NOTA PSA", 700.0],
-			["ESPACIO O CLIC PARA DEJARLO", 620.0],
-			["PRIMERA VERSION - SIN LOGROS TODAVIA", 900.0]]:
+	for caso in [["Electrónica", 224.0], ["Zapatillas", 224.0],
+			["Auriculares", 340.0], ["Carta edición limitada", 620.0],
+			["Pantalla completa", 560.0], ["Nota PSA", 700.0],
+			["Espacio o clic para dejarlo", 620.0]]:
 		var texto: String = caso[0]
 		var caja: float = caso[1]
 		var encogido: int = UIKit.fit_size(texto, caja, 42)
@@ -410,16 +416,27 @@ func _sprite_gigante(de: Node, nombre: String, lado: float) -> bool:
 ## minuscula no sale "en minuscula", sale un cuadro de basura, y los checks de
 ## encuadre no lo ven porque el texto cabe igual. Paso con las explicaciones de la
 ## ficha de una mejora, que estaban escritas en minusculas y salian ilegibles.
-func _minusculas_en(de: Node) -> Array:
+## Los textos de `de` con alguna letra que su fuente NO tiene (saldria un cuadro
+## de basura en vez de la letra, y ningun check de encuadre lo ve porque cabe).
+func _sin_glifo_en(de: Node) -> Array:
 	var malas: Array = []
 	var pila: Array = [de]
 	while not pila.is_empty():
 		var n: Node = pila.pop_back()
 		var l := n as Label
-		if l != null and l.text != "" and l.text != l.text.to_upper():
+		if l != null and l.text != "" and not _glifos_ok(l.text, l.get_theme_font("font")):
 			malas.append(l.text)
 		pila.append_array(n.get_children())
 	return malas
+
+
+func _glifos_ok(texto: String, f: Font) -> bool:
+	if f == null:
+		return false
+	for c in texto:
+		if c != " " and c != "\n" and not f.has_char(c.unicode_at(0)):
+			return false
+	return true
 
 
 func _dice(de: Node, texto: String, empieza: bool = false) -> bool:
@@ -735,7 +752,7 @@ func _nivel_buscado(index: int, ultimo: int) -> int:
 ## false si esa ficha no trae boton, que es lo que se comprueba cuando el nodo ya
 ## esta comprado.
 func _pulsa_comprar(ficha: Node) -> bool:
-	var b := _boton_de(ficha, "COMPRAR")
+	var b := _boton_de(ficha, "Comprar")
 	if b == null:
 		return false
 	b.pressed.emit()
@@ -832,7 +849,7 @@ func _run() -> void:
 			Game.tree_maxed() and Game.pets_maxed()
 			and Game.item_level(0) == Game.item_max_level(0))
 		_check("ADMIN pinta el valor de cada fila",
-			adm._valores[2].text == "PUNTOS ASCENSION: %d" % Game.ascension_points)
+			adm._valores[2].text == "Puntos ascensión: %d" % Game.ascension_points)
 		for i in adm._acciones.size():
 			adm._hacer(i, 2)
 		_check("ADMIN tambien quita (y no baja de cero)",
@@ -935,14 +952,14 @@ func _run() -> void:
 	# LA CHAPA DEL REBIRTH, DEL TAMANO DE LA TIENDA Y CON EL CERDITO. Antes era
 	# una chapa pequeña sin icono, y al lado de la tienda se leia como un boton
 	# secundario cuando es la otra forma de parar la partida.
-	var tienda := _boton_de(g, "TIENDA")
+	var tienda := _boton_de(g, "Tienda")
 	_check("la chapa del rebirth es del tamano de la tienda",
 		tienda != null and g._rebirth_btn.size == tienda.size)
 	_check("y lleva el cerdito al lado de la palabra",
 		_usa_sprite(g._rebirth_btn, "currency_piggy"))
 	# Y el rotulo del dano sigue quitado: es un numero que no se consulta en
 	# ninguna parte de la pantalla de partida.
-	_check("la partida no lleva el rotulo de dano", not _dice(g, "DANO", true))
+	_check("la partida no lleva el rotulo de dano", not _dice(g, "Daño", true))
 	# La columna de sobres de la izquierda: doce, comprables sin abrir nada.
 	_check("la zona de sobres tiene una celda por sobre",
 		g._pack_cells.size() == LootDB.pack_count())
@@ -952,15 +969,15 @@ func _run() -> void:
 	# NOMBRE tambien sube de escalon (ORO / LUJO / MITO), no solo el precio: el
 	# escalon 2 va de pan de oro, el 3 de laca con joya y el 4 holografico.
 	_check("y son cinco tipos repetidos cuatro veces",
-		LootDB.pack_at(0)["name"] == "SOBRES"
-		and LootDB.pack_at(1)["name"] == "VINILOS"
-		and LootDB.pack_at(2)["name"] == "ZAPATILLAS"
-		and LootDB.pack_at(3)["name"] == "ELECTRONICA"
-		and LootDB.pack_at(4)["name"] == "JUGUETES"
-		and LootDB.pack_at(5)["name"] == "SOBRES ORO"
-		and LootDB.pack_at(10)["name"] == "SOBRES LUJO"
-		and LootDB.pack_at(15)["name"] == "SOBRES MITO"
-		and LootDB.pack_at(19)["name"] == "JUGUETES MITO")
+		LootDB.pack_at(0)["name"] == "Sobres"
+		and LootDB.pack_at(1)["name"] == "Vinilos"
+		and LootDB.pack_at(2)["name"] == "Zapatillas"
+		and LootDB.pack_at(3)["name"] == "Electrónica"
+		and LootDB.pack_at(4)["name"] == "Juguetes"
+		and LootDB.pack_at(5)["name"] == "Sobres oro"
+		and LootDB.pack_at(10)["name"] == "Sobres lujo"
+		and LootDB.pack_at(15)["name"] == "Sobres mito"
+		and LootDB.pack_at(19)["name"] == "Juguetes mito")
 	_check("el que mas cuesta es el de treinta y tres millones",
 		LootDB.pack_at(LootDB.pack_count() - 1)["price"] == 33000000)
 	# El nombre mas largo tiene que caber a 28 en la caja del nombre. Si no,
@@ -1318,10 +1335,11 @@ func _run() -> void:
 	# La tienda se ha quedado con los items: ni sobres ni el rotulo del dano.
 	# El titulo TIENDA si va, en la cinta de la cabecera (estilo carton).
 	_check("la tienda no vende sobres", not _usa_sprite(shop, "pack_cards"))
-	# Con las letras doradas de los precios (PixelNumber), no con una Label.
+	# Con la letra de TITULOS (los digitos dorados son solo para numeros).
 	_check("la tienda lleva el titulo TIENDA en la cinta",
-		shop.has_node("Titulo") and _usa_sprite(shop, "num_E") and _usa_sprite(shop, "ui_tag_price"))
-	_check("la tienda no lleva el rotulo de dano", not _dice(shop, "DANO", true))
+		shop.has_node("Titulo") and (shop.get_node("Titulo") as Label).get_theme_font("font")
+			== UIKit.title_font() and _usa_sprite(shop, "ui_tag_price"))
+	_check("la tienda no lleva el rotulo de dano", not _dice(shop, "Daño", true))
 	_check("la tienda trae la moneda del contador", _usa_sprite(shop, "currency_coin"))
 	_check_cabe("la tienda no saca texto del panel", shop, PANEL_TIENDA)
 	_check_sin_encimarse("la tienda no pone texto encima de una chapa", shop)
@@ -1367,7 +1385,7 @@ func _run() -> void:
 	_check("y la ficha se cuelga de la capa de encima, no dentro del panel",
 		ficha != null and ficha.get_parent() == _main._overlay_host)
 	if ficha != null:
-		_check("la ficha dice de que item es", _dice(ficha, "TIJERAS"))
+		_check("la ficha dice de que item es", _dice(ficha, "Tijeras"))
 		# La descripcion larga NO cabe en una linea (por eso UIKit.wrap()): se
 		# comprueba que estan TODAS sus lineas, no solo la primera.
 		var faltan: Array = []
@@ -1396,16 +1414,16 @@ func _run() -> void:
 		# formula de verdad (LootDB.item_effect): la ficha no puede decir una cosa y
 		# el juego hacer otra.
 		_check("la ficha ense\u00f1a el efecto que tiene AHORA",
-			_etiqueta(ficha, "AHORA:") == "AHORA: " + LootDB.item_effect(tijeras, 0))
+			_etiqueta(ficha, "Ahora:") == "Ahora: " + LootDB.item_effect(tijeras, 0))
 		_check("y el que tendra en el nivel siguiente",
-			_etiqueta(ficha, "NIVEL 1:") == "NIVEL 1: " + LootDB.item_effect(tijeras, 1))
+			_etiqueta(ficha, "Nivel 1:") == "Nivel 1: " + LootDB.item_effect(tijeras, 1))
 		_check("los dos numeros son distintos: el efecto sube con el nivel",
 			LootDB.item_effect(1, 0) != LootDB.item_effect(1, 1))
 		_check_dentro_de("el precio de la ficha cabe en su chapa",
 			ficha.find_child("Cost", true, false), ficha.find_child("Tag", true, false))
 		_check_cabe("la ficha no saca texto del panel", ficha, PANEL)
 		_check_sin_encimarse("la ficha no pone texto encima de una chapa", ficha)
-		var comprar := _boton_de(ficha, "COMPRAR")
+		var comprar := _boton_de(ficha, "Comprar")
 		_check("la ficha trae el boton de comprar", comprar != null)
 		# Y SIN DINERO no compra: la ficha pide la compra a la tienda, que es la que
 		# cobra, y por eso el nivel no sube ni se gasta nada. El dinero se pone a
@@ -1432,10 +1450,10 @@ func _run() -> void:
 	await get_tree().process_frame
 	var ficha_pc = shop._card
 	_check("la ficha del PC dice que es de una sola compra",
-		ficha_pc != null and _dice(ficha_pc, "PC") and _dice(ficha_pc, "COMPRA UNICA"))
+		ficha_pc != null and _dice(ficha_pc, "PC") and _dice(ficha_pc, "Compra única"))
 	_check("y anuncia lo que pasa al comprarlo, no un nivel siguiente",
-		ficha_pc != null and _etiqueta(ficha_pc, "AL COMPRARLO:") != ""
-		and _etiqueta(ficha_pc, "NIVEL 1:") == "")
+		ficha_pc != null and _etiqueta(ficha_pc, "Si lo compras:") != ""
+		and _etiqueta(ficha_pc, "Nivel 1:") == "")
 	shop._close_card()
 	await get_tree().process_frame
 
@@ -1588,7 +1606,7 @@ func _run() -> void:
 	_check("y aceleran mas que ocho niveles de cualquier otro item",
 			LootDB.charge_time(con_guantes) < LootDB.charge_time(con_tijeras))
 	_check("la ficha del Guante dice lo que da",
-			LootDB.item_effect(gu, 1) == "+15% DE VELOCIDAD")
+			LootDB.item_effect(gu, 1) == "+15% de velocidad")
 	# Y SU PRECIO: la misma escalera que las Tijeras -tres mejoras baratas que
 	# suben poco y despues el salto- pero un poco mas caro.
 	# LAS TRES PRIMERAS YA NO CUESTAN LO MISMO: cada una sube un 30 % sobre la
@@ -1724,8 +1742,8 @@ func _run() -> void:
 			g.table_count() == 0)
 		_check("el botin no se guarda solo", Game.inventory.is_empty())
 		_check("encontrar un objeto se apunta", Game.items_found == found_before + 1)
-		var boton_guardar := _boton_de(card, "GUARDAR")
-		var boton_vender := _boton_de(card, "VENDER")
+		var boton_guardar := _boton_de(card, "Guardar")
+		var boton_vender := _boton_de(card, "Vender")
 		_check("la tarjeta trae el boton GUARDAR", boton_guardar != null)
 		_check("la tarjeta trae el boton VENDER", boton_vender != null)
 		if boton_guardar != null and boton_vender != null:
@@ -1778,7 +1796,7 @@ func _run() -> void:
 	var money_card: int = Game.money
 	var vender: BaseButton = null
 	if g._reveal != null:
-		vender = _boton_de(g._reveal, "VENDER")
+		vender = _boton_de(g._reveal, "Vender")
 	_check("la tarjeta se abre otra vez", g._reveal != null and vender != null)
 	if vender != null:
 		vender.pressed.emit()
@@ -2086,10 +2104,10 @@ func _run() -> void:
 	_check("la ficha se abre tambien con dinero de sobra", ficha2 != null)
 	if ficha2 != null:
 		var nivel_antes: int = Game.item_level(1)
-		var antes := _etiqueta(ficha2, "AHORA:")
+		var antes := _etiqueta(ficha2, "Ahora:")
 		var money_ficha: int = Game.money
 		var coste_ficha := Game.item_cost(1)
-		var boton := _boton_de(ficha2, "COMPRAR")
+		var boton := _boton_de(ficha2, "Comprar")
 		if boton != null:
 			boton.pressed.emit()
 		await get_tree().process_frame
@@ -2099,13 +2117,13 @@ func _run() -> void:
 			Game.money == money_ficha - coste_ficha)
 		# Los numeros se repintan solos al subir el nivel (la ficha escucha
 		# Game.items_changed): es lo que se le pide a una ficha de mejoras.
-		var despues := _etiqueta(ficha2, "AHORA:")
+		var despues := _etiqueta(ficha2, "Ahora:")
 		_check("y los numeros de la ficha cambian con el nivel",
 			despues != "" and despues != antes
-			and despues == "AHORA: " + LootDB.item_effect(1, Game.item_level(1)))
+			and despues == "Ahora: " + LootDB.item_effect(1, Game.item_level(1)))
 		_check("y sigue enseñando el del nivel siguiente",
-			_etiqueta(ficha2, "NIVEL %d:" % (Game.item_level(1) + 1))
-			== "NIVEL %d: " % (Game.item_level(1) + 1)
+			_etiqueta(ficha2, "Nivel %d:" % (Game.item_level(1) + 1))
+			== "Nivel %d: " % (Game.item_level(1) + 1)
 			+ LootDB.item_effect(1, Game.item_level(1) + 1))
 	# Y NO SOLO UNA: la ficha de los DIEZ items, una por una. La captura
 	# 04b solo puede enseñar una, y el fallo que se escapa con una sola es justo el
@@ -2128,10 +2146,10 @@ func _run() -> void:
 		if not _dice(ficha_i, str(item_i["name"])):
 			malas_fichas.append("item %d: no lleva su nombre (%s)"
 					% [i + 1, str(item_i["name"])])
-		var suyo := "AHORA: " + LootDB.item_effect(i, Game.item_level(i))
-		if _etiqueta(ficha_i, "AHORA:") != suyo:
+		var suyo := "Ahora: " + LootDB.item_effect(i, Game.item_level(i))
+		if _etiqueta(ficha_i, "Ahora:") != suyo:
 			malas_fichas.append("item %d: el numero de AHORA no es el suyo (dice \"%s\" y son \"%s\")"
-					% [i + 1, _etiqueta(ficha_i, "AHORA:"), suyo])
+					% [i + 1, _etiqueta(ficha_i, "Ahora:"), suyo])
 		for linea in UIKit.wrap(str(item_i["detail"]), ItemCard.COL_W, 21):
 			if not _dice(ficha_i, str(linea)):
 				malas_fichas.append("item %d: le falta la linea \"%s\""
@@ -2187,9 +2205,9 @@ func _run() -> void:
 		_check("el item %d ya no se puede pagar solo si esta al tope" % (i + 1),
 				(Game.item_cost(i) < 0) == cerrado)
 		_check("la tienda escribe %s en el item %d" % [
-				"COMPRADO" if tope <= 1 else "AL TOPE", i + 1],
+				"Comprado" if tope <= 1 else "Al tope", i + 1],
 				rotulo.visible == cerrado
-				and (not cerrado or rotulo.text == ("COMPRADO" if tope <= 1 else "AL TOPE")))
+				and (not cerrado or rotulo.text == ("Comprado" if tope <= 1 else "Al tope")))
 		_check("el item %d lleva chapa de precio solo si le queda algo" % (i + 1),
 				(shop3._item_cells[i]["tag_node"] as TextureRect).visible == not cerrado)
 		# Los puntos de nivel: ninguno en el PC ni en los Pinchos (no hay niveles
@@ -2239,19 +2257,19 @@ func _run() -> void:
 	await get_tree().process_frame
 	var ficha3 = shop3._card
 	_check("la ficha de un item al tope lo dice y no trae boton",
-		ficha3 != null and _dice(ficha3, "AL TOPE")
-		and _boton_de(ficha3, "COMPRAR") == null
+		ficha3 != null and _dice(ficha3, "Al tope")
+		and _boton_de(ficha3, "Comprar") == null
 		and ficha3.find_child("Tag", true, false) == null)
 	_check("y sigue enseñando el numero que tiene",
-		ficha3 != null and _etiqueta(ficha3, "AHORA:")
-		== "AHORA: " + LootDB.item_effect(1, Game.item_level(1)))
+		ficha3 != null and _etiqueta(ficha3, "Ahora:")
+		== "Ahora: " + LootDB.item_effect(1, Game.item_level(1)))
 	_check_cabe("la ficha al tope no saca texto del panel", ficha3, PANEL)
 	shop3._close_card()
 	await get_tree().process_frame
 	shop3._open_card(LootDB.item_index("pc"))
 	await get_tree().process_frame
 	_check("la ficha del PC comprado dice COMPRADO",
-		shop3._card != null and _dice(shop3._card, "COMPRADO"))
+		shop3._card != null and _dice(shop3._card, "Comprado"))
 	shop3._close_card()
 	await get_tree().process_frame
 	shop3._close()
@@ -2313,11 +2331,11 @@ func _run() -> void:
 				dano_antes * (1.0 + bonus_carta)))
 		# Cada tipo va a lo suyo y no todo al dano: son cuatro stats distintos.
 		_check("las zapatillas dan velocidad",
-			str(LootDB.kind_row("sneakers")["stat"]) == "VELOCIDAD")
+			str(LootDB.kind_row("sneakers")["stat"]) == "Velocidad")
 		_check("los vinilos dan dinero",
-			str(LootDB.kind_row("vinyls")["stat"]) == "DINERO")
+			str(LootDB.kind_row("vinyls")["stat"]) == "Dinero")
 		_check("la electronica da rebirth",
-			str(LootDB.kind_row("electronics")["stat"]) == "REBIRTH")
+			str(LootDB.kind_row("electronics")["stat"]) == "Rebirth")
 		# Los huecos son los del nivel: con dos, el tercero no entra y el objeto se
 		# queda donde estaba (no se pierde por pulsar).
 		arm._inv_cells[0]["button"].pressed.emit()
@@ -2331,7 +2349,7 @@ func _run() -> void:
 		_check("la vitrina de la partida enseña el objeto expuesto",
 			g._locker_slots[0]["holder"].get_child_count() > 1)
 		_check("y su rotulo cuenta los huecos",
-			g._locker_label.text == "ARMARIO %d/%d EXPUESTOS" % [Game.locker_size(),
+			g._locker_label.text == "Armario: %d/%d expuestos" % [Game.locker_size(),
 				Game.locker_slots()])
 		# Devolverlo lo saca de la vitrina: exponer no puede ser sin vuelta atras.
 		arm._locker_cells[0]["button"].pressed.emit()
@@ -2377,13 +2395,15 @@ func _run() -> void:
 		# Y el gesto hay que PODER DESCUBRIRLO: en la casilla no se ve, asi que
 		# esta en la leyenda de la columna y en el tooltip de cada hueco.
 		_check("la columna trae la leyenda de los dos gestos",
-			_dice(arm, "CLIC: EXPONER - CLIC DERECHO: VENDER UNO"))
+			_dice(arm, "Clic: exponer · Clic derecho: vender"))
 		_check("y el tooltip del hueco dice por cuanto se vende",
 			arm._inv_cells[0]["button"].tooltip_text.contains("clic derecho: vender por "))
 		Game.inventory.clear()
 		await get_tree().process_frame
 
-		_check_cabe("el panel del armario no saca texto del panel", arm, PANEL)
+		# Panel de carton (como el de mascotas): la cabecera va por encima del
+		# interior del panel oscuro, asi que se mide contra la pantalla.
+		_check_cabe("el panel del armario no saca texto de la pantalla", arm, PANTALLA)
 		_check_sin_encimarse("el panel del armario no pone texto encima de una chapa", arm)
 		_check_sin_pisar_dibujos("el panel del armario no dibuja el texto encima de un objeto", arm)
 		g._close_locker()
@@ -2533,15 +2553,15 @@ func _run() -> void:
 		# panel. Un check de encuadre tiene que correr en el estado que el jugador
 		# va a ver, no en el que le deja el test.
 		_check("el panel dice lo que falta cuando no se puede reiniciar",
-			hucha._missing.text.begins_with("TE FALTAN"))
+			hucha._missing.text.begins_with("Te faltan"))
 		# Y LO QUE FALTA ES DEL DINERO QUE TIENES, no de lo ganado en la partida:
 		# el requisito compara con el contador (ver LootDB.REBIRTH_REQUIRE), asi
 		# que la nota que lo explica tiene que hablar de lo que hay ahora. Estuvo
 		# diciendo "DE LO GANADO EN LA PARTIDA", que es otra regla y descoloca al
 		# que mira el numero que tiene delante en la barra.
 		_check("y la nota dice que es del dinero que tienes ahora",
-			hucha._missing_note.text.contains("TENGAS AHORA")
-				and not hucha._missing_note.text.contains("GANADO"))
+			hucha._missing_note.text.contains("tengas ahora")
+				and not hucha._missing_note.text.contains("ganado"))
 		# LA MONEDA DE REBIRTH ES EL CERDO DORADO. Se pide el dibujo de la hucha y
 		# que NO este el de la moneda del dinero: la unidad del premio y la moneda de
 		# los precios eran el mismo PNG, y por eso el rebirth se leia como calderilla.
@@ -2782,16 +2802,16 @@ func _run() -> void:
 	# captura de la ficha, con las cuatro lineas de explicacion ilegibles. Se mira
 	# el TEXTO de los cinco nodos, y ademas lo que se dibuja en la ficha y en el
 	# arbol, que es donde aparecen esas letras.
-	var con_minusculas: Array = []
+	var sin_glifo: Array = []
 	for id_txt in SkillTree.ids():
 		for texto in [SkillTree.desc_of(str(id_txt)), SkillTree.detail_of(str(id_txt)),
 				SkillTree.effect_text(str(id_txt))]:
-			if str(texto) != str(texto).to_upper():
-				con_minusculas.append(str(texto))
-	_check("el texto de las mejoras va en mayusculas (la fuente no tiene minusculas)",
-		con_minusculas.is_empty())
-	for m in con_minusculas:
-		print("         con minusculas: ", m)
+			if not _glifos_ok(str(texto), UIKit.font()):
+				sin_glifo.append(str(texto))
+	_check("el texto de las mejoras solo usa letras que tiene la fuente",
+		sin_glifo.is_empty())
+	for m in sin_glifo:
+		print("         sin letra: ", m)
 	# Y el signo del efecto se suma UNA vez: "+30 % DE DINERO", no "++30 %". Se
 	# vio en la captura del arbol, escrito en los cinco nodos y sin romper nada.
 	var con_doble: Array = []
@@ -2965,8 +2985,8 @@ func _run() -> void:
 		# barra va superpuesta y el arbol se cuela por debajo), asi que el check
 		# encuentra los rotulos del saldo encima de las chapas que acaban de subir.
 		# Eso no es una fuga: es la capa de arriba tapando lo que pasa por debajo.
-		var raras_qol := _minusculas_en(arbol)
-		_check("y sus rotulos no tienen letras minusculas", raras_qol.is_empty())
+		var raras_qol := _sin_glifo_en(arbol)
+		_check("y sus rotulos solo usan letras que tiene la fuente", raras_qol.is_empty())
 		for r in raras_qol:
 			print("         con minusculas: ", r)
 		# El arbol vuelve a donde estaba: los checks de abajo pulsan nodos y miden
@@ -3013,8 +3033,8 @@ func _run() -> void:
 		_check("y arrastrando se llega al fondo de los tres caminos", fondo_alcanzable)
 		arbol._set_offset(offset_ini)
 		_check_cabe("el arbol no saca texto del panel", arbol, PANEL)
-		var raras_arbol := _minusculas_en(arbol)
-		_check("el arbol no tiene letras minusculas", raras_arbol.is_empty())
+		var raras_arbol := _sin_glifo_en(arbol)
+		_check("el arbol solo usa letras que tiene la fuente", raras_arbol.is_empty())
 		for r in raras_arbol:
 			print("         con minusculas: ", r)
 		_check_sin_encimarse("el arbol no pone texto encima de una chapa", arbol,
@@ -3056,26 +3076,26 @@ func _run() -> void:
 			# cuesta y que es lo que va a cambiar. Los dos numeros salen de Game y
 			# de SkillTree, o sea que no pueden mentir.
 			_check("la ficha de un nodo cerrado dice cual falta antes",
-				_dice(ficha_nodo, "ANTES: " + SkillTree.effect_text("money")))
+				_dice(ficha_nodo, "Antes: " + SkillTree.effect_text("money")))
 			_check("y trae su explicacion larga entera",
 				_dice(ficha_nodo, str(UIKit.wrap(SkillTree.detail_of("damage"),
 					SkillCard.COL_W, 21)[0])))
 			_check("y el numero que tendra al comprarlo",
-				_dice(ficha_nodo, "AL COMPRARLO: " + SkillTree.total_text("damage",
+				_dice(ficha_nodo, "Si lo compras: " + SkillTree.total_text("damage",
 					Game.skill_bonus("damage") + 0.20)))
 			# El boton ESTA aunque no se pueda comprar (un boton escondido o muerto
 			# no explica nada) y quien comprueba de verdad es el panel, que lo dice
 			# en la barra: mismo camino que la chapa del rebirth.
 			_check("la ficha trae el boton de comprar",
-				_boton_de(ficha_nodo, "COMPRAR") != null)
-			var raras := _minusculas_en(ficha_nodo)
-			_check("y no hay ninguna letra minuscula en la ficha", raras.is_empty())
+				_boton_de(ficha_nodo, "Comprar") != null)
+			var raras := _sin_glifo_en(ficha_nodo)
+			_check("y la ficha solo usa letras que tiene la fuente", raras.is_empty())
 			for r in raras:
 				print("         con minusculas: ", r)
 			_check("y pulsarlo en un nodo cerrado no cobra nada",
 				_pulsa_comprar(ficha_nodo) and not Game.skill_owned("damage")
 				and Game.rebirth_coins == 12
-				and arbol._hint_label.text.begins_with("ANTES"))
+				and arbol._hint_label.text.begins_with("Antes"))
 			ficha_nodo._close()
 			await get_tree().process_frame
 		_check("y al cerrar la ficha el arbol se queda sin ella", arbol._card == null)
@@ -3092,9 +3112,9 @@ func _run() -> void:
 			# Los dos numeros que hacen falta para decidir: lo que el arbol lleva
 			# sumado AHORA y lo que llevara al comprarlo.
 			_check("la ficha trae el numero de AHORA y el de despues",
-				_dice(ficha_centro, "AHORA, CON EL ARBOL: "
+				_dice(ficha_centro, "Ahora tienes: "
 					+ SkillTree.total_text("money", Game.skill_bonus("money")))
-				and _dice(ficha_centro, "AL COMPRARLO: "
+				and _dice(ficha_centro, "Si lo compras: "
 					+ SkillTree.total_text("money", 0.50)))
 			# Y LA FICHA CABE Y NO PISA NADA: es una pantalla nueva, y una linea de
 			# texto encima del dibujo del nodo no da ningun error (solo una ficha
@@ -3107,14 +3127,14 @@ func _run() -> void:
 				and Game.rebirth_coins == 11
 				and is_equal_approx(Game.value_multiplier(), 1.50))
 			_check("y el aviso de la barra lo dice",
-				arbol._hint_label.text.begins_with("COMPRADO"))
+				arbol._hint_label.text.begins_with("Comprado"))
 			await get_tree().process_frame
 			# Y LA FICHA SE REPINTA SOLA (Game.skills_changed): el nodo pasa a
 			# COMPRADO y el boton de comprar desaparece, que es lo unico que se
 			# puede hacer con el ya.
 			_check("y la ficha se repinta con el nodo ya comprado",
-				_dice(ficha_centro, "COMPRADO")
-				and _boton_de(ficha_centro, "COMPRAR") == null)
+				_dice(ficha_centro, "Comprado")
+				and _boton_de(ficha_centro, "Comprar") == null)
 			ficha_centro._close()
 			await get_tree().process_frame
 		_check("y el nodo se pone en COMPRADO",
@@ -3164,8 +3184,8 @@ func _run() -> void:
 		await get_tree().process_frame
 		var ficha_ya = arbol._card
 		_check("la ficha de una mejora comprada lo dice y no cobra monedas",
-			ficha_ya != null and _dice(ficha_ya, "COMPRADO")
-			and _boton_de(ficha_ya, "COMPRAR") == null
+			ficha_ya != null and _dice(ficha_ya, "Comprado")
+			and _boton_de(ficha_ya, "Comprar") == null
 			and not _pulsa_comprar(ficha_ya)
 			and Game.rebirth_coins == saldo2)
 		if ficha_ya != null:
@@ -3180,11 +3200,11 @@ func _run() -> void:
 		var ficha_pobre = arbol._card
 		_check("sin monedas la ficha dice cuanto falta y no compra nada",
 			ficha_pobre != null
-			and _dice(ficha_pobre, "TE FALTAN %d MONEDAS"
+			and _dice(ficha_pobre, "Te faltan %d monedas"
 				% Game.skill_missing_coins("spikes"))
 			and not (_pulsa_comprar(ficha_pobre) and Game.skill_owned("spikes"))
 			and Game.rebirth_coins == 0 and not Game.skill_owned("spikes")
-			and arbol._hint_label.text.begins_with("TE FALTAN")
+			and arbol._hint_label.text.begins_with("Te faltan")
 			and arbol._state_of("spikes") == "poor")
 		if ficha_pobre != null:
 			ficha_pobre._close()
@@ -3204,15 +3224,15 @@ func _run() -> void:
 			var f = arbol._card
 			var bien := f != null and _dice(f, SkillTree.effect_text(str(id_ficha)))
 			if bien and Game.skill_owned(str(id_ficha)):
-				bien = _dice(f, "COMPRADO")
+				bien = _dice(f, "Comprado")
 			elif bien:
 				# Las dos lineas se escriben con el numero detras, asi que se mira el
 				# principio del texto (empieza = true) y no la linea entera.
-				bien = _dice(f, "AHORA, CON EL ARBOL: ", true)
+				bien = _dice(f, "Ahora tienes: ", true)
 				if SkillTree.is_qol(str(id_ficha)):
-					bien = _dice(f, "AHORA: ", true) and _dice(f, "AL COMPRARLO: ", true)
+					bien = _dice(f, "Ahora: ", true) and _dice(f, "Si lo compras: ", true)
 				else:
-					bien = bien and _dice(f, "AL COMPRARLO: ", true)
+					bien = bien and _dice(f, "Si lo compras: ", true)
 			if not bien:
 				fichas_rotas.append(str(id_ficha))
 			if f != null:
@@ -3349,7 +3369,7 @@ func _run() -> void:
 	_check("y sin ella el armario lleno no deja exponer nada",
 		not Game.locker_put(0) and Game.locker.size() == 2)
 
-	var botin := {"id": "card_c", "name": "CARTA COMUN", "art": "loot_card_common_psa5",
+	var botin := {"id": "card_c", "name": "Carta común", "art": "loot_card_common_psa5",
 		"rarity": "common", "grade": 5, "value": 500, "kind": "cards"}
 
 	# SIN LIMBO: lo que no merece ficha se vende en el momento y no cae en la mesa,
@@ -3521,7 +3541,7 @@ func _run() -> void:
 	Game.happy = {}
 	Game.cooldowns = {}
 	Game.skills = {}
-	var gp_vinilo := {"id": "vinyl_c", "name": "VINILO", "art": "loot_vinyl_psa5",
+	var gp_vinilo := {"id": "vinyl_c", "name": "Vinilo", "art": "loot_vinyl_psa5",
 		"rarity": "common", "grade": 5, "value": 1000, "kind": "vinyls"}
 	var gp_carta := botin.duplicate()
 	# LA HORA FELIZ multiplica lo de su tipo y no lo demas.
@@ -3549,8 +3569,8 @@ func _run() -> void:
 	# un objeto al VIP" si esta en curso, y ese premio entra a la vez.
 	_check("y con la nota que pide paga %s y se va" % Gameplay.mult_text(Gameplay.VIP_MULT),
 		Game.money - gp_d0 >= roundi(1000.0 * Gameplay.VIP_MULT) and Game.buyer.is_empty())
-	_check("los multiplicadores se escriben con su coma (X2, X1,5)",
-		Gameplay.mult_text(2.0) == "X2" and Gameplay.mult_text(1.5) == "X1,5")
+	_check("los multiplicadores se escriben con su coma (x2, x1,5)",
+		Gameplay.mult_text(2.0) == "x2" and Gameplay.mult_text(1.5) == "x1,5")
 	Game._tick_play(0.0)
 	Game.start_buyer()
 	Game._tick_play(Gameplay.VIP_LIFE + 1.0)
@@ -3569,7 +3589,7 @@ func _run() -> void:
 	_check("el sobre dorado cae en la mesa", gp_dorado != null and gp_dorado.golden
 		and g._elements.has(gp_dorado))
 	_check("y dice cuanto le queda", gp_dorado._golden_tag != null
-		and gp_dorado._golden_tag.text == "DORADO  %d S" % ceili(Gameplay.GOLDEN_LIFE))
+		and gp_dorado._golden_tag.text == "Dorado  %d s" % ceili(Gameplay.GOLDEN_LIFE))
 	g._golden_step(Gameplay.GOLDEN_LIFE + 0.5)
 	await get_tree().process_frame
 	_check("y si nadie lo empieza se va", not g._elements.has(gp_dorado))
@@ -3581,7 +3601,7 @@ func _run() -> void:
 	g._golden_step(Gameplay.GOLDEN_LIFE + 0.5)
 	_check("empezado ya no se va", g._elements.has(gp_dorado2))
 	_check("y si se empezo en pleno parpadeo vuelve a verse entero",
-		is_equal_approx(gp_dorado2.modulate.a, 1.0) and gp_dorado2._golden_tag.text == "DORADO")
+		is_equal_approx(gp_dorado2.modulate.a, 1.0) and gp_dorado2._golden_tag.text == "Dorado")
 	var gp_abiertos: int = Game.packs_opened
 	g._on_element_opened(str(gp_dorado2.pack["id"]), gp_dorado2)
 	await get_tree().process_frame
@@ -3731,8 +3751,8 @@ func _run() -> void:
 	g._reveal_item(Gameplay.make_holo(gp_vinilo))
 	await get_tree().process_frame
 	_check("la tarjeta de un holo lo dice",
-		g._reveal != null and _dice(g._reveal, "HOLO VINILO")
-		and _dice(g._reveal, "HOLO: VALE EL DOBLE"))
+		g._reveal != null and _dice(g._reveal, "Holo " + str(gp_vinilo["name"]))
+		and _dice(g._reveal, "Holo: vale el doble"))
 	if g._reveal != null:
 		g._reveal._finish(RevealCard.ACTION_SELL)
 	await get_tree().process_frame
@@ -3794,8 +3814,26 @@ func _run() -> void:
 	if g._libreta != null:
 		_check_cabe("la libreta no saca texto del panel", g._libreta, PANEL)
 		_check_sin_encimarse("la libreta no pone texto encima de una chapa", g._libreta)
-		_check("la libreta ensena las colecciones", _dice(g._libreta, "CARTAS", true)
-			and _dice(g._libreta, "TESOROS", true))
+		_check("la libreta ensena las colecciones", _dice(g._libreta, "Cartas", true)
+			and _dice(g._libreta, "Tesoros", true))
+		# LAS COLECCIONES DE MASCOTAS: en la otra pagina del album, una por maquina.
+		Game.pets = {}
+		Game.pets_equipped = []
+		for p in PetDB.pets_of("basic"):
+			Game.pets[str(p["id"])] = 1
+		var dinero_album: float = Game.album_bonus("money")
+		_check("tener las seis mascotas de una maquina completa su coleccion",
+			Game.set_complete("pets_basic") and not Game.set_complete("pets_gold")
+			and Game.set_progress("pets_gold") == Vector2i(0, 6))
+		_check("y da su bonus aunque no esten equipadas",
+			Game.pets_equipped.is_empty() and dinero_album >= 0.10)
+		g._libreta._set_page(1)
+		await get_tree().process_frame
+		_check("la otra pagina del album ensena las de mascotas",
+			_dice(g._libreta, "Mascotas normales", true)
+			and _dice(g._libreta, "Mascotas cósmicas", true))
+		_check_cabe("la pagina de mascotas no saca texto del panel", g._libreta, PANEL)
+		Game.pets = {}
 		g._close_libreta()
 		await get_tree().process_frame
 	_check("y se cierra", g._libreta == null)
@@ -3908,19 +3946,14 @@ func _run() -> void:
 	Game.load_game()
 	_check("con el guardado roto se carga la copia", Game.money == 12345)
 
-	# EL TIEMPO CON EL JUEGO CERRADO: solo con Pinchos, poco y con tope.
-	Game.skills = {}
-	Game.items[LootDB.item_index("pinchos")] = 0
-	Game.play_seconds = 100.0
-	Game.lifetime_earned = 100000
-	_check("sin Pinchos no se gana nada con el juego cerrado", Game._pay_offline(600.0) == 0)
+	# CON EL JUEGO CERRADO NO SE GANA NADA (se quito a proposito): cargar un
+	# guardado deja el dinero tal cual estaba.
 	Game.items[LootDB.item_index("pinchos")] = 1
-	_check("con Pinchos se gana el 10 % del ritmo de la partida",
-		Game._pay_offline(600.0) == roundi(1000.0 * Game.OFFLINE_RATE * 600.0))
-	Game.lifetime_earned = 100000
-	_check("y como mucho una hora",
-		Game._pay_offline(99999.0) == roundi(1000.0 * Game.OFFLINE_RATE * Game.OFFLINE_MAX))
-	Game.offline_earned = 0
+	Game.money = 777
+	Game.save_game()
+	Game.money = 0
+	Game.load_game()
+	_check("con el juego cerrado no se gana nada", Game.money == 777)
 
 	print("")
 	if _fails.is_empty():
@@ -4051,7 +4084,7 @@ func _check_autostore_y_ficha() -> void:
 		> Gameplay.mission_reward({"type": "open_kind", "goal": 10}, 10000))
 	_check("el texto del encargo lo dice",
 		Gameplay.mission_text({"type": "store", "goal": 2, "kind": "vinyls", "grade": 3})
-		== "GUARDA 2 VINILOS CON PSA 3")
+		== "Guarda 2 vinilos con PSA 3")
 	# Guardar de verdad (Game.store) es lo que lo cumple.
 	Game.missions = [{"type": "store", "goal": 1, "progress": 0, "kind": "cards",
 		"grade": 3, "reward": 777}]
@@ -4140,6 +4173,7 @@ func _check_mascotas() -> void:
 		Game.rebirth_coins == 2 and Game.pet_level(id) == 1)
 	_check("la mascota sube el dinero o las monedas de rebirth",
 		Game.value_multiplier() > dinero or Game.rebirth_multiplier() > rebirth)
+	_check("y como es nueva y hay hueco, se equipa sola", Game.pets_equipped == [id])
 	_check("antes de tirar no hay revelado", pp._reveal == null)
 	pp._on_roll()
 	await get_tree().create_timer(2.6).timeout
@@ -4147,15 +4181,53 @@ func _check_mascotas() -> void:
 		pp._reveal != null and pp._busy)
 	pp._close_reveal()
 	_check("y un clic la cierra", pp._reveal == null and not pp._busy)
+	Game.rebirth_coins = 4
+	pp._on_roll(pp.MULTI)
+	_check("la x5 pide las cinco monedas", Game.rebirth_coins == 4 and pp._reveal == null)
+	Game.rebirth_coins = 6
+	var niveles := 0
+	for v in Game.pets.values():
+		niveles += int(v)
+	pp._on_roll(pp.MULTI)
+	var despues := 0
+	for v in Game.pets.values():
+		despues += int(v)
+	_check("la x5 cobra 5 y sube 5 niveles", Game.rebirth_coins == 1 and despues == niveles + 5)
+	await get_tree().create_timer(2.6).timeout
+	_check("y al final sale el resumen de lo que ha salido",
+		pp._reveal != null and pp._reveal_ready and pp._status.text.begins_with("Tirada x5"))
+	pp._close_reveal()
 	Game.rebirth_coins = 2
 	Game.pets = {}
 	for p in PetDB.pets_of("basic"):
 		Game.pets[str(p["id"])] = PetDB.MAX_LEVEL
 	_check("con todas al maximo ya no se tira", not Game.can_roll_pet()
 		and Game.roll_pet() == "" and Game.rebirth_coins == 2)
-	_check("al maximo: x3 de dinero y x3 de monedas de rebirth",
-		is_equal_approx(Game.pet_bonus("money"), 2.0)
-		and is_equal_approx(Game.pet_bonus("rebirth"), 2.0))
+	Game.pets_equipped = ["dog", "frog", "fox"]
+	_check("las tres de dinero al maximo y equipadas: x3 de dinero",
+		is_equal_approx(Game.pet_bonus("money"), 2.0))
+	_check("las que no se equipan no dan nada", Game.pet_bonus("rebirth") == 0.0)
+	_check("con los tres huecos llenos no se equipa otra",
+		not Game.toggle_pet_equip("cat") and not Game.pet_equipped("cat"))
+	_check("quitar una deja hueco y entonces si",
+		Game.toggle_pet_equip("dog") and Game.toggle_pet_equip("cat")
+		and Game.pets_equipped == ["frog", "fox", "cat"])
+	_check("una que no se tiene no se equipa", Game.toggle_pet_equip("fox")
+		and not Game.toggle_pet_equip("unicorn"))
+	# EL MENU EQUIPAR: dentro de la tienda, con las que se tienen y los huecos.
+	pp._open_equip()
+	await get_tree().process_frame
+	_check("EQUIPAR abre su menu encima de la tienda", pp._equip != null)
+	_check_cabe("el menu EQUIPAR no saca nada del panel", pp._equip, PANTALLA)
+	pp._on_equip_pressed("dog")
+	_check("un clic en una mascota la equipa", Game.pet_equipped("dog"))
+	pp._on_equip_pressed("fish")
+	_check("con los huecos llenos avisa", Game.pets_equipped.size() == PetDB.SLOTS
+		and not Game.pet_equipped("fish") and pp._equip_status.text.begins_with("Huecos"))
+	pp._on_equip_pressed("dog")
+	_check("y otro clic la quita", not Game.pet_equipped("dog"))
+	pp._close_equip()
+	_check("la X del menu vuelve a las maquinas", pp._equip == null)
 	_check("hay cuatro maquinas de seis mascotas", PetDB.MACHINES.size() == 4
 		and PetDB.PETS.size() == 24 and PetDB.pets_of("cosmic").size() == 6)
 	Game.rebirth_coins = 9
@@ -4175,6 +4247,8 @@ func _check_mascotas() -> void:
 			Sprites.tex(str(p["art"])) != null)
 	_check("las 24 mascotas son distintas", ids.size() == 24)
 	Game.pets = {"bear": 1, "hamster": 1, "owl": 1, "bunny": 1, "turtle": 1}
+	# Las cinco a la vez (mas que los huecos) solo para medir que cada stat entra.
+	Game.pets_equipped = Game.pets.keys()
 	var golpe := Game.damage_multiplier()
 	var carga := Game.charge_multiplier()
 	var crit := Game.crit_chance()
@@ -4206,9 +4280,17 @@ func _check_mascotas() -> void:
 	Game.pets.erase(oro)
 	Game.pets.erase(astral)
 	Game.pets = {"dog": 2, "zzz": 4, "cat": 99}
+	Game.pets_equipped = ["zzz", "dog", "dog", "fox", "cat"]
 	Game._apply(JSON.parse_string(JSON.stringify(Game.to_dict())))
 	_check("las mascotas se guardan limpias (sin inventadas y con el nivel al tope)",
 		Game.pets == {"dog": 2, "cat": PetDB.MAX_LEVEL})
+	_check("y las equipadas tambien (solo las que se tienen, sin repetir)",
+		Game.pets_equipped == ["dog", "cat"])
+	var viejo: Dictionary = Game.to_dict()
+	viejo.erase("pets_equipped")
+	Game._apply(JSON.parse_string(JSON.stringify(viejo)))
+	_check("un guardado de antes de equipar equipa las que tenga",
+		Game.pets_equipped.size() == 2 and Game.pet_equipped("dog") and Game.pet_equipped("cat"))
 	g._close_pets()
 	await get_tree().process_frame
 	_check("y la tienda de mascotas se cierra", g._pets == null)
@@ -4216,6 +4298,6 @@ func _check_mascotas() -> void:
 		Game.skills[str(id2)] = SkillTree.levels_of(str(id2))
 	Game.do_ascension()
 	_check("las mascotas sobreviven a la ascension",
-		Game.pets == {"dog": 2, "cat": PetDB.MAX_LEVEL})
+		Game.pets == {"dog": 2, "cat": PetDB.MAX_LEVEL} and Game.pets_equipped.size() == 2)
 	Game.ascension_points = 0
 	Game.pets = {}

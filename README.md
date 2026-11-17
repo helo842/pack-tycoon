@@ -75,6 +75,10 @@ escrito en el `.tscn`, y ahí no hay ningún botón todavía.
 
 Para ver el juego hay que **ejecutarlo**: `F5`, o el botón **▶** de arriba a la
 derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
+El título («Pack» encima de «Tycoon», con aire entre las dos palabras) va
+**letra a letra y ondula**: cada letra sube y baja unos píxeles un poco después
+que la de su izquierda, así que por el título pasa una ola (`Menu._process`,
+`WAVE_AMP` / `WAVE_SPEED` / `WAVE_STEP`).
 
 ---
 
@@ -110,8 +114,8 @@ derecha. En 10 segundos se ve la pantalla de inicio con JUGAR y AJUSTES.
    toda la columna, y debajo el hueco del sobre con la chapita del precio al
    lado. El nombre estuvo a la derecha del dibujo y ahí no había forma de
    agrandarlo: al lado de un hueco de 176 px quedaban 294 px, y «ELECTRÓNICA 3»
-   ocupa 273 px ya a tamaño 21 (la fuente mide 7 px de ancho por carácter a
-   tamaño 7). Con el nombre arriba cabe a 28 sin tocar el dibujo.
+   no cabía a un tamaño legible. Con el nombre arriba cabe a 28 sin tocar el
+   dibujo.
 
    La chapita del precio es **alta a propósito**, no solo ancha: el dibujo de la
    cinta solo pinta una banda en medio (un 59 % del alto con el que se estira, ver
@@ -272,6 +276,14 @@ comprada no hay huecos donde ponerlo, y por eso el armario sube de nivel como
 los demás items: **un hueco por nivel, de 1 a 8**, y los ocho marcos se dibujan
 siempre —los que no son tuyos, apagados— para que se vea que subirlo sirve para
 algo.
+
+**El panel va con el estilo de la tienda de mascotas** (cartón, cinta roja con
+«Armario», fichas de papel con celo): a la izquierda el inventario en fichas de
+papel (el dibujo grande y lo que vale), a la derecha las ocho vitrinas como
+fichas (el objeto, lo que da —«+20 % daño»— y lo que vale; las que no son tuyas,
+apagadas y con «Cerrado»), y debajo una nota de papel con **lo que te da** el
+armario, tipo a tipo. **Vender todo** está en la cabecera, donde la tienda de
+mascotas lleva el saldo.
 
 **Los cinco tipos de botín no dan lo mismo**, y cada uno va a su stat:
 
@@ -448,7 +460,7 @@ el árbol era una lista de "+35 % DE VELOCIDAD". Los nombres:
 | Calidad de vida | AUTO GUARDAR · SOBRANTE · ARMARIO SOLO · APRENDIZ · AMULETO · ENCARGADO · FÁBRICA |
 | Arriba del todo | LEYENDA |
 
-(En el juego van sin tildes ni Ñ: la fuente de mapa de bits no las tiene.)
+(En el juego salen en minúsculas y con sus tildes: «Auto guardar», «Fábrica»…)
 
 El árbol empieza con **una mejora en el centro** —**+50 % de dinero, una moneda**,
 que es la puerta— y de ella salen **cuatro caminos en diagonal**, uno por cada
@@ -582,7 +594,7 @@ Es la base de la futura **ascensión** (un rebirth del rebirth).
 | Rebirth | **HUCHA DE ORO** | +1 moneda por rebirth y el rebirth pide otro 10 % menos | 12 |
 | Puntería | **OJO DE HALCÓN** | racha +100 % por paso y zona dorada +50 % | 6 |
 | Eventos | **IMÁN** | dorados +50 %, hora feliz +50 %, VIP +25 %, jefe +40 % | 6 |
-| Calidad de vida | **FÁBRICA** | cada partida empieza con los Pinchos y el PC, lo automático sigue encendido tras el rebirth y el tiempo con el juego cerrado llega a dos horas | 8 |
+| Calidad de vida | **FÁBRICA** | cada partida empieza con los Pinchos y el PC, lo automático sigue encendido tras el rebirth | 8 |
 
 FÁBRICA es **lo último de la rama de abajo**, como los finales de las demás:
 debajo de todo y en medio, colgando de lo último de cada columna: AMULETO a la
@@ -636,17 +648,41 @@ suerte y Pinchos multiplican; el crítico **suma** probabilidad. Los números de
 ORO, HIELO y COSMICA están puestos a ojo, sin simular. **Las mascotas no se
 pierden nunca, ni al ascender** (solo `hard_reset`).
 
+**Solo dan su bonus las EQUIPADAS**, como mucho tres (`PetDB.SLOTS`,
+`Game.pets_equipped`). Una mascota nueva se equipa sola si queda hueco; las
+equipadas se guardan y sobreviven a la ascensión como las mascotas. Un guardado
+de antes de equipar entra con las tres primeras que tenga equipadas. El botón
+**EQUIPAR**, arriba en la cabecera al lado del saldo, abre el menú: a la izquierda los
+tres huecos (la mascota con su nivel, nombre y lo que da, o VACIO) y una nota con
+**lo que te dan entre todas**, stat a stat; a la derecha **todas las que tienes**,
+seis por fila, cada una con el nivel encima ("Nv 3" / "Nv max"), el dibujo y lo
+que da a ese nivel ("+75%" / "DINERO"); marco dorado si está equipada. Un clic la
+pone o la quita (con los huecos llenos avisa "Huecos llenos: quita una"); con el
+ratón encima dice el nombre y lo que da en largo. La X (o Esc) vuelve a las
+máquinas.
+
 Cada mascota tiene su **dibujo propio** (`tree_pet_<id>.png`, en
 `tools/tree_designs.py`). Las máquinas caras son la de siempre repintada en oro,
 hielo o morado con un recoloreado por luminancia (`_Recolor` en ese fichero).
 
 **La tirada se ve en grande en el centro de la pantalla**, como la carta de la
 intro, y no con un letrero arriba: se oscurece todo, la cápsula cae rebotando,
-tiembla tres veces cada vez más fuerte y revienta en un destello blanco. Sale la
+tiembla tres veces cada vez más fuerte (con **un brillito del color de su
+rareza** y seis destellos de ese color girando alrededor, que suben en cada
+temblor, `_capsule_glow`;
+en la x5 cada cápsula el suyo) y revienta en un destello blanco. Sale la
 mascota con un rebote y flotando, con **dos brillos del color de su rareza**
 girando detrás (gris, azul o dorado, sumando luz) y chispas de ese color, y
-debajo "NUEVA MASCOTA!" o el nivel, el nombre, la rareza y lo que da. Un clic,
+debajo "¡Nueva mascota!" o el nivel, el nombre, la rareza y lo que da. Un clic,
 Espacio o Esc lo cierra.
+
+**TIRAR X5**, al lado de TIRAR, hace cinco tiradas de golpe (pide tener para
+las cinco; si la máquina se llena a medias para ahí y no cobra lo que no sale).
+Caen cinco cápsulas en fila, tiemblan juntas y revientan a la vez, y al final
+queda **el resumen de la tirada**: cada mascota que ha salido con su brillo, las
+repetidas juntas ("x2 · nivel 3"), "¡Nueva!" o el nivel con el que se queda, y lo
+que da ahora (`PetPanel._play_capsules`). Los multiplicadores se escriben con x
+minúscula («x5», «x2»), en todo el juego.
 
 #### Lo que dice el simulador del árbol
 
@@ -826,6 +862,20 @@ minutos es siempre lo mismo. Para eso hay cuatro cosas más, con sus números en
     | TESOROS (reloj, reloj de bolsillo, cable, lingote) | +1 hueco de mesa |
     | JUGUETES | +10 % suerte |
     | PERFECCIÓN (sacar notas 10) | +10 % rebirth |
+
+    El álbum tiene **dos páginas** (flechas a los lados del rótulo): objetos y
+    **mascotas**. Las colecciones de mascotas (`Gameplay.PET_SETS`) son una por
+    máquina del gachapón y se completan teniendo sus seis mascotas, a cualquier
+    nivel. Dan su bonus **aunque no estén equipadas** —es lo que hace que valga
+    la pena tenerlas todas aunque solo se equipen tres— y, como las mascotas, no
+    se pierden al ascender:
+
+    | Colección | Bonus |
+    |---|---|
+    | MASCOTAS NORMALES | +10 % dinero |
+    | MASCOTAS DE ORO | +15 % daño |
+    | MASCOTAS DE HIELO | +15 % velocidad |
+    | MASCOTAS CÓSMICAS | +25 % rebirth |
   - **Encargos**: tres misiones cortas que se cobran solas al cumplirse: abre
     tantos sobres, saca una nota 8, 9 o 10, acierta golpes perfectos, abre un
     dorado, véndele al VIP... y **GUARDA 3 ZAPATILLAS CON PSA 2**, que pide un
@@ -987,7 +1037,7 @@ Sprites/               ~460 PNG, en subcarpetas (ver Sprites/README.md)
   ui/controls/         botones, deslizadores, casillas, flechas, ranuras
   ui/icons/            los iconos sueltos
   ui/indicators/       gemas, estados, insignias de nota, sombras, moneda
-  font/                la fuente del juego (font_pack.fnt) y los dígitos
+  font/                las letras de títulos y texto (font_titulo/font_texto.fnt) y los dígitos
   backgrounds/         el fondo de la trastienda y la superficie de la mesa
   mockups/             las maquetas de las pantallas
   index.tsv            nombre corto -> ruta. Lo lee el juego
@@ -1025,14 +1075,37 @@ paquete, una estrella por punto de la nota) se genera con un bucle, y así de
 verdad. Las escenas existen para que la estructura se vea en el editor y para
 tener los `.tscn` bien declarados.
 
-**Los números no usan una fuente de Godot, son sprites.** `PixelNumber` compone
-los `num_*.png` (glifos de 5×7 escalados ×8) en fila. Motivo: los numeros cambian
-cada frame, y montar una fuente entera para eso seria tirar. El **resto del texto
-ya es pixel art**: `tools/make_font.py` genera `Sprites/font/font_pack.fnt`, una
-fuente de mapa de bits de 57 glifos con contorno incluido, que va como
-`default_font` del tema. Se escala solo a multiplos enteros de 7 px
-(`scaling_mode=1` + `UIKit.FONT_STEP`), asi que nunca sale borrosa. Las dos
-fuentes salen de los mismos patrones 5x7 de `tools/font_patterns.py`.
+**Movimiento de ambiente** (`UIKit.bob`, `UIKit.pop_in`, `UIKit.dust`): los
+dibujos flotan despacio, cada uno a su ritmo (los sobres de la columna, los
+objetos de la tienda, las mascotas y la máquina del gachapón, lo expuesto en las
+vitrinas); al abrir un panel sus dibujos entran uno detrás de otro con un
+rebote; hay polvo flotando a la luz en el menú y sobre la mesa; el contador del
+dinero **sube contando** en vez de saltar, y al vender salen **monedas volando**
+en arco hasta él (`_fly_coins` en `game.gd`). Todo es solo de pantalla:
+la escala, el `self_modulate` y la posición del dibujo, nunca el `modulate` que
+dice apagado o bloqueado.
+
+**Tres letras en todo el juego, ni una más** (elegidas sobre una hoja de
+muestras el 2026-11-17):
+
+| Letra | Fichero | Para qué |
+|---|---|---|
+| **Títulos** | `Sprites/font/font_titulo.fnt` | Mayúsculas de trazo doble con contorno y sombra. Cabeceras de panel, revelados y carteles sobre la mesa o un brillo. |
+| **Texto** | `Sprites/font/font_texto.fnt` | Mayúsculas **y minúsculas**, con Ñ, tildes, ü, ¡ y ¿; cada letra con su ancho y sin contorno. Botones, fichas, avisos, la ayuda. Es la `default_font` del tema. |
+| **Números** | `num_*.png` (`PixelNumber`) | Los dígitos dorados con bisel: dinero, precios y saldos. |
+
+`UIKit.label()` elige entre las dos primeras sola: un texto de 42 px o más (y
+de color claro) es un título; uno con `outline` es un cartel (también título);
+lo demás es texto. Los **botones** van siempre con la de texto
+(`UIKit.TEXT_ONLY`). Ningún texto baja de `UIKit.MIN_SIZE` (14 px, ×2): por
+debajo no se leía nada. El texto del juego se escribe como se habla: frase en
+minúscula con su mayúscula inicial, tildes y signos de abrir («¡Nueva mascota!»).
+
+Las dos letras salen de `tools/make_font.py` con los patrones de
+`tools/font_patterns.py` (mayúsculas 5×7, minúsculas 5×9 con descenso, 2 filas
+encima para las tildes). Se escalan solo a múltiplos enteros de 7 px
+(`scaling_mode=1` + `UIKit.FONT_STEP`), así que nunca salen borrosas, y como
+cada letra tiene su ancho, `UIKit.text_width` mide con la fuente de verdad.
 
 **El anillo de espera se dibuja en tiempo real.** El sprite `ui_timer_fill` es
 solo un cuarto de anillo (el generador lo hizo así a propósito: "el juego lo gira
@@ -1290,9 +1363,8 @@ los buses de verdad. Ver `Sounds/README.md`. Queda **un sonido por material**: h
 el rasgado es el mismo en un sobre de cartón que en una caja de plástico, que era
 justo lo que pedía el documento.
 
-**Fuente del texto** — ya está: `font_pack.fnt`, mapa de bits propio. Lo que queda
-es qué pasa con la fuente de los **números**, que aún se componen con sprites
-(`PixelNumber`) en vez de usarse como fuente.
+**Letras** — ya está: tres letras (títulos, texto y los números de sprite), ver
+«Tres letras en todo el juego».
 
 **El armario, la vitrina y el rebirth** — ya están. El armario deja de ser un
 adorno: expone objetos (uno por hueco de su nivel, de 1 a 8), cada uno da el
@@ -1329,7 +1401,6 @@ llaman las pruebas).
 - **Las pruebas y las capturas** (las escenas de `res://dev/`) guardan en
   `packtycoon_test.json`: ya no pueden borrar la partida de verdad (el test de humo
   hace `hard_reset()`, y el 2026-11-10 se llevó una por delante).
-- **Con el juego cerrado** se gana el 10 % de lo que se ganaba por segundo en la
-  partida (`lifetime_earned / play_seconds`), como mucho una hora (dos con
-  FÁBRICA) y **solo con los Pinchos comprados**, que son lo que sigue abriendo sobres sin ti. Al volver
-  sale un aviso: MIENTRAS NO ESTABAS. Las constantes son `Game.OFFLINE_*`.
+- **Con el juego cerrado no se gana nada.** Hubo un pago por el tiempo fuera
+  (el 10 % del ritmo de la partida, con los Pinchos) y se quitó el 2026-11-17:
+  no hacía falta.

@@ -101,6 +101,10 @@ var _item_cells: Array = []
 var _card: ItemCard = null
 
 
+## Los dibujos de los items, para animarlos al abrir (ver _ready).
+var _arts: Array = []
+
+
 func _ready() -> void:
 	add_child(UIKit.veil(0.55))
 	add_child(UIKit.panel("ui_panel_carton"))
@@ -111,6 +115,10 @@ func _ready() -> void:
 
 	_build_money()
 	_build_items()
+	# Los dibujos entran uno detras de otro y luego flotan, cada uno a su ritmo.
+	UIKit.pop_in(_arts)
+	for i in _arts.size():
+		UIKit.bob(_arts[i], 3.0, 2.6, float(i) * 0.13)
 
 	Game.money_changed.connect(_on_money_changed)
 	Game.items_changed.connect(refresh)
@@ -128,12 +136,12 @@ func _ready() -> void:
 ## cosa va sobre algo suyo: sueltos encima de la cinta parecian flotar.
 func _build_money() -> void:
 	add_child(UIKit.image("ui_tag_price", TITLE_TAG_CENTER, TITLE_TAG))
-	var titulo := PixelNumber.new()
-	titulo.scale_factor = 0.56
+	# Con la letra de TITULOS, como el de MASCOTAS: los digitos dorados son
+	# solo para numeros.
+	var titulo := UIKit.title_label_at("Tienda", TITLE_TAG_CENTER, TITLE_TAG - Vector2(120, 40),
+			44, Palette.GOLD_XL)
 	titulo.name = "Titulo"
 	add_child(titulo)
-	titulo.set_text("TIENDA")
-	titulo.position = (TITLE_TAG_CENTER - titulo.size * 0.5).round()
 
 	_money = PixelNumber.new()
 	_money.scale_factor = 0.40
@@ -223,6 +231,7 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	var art := UIKit.fit_art(str(item["art"]), Vector2(x + BOX.x * 0.5, y + ICON_DY),
 			ICON_BOX)
 	add_child(art)
+	_arts.append(art)
 
 	# Texto oscuro SIN contorno (la fuente del titulo): sobre el papel claro, el
 	# contorno de la fuente normal lo emborronaba.
@@ -245,9 +254,9 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	if max_level > 1:
 		pips = _pips(Vector2(x + BOX.x * 0.5, y + LEVEL_DY), max_level, 10.0, 4.0)
 	else:
-		una_vez = UIKit.title_label_at("COMPRA UNICA",
+		una_vez = UIKit.title_label_at("Compra única",
 				Vector2(x + BOX.x * 0.5, y + LEVEL_DY), Vector2(BOX.x - 40.0, 24),
-				UIKit.fit_size("COMPRA UNICA", BOX.x - 40.0, 14), Palette.GOLD_D)
+				UIKit.fit_size("Compra única", BOX.x - 40.0, 14), Palette.GOLD_D)
 		add_child(una_vez)
 
 	var tag := Vector2(x + BOX.x * 0.5, y + TAG_DY)
@@ -378,9 +387,9 @@ func _refresh_items() -> void:
 		var auto: Button = cell["auto"]
 		auto.visible = Game.item_auto_unlocked(i)
 		auto.modulate = Color(1.25, 1.1, 0.55) if Game.item_auto_on(i) 				else Color(0.5, 0.5, 0.56, 1.0)
-		auto.tooltip_text = ("Compra automatica ENCENDIDA: pulsa para apagarla"
-				if Game.item_auto_on(i) else "Compra automatica APAGADA: pulsa para encenderla")
-		rotulo.text = "COMPRADO" if max_level <= 1 else "AL TOPE"
+		auto.tooltip_text = ("Compra automática encendida: pulsa para apagarla"
+				if Game.item_auto_on(i) else "Compra automática apagada: pulsa para encenderla")
+		rotulo.text = "Comprado" if max_level <= 1 else "Al tope"
 		rotulo.visible = cerrado
 		(cell["tag_node"] as TextureRect).visible = not cerrado
 		num.visible = not cerrado
@@ -456,20 +465,20 @@ func _on_item(index: int) -> void:
 	var cost := Game.item_cost(index)
 	if cost < 0:
 		Sound.play("sfx_error")
-		Game.notice.emit("YA LO TIENES" if Game.item_max_level(index) <= 1
-				else "YA ESTA AL TOPE", Palette.GOLD)
+		Game.notice.emit("Ya lo tienes" if Game.item_max_level(index) <= 1
+				else "Ya está al tope", Palette.GOLD)
 		return
 	if not Game.can_afford(cost):
 		Sound.play("sfx_error")
-		Game.notice.emit("NO TE LLEGA", Palette.RUST_L)
+		Game.notice.emit("No te llega", Palette.RUST_L)
 		return
 	Game.buy_item(index)
 	Sound.play("sfx_tool")
 	if index < _item_cells.size():
 		UIKit.punch(_item_cells[index]["art"], 1.3)
 	MainRoot.get_root().confetti()
-	Game.notice.emit("COMPRADO" if Game.item_max_level(index) <= 1
-			else "+1 NIVEL", Palette.GOLD_XL)
+	Game.notice.emit("Comprado" if Game.item_max_level(index) <= 1
+			else "+1 nivel", Palette.GOLD_XL)
 	refresh()
 
 

@@ -1,6 +1,6 @@
 # Indice de sprites: nombre corto<TAB>ruta dentro de Sprites/.
 # Lo genera tools/make_sprites.py. No editar a mano.
-# El juego lo lee en scripts/ui/sprites.gd.
+# El juego lo lee en scripts/sprites.gd.
 bg_menu_backroom	backgrounds/bg_menu_backroom.png
 bg_table	backgrounds/bg_table.png
 condition_broken	ui/indicators/condition_broken.png
@@ -10,8 +10,8 @@ condition_worn	ui/indicators/condition_worn.png
 currency_coin	ui/indicators/currency_coin.png
 currency_coins	ui/indicators/currency_coins.png
 currency_piggy	ui/indicators/currency_piggy.png
-font_pack	font/font_pack.png
-font_title	font/font_title.png
+font_texto	font/font_texto.png
+font_titulo	font/font_titulo.png
 fx_shine	ui/indicators/fx_shine.png
 grade_badge	ui/indicators/grade_badge.png
 grade_ribbon	ui/indicators/grade_ribbon.png

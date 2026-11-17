@@ -178,19 +178,19 @@ const START_BONUS := 25000.0
 ## aviso de compra. Uno solo para las dos cosas: dos nombres para el mismo stat
 ## se desincronizan solos.
 const STAT_NAME := {
-	"money": "DINERO",
-	"damage": "DANO",
-	"speed": "VELOCIDAD",
-	"locker": "ARMARIO",
-	"spikes": "PINCHOS",
-	"streak": "RACHA",
-	"sweet": "ZONA ORO",
-	"combo": "COMBO",
-	"happy": "HORA FELIZ",
-	"boss": "TIEMPO JEFE",
-	"golden": "DORADOS",
-	"vip": "PAGO VIP",
-	"require": "REBAJA",
+	"money": "Dinero",
+	"damage": "Daño",
+	"speed": "Velocidad",
+	"locker": "Armario",
+	"spikes": "Pinchos",
+	"streak": "Racha",
+	"sweet": "Zona oro",
+	"combo": "Combo",
+	"happy": "Hora feliz",
+	"boss": "Tiempo jefe",
+	"golden": "Dorados",
+	"vip": "Pago VIP",
+	"require": "Rebaja",
 }
 
 ## El unico stat que NO es un porcentaje: los huecos del armario son una cuenta
@@ -258,46 +258,46 @@ const NODES: Array = [
 		"id": "money", "stat": "money", "value": 0.50, "cost": COST_CENTER,
 		"bonus": {"start": START_BONUS},
 		"pos": Vector2(0, 0), "art": "tree_money", "req": "",
-		"desc": "VENDES MAS Y SALES CON 25.000",
-		"detail": "TODO LO QUE VENDES VALE UN 50 % MAS Y CADA PARTIDA EMPIEZA"
-			+ " CON 25.000 EN VEZ DE 500. ES LA PUERTA DEL ARBOL: NADA SE"
-			+ " ABRE SIN ELLA.",
-		"effect": "TRASTIENDA",
+		"desc": "Vendes más y sales con 25.000",
+		"detail": "Todo lo que vendes vale un 50 % más y cada partida empieza"
+			+ " con 25.000 en vez de 500. Es la puerta del árbol: nada se"
+			+ " abre sin ella.",
+		"effect": "Trastienda",
 	},
 	{
 		"id": "damage", "stat": "damage", "value": 0.20, "cost": COST_BRANCH,
 		"pos": Vector2(-SEP.x, -SEP.y), "art": "tree_damage", "req": "money",
-		"desc": "LOS SOBRES CAEN ANTES",
-		"detail": "MULTIPLICA EL DANO DE CADA GOLPE, O SEA LO QUE TARDA UN SOBRE"
-			+ " EN ABRIRSE. SE SUMA A LAS CARTAS DEL ARMARIO. LOS PINCHOS VAN"
-			+ " POR SU CUENTA.",
-		"effect": "BATE",
+		"desc": "Los sobres caen antes",
+		"detail": "Multiplica el daño de cada golpe, o sea lo que tarda un sobre"
+			+ " en abrirse. Se suma a las cartas del armario. Los pinchos van"
+			+ " por su cuenta.",
+		"effect": "Bate",
 	},
 	{
 		"id": "speed", "stat": "speed", "value": 0.20, "cost": COST_BRANCH,
 		"pos": Vector2(SEP.x, -SEP.y), "art": "tree_speed", "req": "money",
-		"desc": "CADA GOLPE TARDA MENOS",
-		"detail": "MULTIPLICA LA VELOCIDAD CON LA QUE AVANZA LA COLA DE LA MESA."
-			+ " SE SUMA A LO QUE DAN LAS ZAPATILLAS DEL ARMARIO.",
-		"effect": "REFLEJOS",
+		"desc": "Cada golpe tarda menos",
+		"detail": "Multiplica la velocidad con la que avanza la cola de la mesa."
+			+ " Se suma a lo que dan las zapatillas del armario.",
+		"effect": "Reflejos",
 	},
 	{
 		"id": "locker", "stat": "locker", "value": 2.0, "cost": COST_BRANCH,
 		"pos": Vector2(-SEP.x, SEP.y), "art": "tree_locker", "req": "money",
-		"desc": "DOS HUECOS MAS PARA EXPONER",
-		"detail": "DOS HUECOS MAS DE ARMARIO, O SEA DOS OBJETOS EXPUESTOS MAS:"
-			+ " EL ARMARIO REPARTE LOS BONUS DE DANO, VELOCIDAD, DINERO Y"
-			+ " REBIRTH.",
-		"effect": "ESCAPARATE",
+		"desc": "Dos huecos más para exponer",
+		"detail": "Dos huecos más de armario, o sea dos objetos expuestos más:"
+			+ " el armario reparte los bonus de daño, velocidad, dinero y"
+			+ " rebirth.",
+		"effect": "Escaparate",
 	},
 	{
 		"id": "spikes", "stat": "spikes", "value": 0.30, "cost": COST_BRANCH,
 		"pos": Vector2(SEP.x, SEP.y), "art": "tree_spikes", "req": "money",
-		"desc": "PINCHOS QUE HACEN MAS DANO",
-		"detail": "MULTIPLICA EL DANO DE LOS PINCHOS, QUE SE REPARTE ENTRE LOS"
-			+ " SOBRES DE LA MESA. SIN EL PC Y LOS PINCHOS NO HAY NADA QUE"
-			+ " SUBIR.",
-		"effect": "ESPINAS",
+		"desc": "Pinchos que hacen más daño",
+		"detail": "Multiplica el daño de los pinchos, que se reparte entre los"
+			+ " sobres de la mesa. Sin el PC y los pinchos no hay nada que"
+			+ " subir.",
+		"effect": "Espinas",
 	},
 
 	# --- EL SEGUNDO Y EL TERCER ANILLO ------------------------------------ #
@@ -310,60 +310,60 @@ const NODES: Array = [
 		"id": "damage_2", "stat": "damage", "value": 0.25, "cost": COST_BRANCH2,
 		"pos": Vector2(-SEP.x * 2.0, -SEP.y * 2.0), "art": "tree_damage_2",
 		"req": "damage",
-		"desc": "LOS SOBRES CAEN AUN ANTES",
-		"detail": "OTRO 25 % DE DANO ENCIMA DEL CAMINO DE ARRIBA. SE SUMA A EL"
-			+ " Y A LAS CARTAS DEL ARMARIO: CON EL CAMINO Y ESTE, EL GOLPE VA"
-			+ " POR ENCIMA DEL DOBLE.",
-		"effect": "PALANCA",
+		"desc": "Los sobres caen aún antes",
+		"detail": "Otro 25 % de daño encima del camino de arriba. Se suma a él"
+			+ " y a las cartas del armario: con el camino y este, el golpe va"
+			+ " por encima del doble.",
+		"effect": "Palanca",
 	},
 	{
 		"id": "damage_3", "stat": "damage", "value": 0.35, "cost": COST_BRANCH3,
 		"pos": Vector2(-SEP.x * 3.0, -SEP.y * 3.0), "art": "tree_damage_3",
 		"req": "damage_2",
-		"desc": "EL GOLPE MAS DURO DEL ARBOL",
-		"detail": "EL FONDO DEL CAMINO DEL DANO: 35 % MAS, QUE CON LOS DOS"
-			+ " NODOS DE ARRIBA ES CASI EL DOBLE DE LO QUE PEGAS SIN EL"
-			+ " ARBOL. LOS PINCHOS VAN POR SU CAMINO.",
-		"effect": "MAZA",
+		"desc": "El golpe más duro del árbol",
+		"detail": "El fondo del camino del daño: 35 % más, que con los dos"
+			+ " nodos de arriba es casi el doble de lo que pegas sin el"
+			+ " árbol. Los pinchos van por su camino.",
+		"effect": "Maza",
 	},
 	{
 		"id": "speed_2", "stat": "speed", "value": 0.25, "cost": COST_BRANCH2,
 		"pos": Vector2(SEP.x * 2.0, -SEP.y * 2.0), "art": "tree_speed_2",
 		"req": "speed",
-		"desc": "LA COLA DE LA MESA ACELERA",
-		"detail": "OTRO 25 % DE VELOCIDAD ENCIMA DEL CAMINO DE ARRIBA, QUE SE"
-			+ " SUMA A EL Y A LAS ZAPATILLAS DEL ARMARIO.",
-		"effect": "CARRERILLA",
+		"desc": "La cola de la mesa acelera",
+		"detail": "Otro 25 % de velocidad encima del camino de arriba, que se"
+			+ " suma a él y a las zapatillas del armario.",
+		"effect": "Carrerilla",
 	},
 	{
 		"id": "speed_3", "stat": "speed", "value": 0.35, "cost": COST_BRANCH3,
 		"pos": Vector2(SEP.x * 3.0, -SEP.y * 3.0), "art": "tree_speed_3",
 		"req": "speed_2",
-		"desc": "LA MESA NO PARA",
-		"detail": "EL FONDO DEL CAMINO DE LA VELOCIDAD: 35 % MAS, QUE CON LOS"
-			+ " DOS NODOS DE ARRIBA ES CASI EL DOBLE DE RAPIDO QUE SIN EL"
-			+ " ARBOL.",
-		"effect": "VELOCISTA",
+		"desc": "La mesa no para",
+		"detail": "El fondo del camino de la velocidad: 35 % más, que con los"
+			+ " dos nodos de arriba es casi el doble de rápido que sin el"
+			+ " árbol.",
+		"effect": "Velocista",
 	},
 	{
 		"id": "spikes_2", "stat": "spikes", "value": 0.35, "cost": COST_BRANCH2,
 		"pos": Vector2(SEP.x * 2.0, SEP.y * 2.0), "art": "tree_spikes_2",
 		"req": "spikes",
-		"desc": "LOS PINCHOS PICAN MAS",
-		"detail": "OTRO 35 % DE DANO DE PINCHOS ENCIMA DEL CAMINO DE ARRIBA."
-			+ " SE REPARTE ENTRE LOS SOBRES DE LA MESA, ASI QUE CON LA MESA"
-			+ " LLENA ES DONDE MAS SE NOTA.",
-		"effect": "CARDO",
+		"desc": "Los pinchos pican más",
+		"detail": "Otro 35 % de daño de pinchos encima del camino de arriba."
+			+ " Se reparte entre los sobres de la mesa, así que con la mesa"
+			+ " llena es donde más se nota.",
+		"effect": "Cardo",
 	},
 	{
 		"id": "spikes_3", "stat": "spikes", "value": 0.50, "cost": COST_BRANCH3,
 		"pos": Vector2(SEP.x * 3.0, SEP.y * 3.0), "art": "tree_spikes_3",
 		"req": "spikes_2",
-		"desc": "PINCHOS DE FIN DE PARTIDA",
-		"detail": "EL FONDO DEL CAMINO DE LOS PINCHOS: 50 % MAS, EL NODO MAS"
-			+ " FUERTE DEL ARBOL EN PORCENTAJE. CON LOS DOS DE ARRIBA LOS"
-			+ " PINCHOS PEGAN MAS QUE NADA.",
-		"effect": "CACTUS",
+		"desc": "Pinchos de fin de partida",
+		"detail": "El fondo del camino de los pinchos: 50 % más, el nodo más"
+			+ " fuerte del árbol en porcentaje. Con los dos de arriba los"
+			+ " pinchos pegan más que nada.",
+		"effect": "Cactus",
 	},
 
 	# --- EL CAMINO DEL REBIRTH (sigue al del armario) ---------------------- #
@@ -371,19 +371,19 @@ const NODES: Array = [
 		"id": "require", "stat": "require", "value": 0.15, "cost": COST_REQUIRE,
 		"pos": Vector2(-SEP.x * 2.0, SEP.y * 2.0), "art": "tree_require",
 		"req": "locker",
-		"desc": "EL REBIRTH PIDE MENOS",
-		"detail": "EL REBIRTH SE PUEDE HACER CON UN 15 % MENOS DE DINERO EN EL"
-			+ " CONTADOR. LAS MONEDAS SE CUENTAN IGUAL.",
-		"effect": "REGATEO",
+		"desc": "El rebirth pide menos",
+		"detail": "El rebirth se puede hacer con un 15 % menos de dinero en el"
+			+ " contador. Las monedas se cuentan igual.",
+		"effect": "Regateo",
 	},
 	{
 		"id": "coins", "stat": COINS_STAT, "value": 1.0, "cost": COST_COINS,
 		"pos": Vector2(-SEP.x * 3.0, SEP.y * 3.0), "art": "tree_coins",
 		"req": "require",
-		"desc": "CADA REBIRTH PAGA MAS",
-		"detail": "UNA MONEDA DE REBIRTH MAS CADA VEZ QUE REINICIES, ENCIMA DE"
-			+ " LO QUE DE EL CONTADOR Y LA ELECTRONICA.",
-		"effect": "PROPINA",
+		"desc": "Cada rebirth paga más",
+		"detail": "Una moneda de rebirth más cada vez que reinicies, encima de"
+			+ " lo que dé el contador y la electrónica.",
+		"effect": "Propina",
 	},
 
 	# --- LEYENDA (el nodo grande del final) ------------------------------- #
@@ -394,10 +394,10 @@ const NODES: Array = [
 		# se quedaria corto en cuanto se anadiera un nodo).
 		"pos": Vector2(0, -QOL_STEP * 4.25), "art": "tree_legend",
 		"req": [], "scale": BIG_SCALE,
-		"desc": "LA MEJORA DEFINITIVA",
-		"detail": "+100 % DINERO Y +50 % DANO, VELOCIDAD Y PINCHOS. Y LAS"
-			+ " HABILIDADES SE RECARGAN EL DOBLE DE RAPIDO. PIDE TODO EL ARBOL.",
-		"effect": "LEYENDA",
+		"desc": "La mejora definitiva",
+		"detail": "+100 % dinero y +50 % daño, velocidad y pinchos. Y las"
+			+ " habilidades se recargan el doble de rápido. Pide todo el árbol.",
+		"effect": "Leyenda",
 	},
 
 	# --- LA CALIDAD DE VIDA (los interruptores) --------------------------- #
@@ -412,10 +412,10 @@ const NODES: Array = [
 		"id": QOL_CARRY, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_CARRY,
 		"pos": Vector2(0, QOL_STEP * 2.0), "art": "tree_qol_carry",
 		"req": QOL_AUTOSTORE,
-		"desc": "EL GOLPE QUE SOBRA NO SE TIRA",
-		"detail": "EL DANO QUE LE SOBRA A UN GOLPE PASA AL SIGUIENTE SOBRE"
-			+ " QUE GOLPEES. CON LA CAJA A UN TOQUE, ESE GOLPE YA NO SE PIERDE.",
-		"effect": "SOBRANTE",
+		"desc": "El golpe que sobra no se tira",
+		"detail": "El daño que le sobra a un golpe pasa al siguiente sobre"
+			+ " que golpees. Con la caja a un toque, ese golpe ya no se pierde.",
+		"effect": "Sobrante",
 	},
 	# LAS COMPRAS AUTOMATICAS DE LA TIENDA: APRENDIZ y AMULETO bajan por la
 	# izquierda y ENCARGADO (armario y laser) cuelga de ARMARIO SOLO por la
@@ -427,46 +427,46 @@ const NODES: Array = [
 		"id": QOL_AUTO_TOOLS, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_AUTO_TOOLS,
 		"pos": Vector2(-QOL_WIDE, QOL_STEP * 2.0), "art": "tree_qol_auto_tools",
 		"req": QOL_AUTOSTORE,
-		"desc": "TIJERAS Y GUANTES SOLOS",
-		"detail": "LAS TIJERAS Y LOS GUANTES DE LA TIENDA SE COMPRAN SOLOS EN"
-			+ " CUANTO TE LLEGA. EN LA TIENDA, EL BOTON AUTO LOS APAGA.",
-		"effect": "APRENDIZ",
+		"desc": "Tijeras y guantes solos",
+		"detail": "Las tijeras y los guantes de la tienda se compran solos en"
+			+ " cuanto te llega. En la tienda, el botón AUTO los apaga.",
+		"effect": "Aprendiz",
 	},
 	{
 		"id": QOL_AUTO_LUCK, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_AUTO_LUCK,
 		"pos": Vector2(-QOL_WIDE, QOL_STEP * 3.0), "art": "tree_qol_auto_luck",
 		"req": QOL_AUTO_TOOLS,
-		"desc": "TREBOL Y OJO VERDE SOLOS",
-		"detail": "LA SUERTE (TREBOL) Y LA PROBABILIDAD DE CRITICO (OJO VERDE)"
-			+ " SE COMPRAN SOLAS. PRIMERO SIEMPRE LO MAS BARATO.",
-		"effect": "AMULETO",
+		"desc": "Trébol y ojo verde solos",
+		"detail": "La suerte (trébol) y la probabilidad de crítico (ojo verde)"
+			+ " se compran solas. Primero siempre lo más barato.",
+		"effect": "Amuleto",
 	},
 	{
 		"id": QOL_AUTO_CRIT, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_AUTO_CRIT,
 		"pos": Vector2(QOL_WIDE, QOL_STEP * 3.0), "art": "tree_qol_auto_crit",
 		"req": QOL_LOCKER,
-		"desc": "ARMARIO Y LASER SOLOS",
-		"detail": "EL ARMARIO Y EL DANO CRITICO (LASER) SE COMPRAN SOLOS."
-			+ " PRIMERO SIEMPRE LO MAS BARATO DE LO QUE TENGA EL AUTO.",
-		"effect": "ENCARGADO",
+		"desc": "Armario y láser solos",
+		"detail": "El armario y el daño crítico (láser) se compran solos."
+			+ " Primero siempre lo más barato de lo que tenga el AUTO.",
+		"effect": "Encargado",
 	},
 	{
 		"id": QOL_LOCKER, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_LOCKER,
 		"pos": Vector2(QOL_WIDE, QOL_STEP * 2.0), "art": "tree_qol_locker",
 		"req": QOL_AUTOSTORE,
-		"desc": "EXPONER YA NO ES COMPARAR",
-		"detail": "AL EXPONER ALGO, SI YA HAY UNA PIEZA DE SU TIPO ENTRA LA"
-			+ " MEJOR. LA PEOR VUELVE AL INVENTARIO.",
-		"effect": "ARMARIO SOLO",
+		"desc": "Exponer ya no es comparar",
+		"detail": "Al exponer algo, si ya hay una pieza de su tipo entra la"
+			+ " mejor. La peor vuelve al inventario.",
+		"effect": "Armario solo",
 	},
 	{
 		"id": QOL_AUTOSTORE, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_AUTOSTORE,
 		"pos": Vector2(0, QOL_STEP), "art": "tree_qol_autostore",
 		"req": "money",
-		"desc": "GUARDA LO QUE TU ELIJAS",
-		"detail": "EN AJUSTES ELIGES TIPO, PSA Y RAREZA. LO QUE CUMPLE SE GUARDA"
-			+ " SOLO EN EL INVENTARIO; LO DEMAS SE VENDE SOLO. SIN FICHAS.",
-		"effect": "AUTO GUARDAR",
+		"desc": "Guarda lo que tú elijas",
+		"detail": "En ajustes eliges tipo, PSA y rareza. Lo que cumple se guarda"
+			+ " solo en el inventario; lo demás se vende solo. Sin fichas.",
+		"effect": "Auto guardar",
 	},
 
 	# --- LAS HABILIDADES (la rama de arriba) ------------------------------ #
@@ -479,38 +479,38 @@ const NODES: Array = [
 	{
 		"id": "abil_charge", "stat": QOL_STAT, "value": 1.0, "cost": COST_ABIL_CHARGE,
 		"pos": Vector2(0, -QOL_STEP), "art": "tree_abil_charge", "req": "money",
-		"desc": "UN GOLPE QUE VALE POR CINCO",
-		"detail": "HABILIDAD (TECLA 1): EL SIGUIENTE GOLPE QUE DES HACE X5 DE"
-			+ " DANO. SE RECARGA EN 40 S.",
-		"effect": "GOLPE CARGADO",
+		"desc": "Un golpe que vale por cinco",
+		"detail": "Habilidad (tecla 1): el siguiente golpe que des hace x5 de"
+			+ " daño. Se recarga en 40 s.",
+		"effect": "Golpe cargado",
 	},
 	{
 		"id": "abil_frenzy", "stat": QOL_STAT, "value": 1.0, "cost": COST_ABIL,
 		"pos": Vector2(-QOL_SIDE, -QOL_STEP * 2.0), "art": "tree_abil_frenzy",
 		"req": "abil_charge",
-		"desc": "LA MESA SE GOLPEA SOLA",
-		"detail": "HABILIDAD (TECLA 2): DURANTE 8 S TODOS LOS SOBRES DE LA MESA"
-			+ " SE GOLPEAN SOLOS, SIN CLICS. SE RECARGA EN 90 S.",
-		"effect": "FRENESI",
+		"desc": "La mesa se golpea sola",
+		"detail": "Habilidad (tecla 2): durante 8 s todos los sobres de la mesa"
+			+ " se golpean solos, sin clics. Se recarga en 90 s.",
+		"effect": "Frenesí",
 	},
 	{
 		"id": "abil_rain", "stat": QOL_STAT, "value": 1.0, "cost": COST_ABIL,
 		"pos": Vector2(QOL_SIDE, -QOL_STEP * 2.0), "art": "tree_abil_rain",
 		"req": "abil_charge",
-		"desc": "LLUEVEN OBJETOS HOLO",
-		"detail": "HABILIDAD (TECLA 3): 10 S EN LOS QUE CADA OBJETO DE LOS SOBRES"
-			+ " QUE COMPRES TIENE UN 30 % DE SALIR HOLO: BRILLA Y VALE EL"
-			+ " DOBLE. SE RECARGA EN 80 S.",
-		"effect": "GOLDEN RAIN",
+		"desc": "Llueven objetos holo",
+		"detail": "Habilidad (tecla 3): 10 s en los que cada objeto de los sobres"
+			+ " que compres tiene un 30 % de salir holo: brilla y vale el"
+			+ " doble. Se recarga en 80 s.",
+		"effect": "Golden rain",
 	},
 	{
 		"id": RAIN_PLUS, "stat": QOL_STAT, "value": 1.0, "cost": COST_RAIN_PLUS,
 		"pos": Vector2(QOL_SIDE, -QOL_STEP * 3.0), "art": "tree_abil_rain_plus",
 		"req": "abil_rain",
-		"desc": "LA GOLDEN RAIN DURA MAS",
-		"detail": "LA GOLDEN RAIN DURA 10 S MAS: 20 S EN LOS QUE LOS SOBRES QUE"
-			+ " COMPRES PUEDEN TRAER OBJETOS HOLO.",
-		"effect": "TORMENTA DORADA",
+		"desc": "La golden rain dura más",
+		"detail": "La golden rain dura 10 s más: 20 s en los que los sobres que"
+			+ " compres pueden traer objetos holo.",
+		"effect": "Tormenta dorada",
 	},
 	# --- LA PUNTERIA (rama de la izquierda) ------------------------------- #
 	#
@@ -519,26 +519,26 @@ const NODES: Array = [
 	{
 		"id": "combo", "stat": "combo", "value": 1.0, "cost": COST_COMBO,
 		"pos": Vector2(-SIDE_START, 0), "art": "tree_combo", "req": "money",
-		"desc": "EL COMBO AGUANTA MAS",
-		"detail": "EL TIEMPO ENTRE SOBRE Y SOBRE PARA NO PERDER EL COMBO DE"
-			+ " APERTURA DURA EL DOBLE.",
-		"effect": "RITMO",
+		"desc": "El combo aguanta más",
+		"detail": "El tiempo entre sobre y sobre para no perder el combo de"
+			+ " apertura dura el doble.",
+		"effect": "Ritmo",
 	},
 	{
 		"id": "streak", "stat": "streak", "value": 1.0, "cost": COST_STREAK,
 		"pos": Vector2(-SIDE_START - SIDE_STEP, 0), "art": "tree_streak", "req": "combo",
-		"desc": "CADA PERFECTO SEGUIDO PEGA MAS",
-		"detail": "CADA PASO DE LA RACHA DE PERFECTOS SUBE EL GOLPE EL DOBLE"
-			+ " DE LO NORMAL. CON LA RACHA LLENA SE NOTA MUCHO.",
-		"effect": "EN RACHA",
+		"desc": "Cada perfecto seguido pega más",
+		"detail": "Cada paso de la racha de perfectos sube el golpe el doble"
+			+ " de lo normal. Con la racha llena se nota mucho.",
+		"effect": "En racha",
 	},
 	{
 		"id": "sweet", "stat": "sweet", "value": 1.0, "cost": COST_SWEET,
 		"pos": Vector2(-SIDE_START - SIDE_STEP * 2.0, 0), "art": "tree_sweet", "req": "streak",
-		"desc": "LA ZONA DORADA ES MAS ANCHA",
-		"detail": "EL TRAMO BLANCO DEL ANILLO ES EL DOBLE: MAS GOLPES EN LA"
-			+ " ZONA DORADA, QUE PEGAN MAS Y SUMAN DOS A LA RACHA.",
-		"effect": "PUNTO DULCE",
+		"desc": "La zona dorada es más ancha",
+		"detail": "El tramo blanco del anillo es el doble: más golpes en la"
+			+ " zona dorada, que pegan más y suman dos a la racha.",
+		"effect": "Punto dulce",
 	},
 
 	# --- LOS EVENTOS (rama de la derecha) --------------------------------- #
@@ -548,90 +548,90 @@ const NODES: Array = [
 		"id": "happy", "stat": "happy", "value": 1.0, "cost": COST_HAPPY,
 		"pos": Vector2(SIDE_START, 0), "art": "tree_happy",
 		"req": "money",
-		"desc": "LA HORA FELIZ DURA MAS",
-		"detail": "LA HORA FELIZ, LA QUE HACE QUE UN TIPO DE BOTIN VALGA MAS,"
-			+ " DURA EL DOBLE.",
-		"effect": "FIESTA",
+		"desc": "La hora feliz dura más",
+		"detail": "La hora feliz, la que hace que un tipo de botín valga más,"
+			+ " dura el doble.",
+		"effect": "Fiesta",
 	},
 	{
 		"id": "vip", "stat": "vip", "value": 0.50, "cost": COST_VIP,
 		"pos": Vector2(SIDE_START + SIDE_STEP, 0), "art": "tree_vip", "req": "happy",
-		"desc": "EL COMPRADOR VIP PAGA MAS",
-		"detail": "EL COMPRADOR VIP PAGA UN 50 % MAS DE LO QUE YA PAGABA: DE X2"
-			+ " A X3.",
-		"effect": "CLIENTE DE ORO",
+		"desc": "El comprador VIP paga más",
+		"detail": "El comprador VIP paga un 50 % más de lo que ya pagaba: de x2"
+			+ " a x3.",
+		"effect": "Cliente de oro",
 	},
 	{
 		"id": "boss", "stat": "boss", "value": 0.60, "cost": COST_BOSS,
 		"pos": Vector2(SIDE_START + SIDE_STEP * 2.0, 0), "art": "tree_boss", "req": "vip",
-		"desc": "MAS TIEMPO PARA EL JEFE",
-		"detail": "EL RELOJ DEL JEFE DE SOBRE DURA UN 60 % MAS. MAS JEFES ROTOS"
-			+ " SON MAS OBJETOS BUENOS.",
-		"effect": "PRORROGA",
+		"desc": "Más tiempo para el jefe",
+		"detail": "El reloj del jefe de sobre dura un 60 % más. Más jefes rotos"
+			+ " son más objetos buenos.",
+		"effect": "Prórroga",
 	},
 	{
 		"id": "golden", "stat": "golden", "value": 0.75, "cost": COST_GOLDEN,
 		"pos": Vector2(SIDE_START + SIDE_STEP * 3.0, 0), "art": "tree_golden",
 		"req": "boss",
-		"desc": "MAS SOBRES DORADOS",
-		"detail": "LOS SOBRES DORADOS SALEN UN 75 % MAS A MENUDO Y ESPERAN UN"
-			+ " 75 % MAS EN LA MESA ANTES DE IRSE.",
-		"effect": "FIEBRE DEL ORO",
+		"desc": "Más sobres dorados",
+		"detail": "Los sobres dorados salen un 75 % más a menudo y esperan un"
+			+ " 75 % más en la mesa antes de irse.",
+		"effect": "Fiebre del oro",
 	},
 	# --- LOS FINALES DE CAMINO (nodos grandes, ver CAP_SCALE) -------------- #
 	{
 		"id": "cap_damage", "stat": "damage", "value": 0.60, "cost": COST_CAP,
 		"pos": Vector2(-SEP.x * 4.0, -SEP.y * 4.0), "art": "tree_cap_damage",
 		"req": "damage_3", "scale": CAP_SCALE,
-		"desc": "FIN DEL CAMINO DEL DANO",
-		"detail": "UN 60 % MAS DE DANO DE GOLPE, ENCIMA DE TODO EL CAMINO.",
-		"effect": "MARTILLO",
+		"desc": "Fin del camino del daño",
+		"detail": "Un 60 % más de daño de golpe, encima de todo el camino.",
+		"effect": "Martillo",
 	},
 	{
 		"id": "cap_speed", "stat": "speed", "value": 0.60, "cost": COST_CAP,
 		"pos": Vector2(SEP.x * 4.0, -SEP.y * 4.0), "art": "tree_cap_speed",
 		"req": "speed_3", "scale": CAP_SCALE,
-		"desc": "FIN DEL CAMINO DE VELOCIDAD",
-		"detail": "UN 60 % MAS DE VELOCIDAD DE GOLPE, ENCIMA DE TODO EL CAMINO.",
-		"effect": "TURBO",
+		"desc": "Fin del camino de velocidad",
+		"detail": "Un 60 % más de velocidad de golpe, encima de todo el camino.",
+		"effect": "Turbo",
 	},
 	{
 		"id": "cap_spikes", "stat": "spikes", "value": 0.80, "cost": COST_CAP,
 		"pos": Vector2(SEP.x * 4.0, SEP.y * 4.0), "art": "tree_cap_spikes",
 		"req": "spikes_3", "scale": CAP_SCALE,
-		"desc": "FIN DEL CAMINO DE PINCHOS",
-		"detail": "UN 80 % MAS DE DANO DE PINCHOS, ENCIMA DE TODO EL CAMINO.",
-		"effect": "ERIZO",
+		"desc": "Fin del camino de pinchos",
+		"detail": "Un 80 % más de daño de pinchos, encima de todo el camino.",
+		"effect": "Erizo",
 	},
 	{
 		"id": "cap_rebirth", "stat": COINS_STAT, "value": 1.0, "cost": COST_CAP_REBIRTH,
 		"bonus": {"require": 0.10},
 		"pos": Vector2(-SEP.x * 4.0, SEP.y * 4.0), "art": "tree_cap_rebirth",
 		"req": "coins", "scale": CAP_SCALE,
-		"desc": "FIN DEL CAMINO DEL REBIRTH",
-		"detail": "OTRA MONEDA MAS EN CADA REBIRTH Y EL REBIRTH PIDE UN 10 % MENOS"
-			+ " (SE SUMA A LA REBAJA).",
-		"effect": "HUCHA DE ORO",
+		"desc": "Fin del camino del rebirth",
+		"detail": "Otra moneda más en cada rebirth y el rebirth pide un 10 % menos"
+			+ " (se suma a la rebaja).",
+		"effect": "Hucha de oro",
 	},
 	{
 		"id": "cap_aim", "stat": "streak", "value": 1.0, "cost": COST_CAP_SIDE,
 		"bonus": {"sweet": 0.5},
 		"pos": Vector2(-SIDE_START - SIDE_STEP * 3.0, 0), "art": "tree_cap_aim",
 		"req": "sweet", "scale": CAP_SCALE,
-		"desc": "FIN DE LA PUNTERIA",
-		"detail": "LA RACHA PEGA OTRO 100 % MAS POR PASO Y LA ZONA DORADA CRECE"
-			+ " OTRO 50 %.",
-		"effect": "OJO DE HALCON",
+		"desc": "Fin de la puntería",
+		"detail": "La racha pega otro 100 % más por paso y la zona dorada crece"
+			+ " otro 50 %.",
+		"effect": "Ojo de halcón",
 	},
 	{
 		"id": "cap_events", "stat": "golden", "value": 0.50, "cost": COST_CAP_SIDE,
 		"bonus": {"happy": 0.5, "vip": 0.25, "boss": 0.4},
 		"pos": Vector2(SIDE_START + SIDE_STEP * 4.0, 0), "art": "tree_cap_events",
 		"req": "golden", "scale": CAP_SCALE,
-		"desc": "FIN DE LOS EVENTOS",
-		"detail": "MAS DORADOS (+50 %), HORA FELIZ MAS LARGA (+50 %), VIP QUE PAGA"
-			+ " MAS (+25 %) Y MAS RELOJ PARA EL JEFE (+40 %).",
-		"effect": "IMAN",
+		"desc": "Fin de los eventos",
+		"detail": "Más dorados (+50 %), hora feliz más larga (+50 %), VIP que paga"
+			+ " más (+25 %) y más reloj para el jefe (+40 %).",
+		"effect": "Imán",
 	},
 	{
 		"id": FACTORY, "stat": QOL_STAT, "value": 1.0, "cost": COST_FACTORY,
@@ -639,10 +639,10 @@ const NODES: Array = [
 		# colgando de lo ultimo de cada columna (AMULETO, SOBRANTE y ENCARGADO).
 		"pos": Vector2(0, QOL_STEP * 4.0), "art": "tree_qol_factory",
 		"req": [QOL_AUTO_LUCK, QOL_CARRY, QOL_AUTO_CRIT], "scale": CAP_SCALE,
-		"desc": "LA PARTIDA SE JUEGA SOLA",
-		"detail": "CADA PARTIDA EMPIEZA CON LOS PINCHOS Y EL PC, Y LO AUTOMATICO"
-			+ " SIGUE ENCENDIDO TRAS EL REBIRTH. CERRADO GANAS HASTA DOS HORAS.",
-		"effect": "FABRICA",
+		"desc": "La partida se juega sola",
+		"detail": "Cada partida empieza con los pinchos y el PC, y lo automático"
+			+ " sigue encendido tras el rebirth.",
+		"effect": "Fábrica",
 	},
 ]
 
@@ -729,10 +729,10 @@ static func levels_of(id: String) -> int:
 ## AL COMPRARLO). Un solo sitio para el formato porque dos se desincronizan solos.
 static func total_text(stat: String, total: float) -> String:
 	if stat == SLOTS_STAT:
-		return "%d HUECOS DE ARMARIO" % roundi(total)
+		return "%d huecos de armario" % roundi(total)
 	if stat == COINS_STAT:
-		return "%d MONEDA EXTRA" % roundi(total)
-	return "+%d %% DE %s" % [roundi(total * 100.0), str(STAT_NAME[stat])]
+		return "%d moneda extra" % roundi(total)
+	return "+%d %% de %s" % [roundi(total * 100.0), str(STAT_NAME[stat]).to_lower()]
 
 
 ## Como se escribe el efecto de un nodo: "+30 % DE DINERO", "+2 HUECOS DE

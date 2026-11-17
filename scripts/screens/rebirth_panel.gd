@@ -116,7 +116,7 @@ const PAIR_GAP := 16.0
 ## Lo que se dice cuando no se ha tocado nada todavia: que el arbol se paga con
 ## monedas y que lo comprado no se pierde. Es la duda que tiene el jugador la
 ## primera vez que abre esto.
-const STAND_HINT := "SE PAGA CON MONEDAS Y SE QUEDA PARA SIEMPRE"
+const STAND_HINT := "Las mejoras se pagan con monedas y no se pierden"
 
 const GO_CENTER := Vector2(1360, 215)
 const GO_W := 288.0
@@ -402,7 +402,7 @@ func _build_node(node: Dictionary) -> Dictionary:
 	# coste): "COMPRADO" va donde iria el precio, no en medio de la chapa.
 	# En crema y no en oro: va sobre el labio naranja de la chapa, y en oro sobre
 	# naranja no se distinguia.
-	var done := UIKit.label_at("COMPRADO", Vector2(NODE * 0.5, NODE_COST_Y),
+	var done := UIKit.label_at("Comprado", Vector2(NODE * 0.5, NODE_COST_Y),
 		Vector2(NODE, 30), 14, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	body.add_child(done)
 
@@ -499,11 +499,11 @@ func _build_bar() -> void:
 	_bank.scale_factor = BANK_SCALE
 	_bank.max_width = BANK_MAX_W
 	add_child(_bank)
-	_bank_label = UIKit.label("MONEDAS DE REBIRTH", 21, Palette.CREAM_D,
+	_bank_label = UIKit.label("Monedas de rebirth", 21, Palette.CREAM_D,
 		HORIZONTAL_ALIGNMENT_LEFT)
 	add_child(_bank_label)
 
-	add_child(UIKit.label_at("TE DARA", PRIZE_CENTER, Vector2(220, 30), 21,
+	add_child(UIKit.label_at("Ganarás", PRIZE_CENTER, Vector2(220, 30), 21,
 		Palette.CREAM_D, HORIZONTAL_ALIGNMENT_CENTER))
 	_coins = PixelNumber.new()
 	_coins.color = Palette.GOLD_XL
@@ -523,20 +523,20 @@ func _build_bar() -> void:
 	# Y detras, DE QUE es lo que falta: el requisito va del dinero del contador -lo
 	# mismo que se lleva el premio y lo que el jugador tiene delante en la barra de
 	# la partida-, asi que se dice "de lo que tengas ahora" y no "de lo ganado".
-	_missing_note = UIKit.label("DE LO QUE TENGAS AHORA", 21, Palette.CREAM_D,
+	_missing_note = UIKit.label("de lo que tengas ahora", 21, Palette.CREAM_D,
 		HORIZONTAL_ALIGNMENT_LEFT)
 	add_child(_missing_note)
 	_hint_label = UIKit.label(STAND_HINT, 21, Palette.CREAM_D,
 		HORIZONTAL_ALIGNMENT_LEFT)
 	add_child(_hint_label)
 
-	_go = UIKit.small_button("REBIRTH", "currency_piggy", GO_CENTER, GO_W, 32)
+	_go = UIKit.small_button("Rebirth", "currency_piggy", GO_CENTER, GO_W, 32)
 	_go.pressed.connect(_on_rebirth)
 	add_child(_go)
 
-	_asc = UIKit.small_button("ASCENSION", "tree_asc_hyper", ASC_CENTER, ASC_W, 32)
+	_asc = UIKit.small_button("Ascensión", "tree_asc_hyper", ASC_CENTER, ASC_W, 32)
 	_asc.modulate = ASC_TINT
-	_asc.tooltip_text = "El arbol morado: lo borra TODO a cambio de mejoras para siempre"
+	_asc.tooltip_text = "El árbol morado: lo borra TODO a cambio de mejoras para siempre"
 	_asc.pressed.connect(_on_ascension)
 	add_child(_asc)
 
@@ -644,22 +644,22 @@ func _close_card() -> void:
 func _on_buy_skill(id: String) -> void:
 	if Game.skill_owned(id):
 		Sound.play("sfx_error")
-		_hint("YA TIENES " + SkillTree.effect_text(id), Palette.CREAM_D)
+		_hint("Ya tienes " + SkillTree.effect_text(id), Palette.CREAM_D)
 		return
 	if not Game.skill_unlocked(id):
 		Sound.play("sfx_error")
-		_hint("ANTES: " + SkillTree.effect_text(Game.skill_missing_req(id)), Palette.RUST_L)
+		_hint("Antes: " + SkillTree.effect_text(Game.skill_missing_req(id)), Palette.RUST_L)
 		return
 	if not Game.can_buy_skill(id):
 		Sound.play("sfx_error")
-		_hint("TE FALTAN %d MONEDAS" % Game.skill_missing_coins(id), Palette.RUST_L)
+		_hint("Te faltan %d monedas" % Game.skill_missing_coins(id), Palette.RUST_L)
 		return
 	Game.buy_skill(id)
 	Sound.play("sfx_tool")
 	if _nodes.has(id):
 		UIKit.punch(_nodes[id]["view"], 1.2)
 	MainRoot.get_root().confetti()
-	_hint("COMPRADO: " + SkillTree.effect_text(id), Palette.GOLD_XL)
+	_hint("Comprado: " + SkillTree.effect_text(id), Palette.GOLD_XL)
 
 
 # --------------------------------------------------------------------------- #
@@ -686,11 +686,11 @@ func zoom() -> float:
 
 func _build_zoom() -> void:
 	_zoom_in = UIKit.icon_button("ui_icon_zoom_in", ZOOM_IN_CENTER, ZOOM_SIDE,
-		"Acercar el arbol (o la rueda del raton)")
+		"Acercar el árbol (o la rueda del raton)")
 	_zoom_in.pressed.connect(func() -> void: _zoom_button(1))
 	add_child(_zoom_in)
 	_zoom_out = UIKit.icon_button("ui_icon_zoom_out", ZOOM_OUT_CENTER, ZOOM_SIDE,
-		"Alejar el arbol para verlo entero")
+		"Alejar el árbol para verlo entero")
 	_zoom_out.pressed.connect(func() -> void: _zoom_button(-1))
 	add_child(_zoom_out)
 	_paint_zoom()
@@ -818,8 +818,8 @@ func refresh() -> void:
 	_go.tooltip_text = ("Reinicia la partida: se pierde TODO lo de esta partida."
 		+ " Hacen falta %s en el contador (el dinero que TIENES, no lo ganado en"
 		+ " la partida). Te llevas %d monedas (1 por cada 1,5 M que tengas) y la"
-		+ " Electronica del armario las multiplica: x%s. Lo que vendes ya no sube"
-		+ " con las monedas: se gastan en el arbol.") % [
+		+ " Electrónica del armario las multiplica: x%s. Lo que vendes ya no sube"
+		+ " con las monedas: se gastan en el árbol.") % [
 		PixelNumber.format(Game.rebirth_require()), premio,
 		LootDB.short_number(Game.rebirth_multiplier())]
 
@@ -827,11 +827,11 @@ func refresh() -> void:
 	var puede := Game.can_rebirth()
 	_go.modulate = Color.WHITE if puede else Color(0.55, 0.55, 0.62, 1.0)
 	if puede:
-		_missing.text = "YA PUEDES REINICIAR"
+		_missing.text = "Ya puedes reiniciar"
 		_missing.add_theme_color_override("font_color", Palette.GOLD_XL)
 		_missing_note.visible = false
 	else:
-		_missing.text = "TE FALTAN " + PixelNumber.format(Game.rebirth_missing())
+		_missing.text = "Te faltan " + PixelNumber.format(Game.rebirth_missing())
 		_missing.add_theme_color_override("font_color", Palette.RUST_L)
 		_missing_note.visible = true
 	_place_status()
@@ -919,21 +919,14 @@ func _place_line(label: Label, row: float) -> void:
 ## tamanos distintos se lee como un fallo y no como un diseno (ver UIKit.row_size,
 ## que es la misma regla para la columna de sobres).
 ##
-## El tamano se elige con los caracteres que van a salir de verdad (la nota no
-## cuenta cuando esta escondida, que es cuando ya se puede reiniciar) y con el
-## aire de en medio, que se cuenta en caracteres porque la fuente es de ancho
-## fijo: los 38 caracteres del par mas largo mas los 16 px de aire son 814 de los
-## 970 que hay hasta la chapa del REBIRTH, asi que entra a 21 px sin encogerse.
-## Lo que venga mas largo, se encoge entero.
+## El tamano se elige con el texto que va a salir de verdad (la nota no cuenta
+## cuando esta escondida, que es cuando ya se puede reiniciar) y el aire de en
+## medio: lo que no quepa a TEXT_SIZE en TEXT_W se encoge entero.
 func _place_status() -> void:
-	var chars := _missing.text.length()
+	var texto := _missing.text
 	if _missing_note.visible:
-		chars += _missing_note.text.length()
-	var size := UIKit.FONT_STEP
-	for k in range(1, UIKit.font_step(TEXT_SIZE) / UIKit.FONT_STEP + 1):
-		var s := k * UIKit.FONT_STEP
-		if float(s) * float(chars) + PAIR_GAP <= TEXT_W:
-			size = s
+		texto += _missing_note.text
+	var size := UIKit.fit_size(texto, TEXT_W - PAIR_GAP, TEXT_SIZE)
 	_missing.add_theme_font_size_override("font_size", size)
 	_missing.size = _line_size(_missing.text, size)
 	_missing.position = Vector2(TEXT_X, ROW_STATUS - _missing.size.y * 0.5)
@@ -999,15 +992,15 @@ func node_rect(id: String) -> Rect2:
 func _on_rebirth() -> void:
 	if not Game.can_rebirth():
 		Sound.play("sfx_error")
-		Game.notice.emit("AUN NO: TE FALTAN "
+		Game.notice.emit("Aún no: te faltan "
 			+ PixelNumber.format(Game.rebirth_missing()), Palette.RUST_L)
-		_hint("TE FALTAN " + PixelNumber.format(Game.rebirth_missing())
-			+ " DE LO QUE TIENES AHORA", Palette.RUST_L)
+		_hint("Te faltan " + PixelNumber.format(Game.rebirth_missing())
+			+ " de lo que tienes ahora", Palette.RUST_L)
 		return
 	var coins := Game.do_rebirth()
 	Sound.play("sfx_tool")
 	Sound.play("sfx_rare")
-	MainRoot.get_root().banner("REBIRTH", "+%s MONEDAS PARA EL ARBOL" % PixelNumber.format(coins))
+	MainRoot.get_root().banner("Rebirth", "+%s monedas para el árbol" % PixelNumber.format(coins))
 	_close()
 
 

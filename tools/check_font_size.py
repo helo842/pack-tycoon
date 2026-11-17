@@ -39,32 +39,30 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def main() -> int:
     problemas: list[str] = []
 
-    # 1. Que el .fnt diga el tamano que creemos.
-    ruta_fnt = os.path.join(ROOT, "Sprites", "font", "font_pack.fnt")
-    if not os.path.exists(ruta_fnt):
-        print("Falta Sprites/font/font_pack.fnt. Corre python3 tools/make_font.py",
-              file=sys.stderr)
-        return 1
-    with open(ruta_fnt, encoding="utf-8") as fh:
-        m = re.search(r"info .*?size=(\d+)", fh.readline())
-    if not m:
-        print("El .fnt no tiene linea info con size=", file=sys.stderr)
-        return 1
-    size = int(m.group(1))
-    if size != STEP:
-        problemas.append(
-            f"El .fnt declara size={size} pero el codigo asume {STEP}. "
-            f"Regenera con el --scale que corresponda.")
-
-    # 2. Que el .import deje el escalado entero.
-    ruta_import = ruta_fnt + ".import"
-    with open(ruta_import, encoding="utf-8") as fh:
-        cuerpo = fh.read()
-    m2 = re.search(r"scaling_mode=(\d+)", cuerpo)
-    if not m2 or m2.group(1) != "1":
-        problemas.append(
-            "El .import no tiene scaling_mode=1 (escala solo entera). "
-            "Sin eso el texto sale con pixeles de dos tamanos.")
+    # 1 y 2. Que las dos letras (titulos y texto) digan el tamano que creemos y
+    # que su .import deje el escalado entero.
+    size = STEP
+    for nombre in ("font_titulo", "font_texto"):
+        ruta_fnt = os.path.join(ROOT, "Sprites", "font", nombre + ".fnt")
+        if not os.path.exists(ruta_fnt):
+            print(f"Falta Sprites/font/{nombre}.fnt. Corre python3 tools/make_font.py",
+                  file=sys.stderr)
+            return 1
+        with open(ruta_fnt, encoding="utf-8") as fh:
+            m = re.search(r"info .*?size=(\d+)", fh.readline())
+        if not m:
+            print(f"{nombre}.fnt no tiene linea info con size=", file=sys.stderr)
+            return 1
+        size = int(m.group(1))
+        if size != STEP:
+            problemas.append(f"{nombre}.fnt declara size={size} pero el codigo asume {STEP}.")
+        ruta_import = ruta_fnt + ".import"
+        cuerpo = open(ruta_import, encoding="utf-8").read() if os.path.exists(ruta_import) else ""
+        m2 = re.search(r"scaling_mode=(\d+)", cuerpo)
+        if not m2 or m2.group(1) != "1":
+            problemas.append(
+                f"{nombre}.fnt.import no tiene scaling_mode=1 (escala solo entera). "
+                "Sin eso el texto sale con pixeles de dos tamanos.")
 
     # 3. Que el paso del ajuste automatico exista en ui_kit.gd.
     ruta_kit = os.path.join(ROOT, "scripts", "ui", "ui_kit.gd")

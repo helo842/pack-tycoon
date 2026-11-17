@@ -45,7 +45,7 @@ const HELP_SCENE := preload("res://scenes/HelpPanel.tscn")
 ## ADMIN (trampas para probar) encima de AYUDA, y solo en depuracion.
 const ADMIN_POS := Vector2(1580, ROW_SELL)
 const ADMIN_SCENE := preload("res://scenes/AdminPanel.tscn")
-const CARD_NAMES := {"always": "SIEMPRE", "good": "LO BUENO", "never": "NUNCA"}
+const CARD_NAMES := {"always": "Siempre", "good": "Lo bueno", "never": "Nunca"}
 
 ## Ultimo valor del deslizador de SONIDOS al que ya se le ha dado el clic de
 ## referencia. Ver _on_volume().
@@ -58,7 +58,7 @@ func _ready() -> void:
 	# y=240 y no 135: el interior del panel empieza en y=188, y a 135 el titulo
 	# estaba medio sobre el marco. Las filas de abajo se separan para caber
 	# entre 188 y 892 sin tocarse.
-	add_child(UIKit.label_at("AJUSTES", Vector2(960, 240), Vector2(1600, 90),
+	add_child(UIKit.label_at("Ajustes", Vector2(960, 240), Vector2(1600, 90),
 			63, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
@@ -70,8 +70,8 @@ func _ready() -> void:
 	_build_autostore()
 	_build_card_mode()
 
-	var help := UIKit.small_button("AYUDA", "", HELP_POS, 200, 22)
-	help.tooltip_text = "Como se juega"
+	var help := UIKit.small_button("Ayuda", "", HELP_POS, 200, 22)
+	help.tooltip_text = "Cómo se juega"
 	help.pressed.connect(_open_help)
 	add_child(help)
 
@@ -81,8 +81,8 @@ func _ready() -> void:
 		admin.pressed.connect(_open_admin)
 		add_child(admin)
 
-	var credits := UIKit.small_button("CREDITOS", "", CREDITS_POS, 200, 22)
-	credits.tooltip_text = "Creditos (musica)"
+	var credits := UIKit.small_button("Créditos", "", CREDITS_POS, 200, 22)
+	credits.tooltip_text = "Créditos (música)"
 	credits.pressed.connect(_open_credits)
 	add_child(credits)
 
@@ -90,14 +90,14 @@ func _ready() -> void:
 func _build_sliders() -> void:
 	var y := ROW_SLIDER_1
 	add_child(UIKit.art("ui_icon_music", Vector2(300, y), 0.5))
-	add_child(UIKit.label_at("MUSICA", Vector2(660, y), Vector2(440, 60), 40,
+	add_child(UIKit.label_at("Música", Vector2(660, y), Vector2(440, 60), 35,
 			Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
 	_music = _slider(Vector2(SLIDER_X, y), Game.music_volume, "music")
 	_last_sfx = Game.sfx_volume
 
 	y = ROW_SLIDER_2
 	add_child(UIKit.art("ui_icon_sound", Vector2(300, y), 0.5))
-	add_child(UIKit.label_at("SONIDOS", Vector2(660, y), Vector2(440, 60), 40,
+	add_child(UIKit.label_at("Sonidos", Vector2(660, y), Vector2(440, 60), 35,
 			Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
 	_sfx = _slider(Vector2(SLIDER_X, y), Game.sfx_volume, "sfx")
 
@@ -124,9 +124,9 @@ func _slider(center: Vector2, value: float, which: String) -> PixelSlider:
 ## y=590 y y=690 y no las dos juntas: la casilla mide 96 y la zona de clic 96,
 ## asi que dos filas a menos de 96 de distancia se pisarian los clics.
 func _build_checks() -> void:
-	_screen_box = _check_row("ui_icon_settings", "PANTALLA COMPLETA", ROW_SCREEN,
+	_screen_box = _check_row("ui_icon_settings", "Pantalla completa", ROW_SCREEN,
 			Game.fullscreen, _toggle_fullscreen)
-	_sell_box = _check_row("currency_coin", "VENTA AUTOMATICA", ROW_SELL,
+	_sell_box = _check_row("currency_coin", "Venta automática", ROW_SELL,
 			Game.auto_sell, _toggle_auto_sell)
 
 
@@ -148,7 +148,7 @@ func _check_row(icon: String, text: String, y: float, on: bool,
 	add_child(UIKit.image(icon, Vector2(300, y), Vector2(96, 96)))
 	# El rotulo tiene 17 caracteres, asi que a tamano 42 son 714 px y se saldria
 	# de la caja de 560. Con shrink=True el tamano baja hasta que quepa.
-	add_child(UIKit.label_at(text, Vector2(660, y), Vector2(560, 60), 40,
+	add_child(UIKit.label_at(text, Vector2(660, y), Vector2(560, 60), 35,
 			Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
 	var box := UIKit.image(_check_tex(on), Vector2(1050, y), Vector2(96, 96))
 	add_child(box)
@@ -166,11 +166,11 @@ func _build_autostore() -> void:
 	var on := Game.autostore_unlocked()
 	var tint := Color.WHITE if on else Color(0.45, 0.45, 0.52, 1.0)
 	add_child(UIKit.image("ui_icon_inventory", Vector2(300, y), Vector2(96, 96), tint))
-	var l := UIKit.label_at("AUTO GUARDAR", Vector2(660, y), Vector2(560, 60), 40,
+	var l := UIKit.label_at("Auto guardar", Vector2(660, y), Vector2(560, 60), 35,
 			Palette.CREAM if on else Palette.PRICE_OFF, HORIZONTAL_ALIGNMENT_LEFT, 0, true)
 	add_child(l)
 	if not on:
-		add_child(UIKit.label_at("ARBOL DEL REBIRTH: %d MONEDAS"
+		add_child(UIKit.label_at("Se desbloquea en el árbol (%d monedas)"
 				% SkillTree.COST_QOL_AUTOSTORE, Vector2(1220, y), Vector2(440, 40), 21,
 				Palette.PRICE_OFF, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 		return
@@ -179,8 +179,8 @@ func _build_autostore() -> void:
 	var hit := UIKit.hit_area(self, Rect2(Vector2(1002, y - 48.0), Vector2(96, 96)))
 	hit.pressed.connect(_toggle_autostore)
 	UIKit.juice(hit, [_store_box], 1.1)
-	_store_pick = UIKit.small_button("ELEGIR", "", Vector2(1330, y), 240, 28)
-	_store_pick.tooltip_text = "Elegir que se guarda"
+	_store_pick = UIKit.small_button("Elegir", "", Vector2(1330, y), 240, 28)
+	_store_pick.tooltip_text = "Elegir qué se guarda"
 	_store_pick.pressed.connect(_open_filter)
 	add_child(_store_pick)
 
@@ -190,7 +190,7 @@ func _build_autostore() -> void:
 func _build_card_mode() -> void:
 	var y := ROW_CARD
 	add_child(UIKit.image("ui_icon_achievement", Vector2(300, y), Vector2(96, 96)))
-	add_child(UIKit.label_at("FICHA DEL OBJETO", Vector2(660, y), Vector2(560, 60), 40,
+	add_child(UIKit.label_at("Ficha del objeto", Vector2(660, y), Vector2(560, 60), 35,
 			Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT, 0, true))
 	add_child(UIKit.image("ui_arrow_left", Vector2(1010, y), Vector2(72, 72)))
 	_card_label = UIKit.label_at("", Vector2(1200, y), Vector2(280, 50), 35,
@@ -200,12 +200,12 @@ func _build_card_mode() -> void:
 	UIKit.hit_area(self, Rect2(Vector2(970, y - 40.0), Vector2(80, 80)),
 			"Ficha: antes").pressed.connect(_step_card_mode.bind(-1))
 	UIKit.hit_area(self, Rect2(Vector2(1350, y - 40.0), Vector2(80, 80)),
-			"Ficha: despues").pressed.connect(_step_card_mode.bind(1))
+			"Ficha: después").pressed.connect(_step_card_mode.bind(1))
 	_paint_card_mode()
 
 
 func _paint_card_mode() -> void:
-	_card_label.text = str(CARD_NAMES.get(Game.card_mode, "LO BUENO"))
+	_card_label.text = str(CARD_NAMES.get(Game.card_mode, "Lo bueno"))
 
 
 func _step_card_mode(step: int) -> void:
@@ -214,14 +214,14 @@ func _step_card_mode(step: int) -> void:
 	var i := modes.find(Game.card_mode)
 	Game.set_card_mode(str(modes[(i + step + modes.size()) % modes.size()]))
 	_paint_card_mode()
-	Game.notice.emit("FICHA: " + _card_label.text, Palette.CREAM_D)
+	Game.notice.emit("Ficha: " + _card_label.text, Palette.CREAM_D)
 
 
 func _toggle_autostore() -> void:
 	Sound.click()
 	Game.set_autostore(not Game.autostore_on)
 	_store_box.texture = Sprites.tex(_check_tex(Game.autostore_on))
-	Game.notice.emit("AUTO GUARDAR: " + ("SI" if Game.autostore_on else "NO"),
+	Game.notice.emit("AUTO guardar: " + ("Sí" if Game.autostore_on else "No"),
 			Palette.CREAM_D)
 
 
@@ -318,7 +318,7 @@ func _toggle_auto_sell() -> void:
 	Sound.click()
 	Game.set_auto_sell(not Game.auto_sell)
 	_sell_box.texture = Sprites.tex(_check_tex(Game.auto_sell))
-	Game.notice.emit("VENTA AUTOMATICA: " + ("SI" if Game.auto_sell else "NO"),
+	Game.notice.emit("Venta automática: " + ("Sí" if Game.auto_sell else "No"),
 			Palette.CREAM_D)
 
 

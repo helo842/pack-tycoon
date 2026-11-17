@@ -131,8 +131,8 @@ func refresh() -> void:
 	# los que puede llegar a tener, o si es de una sola compra.
 	_add(UIKit.label_at(str(item["name"]), Vector2(960, TITLE_Y), Vector2(1200, 70),
 			48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
-	var estado := "NIVEL %d DE %d" % [level, tope] if tope > 1 \
-			else ("COMPRADO" if level > 0 else "COMPRA UNICA")
+	var estado := "Nivel %d de %d" % [level, tope] if tope > 1 \
+			else ("Comprado" if level > 0 else "Compra única")
 	_add(UIKit.label_at(estado, Vector2(960, LEVEL_Y), Vector2(1200, 44), 21,
 			Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER))
 
@@ -153,19 +153,19 @@ func refresh() -> void:
 	# Los numeros: el efecto de AHORA y el que tendra al subir. Es lo unico que
 	# cambia al comprar, y por eso van juntos y con el mismo texto: comparar dos
 	# lineas iguales es lo mas rapido que se puede leer.
-	_add(UIKit.label_at("AHORA: " + LootDB.item_effect(_index, level),
+	_add(UIKit.label_at("Ahora: " + LootDB.item_effect(_index, level),
 			Vector2(COL_MID, NOW_Y), Vector2(COL_W, LINE_STEP), 21, Palette.CREAM,
 			HORIZONTAL_ALIGNMENT_CENTER))
 	if cost < 0:
 		# No hay nada que comprar: o es de una sola compra y ya es tuyo, o esta al
 		# tope. Se DICE donde iria el boton, que es lo que sustituye.
-		_add(UIKit.label_at("COMPRADO" if tope <= 1 else "AL TOPE",
+		_add(UIKit.label_at("Comprado" if tope <= 1 else "Al tope",
 				BUY_CENTER, Vector2(COL_W, 60), 42, Palette.GOLD_XL,
 				HORIZONTAL_ALIGNMENT_CENTER))
 		return
 	# En el PC y en los Pinchos no hay "nivel siguiente" (solo tienen uno), asi
 	# que el segundo numero se anuncia como lo que es: lo que pasa al comprarlo.
-	var que := "AL COMPRARLO: " if tope <= 1 else "NIVEL %d: " % (level + 1)
+	var que := "Si lo compras: " if tope <= 1 else "Nivel %d: " % (level + 1)
 	_add(UIKit.label_at(que + LootDB.item_effect(_index, level + 1),
 			Vector2(COL_MID, NEXT_Y), Vector2(COL_W, LINE_STEP), 21, Palette.GOLD_XL,
 			HORIZONTAL_ALIGNMENT_CENTER))
@@ -187,7 +187,7 @@ func refresh() -> void:
 	_add(num)
 	num.position = Vector2(COL_MID, TAG_Y) - num.size * 0.5
 
-	var b := UIKit.small_button("COMPRAR", "", BUY_CENTER, BUY_W, 30)
+	var b := UIKit.small_button("Comprar", "", BUY_CENTER, BUY_W, 30)
 	b.pressed.connect(_on_buy)
 	_add(b)
 

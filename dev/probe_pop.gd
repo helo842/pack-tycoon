@@ -47,7 +47,7 @@ func _ready() -> void:
 		await get_tree().process_frame
 	var img := vp.get_texture().get_image()
 	img.save_png("user://shots/_probe_pop.png")
-	print("SONDA: ", img.get_width(), "x", img.get_height())
+	print("Sonda: ", img.get_width(), "x", img.get_height())
 	print("  normal en ", str(normal.get_global_rect()), " color ", str(normal.color))
 	print("  critico en ", str(crit.get_global_rect()), " color ", str(crit.color))
 	get_tree().quit()

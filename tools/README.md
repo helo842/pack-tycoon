@@ -30,7 +30,7 @@ pack_designs.py     los dibujos de los PAQUETES (cuatro tipos, tres escalones,
                     make_sprites.py, que es quien los escribe y los audita
 font_patterns.py    los patrones 5x7 de cada glifo, aparte para poder retocar
                     una letra sin tocar el resto del generador
-make_font.py        la fuente del juego (hoja + .fnt) a partir de los patrones
+make_font.py        las letras de TITULOS y de TEXTO (hoja + .fnt) a partir de los patrones
 normalize_sprite.py para meter un sprite que viene de fuera (un generador de
                     imagenes) en el formato del juego
 make_background.py  los dos fondos: la trastienda y la superficie de la mesa
@@ -53,7 +53,7 @@ tira lo que han puesto los demas.
 
 ```bash
 python3 tools/make_sprites.py --all    # catalogo + indice
-python3 tools/make_font.py              # fuente -> Sprites/font/
+python3 tools/make_font.py              # font_titulo + font_texto -> Sprites/font/
 python3 tools/make_background.py        # trastienda -> Sprites/backgrounds/
 python3 tools/make_background.py --table  # mesa -> Sprites/backgrounds/bg_table.png
 python3 tools/make_screens.py           # maquetas -> Sprites/mockups/

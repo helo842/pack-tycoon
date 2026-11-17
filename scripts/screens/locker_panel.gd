@@ -19,6 +19,11 @@
 # se vende el barato y se expone el bueno. El gesto no se ve en la casilla, asi
 # que lo dicen la leyenda de la columna y el tooltip de cada hueco.
 #
+# EL ESTILO ES EL DE LA TIENDA DE MASCOTAS (desde 2026-11-17): carton claro, la
+# cinta roja del titulo y fichas de papel con celo. Antes iba en el panel oscuro
+# con marcos negros y los objetos se veian pequenos y apagados. VENDER TODO va en
+# la cabecera, donde la tienda de mascotas lleva el saldo.
+#
 # LOS HUECOS LOS PONE EL NIVEL DEL ARMARIO, no este panel: empieza con uno y
 # llega a ocho (LootDB.locker_slots()). Los ocho marcos se dibujan SIEMPRE, y los
 # que no tienes salen apagados: asi se ve que subir el armario sirve para algo
@@ -28,71 +33,70 @@ extends Control
 
 signal closed()
 
-## Las mismas medidas que la tienda y el mini menu, que usan el mismo panel:
-## ui_panel_shop.png es de 1600x960 y se dibuja tal cual, con el interior de
-## x 224..1696 e y 140..940.
-const TITLE_Y := 250.0
+## La cabecera, como la de la tienda y la de mascotas (ver ShopPanel).
+const HEAD_Y := ShopPanel.HEAD_Y
+const TITLE_TAG := ShopPanel.TITLE_TAG
+const TITLE_TAG_CENTER := ShopPanel.TITLE_TAG_CENTER
+const SELL_CENTER := Vector2(1420, HEAD_Y)
 ## Las dos columnas. El centro de cada una: izquierda el inventario, derecha el
-## armario. 700 px de ancho cada una con 72 de aire en medio.
+## armario.
 const LEFT_MID := 574.0
 const RIGHT_MID := 1346.0
-const HEADER_Y := 316.0
-## La rejilla del inventario: seis columnas de 96 (616 px con los huecos), que es
-## lo que cabe a lo ancho de la columna, y las filas que quepan de alto en la
-## ventana del scroll. Con 50 huecos salen nueve filas y hay scroll.
+const HEADER_Y := 250.0
+## La leyenda de los dos gestos (clic izquierdo expone, derecho vende), entre el
+## rotulo y la rejilla.
+const LEGEND_Y := 288.0
+## La rejilla del inventario: seis fichas de papel de 96 por fila, en una ventana
+## con scroll (50 huecos no caben de una vez).
 const INV_SIDE := 96.0
 const INV_COLS := 6
 const INV_STEP := 104.0
-## La ventana del scroll del inventario. Empieza debajo del rotulo (que acaba en
-## 336) y le deja sitio al boton de vender, que baja hasta 920.
-const INV_VIEW := Rect2(240, 360, 668, 400)
-## La leyenda de los dos gestos (clic izquierdo expone, derecho vende), ENTRE los
-## rotulos de las columnas y la rejilla.
-##
-## No cabe debajo de la ventana del scroll, que es su sitio natural: las 50
-## casillas siguen ahi debajo, recortadas por la ventana pero en el arbol, asi que
-## cualquier rotulo por debajo de y 760 aterriza encima de los marcos de la fila
-## siguiente (medido: la leyenda a 788 pisaba la fila que empieza en 776, y el
-## check lo caza). Aqui arriba esta el unico hueco libre de la columna.
-const LEGEND_Y := 348.0
-## La rejilla del armario: cuatro columnas de 128 (536 px), que es lo que piden
-## ocho huecos en dos filas.
-const LOCK_SIDE := 128.0
+const INV_VIEW := Rect2(240, 316, 668, 624)
+## Las vitrinas: ocho fichas de papel con celo, cuatro por fila. Cada una lleva el
+## objeto, lo que da y lo que vale (el nombre lo dice el raton encima: los
+## nombres largos no cabian a un tamano que se leyera).
+const LOCK_CARD := Vector2(148, 176)
 const LOCK_COLS := 4
-const LOCK_STEP := 136.0
-const LOCK_TOP := 424.0
-## Las cinco lineas de los bonus, debajo de las vitrinas. A 40 una de otra la
-## quinta (JUGUETES) caia encima de la nota de ayuda: van a 34 y desde 656.
-const STAT_Y := 656.0
-const STAT_STEP := 34.0
-## La nota va a 824 y no mas abajo: el pie de la columna es del boton de vender
-## (su chapa sube hasta 840) y con la nota a 856 el marco le comia el texto.
-const HINT_Y := 824.0
-## Las notas de ayuda, en crema apagado: el gris azulado de antes sobre el marron
-## del panel se quedaba sin contraste.
-const HINT_COLOR := Palette.CREAM_D
+const LOCK_STEP := Vector2(160, 190)
+const LOCK_TOP := 292.0
+## La nota de papel con lo que da el armario, debajo de las vitrinas.
+const NOTE := Rect2(RIGHT_MID - 320.0, 690.0, 640.0, 254.0)
+const STAT_Y := 760.0
+const STAT_STEP := 32.0
+const HINT_Y := 922.0
+const HINT_COLOR := Palette.GOLD_D
+## Texto oscuro sobre el carton, como en la tienda de mascotas.
+const INK := Palette.OUTLINE
+const MUTED := Color(0.18, 0.12, 0.10, 0.55)
 
 var _inv_label: Label = null
 var _locker_label: Label = null
-## Una casilla del inventario por hueco: el marco y su zona de clic.
+## Una casilla del inventario por hueco: la ficha y su zona de clic.
 var _inv_cells: Array = []
-## Una casilla del armario por hueco (los ocho, tenga el armario el nivel que
-## tenga): el marco, su fondo y su zona de clic.
+## Una ficha del armario por hueco (los ocho, tenga el armario el nivel que
+## tenga): la ficha y su zona de clic.
 var _locker_cells: Array = []
-## Las cuatro lineas de bonus, en el orden de LootDB.kind_ids().
+## Las lineas de bonus, en el orden de LootDB.kind_ids().
 var _stat_labels: Array = []
 
 
 func _ready() -> void:
 	add_child(UIKit.veil(0.62))
-	add_child(UIKit.panel("ui_panel_shop"))
-
-	add_child(UIKit.label_at("ARMARIO", Vector2(960, TITLE_Y), Vector2(1400, 70),
-		48, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
+	add_child(UIKit.panel("ui_panel_carton"))
+	add_child(UIKit.image("ui_tag_price", TITLE_TAG_CENTER, TITLE_TAG))
+	add_child(UIKit.title_label_at("Armario", TITLE_TAG_CENTER, TITLE_TAG - Vector2(120, 40),
+			44, Palette.GOLD_XL))
 
 	var close := UIKit.close_button(UIKit.PANEL_CLOSE)
 	close.pressed.connect(_close)
 	add_child(close)
+
+	# VENDER TODO, en la cabecera: vende el inventario entero (lo expuesto no).
+	var sell := UIKit.small_button("Vender todo", "", SELL_CENTER, 288, 28,
+			"ui_button_sell", "ui_button_sell")
+	sell.tooltip_text = "Vende de golpe todo lo que hay en el inventario (lo expuesto no)"
+	sell.pressed.connect(_sell_all)
+	add_child(sell)
 
 	_build_inventory()
 	_build_locker()
@@ -102,18 +106,56 @@ func _ready() -> void:
 	Game.locker_changed.connect(refresh)
 	Game.items_changed.connect(refresh)
 	refresh()
+	# Al abrir, lo que hay en las fichas entra una detras de otra.
+	var arts: Array = []
+	for cell in _locker_cells + _inv_cells:
+		for c in (cell["holder"] as Control).get_children():
+			if c is TextureRect:
+				arts.append(c)
+	UIKit.pop_in(arts, 0.03)
 
 
 # --------------------------------------------------------------------------- #
 # Montaje
 # --------------------------------------------------------------------------- #
 
-## La columna de la IZQUIERDA: el inventario. Con 50 huecos no caben de una vez,
-## asi que la rejilla vive en una ventana con scroll, como la lista de sobres de
-## la pantalla de partida.
+## Una ficha de papel: sombra, filete, fondo crema y (si `celo`) la tira de celo
+## arriba. Va TODO dentro de un nodo "Back", que es lo unico que sobrevive a
+## _clear() y lo que se apaga en los huecos que aun no son tuyos.
+func _paper_holder(top_left: Vector2, box: Vector2, celo: bool) -> Control:
+	var holder := Control.new()
+	holder.size = box
+	holder.position = top_left
+	holder.pivot_offset = box * 0.5
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var back := Control.new()
+	back.name = "Back"
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(back)
+	_rect(ShopPanel.SHADOW_OFF * 0.5, box, ShopPanel.SHADOW, back)
+	_rect(Vector2.ZERO, box, ShopPanel.EDGE_OPEN, back)
+	_rect(Vector2(ShopPanel.EDGE, ShopPanel.EDGE), box - Vector2(ShopPanel.EDGE, ShopPanel.EDGE) * 2.0,
+			ShopPanel.BACK_OPEN, back)
+	if celo:
+		var t := ShopPanel.TAPE_SIZE * 0.7
+		_rect(Vector2((box.x - t.x) * 0.5, -t.y * 0.5), t, ShopPanel.TAPE, back)
+	return holder
+
+
+func _rect(at: Vector2, size: Vector2, color: Color, parent: Node) -> ColorRect:
+	var c := ColorRect.new()
+	c.color = color
+	c.position = at
+	c.size = size
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(c)
+	return c
+
+
+## La columna de la IZQUIERDA: el inventario, en fichas de papel con scroll.
 func _build_inventory() -> void:
 	_inv_label = UIKit.label_at("", Vector2(LEFT_MID, HEADER_Y), Vector2(660, 44),
-		28, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+		35, INK, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	add_child(_inv_label)
 
 	var scroll := ScrollContainer.new()
@@ -129,21 +171,19 @@ func _build_inventory() -> void:
 	list.name = "InvList"
 	list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var filas := int(ceil(float(Game.INVENTORY_SLOTS) / float(INV_COLS)))
-	list.custom_minimum_size = Vector2(0.0, float(filas) * INV_STEP)
+	# 8 px de mas abajo para la sombra de la ultima fila.
+	list.custom_minimum_size = Vector2(0.0, float(filas) * INV_STEP + 8.0)
 	scroll.add_child(list)
 
-	# Un margen a cada lado para centrar la rejilla dentro de la ventana: con seis
-	# columnas de 96 y huecos de 8 son 616 px en una ventana de 668.
+	# Un margen a cada lado para centrar la rejilla dentro de la ventana.
 	var margen := (INV_VIEW.size.x - (float(INV_COLS - 1) * INV_STEP + INV_SIDE)) * 0.5
 	for i in Game.INVENTORY_SLOTS:
 		var col := i % INV_COLS
 		var fila := i / INV_COLS
-		var centre := Vector2(margen + INV_SIDE * 0.5 + float(col) * INV_STEP,
-				INV_SIDE * 0.5 + float(fila) * INV_STEP)
-		var holder := UIKit.slot(centre, INV_SIDE)
+		var top_left := Vector2(margen + float(col) * INV_STEP, 4.0 + float(fila) * INV_STEP)
+		var holder := _paper_holder(top_left, Vector2(INV_SIDE, INV_SIDE), false)
 		list.add_child(holder)
-		var b := UIKit.hit_area(list, Rect2(centre - Vector2(INV_SIDE, INV_SIDE) * 0.5,
-				Vector2(INV_SIDE, INV_SIDE)), "")
+		var b := UIKit.hit_area(list, Rect2(top_left, Vector2(INV_SIDE, INV_SIDE)), "")
 		b.pressed.connect(_expose.bind(i))
 		# El clic DERECHO vende ESE objeto y solo ese. Godot no emite `pressed` con
 		# el boton derecho (el Button solo escucha el izquierdo), asi que el evento
@@ -153,80 +193,57 @@ func _build_inventory() -> void:
 		_inv_cells.append({"holder": holder, "button": b})
 
 	# LOS DOS GESTOS, ESCRITOS. El clic derecho no tiene nada que lo anuncie
-	# dentro de la casilla, y un gesto que no se ve es un gesto que no existe:
-	# esta linea y el tooltip de cada hueco son lo unico que lo explican.
-	add_child(UIKit.label_at("CLIC: EXPONER - CLIC DERECHO: VENDER UNO",
-		Vector2(LEFT_MID, LEGEND_Y), Vector2(660, 20), 16, HINT_COLOR,
+	# dentro de la casilla: esta linea y el tooltip de cada hueco lo explican.
+	add_child(UIKit.label_at("Clic: exponer · Clic derecho: vender",
+		Vector2(LEFT_MID, LEGEND_Y), Vector2(660, 24), 21, INK,
 		HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
-	# VENDER TODO vive aqui porque el inventario ya no esta en la pantalla de
-	# partida: si el boton se hubiera quedado alli, no habria forma de vaciar el
-	# inventario.
-	# La chapa va MAS ABAJO y mas estrecha que las de los otros paneles (224 en vez
-	# de 384) porque pega con la ventana del scroll: la chapa mide 0,45 de su ancho
-	# de alto, y con 384 el rotulo se metia debajo del marco de la ultima fila de
-	# huecos (medido: el texto a y 855..869 y los marcos hasta 872).
-	# VENDER TODO va en el PIE DE LA COLUMNA DEL ARMARIO y no debajo del inventario,
-	# que es donde estaba el boton cuando el inventario vivia en la partida. Abajo a
-	# la izquierda no cabe: la rejilla del inventario son nueve filas y su ultima
-	# fila acaba en y 976, asi que cualquier chapa ahi se mete debajo de un marco
-	# que el scroll ya no enseña (medido: la chapa se comia 7 px del marco). El
-	# tooltip dice a quien vende, que es lo unico que el sitio no deja claro.
-	var sell := UIKit.small_button("VENDER TODO", "", Vector2(RIGHT_MID, 890), 224, 21,
-			"ui_button_sell", "ui_button_sell")
-	sell.tooltip_text = "Vende de golpe todo lo que hay en el inventario (lo expuesto no)"
-	sell.pressed.connect(_sell_all)
-	add_child(sell)
 
-
-## La columna de la DERECHA: las vitrinas. Se dibujan los ocho huecos del tope
-## del armario y los que no estan comprados salen apagados, para que se vea lo
-## que da subirlo.
+## La columna de la DERECHA: las vitrinas. Se dibujan las ocho del tope del
+## armario y las que no estan compradas salen apagadas, para que se vea lo que da
+## subirlo.
 func _build_locker() -> void:
 	_locker_label = UIKit.label_at("", Vector2(RIGHT_MID, HEADER_Y), Vector2(660, 44),
-		28, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+		35, INK, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 	add_child(_locker_label)
 
 	for i in LootDB.LOCKER_SLOTS_MAX:
 		var col := i % LOCK_COLS
 		var fila := i / LOCK_COLS
-		var centre := Vector2(RIGHT_MID + (float(col) - (float(LOCK_COLS) - 1.0) * 0.5)
-				* LOCK_STEP, LOCK_TOP + float(fila) * LOCK_STEP)
-		var holder := UIKit.slot(centre, LOCK_SIDE)
+		var top_left := Vector2(RIGHT_MID + (float(col) - (float(LOCK_COLS) - 1.0) * 0.5)
+				* LOCK_STEP.x - LOCK_CARD.x * 0.5, LOCK_TOP + float(fila) * LOCK_STEP.y)
+		var holder := _paper_holder(top_left, LOCK_CARD, true)
 		add_child(holder)
-		var b := UIKit.hit_area(self, Rect2(centre - Vector2(LOCK_SIDE, LOCK_SIDE) * 0.5,
-				Vector2(LOCK_SIDE, LOCK_SIDE)), "")
+		var b := UIKit.hit_area(self, Rect2(top_left, LOCK_CARD), "")
 		b.pressed.connect(_take.bind(i))
-		UIKit.juice(b, [holder], 1.08)
+		UIKit.juice(b, [holder], 1.06)
 		_locker_cells.append({"holder": holder, "button": b})
 
 
-## Las lineas de bonus, una por tipo de botin, en el orden de
-## LootDB.kind_ids(): el total que da el armario a cada stat.
+## La nota de papel con lo que da el armario: una linea por tipo de botin (el
+## total que da cada uno a su stat) y debajo la pista de como sube.
 func _build_stats() -> void:
+	add_child(_paper_holder(NOTE.position, NOTE.size, true))
+	add_child(UIKit.label_at("Lo que te da", Vector2(RIGHT_MID, NOTE.position.y + 34),
+			Vector2(600, 40), 28, INK, HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 	for i in LootDB.kind_ids().size():
 		var l := UIKit.label_at("", Vector2(RIGHT_MID, STAT_Y + float(i) * STAT_STEP),
-				Vector2(660, 36), 24, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+				Vector2(600, 30), 21, INK, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
 		add_child(l)
 		_stat_labels.append(l)
-	# Los porcentajes salen de LootDB y no escritos a mano: este rotulo decia
-	# "DEL 2 % AL 15 %" cuando el tope ya era el 25 %. Y es CORTO a proposito: con
-	# 53 letras en 660 px encogia hasta 7 px de alto, que no se leia ni de cerca.
-	# Ahora el bonus depende de mas cosas (ver LootDB.bonus_for), y la pista dice
-	# las dos que se le escapan al jugador: el valor cuenta y repetir tipo resta.
-	add_child(UIKit.label_at("MAS NOTA, RAREZA Y SOBRE CARO, MAS DA. REPETIR TIPO DA MENOS",
-			Vector2(RIGHT_MID, HINT_Y), Vector2(660, 32), 14, HINT_COLOR,
+	# Los porcentajes salen de LootDB (ver LootDB.bonus_for), y la pista dice las
+	# dos cosas que se le escapan al jugador: el valor cuenta y repetir tipo resta.
+	add_child(UIKit.label_at("Mejor nota, rareza y sobre: más bonus. Repetir tipo: menos",
+			Vector2(RIGHT_MID, HINT_Y), Vector2(600, 22), 14, HINT_COLOR,
 			HORIZONTAL_ALIGNMENT_CENTER, 0, true))
 
 
-## La barra de scroll, con los colores del juego. La misma que la columna de
-## sobres (ver game.gd, _style_pack_scrollbar()): la de Godot es gris con las
-## esquinas redondeadas y en una pantalla de pixel art se lee como un pegote.
+## La barra de scroll, con los colores del juego (la de Godot es gris y redonda).
 func _style_scrollbar(scroll: ScrollContainer) -> void:
 	var bar := scroll.get_v_scroll_bar()
 	bar.custom_minimum_size = Vector2(10.0, 0.0)
-	for par in [["scroll", Color(0.02, 0.015, 0.04, 0.45)],
-			["grabber", Color(Palette.GOLD_D, 0.7)],
+	for par in [["scroll", Color(0.35, 0.23, 0.16, 0.35)],
+			["grabber", Color(Palette.GOLD_D, 0.8)],
 			["grabber_highlight", Color(Palette.GOLD, 0.9)],
 			["grabber_pressed", Palette.GOLD_XL]]:
 		var sb := StyleBoxFlat.new()
@@ -244,8 +261,8 @@ func _style_scrollbar(scroll: ScrollContainer) -> void:
 func refresh() -> void:
 	if not is_node_ready():
 		return
-	_inv_label.text = "INVENTARIO %d/%d" % [Game.inventory.size(), Game.INVENTORY_SLOTS]
-	_locker_label.text = "ARMARIO %d/%d" % [Game.locker_size(), Game.locker_slots()]
+	_inv_label.text = "Inventario %d/%d" % [Game.inventory.size(), Game.INVENTORY_SLOTS]
+	_locker_label.text = "Armario %d/%d" % [Game.locker_size(), Game.locker_slots()]
 	_paint_inventory()
 	_paint_locker()
 	_paint_stats()
@@ -269,13 +286,13 @@ func _paint_inventory() -> void:
 		# abajo (un vinilo es un disco entero) bajaban 1,5 px por encima del precio
 		# de la casilla. Es la misma cuenta que la vitrina de la partida.
 		var dibujo := UIKit.fit_art(str(item.get("art", "loot_vinyl")),
-				Vector2(INV_SIDE * 0.5, INV_SIDE * 0.5 - 8.0),
-				Vector2(INV_SIDE * 0.6, INV_SIDE * 0.6))
+				Vector2(INV_SIDE * 0.5, INV_SIDE * 0.5 - 10.0),
+				Vector2(INV_SIDE * 0.68, INV_SIDE * 0.62))
 		# Un objeto HOLO (GOLDEN RAIN) brilla tambien aqui.
 		if Gameplay.is_holo(item):
 			UIKit.holo(dibujo)
 		holder.add_child(dibujo)
-		_add_value(holder, int(item.get("value", 0)), INV_SIDE)
+		_add_value(holder, int(item.get("value", 0)), Vector2(INV_SIDE, INV_SIDE), 0.18)
 		# El tooltip dice QUE pasa al pulsarlo, con lo que va a aportar: es lo
 		# unico que explica el intercambio (el objeto deja de poder venderse). Y
 		# dice tambien el otro gesto, con SU precio: el clic derecho no se ve.
@@ -292,32 +309,39 @@ func _paint_locker() -> void:
 		var b: Button = _locker_cells[i]["button"]
 		_clear(holder)
 		b.tooltip_text = ""
+		var back := holder.get_node_or_null("Back") as CanvasItem
 		if i >= slots:
-			# Hueco que todavia no es tuyo: se queda el marco apagado, sin zona de
-			# clic (no hay nada que decidir en un sitio que no existe).
-			var back := holder.get_node_or_null("Back") as TextureRect
-			if back != null:
-				back.modulate = Color(0.35, 0.35, 0.4, 1.0)
+			# Hueco que todavia no es tuyo: la ficha apagada, sin zona de clic, y
+			# dice que se abre subiendo el armario.
+			back.modulate = Color(0.55, 0.5, 0.48, 0.7)
+			holder.add_child(UIKit.label_at("Cerrado", LOCK_CARD * 0.5,
+					Vector2(LOCK_CARD.x - 16, 26), 21, MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+			b.tooltip_text = "Sube el armario en la tienda para abrir este hueco"
 			b.disabled = true
 			continue
-		var back_on := holder.get_node_or_null("Back") as TextureRect
-		if back_on != null:
-			back_on.modulate = Color.WHITE
+		back.modulate = Color.WHITE
 		var hay := i < Game.locker.size()
 		b.disabled = not hay
 		if not hay:
+			holder.add_child(UIKit.label_at("Vacío", LOCK_CARD * 0.5,
+					Vector2(LOCK_CARD.x - 16, 26), 21, MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 			continue
 		var item: Dictionary = Game.locker[i]
 		var dibujo := UIKit.fit_art(str(item.get("art", "loot_vinyl")),
-				Vector2(LOCK_SIDE * 0.5, LOCK_SIDE * 0.5 - 8.0),
-				Vector2(LOCK_SIDE * 0.62, LOCK_SIDE * 0.62))
+				Vector2(LOCK_CARD.x * 0.5, 66.0), Vector2(104, 92))
 		# Un objeto HOLO (GOLDEN RAIN) brilla tambien aqui.
 		if Gameplay.is_holo(item):
 			UIKit.holo(dibujo)
 		holder.add_child(dibujo)
-		_add_value(holder, int(item.get("value", 0)), LOCK_SIDE)
-		b.tooltip_text = "Guardar %s en el inventario (%s)" % [str(item.get("name", "")),
-				_kind_bonus_text(LootDB.kind_of(item), LootDB.bonus_for(item))]
+		# Lo expuesto flota en su vitrina.
+		UIKit.bob(dibujo, 3.0, 2.8, float(i) * 0.21)
+		var que := _kind_bonus_text(LootDB.kind_of(item), LootDB.bonus_for(item))
+		holder.add_child(UIKit.label_at(que, Vector2(LOCK_CARD.x * 0.5, 128.0),
+				Vector2(LOCK_CARD.x - 12, 24), UIKit.fit_size(que, LOCK_CARD.x - 16, 21),
+				Palette.GOLD_D, HORIZONTAL_ALIGNMENT_CENTER))
+		_add_value(holder, int(item.get("value", 0)), LOCK_CARD, 0.2)
+		b.tooltip_text = "%s (%s). Clic: devolverlo al inventario" % [
+				str(item.get("name", "")), que]
 
 
 func _paint_stats() -> void:
@@ -327,29 +351,22 @@ func _paint_stats() -> void:
 		var row := LootDB.kind_row(str(ids[i]))
 		var pct := roundi(float(totals.get(str(ids[i]), 0.0)) * 100.0)
 		var l: Label = _stat_labels[i]
-		l.text = "%s +%d %% %s" % [str(row["name"]), pct, str(row["stat"])]
-		l.add_theme_color_override("font_color",
-				Palette.GOLD_XL if pct > 0 else Palette.CREAM_D)
+		l.text = "%s: +%d %% de %s" % [str(row["name"]), pct, str(row["stat"]).to_lower()]
+		l.add_theme_color_override("font_color", Palette.GOLD_D if pct > 0 else MUTED)
 
 
-## La linea de una casilla: el objeto y, debajo, lo que vale.
-##
-## Las cifras iban a 0,13 (9 px de alto en una casilla de 96) y no se leian: es lo
-## que dice si un objeto vale la pena exponerlo o venderlo. Ahora van a 0,18 en
-## las casillas del inventario y a 0,22 en las del armario, y un poco mas abajo
-## para no tocar el dibujo, que acaba a 8 px por encima del centro mas su alto.
-func _add_value(holder: Control, value: int, side: float) -> void:
+## Lo que vale un objeto, con los digitos dorados, al pie de su ficha.
+func _add_value(holder: Control, value: int, box: Vector2, escala: float) -> void:
 	var num := PixelNumber.new()
-	num.scale_factor = 0.18 if side < LOCK_SIDE else 0.22
-	num.max_width = side - 10.0
+	num.scale_factor = escala
+	num.max_width = box.x - 12.0
 	holder.add_child(num)
 	num.set_number(value)
-	num.position = Vector2(side * 0.5, side - (18.0 if side < LOCK_SIDE else 22.0)) \
-			- num.size * 0.5
+	num.position = (Vector2(box.x * 0.5, box.y - 18.0) - num.size * 0.5).round()
 
 
-## Vacia una ranura SIN cargarse su fondo: el "Back" es el marco que pone
-## UIKit.slot() y es lo unico que tiene que sobrevivir a un refresco.
+## Vacia una ficha SIN cargarse su papel: el "Back" (ver _paper_holder) es lo
+## unico que tiene que sobrevivir a un refresco.
 static func _clear(holder: Control) -> void:
 	for c in holder.get_children():
 		if c.name != "Back":
@@ -357,9 +374,10 @@ static func _clear(holder: Control) -> void:
 			c.queue_free()
 
 
-## "+13 % DANO": lo que aporta un objeto (o un tipo) al stat que toca.
+## "+13 % daño": lo que aporta un objeto (o un tipo) al stat que toca.
 static func _kind_bonus_text(kind_id: String, bonus: float) -> String:
-	return "+%d %% %s" % [roundi(bonus * 100.0), str(LootDB.kind_row(kind_id)["stat"])]
+	return "+%d %% %s" % [roundi(bonus * 100.0),
+			str(LootDB.kind_row(kind_id)["stat"]).to_lower()]
 
 
 # --------------------------------------------------------------------------- #
@@ -374,11 +392,11 @@ func _expose(index: int) -> void:
 	Sound.click()
 	if Game.locker_slots() <= 0:
 		Sound.play("sfx_error")
-		Game.notice.emit("HACEN FALTA: ARMARIO", Palette.RUST_L)
+		Game.notice.emit("Hacen falta: armario", Palette.RUST_L)
 		return
 	if not Game.locker_put(index):
 		Sound.play("sfx_error")
-		Game.notice.emit("ARMARIO LLENO: SUBE EL ARMARIO", Palette.RUST_L)
+		Game.notice.emit("Armario lleno: sube el armario", Palette.RUST_L)
 		return
 
 
@@ -390,7 +408,7 @@ func _take(index: int) -> void:
 	Sound.click()
 	if not Game.locker_take(index):
 		Sound.play("sfx_error")
-		Game.notice.emit("INVENTARIO LLENO", Palette.RUST_L)
+		Game.notice.emit("Inventario lleno", Palette.RUST_L)
 
 
 ## Vender UN objeto del inventario: el clic derecho sobre su hueco.
@@ -411,7 +429,7 @@ func _sell_one(index: int) -> void:
 		Sound.play("sfx_error")
 		return
 	Sound.play("sfx_sell")
-	Game.notice.emit("VENDIDO: +" + PixelNumber.format(value), Palette.GOLD_XL)
+	Game.notice.emit("Vendido: +" + PixelNumber.format(value), Palette.GOLD_XL)
 
 
 ## El evento del clic derecho sobre un hueco del inventario. Godot solo emite
@@ -429,7 +447,7 @@ func _sell_all() -> void:
 	var total := Game.inventory_value()
 	if total <= 0:
 		Sound.play("sfx_error")
-		Game.notice.emit("NO HAY NADA QUE VENDER", Palette.CREAM_D)
+		Game.notice.emit("No hay nada que vender", Palette.CREAM_D)
 		return
 	Game.sell_all()
 	Sound.play("sfx_sell_all")
