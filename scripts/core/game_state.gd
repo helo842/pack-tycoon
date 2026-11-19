@@ -78,10 +78,12 @@ var skills: Dictionary = {}
 var ascension_points: int = 0
 var ascensions: int = 0
 var asc_skills: Dictionary = {}
+## Los interruptores de la ascension (nodos con "toggle") que estan APAGADOS.
+var asc_off: Array = []
 ## LAS MASCOTAS del gachapon (ver PetDB): el nivel de cada una por su id. Como
 ## la ascension, sobreviven a TODO menos a hard_reset.
 var pets: Dictionary = {}
-## Las mascotas EQUIPADAS (ids, como mucho PetDB.SLOTS): solo estas dan su bonus.
+## Las mascotas EQUIPADAS (ids, como mucho pet_slots()): solo estas dan su bonus.
 ## Sobreviven a la ascension igual que las mascotas.
 var pets_equipped: Array = []
 
@@ -545,7 +547,8 @@ func kind_totals() -> Dictionary:
 ## juntan aqui y no en cada sitio que pega (el boton, los pinchos y la mesa).
 func damage_multiplier() -> float:
 	return (1.0 + kind_bonus("cards")) * (1.0 + skill_bonus("damage")) \
-			* (1.0 + album_bonus("damage")) * (1.0 + pet_bonus("damage")) * speed_overflow()
+			* (1.0 + album_bonus("damage")) * (1.0 + pet_bonus("damage")) * speed_overflow() \
+			* asc_mult("damage")
 
 
 ## Cuanto se acelera la CARGA del boton (Zapatillas expuestas y la mejora de
@@ -553,7 +556,7 @@ func damage_multiplier() -> float:
 ## que sin nada".
 func charge_multiplier() -> float:
 	return (1.0 + kind_bonus("sneakers")) * (1.0 + skill_bonus("speed")) \
-			* (1.0 + album_bonus("speed")) * (1.0 + pet_bonus("speed"))
+			* (1.0 + album_bonus("speed")) * (1.0 + pet_bonus("speed")) * asc_mult("speed")
 
 
 ## Cuanto sube el DINERO que se saca de cada objeto encontrado: lo que dan los
@@ -567,7 +570,7 @@ func charge_multiplier() -> float:
 ## (+30 %) y las monedas se gastan ahi.
 func value_multiplier() -> float:
 	return (1.0 + kind_bonus("vinyls")) * (1.0 + skill_bonus("money")) \
-			* (1.0 + album_bonus("money")) * asc_money_mult() * (1.0 + pet_bonus("money"))
+			* (1.0 + album_bonus("money")) * asc_mult("money") * (1.0 + pet_bonus("money"))
 
 
 ## Cuanto se multiplican las monedas de rebirth que da reiniciar (Electronica
@@ -575,12 +578,13 @@ func value_multiplier() -> float:
 ## sentido a exponer electronica.
 func rebirth_multiplier() -> float:
 	return (1.0 + kind_bonus("electronics") + album_bonus("rebirth")) \
-			* (1.0 + pet_bonus("rebirth"))
+			* (1.0 + pet_bonus("rebirth")) * asc_mult("rebirth")
 
 
 ## Lo que pide el rebirth en el contador, con la REBAJA del arbol.
 func rebirth_require() -> int:
-	return roundi(float(LootDB.REBIRTH_REQUIRE) * (1.0 - skill_bonus("require")))
+	return roundi(float(LootDB.REBIRTH_REQUIRE) * (1.0 - skill_bonus("require"))
+			* asc_mult("require"))
 
 
 ## Lo que paga el comprador VIP, con el nodo PAGO VIP del arbol.
@@ -615,9 +619,10 @@ func pending_rebirth_coins() -> int:
 	return coins + int(skill_bonus(SkillTree.COINS_STAT))
 
 
-## El dinero con el que empieza cada partida (el centro del arbol suma).
+## El dinero con el que empieza cada partida (el centro del arbol y la Semilla
+## de la ascension suman).
 func start_money() -> int:
-	return START_MONEY + int(skill_bonus("start"))
+	return START_MONEY + int(skill_bonus("start")) + int(asc_add("start_money"))
 
 
 ## Lo que falta para poder reiniciar (0 si ya se puede). Es dinero del contador,
@@ -672,7 +677,10 @@ func _reset_run() -> void:
 	while items.size() < LootDB.item_count():
 		items.append(0)
 	inventory = []
-	locker = []
+	# LEGADO (ascension): lo expuesto se queda. Lo que no quepa en los huecos de
+	# la partida nueva baja al inventario al final, como al cargar un guardado.
+	if not asc_flag("keep_locker"):
+		locker = []
 	lifetime_earned = 0
 	play_seconds = 0.0
 	# Lo que sobraba de un golpe era de la partida que se va: la nueva empieza sin
@@ -687,6 +695,8 @@ func _reset_run() -> void:
 	auto_open = fabrica and auto_open
 	auto_buy = fabrica and auto_buy
 	auto_buy_packs = _all_pack_ids()
+	while locker.size() > locker_slots():
+		inventory.append(locker.pop_back())
 	_dirty = true
 	money_changed.emit(money)
 	inventory_changed.emit()
@@ -721,22 +731,33 @@ func can_ascend() -> bool:
 
 ## Ascender: se pierde TODO menos la propia ascension y los ajustes. La partida,
 ## las monedas y el arbol del rebirth, el contador de rebirths (el primero vuelve
-## a dar el minimo), el album y lo automatico. Da un punto de ascension.
+## a dar el minimo), el album y lo automatico. Da los puntos de ascension_reward().
+## Los nodos de HERENCIA salvan algo: Recuerdo el album, Herencia los nodos de
+## calidad de vida y habilidades del arbol.
 ## Devuelve los puntos ganados (0 si no se puede).
 func do_ascension() -> int:
 	if not can_ascend():
 		return 0
-	ascension_points += 1
+	var puntos := ascension_reward()
+	ascension_points += puntos
 	ascensions += 1
 	# El arbol se va ANTES que la partida: _reset_run() mira FABRICA y el dinero
 	# inicial del centro del arbol, y con el arbol vacio salen los de serie.
-	skills = {}
+	var guardados := {}
+	if asc_flag("keep_qol"):
+		for id in skills:
+			if SkillTree.is_qol(str(id)):
+				guardados[id] = skills[id]
+	skills = guardados
 	rebirth_coins = 0
 	rebirth_count = 0
-	album = {}
-	auto_sell = false
-	autostore_on = false
-	auto_items_off = []
+	if not asc_flag("keep_album"):
+		album = {}
+	# Con Herencia lo automatico se queda como estaba: sus nodos siguen ahi.
+	if not asc_flag("keep_qol"):
+		auto_sell = false
+		autostore_on = false
+		auto_items_off = []
 	cooldowns = {}
 	streak = 0
 	perfect_hits = 0
@@ -745,22 +766,33 @@ func do_ascension() -> int:
 	album_changed.emit()
 	abilities_changed.emit()
 	streak_changed.emit(streak)
-	return 1
+	return puntos
+
+
+## Los puntos que da ascender: 1 y lo que sumen las Estrellas.
+func ascension_reward() -> int:
+	return 1 + int(asc_add("points"))
 
 
 func asc_owned(id: String) -> bool:
 	return bool(asc_skills.get(id, false))
 
 
+## ¿Esta abierto? Pide el nodo de dentro de su hilo (ver AscensionTree.req_of).
+func asc_unlocked(id: String) -> bool:
+	var req := AscensionTree.req_of(id)
+	return not AscensionTree.node_by_id(id).is_empty() and (req == "" or asc_owned(req))
+
+
 func can_buy_asc(id: String) -> bool:
-	var n := AscensionTree.node_by_id(id)
-	return not n.is_empty() and not asc_owned(id) and ascension_points >= int(n["cost"])
+	return asc_unlocked(id) and not asc_owned(id) \
+			and ascension_points >= AscensionTree.cost_of(id)
 
 
 func buy_asc(id: String) -> bool:
 	if not can_buy_asc(id):
 		return false
-	ascension_points -= int(AscensionTree.node_by_id(id)["cost"])
+	ascension_points -= AscensionTree.cost_of(id)
 	asc_skills[id] = true
 	_dirty = true
 	skills_changed.emit()
@@ -769,17 +801,90 @@ func buy_asc(id: String) -> bool:
 	return true
 
 
-## Lo que multiplican el dinero los nodos de la ascension comprados (HYPER x3).
-func asc_money_mult() -> float:
+## Lo que MULTIPLICAN un stat los nodos comprados de la ascension (HYPER x3 de
+## "money"...). 1.0 si ninguno lo toca.
+func asc_mult(stat: String) -> float:
 	var m := 1.0
 	for id in asc_skills:
-		m *= float(AscensionTree.node_by_id(str(id)).get("money_mult", 1.0))
+		m *= float(AscensionTree.node_by_id(str(id)).get("mult", {}).get(stat, 1.0))
 	return m
+
+
+## Lo que SUMAN los nodos comprados (puntos de mas, huecos de mascota...).
+func asc_add(stat: String) -> float:
+	var t := 0.0
+	for id in asc_skills:
+		t += float(AscensionTree.node_by_id(str(id)).get("add", {}).get(stat, 0.0))
+	return t
+
+
+## ¿Hace su efecto el nodo con este "flag"? Comprado y, si es un interruptor,
+## encendido.
+func asc_flag(flag: String) -> bool:
+	for id in asc_skills:
+		var n := AscensionTree.node_by_id(str(id))
+		if str(n.get("flag", "")) == flag:
+			return not asc_off.has(str(id))
+	return false
+
+
+## Enciende o apaga un interruptor comprado. Devuelve como queda (encendido).
+func toggle_asc(id: String) -> bool:
+	if not asc_owned(id) or not bool(AscensionTree.node_by_id(id).get("toggle", false)):
+		return false
+	if asc_off.has(id):
+		asc_off.erase(id)
+	else:
+		asc_off.append(id)
+	_dirty = true
+	skills_changed.emit()
+	save_game()
+	return not asc_off.has(id)
+
+
+## Cuantas mascotas se pueden equipar: las de serie y los nodos de Collar.
+func pet_slots() -> int:
+	return PetDB.SLOTS + int(asc_add("pet_slots"))
+
+
+## JARDINERO: compra el nodo mas barato del arbol del rebirth que se pueda pagar.
+## Devuelve su id ("" si no hay ninguno).
+func auto_buy_skill() -> String:
+	var best := ""
+	var best_cost := 0
+	for id in SkillTree.ids():
+		if not can_buy_skill(str(id)):
+			continue
+		var c := skill_cost(str(id))
+		if best == "" or c < best_cost:
+			best = str(id)
+			best_cost = c
+	if best != "":
+		buy_skill(best)
+	return best
+
+
+## BUCLE: el rebirth solo se hace al doble de las monedas del minimo, o sea con
+## AUTO_REBIRTH_X veces lo que pide (las monedas van con la raiz cuarta: 2^4).
+const AUTO_REBIRTH_X := 16
+
+
+## Y solo mientras falte algo del arbol del rebirth: con el arbol entero lo que
+## toca es ascender, y seguir reiniciando solo tiraria la partida.
+func auto_rebirth_ready() -> bool:
+	return asc_flag("auto_rebirth") and not tree_maxed() \
+			and money >= rebirth_require() * AUTO_REBIRTH_X
 
 
 # --------------------------------------------------------------------------- #
 # La tienda de mascotas (el gachapon, ver PetDB)
 # --------------------------------------------------------------------------- #
+
+## La TIENDA PRO de la columna de sobres (LootDB.PRO_PACKS): en cuanto se ha
+## ascendido una vez, y ya para siempre.
+func pro_shop_shown() -> bool:
+	return ascensions > 0
+
 
 ## La tienda sale al comprar HYPER, y como HYPER no se pierde, ya para siempre.
 func pet_shop_shown() -> bool:
@@ -810,7 +915,7 @@ func pet_equipped(id: String) -> bool:
 func toggle_pet_equip(id: String) -> bool:
 	if pets_equipped.has(id):
 		pets_equipped.erase(id)
-	elif pet_level(id) > 0 and pets_equipped.size() < PetDB.SLOTS:
+	elif pet_level(id) > 0 and pets_equipped.size() < pet_slots():
 		pets_equipped.append(id)
 	else:
 		return false
@@ -861,7 +966,7 @@ func roll_pet(machine_id: String = "basic") -> String:
 			var s := Gameplay.set_by_id(set_id)
 			celebrate.emit("Colección %s" % s["name"], "%s para siempre" % s["effect"])
 	# Una mascota NUEVA se equipa sola si queda hueco: si no, la tirada no se nota.
-	if pets[id] == 1 and pets_equipped.size() < PetDB.SLOTS:
+	if pets[id] == 1 and pets_equipped.size() < pet_slots():
 		pets_equipped.append(id)
 	_dirty = true
 	skills_changed.emit()
@@ -1118,7 +1223,7 @@ func auto_buy_interval() -> float:
 ## de los Pinchos de la tienda, y el arbol no es una pieza de la tienda.
 func spike_dps() -> float:
 	return LootDB.spike_dps(items, float(money)) * (1.0 + skill_bonus("spikes")) \
-			* (1.0 + pet_bonus("spikes"))
+			* (1.0 + pet_bonus("spikes")) * asc_mult("spikes")
 
 
 ## El dano que espera al siguiente golpe, y se lleva por delante: el que lo pide
@@ -1660,6 +1765,7 @@ func hard_reset() -> void:
 	ascension_points = 0
 	ascensions = 0
 	asc_skills = {}
+	asc_off = []
 	pets = {}
 	pets_equipped = []
 	inventory = []
@@ -1719,6 +1825,7 @@ func to_dict() -> Dictionary:
 		"ascension_points": ascension_points,
 		"ascensions": ascensions,
 		"asc_skills": asc_skills,
+		"asc_off": asc_off,
 		"pets": pets,
 		"pets_equipped": pets_equipped,
 		"inventory": inventory,
@@ -1820,6 +1927,11 @@ func _apply(d: Dictionary) -> void:
 		for id in d["asc_skills"]:
 			if not AscensionTree.node_by_id(str(id)).is_empty() and bool(d["asc_skills"][id]):
 				asc_skills[str(id)] = true
+	asc_off = []
+	if typeof(d.get("asc_off")) == TYPE_ARRAY:
+		for id in d["asc_off"]:
+			if asc_skills.has(str(id)) and not asc_off.has(str(id)):
+				asc_off.append(str(id))
 	# Limpio contra las mascotas que existen y con el nivel entre 0 y el maximo.
 	pets = {}
 	if typeof(d.get("pets")) == TYPE_DICTIONARY:
@@ -1835,7 +1947,7 @@ func _apply(d: Dictionary) -> void:
 	if typeof(equipadas) == TYPE_ARRAY:
 		for id in equipadas:
 			if pets.has(str(id)) and not pets_equipped.has(str(id)) \
-					and pets_equipped.size() < PetDB.SLOTS:
+					and pets_equipped.size() < pet_slots():
 				pets_equipped.append(str(id))
 	inventory = d.get("inventory", [])
 	if typeof(inventory) != TYPE_ARRAY:

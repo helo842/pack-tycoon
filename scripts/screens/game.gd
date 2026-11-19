@@ -195,6 +195,11 @@ const PACK_TAG_DY := 26.0
 ## numero cabe DENTRO de la banda, que es otra cosa que caber en el hueco del
 ## sprite: con la chapa baja el precio cabia en el sprite y se salia de la banda.
 const PACK_TAG_INK := 0.59
+## LAS PESTANAS de la columna (TIENDA y PRO), arriba del todo. Solo salen tras
+## ascender (Game.pro_shop_shown); sin ellas la lista ocupa la columna entera.
+const PACK_TAB_H := 64.0
+const PACK_TAB_GAP := 8.0
+const PRO_TINT := Color8(150, 80, 230)
 
 ## Cada cuanto se prueban sitios para colocar un objeto nuevo, y cuanto aire
 ## tiene que quedar entre las cajas. Ver _free_spot().
@@ -233,6 +238,12 @@ var _pack_cells: Array = []
 var _pack_name_size := 28
 ## La ventana de la columna de sobres: es lo que se mueve con la rueda.
 var _pack_scroll: ScrollContainer = null
+## La lista de la TIENDA PRO (LootDB.PRO_PACKS), en el mismo sitio que la normal.
+var _pro_scroll: ScrollContainer = null
+## La pestana que se ve: "normal" o "pro".
+var _pack_tab := "normal"
+## Cada pestana: {"id", "back", "label"}.
+var _pack_tabs: Array = []
 var _shop: ShopPanel = null
 var _settings: SettingsPanel = null
 var _auto_buy_panel: AutoBuyPanel = null
@@ -272,6 +283,8 @@ var _reveal_data: Dictionary = {}
 var _buy_timer := 0.0
 ## El reloj de la compra automatica de la tienda (ver _auto_items_step).
 var _items_timer := 0.0
+## El reloj de lo automatico de la ascension (Piloto, Jardinero y Bucle).
+var _asc_timer := 0.0
 var _spike_timer := 0.0
 ## Los relojes que hacen APARECER los eventos (ver Gameplay). Solo corren con la
 ## mesa a la vista (ver _events_step).
@@ -420,23 +433,8 @@ func _build_pack_zone() -> void:
 	# las filas a 62 px se veian todos, pero el dibujo, el nombre y el precio se
 	# quedaban en nada. Con el scroll cada fila mide lo que tiene que medir y lo
 	# que no cabe se baja con la rueda.
-	_pack_scroll = ScrollContainer.new()
-	_pack_scroll.position = PACK_ZONE.position
-	_pack_scroll.size = PACK_ZONE.size
-	_pack_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_pack_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	add_child(_pack_scroll)
-	_style_pack_scrollbar()
-
-	# El contenido: un Control de la altura de TODOS los sobres, y las celdas son
-	# hijas SUYAS, no de la pantalla. Si colgaran de la pantalla se quedarian
-	# quietas al hacer scroll (el dibujo se mueve con el contenedor) y la zona de
-	# clic de cada sobre acabaria en otro sitio que su dibujo.
-	var list := Control.new()
-	list.name = "PackList"
-	list.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	list.custom_minimum_size = Vector2(0.0, float(LootDB.pack_count()) * PACK_ROW_STEP)
-	_pack_scroll.add_child(list)
+	_pack_scroll = _new_pack_scroll(LootDB.pack_count())
+	var list := _pack_scroll.get_child(0) as Control
 
 	# Un solo tamano para todos los nombres, y el que manda es el mas largo: con
 	# uno por celda, ELECTRONICA saldria a 35 px y SOBRES a 35 igual, pero el
@@ -455,6 +453,89 @@ func _build_pack_zone() -> void:
 
 	for i in LootDB.pack_count():
 		_pack_cells.append(_pack_cell(list, LootDB.pack_at(i), i))
+	_build_pro_shop()
+
+
+## Un ScrollContainer para una lista de `rows` sobres, con su lista dentro.
+##
+## El contenido es un Control de la altura de TODOS los sobres, y las celdas son
+## hijas SUYAS, no de la pantalla. Si colgaran de la pantalla se quedarian
+## quietas al hacer scroll (el dibujo se mueve con el contenedor) y la zona de
+## clic de cada sobre acabaria en otro sitio que su dibujo.
+func _new_pack_scroll(rows: int) -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.position = PACK_ZONE.position
+	scroll.size = PACK_ZONE.size
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	add_child(scroll)
+	_style_pack_scrollbar(scroll)
+	var list := Control.new()
+	list.name = "PackList"
+	list.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	list.custom_minimum_size = Vector2(0.0, float(rows) * PACK_ROW_STEP)
+	scroll.add_child(list)
+	return scroll
+
+
+## LA TIENDA PRO: la segunda lista (LootDB.PRO_PACKS) y las dos pestanas para
+## cambiar de una a otra. Todo escondido hasta haber ascendido (_paint_pack_tabs).
+func _build_pro_shop() -> void:
+	_pro_scroll = _new_pack_scroll(LootDB.PRO_PACKS.size())
+	var list := _pro_scroll.get_child(0) as Control
+	for i in LootDB.PRO_PACKS.size():
+		_pack_cells.append(_pack_cell(list, LootDB.PRO_PACKS[i], i))
+	var ancho := (PACK_ZONE.size.x - PACK_TAB_GAP * 3.0) * 0.5
+	for i in 2:
+		var id := "normal" if i == 0 else "pro"
+		var rect := Rect2(PACK_ZONE.position + Vector2(PACK_TAB_GAP + (ancho + PACK_TAB_GAP) * i,
+				PACK_TAB_GAP), Vector2(ancho, PACK_TAB_H - PACK_TAB_GAP * 1.5))
+		var back := ColorRect.new()
+		back.position = rect.position
+		back.size = rect.size
+		back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(back)
+		var label := UIKit.label_at("Tienda" if i == 0 else "Tienda pro", rect.get_center(),
+				rect.size - Vector2(16, 8), 28, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 0, true)
+		add_child(label)
+		var hit := UIKit.hit_area(self, rect, "Sobres de siempre" if i == 0
+				else "Cajas de después de ascender: más caras y mejores")
+		hit.pressed.connect(_set_pack_tab.bind(id))
+		_pack_tabs.append({"id": id, "back": back, "label": label, "hit": hit})
+	_paint_pack_tabs()
+
+
+func _set_pack_tab(id: String) -> void:
+	if id == _pack_tab:
+		return
+	Sound.click()
+	_pack_tab = id
+	_paint_pack_tabs()
+
+
+## Las pestanas solo con la tienda pro abierta (tras ascender); sin ellas, la
+## lista normal ocupa la columna entera como siempre. La elegida va encendida
+## (dorada la normal, morada la pro) y la otra apagada.
+func _paint_pack_tabs() -> void:
+	if _pro_scroll == null:
+		return
+	var con_pro := Game.pro_shop_shown()
+	if not con_pro:
+		_pack_tab = "normal"
+	var top := PACK_TAB_H if con_pro else 0.0
+	for scroll in [_pack_scroll, _pro_scroll]:
+		(scroll as Control).position = PACK_ZONE.position + Vector2(0, top)
+		(scroll as Control).size = PACK_ZONE.size - Vector2(0, top)
+	_pack_scroll.visible = _pack_tab == "normal"
+	_pro_scroll.visible = _pack_tab == "pro"
+	for t in _pack_tabs:
+		var activa: bool = t["id"] == _pack_tab
+		var tono: Color = Palette.GOLD_D if t["id"] == "normal" else PRO_TINT
+		(t["back"] as ColorRect).color = tono if activa else Color(tono.darkened(0.6), 0.9)
+		(t["label"] as Label).add_theme_color_override("font_color",
+				Palette.CREAM if activa else Palette.CREAM_D.darkened(0.3))
+		for k in ["back", "label", "hit"]:
+			(t[k] as CanvasItem).visible = con_pro
 
 
 ## La barra de scroll, con los colores del juego y SIN gritar.
@@ -469,8 +550,8 @@ func _build_pack_zone() -> void:
 ## mas llamativo de la pantalla -una franja naranja pegada a la mesa que competia
 ## con los sobres-, cuando el scroll es una ayuda que se usa un segundo y no se
 ## vuelve a mirar. Con 10 px y al 70 % se ve si la lista sigue, sin mandar.
-func _style_pack_scrollbar() -> void:
-	var bar := _pack_scroll.get_v_scroll_bar()
+func _style_pack_scrollbar(scroll: ScrollContainer) -> void:
+	var bar := scroll.get_v_scroll_bar()
 	bar.custom_minimum_size = Vector2(PACK_SCROLL_W, 0.0)
 	bar.add_theme_stylebox_override("scroll", _flat_box(Color(0.02, 0.015, 0.04, 0.45)))
 	bar.add_theme_stylebox_override("grabber", _flat_box(Color(Palette.GOLD_D, 0.7)))
@@ -583,7 +664,7 @@ func _pack_cell(list: Control, pack: Dictionary, index: int) -> Dictionary:
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
 	b.pressed.connect(_buy_pack.bind(str(pack["id"])))
 	UIKit.juice(b, [art], 1.1)
-	return {"art": art, "back": back, "price": price, "tag": tag,
+	return {"id": str(pack["id"]), "art": art, "back": back, "price": price, "tag": tag,
 			"tag_node": tag_node, "free": free_label, "button": b}
 
 
@@ -1115,6 +1196,10 @@ func _close_shop() -> void:
 ## Comprar un sobre de la columna de la izquierda. Es la unica puerta de entrada
 ## de paquetes desde que la tienda se quedo con los items.
 func _buy_pack(pack_id: String) -> void:
+	# La tienda pro no se compra sin haber ascendido (sus filas estan escondidas,
+	# pero esto vale tambien para un test o una llamada de mas).
+	if LootDB.is_pro(pack_id) and not Game.pro_shop_shown():
+		return
 	# La mesa se mira ANTES de cobrar: es mas claro no cobrar que cobrar y
 	# devolver, que es lo que hacia la tienda cuando el sobre no cabia.
 	var cell := _pack_cell_of(pack_id)
@@ -1138,9 +1223,9 @@ func _buy_pack(pack_id: String) -> void:
 
 ## La celda de la columna de un sobre (para animarla al comprar o al fallar).
 func _pack_cell_of(pack_id: String) -> Dictionary:
-	for i in _pack_cells.size():
-		if str(LootDB.pack_at(i)["id"]) == pack_id:
-			return _pack_cells[i]
+	for cell in _pack_cells:
+		if cell["id"] == pack_id:
+			return cell
 	return {}
 	_refresh_packs()
 
@@ -1365,6 +1450,7 @@ func _process(delta: float) -> void:
 			_auto_buy_step()
 	_spike_step(delta)
 	_auto_items_step(delta)
+	_asc_auto_step(delta)
 
 
 ## Los Pinchos: con la apertura automatica ENCENDIDA danan solos los paquetes
@@ -1497,6 +1583,35 @@ func _auto_items_step(delta: float) -> void:
 			Vector2(1400, 120), Palette.GOLD_XL)
 
 
+## LO AUTOMATICO DE LA ASCENSION, una vez por segundo y solo con la mesa
+## despejada (con un panel abierto no se reinicia ni se compra nada por debajo):
+## PILOTO usa las habilidades listas, JARDINERO compra el nodo mas barato del
+## arbol del rebirth y BUCLE hace el rebirth al doble de monedas.
+func _asc_auto_step(delta: float) -> void:
+	_asc_timer -= delta
+	if _asc_timer > 0.0:
+		return
+	_asc_timer = 1.0
+	if not _table_clear():
+		return
+	if Game.asc_flag("auto_abil"):
+		for a in Gameplay.ABILITIES:
+			if Game.ability_ready(str(a["id"])):
+				_use_ability(str(a["id"]))
+	if Game.asc_flag("auto_tree"):
+		var id := Game.auto_buy_skill()
+		if id != "":
+			_float_label("AUTO: " + str(SkillTree.node_by_id(id)["effect"]),
+					Vector2(1400, 160), Palette.GOLD_XL)
+	if Game.auto_rebirth_ready():
+		var coins := Game.do_rebirth()
+		Sound.play("sfx_rare")
+		_main().banner("Rebirth automático", "+%s monedas para el árbol"
+				% PixelNumber.format(coins))
+		_refresh_rebirth()
+		_refresh_top()
+
+
 ## Enciende o apaga la apertura automatica: los Pinchos empiezan a golpear la
 ## mesa solos. Sin los Pinchos lo dice y no enciende nada (el PC no hace falta
 ## para esto: cada automatizacion va con su pieza).
@@ -1612,11 +1727,12 @@ func _fly_coins(from: Vector2, value: int) -> void:
 ## El estado de las celdas de sobres: apagadas si no te llega el precio y
 ## con GRATIS en el que todavia es gratuito.
 func _refresh_packs() -> void:
+	_paint_pack_tabs()
 	for i in _pack_cells.size():
 		var cell: Dictionary = _pack_cells[i]
 		if not is_instance_valid(cell["art"]):
 			continue
-		var pack_id := str(LootDB.pack_at(i)["id"])
+		var pack_id := str(cell["id"])
 		var free := Game.pack_free(pack_id)
 		var affordable := free or Game.can_afford(Game.pack_price(pack_id))
 		(cell["art"] as TextureRect).modulate = Color.WHITE if affordable \
@@ -2187,7 +2303,7 @@ func _combo_window() -> float:
 func _table_clear() -> bool:
 	return _reveal == null and _settings == null and _locker == null \
 			and _shop == null and _rebirth == null and _auto_buy_panel == null \
-			and _libreta == null
+			and _libreta == null and _pets == null and _ascension == null
 
 
 ## "2.10" -> "2.1"

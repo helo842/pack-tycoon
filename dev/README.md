@@ -478,16 +478,14 @@ Los checks no son decorativos: cada uno tapa algo que ya se rompio alguna vez.
   siempre, y eso dejaba el rebirth sin decision (se acumulaba solo). El check
   pone cuarenta monedas y pide los cuatro multiplicadores a 1 y cero huecos de
   armario: si alguien devuelve la paga pasiva, falla.
-- Que **pulsar un nodo no compre**: abre su FICHA (`SkillCard`), que es una
-  pantalla nueva, y ahi no se cobra nada hasta que se pulsa COMPRAR. La ficha
-  lleva el efecto de titulo, la linea corta y la explicacion larga del nodo
-  ENTERA (partida con `UIKit.wrap()`, y se comprueba en los cinco que cabe en las
-  cuatro lineas del hueco, porque la quinta se dibuja encima de los numeros), el
-  estado (comprado, cerrado diciendo que falta antes, o cuantas monedas faltan) y
-  los **dos numeros**: `AHORA, CON EL ARBOL` sale de `Game.skill_bonus()` y
-  `AL COMPRARLO` del mismo numero mas el `value` del nodo, asi que no pueden
-  mentir. Y se compra desde ahi: el boton cobra lo mismo que costaba el nodo y la
-  ficha se repinta sola (COMPRADO y sin boton).
+- Que **el primer clic en un nodo no compre**: lo ELIGE (marco dorado) y su
+  ficha sale en la FRANJA de abajo, y el SEGUNDO clic (o el COMPRAR de la
+  franja) es el que compra, como en la telarana de la ascension. La franja lleva
+  el nombre, el estado (comprado, cerrado diciendo que falta antes, o cuantas
+  monedas faltan), la linea corta y los **dos numeros** ("Ahora ...; despues,
+  ...", de `Game.skill_bonus()` y del `value` del nodo, asi que no pueden mentir);
+  la explicacion larga es su tooltip. Se comprueba en los treinta y ocho nodos que
+  la franja se monta y que sus lineas caben a 21 sin encogerse.
 - Que el **arbol de mejoras** este entero: los dieciseis nodos (una mejora en el
   centro, cuatro caminos **en diagonal**, uno por cada lado, colgando del centro,
   y cinco interruptores de calidad de vida debajo), que la

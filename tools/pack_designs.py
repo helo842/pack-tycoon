@@ -665,6 +665,207 @@ def damage(s, stage: int, box: Tuple[int, int, int, int], seed: int) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# La TIENDA PRO: cuatro cajas de despues de ascender
+# --------------------------------------------------------------------------- #
+# Un solo escalon cada una y SU PROPIA FORMA (no un tipo de siempre repintado):
+# GALERIA una caja de madera de transporte de cuadros con el cuadro asomando,
+# ESTUDIO un flight case negro con cantoneras, GARAJE una caja de herramientas
+# roja y BOVEDA una caja fuerte. Las cuatro llevan la CINTA MORADA de la
+# ascension, que es lo que dice "esto es de la tienda pro".
+
+def _epic():
+    r = M.RARITIES["epic"]
+    return r.dark, r.base, r.light
+
+
+def _pro_ribbon(s, x0: int, x1: int, y: int) -> None:
+    """La cinta morada con su estrella: la marca de la tienda pro."""
+    d, b, l = _epic()
+    s.rect(x0, y, x1, y + 2, b)
+    s.rect(x0, y, x1, y, l)
+    s.rect(x0, y + 2, x1, y + 2, d)
+    cx = (x0 + x1) // 2
+    s.dots([(cx, y - 1), (cx - 1, y + 1), (cx + 1, y + 1), (cx, y + 3)], _pal()["WHITE"])
+    s.px(cx, y + 1, _pal()["GOLD_HI"])
+
+
+GALLERY_BOX = (3, 5, 28, 28)
+
+
+def _painting(s, x0: int, y0: int, x1: int, y1: int) -> None:
+    """Un cuadro con marco dorado: cielo, sol y una colina."""
+    P = _pal()
+    s.rect(x0, y0, x1, y1, P["GOLD"])
+    s.rect(x0, y0, x1, y0, P["GOLD_XL"])
+    s.rect(x0, y1, x1, y1, P["GOLD_D"])
+    s.rect(x0 + 2, y0 + 2, x1 - 2, y1 - 2, P["TEAL_L"])
+    s.rect(x0 + 2, (y0 + y1) // 2 + 1, x1 - 2, y1 - 2, P["GREEN"])
+    s.ellipse(x1 - 6, y0 + 3, x1 - 3, y0 + 6, P["GOLD_XL"])
+
+
+def draw_gallery(s) -> None:
+    """GALERIA: la caja de madera clara de transportar arte, con listones y FRAGIL."""
+    P = _pal()
+    x0, y0, x1, y1 = GALLERY_BOX
+    s.rect(x0, y0, x1, y1, P["LEATHER_L"])
+    for y in range(y0 + 4, y1, 5):                    # tablas
+        s.rect(x0, y, x1, y, P["LEATHER"])
+    s.rect(x0, y0, x0 + 2, y1, P["BROWN_L"])          # marco de listones
+    s.rect(x1 - 2, y0, x1, y1, P["BROWN"])
+    s.rect(x0, y0, x1, y0 + 2, P["BROWN_L"])
+    s.rect(x0, y1 - 2, x1, y1, P["BROWN"])
+    s.dots([(x0 + 1, y0 + 1), (x1 - 1, y0 + 1), (x0 + 1, y1 - 1), (x1 - 1, y1 - 1)],
+           P["STEEL"])                                  # clavos
+    _painting(s, 9, 7, 22, 16)
+    s.rect(7, 18, 24, 20, P["RED"])                   # FRAGIL
+    s.dots([(x, 19) for x in range(8, 24, 2)], P["CREAM"])
+    _pro_ribbon(s, x0, x1, 23)
+
+
+def draw_gallery_open(s) -> None:
+    """La caja abierta por delante y el cuadro saliendo de pie."""
+    P = _pal()
+    s.rect(4, 17, 27, 28, P["LEATHER_L"])
+    s.rect(4, 17, 27, 18, P["BROWN"])
+    s.rect(4, 26, 27, 28, P["BROWN"])
+    s.poly([(4, 17), (1, 12), (8, 12), (10, 17)], P["LEATHER"])     # tapa caida
+    _painting(s, 8, 2, 23, 15)
+    s.rect(6, 21, 25, 22, P["RED"])
+    s.dots([(x, 21) for x in range(7, 25, 2)], P["CREAM"])
+    s.dots([(3, 4), (28, 3), (27, 11)], P["SHINE_HI"])
+    _pro_ribbon(s, 4, 27, 24)
+
+
+STUDIO_BOX = (3, 6, 28, 28)
+
+
+def draw_studio(s) -> None:
+    """ESTUDIO: el flight case negro de los musicos, cantoneras y un disco de oro."""
+    P = _pal()
+    x0, y0, x1, y1 = STUDIO_BOX
+    s.rect(x0, y0, x1, y1, P["NIGHT_L"])
+    s.rect(x0, y0, x1, y0, P["NIGHT_LL"])
+    s.rect(x0, y1, x1, y1, P["NIGHT_D"])
+    s.rect(x0, 16, x1, 17, P["STEEL_D"])              # cierre del medio
+    s.rect(x0, 16, x1, 16, P["STEEL"])
+    for cx, cy in ((x0, y0), (x1 - 3, y0), (x0, y1 - 3), (x1 - 3, y1 - 3)):
+        s.rect(cx, cy, cx + 3, cy + 3, P["STEEL"])   # cantoneras
+        s.px(cx + 1, cy + 1, P["WHITE"])
+    s.rect(13, 3, 18, 6, P["STEEL_D"])                # asa
+    s.rect(14, 3, 17, 3, P["STEEL"])
+    s.ellipse(11, 19, 20, 27, P["GOLD"])              # el disco de oro
+    s.ellipse(12, 20, 18, 25, P["GOLD_XL"])
+    s.ellipse(14, 22, 16, 24, P["RED"])
+    s.rect(6, 10, 9, 13, P["STEEL_DD"])               # cierres
+    s.rect(22, 10, 25, 13, P["STEEL_DD"])
+    _pro_ribbon(s, x0 + 4, x1 - 4, 12)
+
+
+def draw_studio_open(s) -> None:
+    """El case abierto: la tapa arriba y el mastil de la guitarra y el disco fuera."""
+    P = _pal()
+    s.rect(3, 4, 28, 9, P["NIGHT_L"])                 # tapa levantada
+    s.rect(3, 4, 28, 4, P["NIGHT_LL"])
+    s.line([(20, 3), (9, 16)], P["BROWN"], 3)         # mastil
+    s.rect(18, 1, 22, 4, P["BROWN_D"])                # clavijero
+    s.ellipse(12, 10, 21, 19, P["GOLD"])              # el disco
+    s.ellipse(14, 12, 19, 17, P["GOLD_XL"])
+    s.px(16, 14, P["RED"])
+    s.rect(3, 17, 28, 28, P["NIGHT_L"])               # la caja
+    s.rect(3, 17, 28, 17, P["STEEL"])
+    s.rect(3, 28, 28, 28, P["NIGHT_D"])
+    for cx in (3, 25):
+        s.rect(cx, 25, cx + 3, 28, P["STEEL"])
+    _pro_ribbon(s, 6, 25, 21)
+    s.dots([(2, 13), (29, 12)], P["SHINE_HI"])
+
+
+GARAGE_BOX = (2, 8, 29, 28)
+
+
+def draw_garage(s) -> None:
+    """GARAJE: la caja de herramientas roja con su asa y la bandera de cuadros."""
+    P = _pal()
+    x0, y0, x1, y1 = GARAGE_BOX
+    s.rect(9, 3, 22, 4, P["STEEL"])                   # asa
+    s.rect(9, 3, 10, 8, P["STEEL"])
+    s.rect(21, 3, 22, 8, P["STEEL"])
+    s.rect(x0, y0, x1, y1, P["RED"])
+    s.rect(x0, y0, x1, y0 + 1, P["RED_L"])
+    s.rect(x0, y1, x1, y1, P["RED_D"])
+    s.rect(x0, y0 + 6, x1, y0 + 7, P["RED_D"])        # junta de la tapa
+    s.rect(14, y0 + 5, 17, y0 + 9, P["STEEL"])        # cierre
+    for i in range(6):                                 # bandera de cuadros
+        for j in range(3):
+            col = P["WHITE"] if (i + j) % 2 == 0 else P["NIGHT"]
+            s.rect(8 + i * 3, 19 + j * 2, 10 + i * 3, 20 + j * 2, col)
+    _pro_ribbon(s, x0, x1, y1 - 3)
+
+
+def draw_garage_open(s) -> None:
+    """La caja abierta: la bandeja levantada, una llanta y la llave inglesa."""
+    P = _pal()
+    s.ellipse(5, 2, 18, 15, P["NIGHT"])               # neumatico
+    s.ellipse(8, 5, 15, 12, P["STEEL"])               # llanta
+    s.ellipse(10, 7, 13, 10, P["WHITE"])
+    s.line([(20, 14), (27, 3)], P["STEEL"], 2)        # llave inglesa
+    s.rect(25, 1, 29, 4, P["STEEL"])
+    s.rect(26, 1, 28, 2, P["TRANSPARENT"])
+    s.rect(2, 15, 29, 28, P["RED"])
+    s.rect(2, 15, 29, 16, P["RED_D"])
+    s.rect(2, 28, 29, 28, P["RED_D"])
+    s.poly([(2, 15), (1, 11), (9, 11), (9, 15)], P["RED_L"])        # bandeja
+    _pro_ribbon(s, 2, 29, 23)
+
+
+VAULT_BOX = (3, 3, 28, 29)
+
+
+def draw_vault(s) -> None:
+    """BOVEDA: una caja fuerte de acero con su rueda, la manilla y remaches."""
+    P = _pal()
+    x0, y0, x1, y1 = VAULT_BOX
+    s.rect(x0, y0, x1, y1, P["STEEL_D"])
+    s.rect(x0, y0, x1, y0 + 1, P["STEEL"])
+    s.rect(x0, y1 - 1, x1, y1, P["STEEL_DD"])
+    s.rect(x0 + 3, y0 + 4, x1 - 3, y1 - 3, P["STEEL"])     # puerta
+    s.rect(x0 + 3, y0 + 4, x1 - 3, y0 + 4, P["WHITE"])
+    s.dots([(x0 + 4, y0 + 5), (x1 - 4, y0 + 5), (x0 + 4, y1 - 4), (x1 - 4, y1 - 4)],
+           P["STEEL_DD"])                               # remaches
+    s.ellipse(9, 9, 20, 20, P["STEEL_DD"])            # la rueda
+    s.ellipse(10, 10, 19, 19, P["GOLD"])
+    s.ellipse(13, 13, 16, 16, P["GOLD_XL"])
+    for a, b in (((14, 10), (14, 19)), ((10, 14), (19, 14))):
+        s.line([a, b], P["GOLD_D"])
+    s.rect(22, 12, 24, 18, P["STEEL_DD"])             # manilla
+    s.rect(22, 12, 24, 12, P["WHITE"])
+    _pro_ribbon(s, x0 + 3, x1 - 3, 22)
+
+
+def draw_vault_open(s) -> None:
+    """La puerta abierta y dentro el oro brillando."""
+    P = _pal()
+    s.rect(3, 3, 22, 29, P["STEEL_D"])                # el cuerpo
+    s.rect(6, 7, 19, 26, P["NIGHT"])                  # el hueco
+    s.rect(7, 18, 18, 25, P["GOLD"])                  # lingotes y monedas
+    s.rect(7, 18, 18, 18, P["GOLD_XL"])
+    s.ellipse(8, 12, 12, 16, P["GOLD"])
+    s.ellipse(13, 13, 17, 17, P["GOLD_XL"])
+    s.dots([(10, 9), (16, 10), (12, 14)], P["SHINE_HI"])
+    s.poly([(22, 3), (29, 6), (29, 26), (22, 29)], P["STEEL"])      # la puerta abierta
+    s.ellipse(23, 12, 28, 18, P["GOLD"])
+    _pro_ribbon(s, 3, 22, 27)
+
+
+PRO_KINDS = {
+    "gallery": (draw_gallery, draw_gallery_open, GALLERY_BOX),
+    "studio": (draw_studio, draw_studio_open, STUDIO_BOX),
+    "garage": (draw_garage, draw_garage_open, GARAGE_BOX),
+    "vault": (draw_vault, draw_vault_open, VAULT_BOX),
+}
+
+
+# --------------------------------------------------------------------------- #
 # Registro
 # --------------------------------------------------------------------------- #
 
@@ -706,6 +907,15 @@ def items() -> Dict[str, Callable]:
                     f(s)
                     damage(s, st, b, sd)
                 out[f"{key}_d{stage}"] = d
+    # Las cajas de la tienda pro: un escalon, cerrada, abierta y su dano.
+    for kind, (closed, opened, box) in PRO_KINDS.items():
+        out[kind] = closed
+        out[f"{kind}_open"] = opened
+        for stage in (1, 2, 3):
+            def dp(s, f=closed, st=stage, b=box, sd=len(kind) * 41):
+                f(s)
+                damage(s, st, b, sd)
+            out[f"{kind}_d{stage}"] = dp
     return out
 
 

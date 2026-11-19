@@ -45,7 +45,10 @@ const ROLL_W := 220.0
 const ROLL_DX := 120.0
 ## Cuantas tiradas hace el boton grande.
 const MULTI := 5
-const STATUS_Y := 830.0
+## El precio, SIEMPRE debajo de los botones (en la linea de estado se perdia:
+## la tapa lo que sale en cada tirada), y el estado debajo.
+const PRICE_Y := 806.0
+const STATUS_Y := 852.0
 ## El boton que abre el menu EQUIPAR: arriba, en la cabecera, al lado del saldo
 ## (abajo, bajo la maquina, no se veia).
 ## 192 de ancho (la chapa mide 0,45 de su ancho de alto: 86, poco mas que la
@@ -56,10 +59,12 @@ const EQUIP_W := 192.0
 ## La linea de ayuda del menu EQUIPAR, abajo en la columna de los huecos.
 const EQUIP_HINT_Y := 915.0
 
-## EL MENU EQUIPAR. A la izquierda los huecos (PetDB.SLOTS) y lo que dan en total;
+## EL MENU EQUIPAR. A la izquierda los huecos (Game.pet_slots()) y lo que dan en total;
 ## a la derecha todas las mascotas que se tienen, seis por fila.
 const SLOT_BOX := Vector2(160, 230)
 const SLOT_STEP := 180.0
+## Lo que pueden ocupar a lo ancho los huecos, todos juntos.
+const SLOTS_W := 560.0
 const SLOT_Y := 330.0
 const TOTALS_Y := 640.0
 const OWN_BOX := Vector2(136, 176)
@@ -83,6 +88,8 @@ const LOCKED_TEXT := Color(0.55, 0.48, 0.42)
 var _coins: PixelNumber
 var _page_name: Label
 var _status: Label
+## El precio de cada boton, debajo de el: [Tirar 1, Tirar x5].
+var _prices: Array[Label] = []
 ## Lo que cambia con la pagina (maquina, boton, fichas, icono del saldo): se
 ## rehace entero al pasar de pagina.
 var _page_box: Control
@@ -123,6 +130,11 @@ func _ready() -> void:
 	_page_name = UIKit.title_label_at("", Vector2(MACHINE_CENTER.x, PAGE_Y), Vector2(380, 50),
 			40, Palette.OUTLINE)
 	add_child(_page_name)
+	for lado in [-1.0, 1.0]:
+		var l := UIKit.title_label_at("", Vector2(ROLL_CENTER.x + ROLL_DX * lado, PRICE_Y),
+				Vector2(ROLL_W, 30), 28, Palette.OUTLINE)
+		_prices.append(l)
+		add_child(l)
 	_status = UIKit.title_label_at("", Vector2(MACHINE_CENTER.x, STATUS_Y), Vector2(560, 30),
 			21, Palette.OUTLINE)
 	add_child(_status)
@@ -187,7 +199,7 @@ func _build_page() -> void:
 	_page_box.add_child(_machine)
 	# La maquina se mece despacio, como si esperara la moneda.
 	UIKit.bob(_machine, 5.0, 3.2)
-	_roll = UIKit.small_button("Tirar %d" % int(m["cost"]), _currency_icon(),
+	_roll = UIKit.small_button("Tirar 1", _currency_icon(),
 			ROLL_CENTER - Vector2(ROLL_DX, 0), ROLL_W, 30)
 	_roll.tooltip_text = "Tirar de la máquina %s: %s" % [str(m["name"]).to_lower(), _cost_text().to_lower()]
 	_roll.pressed.connect(_on_roll)
@@ -305,8 +317,14 @@ func refresh() -> void:
 		_status.text = "Todas al máximo"
 	elif not puede:
 		_status.text = ("Te falta " if int(m["cost"]) == 1 else "Te faltan ") + _cost_text()
-	elif _status.text.is_empty() or _status.text.begins_with("Te falta"):
-		_status.text = _cost_text() + " por cápsula"
+	elif _status.text.begins_with("Te falta"):
+		_status.text = ""
+	for i in _prices.size():
+		# Corto ("1 punto" y no "1 punto de ascension"): el icono del boton ya dice
+		# con que se paga, y largo no cabia debajo a un tamano que se leyera.
+		_prices[i].text = _cost_text(1 if i == 0 else MULTI).trim_suffix(" de ascensión")
+		_prices[i].add_theme_font_size_override("font_size",
+				UIKit.fit_size(_prices[i].text, ROLL_W, 28))
 	_status.add_theme_font_size_override("font_size", UIKit.fit_size(_status.text, 520.0, 21))
 
 
@@ -442,7 +460,7 @@ func _open_capsules(holders: Array, resumen: Array) -> void:
 	for r in resumen:
 		rara = rara or str(r["pet"]["rarity"]) != "common"
 	Sound.play("sfx_rare" if rara else "sfx_open")
-	_pop_text("Tirada x%d" % MULTI, SCREEN_CENTER + Vector2(0, -300), 44, Palette.CREAM, 0.1)
+	_pop_text("Tirada x%d" % holders.size(), SCREEN_CENTER + Vector2(0, -300), 44, Palette.CREAM, 0.1)
 	for i in resumen.size():
 		var r: Dictionary = resumen[i]
 		var p: Dictionary = r["pet"]
@@ -465,7 +483,6 @@ func _open_capsules(holders: Array, resumen: Array) -> void:
 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		var nivel := int(r["nivel"])
 		var veces := int(r["veces"])
-		# La fuente no tiene la x minuscula: X.
 		var arriba := "¡Nueva!" if nivel == veces else "Nivel %d" % nivel
 		if veces > 1:
 			arriba = "x%d · nivel %d" % [veces, nivel] + (" · ¡nueva!" if nivel == veces else "")
@@ -477,7 +494,7 @@ func _open_capsules(holders: Array, resumen: Array) -> void:
 	_pop_text("Clic para seguir", SCREEN_CENTER + Vector2(0, 380), 22, Palette.CREAM_D, 0.9)
 	var flash := _rect(Vector2(-200, -200), Vector2(2320, 1480), Color.WHITE, _reveal)
 	flash.create_tween().tween_property(flash, "color:a", 0.0, 0.45)
-	_status.text = "Tirada x%d: %d mascota%s" % [MULTI, resumen.size(),
+	_status.text = "Tirada x%d: %d mascota%s" % [holders.size(), resumen.size(),
 			"" if resumen.size() == 1 else "s"]
 	refresh()
 	get_tree().create_timer(0.4).timeout.connect(func() -> void: _reveal_ready = true)
@@ -670,31 +687,40 @@ func _build_equip(aviso := "") -> void:
 			44, Palette.GOLD_XL))
 
 	# Los huecos: la equipada con su nivel encima, o vacio.
+	var huecos := Game.pet_slots()
 	_equip.add_child(UIKit.title_label_at("Equipadas %d/%d" % [Game.pets_equipped.size(),
-			PetDB.SLOTS], Vector2(MACHINE_CENTER.x, PAGE_Y), Vector2(500, 50), 40, Palette.OUTLINE))
-	for i in PetDB.SLOTS:
-		var top_left := Vector2(MACHINE_CENTER.x + (float(i) - float(PetDB.SLOTS - 1) * 0.5)
-				* SLOT_STEP - SLOT_BOX.x * 0.5, SLOT_Y)
+			huecos], Vector2(MACHINE_CENTER.x, PAGE_Y), Vector2(500, 50), 40, Palette.OUTLINE))
+	# Con el Collar de la ascension hay un hueco mas: se estrechan para caber en
+	# la columna de la izquierda (SLOTS_W) sin pisar la de las mascotas.
+	var paso := minf(SLOT_STEP, SLOTS_W / float(huecos))
+	var caja := Vector2(minf(SLOT_BOX.x, paso - 16.0), SLOT_BOX.y)
+	for i in huecos:
+		var top_left := Vector2(MACHINE_CENTER.x + (float(i) - float(huecos - 1) * 0.5)
+				* paso - caja.x * 0.5, SLOT_Y)
 		if i < Game.pets_equipped.size():
 			var p := PetDB.pet_by_id(str(Game.pets_equipped[i]))
-			_pet_card(p, top_left, SLOT_BOX, true, true)
+			_pet_card(p, top_left, caja, true, true)
 		else:
-			_paper(top_left, SLOT_BOX, ShopPanel.EDGE_OPEN, _equip)
-			_equip.add_child(UIKit.title_label_at("Vacío", top_left + SLOT_BOX * 0.5,
-					Vector2(SLOT_BOX.x - 16.0, 30), 24, LOCKED_TEXT))
+			_paper(top_left, caja, ShopPanel.EDGE_OPEN, _equip)
+			_equip.add_child(UIKit.title_label_at("Vacío", top_left + caja * 0.5,
+					Vector2(caja.x - 16.0, 30), 24, LOCKED_TEXT))
 
 	# Lo que dan entre todas, stat a stat (Game.pet_bonus ya solo cuenta las
 	# equipadas), en una nota de papel: el dorado sobre el carton no se leia.
-	_paper(Vector2(MACHINE_CENTER.x - 270.0, TOTALS_Y - 34.0), Vector2(540, 210),
-			ShopPanel.EDGE_OPEN, _equip)
+	# La nota crece con las lineas: con el Collar hay cuatro equipadas y cuatro
+	# stats distintos, y en una nota fija la cuarta linea se salia por abajo.
+	var lineas: Array = []
+	for stat in PetDB.STAT_NAMES:
+		var b := Game.pet_bonus(str(stat))
+		if b > 0.0:
+			lineas.append("+%d%% de %s" % [roundi(b * 100.0),
+					str(PetDB.STAT_NAMES[stat][1]).to_lower()])
+	_paper(Vector2(MACHINE_CENTER.x - 270.0, TOTALS_Y - 34.0),
+			Vector2(540, maxf(210.0, 90.0 + 40.0 * lineas.size())), ShopPanel.EDGE_OPEN, _equip)
 	_equip.add_child(UIKit.title_label_at("Lo que te dan", Vector2(MACHINE_CENTER.x, TOTALS_Y),
 			Vector2(500, 40), 30, Palette.OUTLINE))
 	var y := TOTALS_Y + 52.0
-	for stat in PetDB.STAT_NAMES:
-		var b := Game.pet_bonus(str(stat))
-		if b <= 0.0:
-			continue
-		var t := "+%d%% de %s" % [roundi(b * 100.0), str(PetDB.STAT_NAMES[stat][1]).to_lower()]
+	for t in lineas:
 		_equip.add_child(UIKit.title_label_at(t, Vector2(MACHINE_CENTER.x, y), Vector2(520, 34),
 				UIKit.fit_size(t, 520.0, 28), Palette.GOLD_D))
 		y += 40.0

@@ -296,7 +296,7 @@ func _item_box(item: Dictionary, index: int, top_left: Vector2, name_size: int) 
 	# nodo de compra automatica en el arbol (ver SkillTree.AUTO_ITEMS). Encendido
 	# se compra solo; apagado, no. Va FUERA de la caja para no meterse en su zona
 	# de clic, que abre la ficha.
-	var auto := UIKit.small_button("AUTO", "", Vector2(x + BOX.x * 0.5, y + AUTO_DY),
+	var auto := UIKit.small_button("Auto", "", Vector2(x + BOX.x * 0.5, y + AUTO_DY),
 			AUTO_W, 21)
 	auto.name = "Auto%d" % index
 	auto.pressed.connect(_toggle_auto.bind(index))

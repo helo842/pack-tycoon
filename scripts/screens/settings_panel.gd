@@ -221,7 +221,7 @@ func _toggle_autostore() -> void:
 	Sound.click()
 	Game.set_autostore(not Game.autostore_on)
 	_store_box.texture = Sprites.tex(_check_tex(Game.autostore_on))
-	Game.notice.emit("AUTO guardar: " + ("Sí" if Game.autostore_on else "No"),
+	Game.notice.emit("Auto guardar: " + ("Sí" if Game.autostore_on else "No"),
 			Palette.CREAM_D)
 
 

@@ -249,6 +249,87 @@ const PACKS: Array = [
 ]
 
 # --------------------------------------------------------------------------- #
+# La TIENDA PRO (sale al haber ascendido una vez, ver Game.pro_shop_shown)
+# --------------------------------------------------------------------------- #
+# Cuatro CAJAS NUEVAS, con su dibujo y su botin propio (dieciseis objetos
+# nuevos), por encima del techo de la tienda normal: la escalera sigue a x1,85
+# desde JUGUETES MITO (33 M) hasta 390 M. Es el sitio donde gastar el dinero de
+# una partida con HYPER y la telarana, que se salia de la escalera de siempre.
+#
+# MEJORES QUE LAS NORMALES en dos cosas: pagan un 45 % mas de lo que cuestan (los
+# normales un 32-35 %) y lo que sale es de ESCALON 5 para el armario
+# (LOCKER_TIER). El precio y el vmult van juntos, como en los normales: el
+# vmult sale de pack_payout() y lo comprueba el test de humo.
+#
+# EL BOTIN ES DE LOS TIPOS DE SIEMPRE ("kind"), a proposito: el armario, el auto
+# guardar, la hora feliz y el VIP funcionan por tipo, y uno nuevo obligaba a
+# rehacerlos. Cada caja va con el tipo que mas le pega: el arte con las cartas
+# (papel ilustrado, dan dano), la musica con los vinilos (dinero), el motor con
+# las zapatillas (velocidad) y la boveda con los juguetes (suerte).
+#
+# Los ids acaban en 5 (escalon 5 para pack_tier) y no estan en PACKS: la compra
+# automatica, el sobre dorado y los encargos recorren PACKS y no los ven.
+const PRO_MARGIN := 1.45
+const PRO_PACKS: Array = [
+	{
+		"id": "gallery5", "name": "Galería", "price": 61000000, "hp": 167920, "vmult": 7758.63,
+		"art": "pack_gallery", "art_open": "pack_gallery_open",
+		"loot": [
+			{"id": "art_c", "name": "Boceto", "art": "loot_sketch", "graded": true,
+				"kind": "cards", "rarity": "common", "value": 3000, "w": 50},
+			{"id": "art_r", "name": "Grabado", "art": "loot_etching", "graded": true,
+				"kind": "cards", "rarity": "rare", "value": 4500, "w": 30},
+			{"id": "art_e", "name": "Cuadro al óleo", "art": "loot_oil_painting", "graded": true,
+				"kind": "cards", "rarity": "epic", "value": 7000, "w": 15},
+			{"id": "art_l", "name": "Obra maestra", "art": "loot_masterpiece", "graded": true,
+				"kind": "cards", "rarity": "legendary", "value": 11000, "w": 5},
+		],
+	},
+	{
+		"id": "studio5", "name": "Estudio", "price": 113000000, "hp": 228548, "vmult": 14372.54,
+		"art": "pack_studio", "art_open": "pack_studio_open",
+		"loot": [
+			{"id": "mus_c", "name": "Cinta master", "art": "loot_master_tape", "graded": true,
+				"kind": "vinyls", "rarity": "common", "value": 3000, "w": 50},
+			{"id": "mus_r", "name": "Disco de oro", "art": "loot_gold_record", "graded": true,
+				"kind": "vinyls", "rarity": "rare", "value": 4500, "w": 30},
+			{"id": "mus_e", "name": "Guitarra firmada", "art": "loot_signed_guitar",
+				"graded": true, "kind": "vinyls", "rarity": "epic", "value": 7000, "w": 15},
+			{"id": "mus_l", "name": "Disco de platino", "art": "loot_platinum_record",
+				"graded": true, "kind": "vinyls", "rarity": "legendary", "value": 11000, "w": 5},
+		],
+	},
+	{
+		"id": "garage5", "name": "Garaje", "price": 210000000, "hp": 311565, "vmult": 26710.03,
+		"art": "pack_garage", "art_open": "pack_garage_open",
+		"loot": [
+			{"id": "car_c", "name": "Casco", "art": "loot_helmet", "graded": true,
+				"kind": "sneakers", "rarity": "common", "value": 3000, "w": 50},
+			{"id": "car_r", "name": "Llanta cromada", "art": "loot_chrome_rim", "graded": true,
+				"kind": "sneakers", "rarity": "rare", "value": 4500, "w": 30},
+			{"id": "car_e", "name": "Moto clásica", "art": "loot_motorbike", "graded": true,
+				"kind": "sneakers", "rarity": "epic", "value": 7000, "w": 15},
+			{"id": "car_l", "name": "Coche clásico", "art": "loot_classic_car", "graded": true,
+				"kind": "sneakers", "rarity": "legendary", "value": 11000, "w": 5},
+		],
+	},
+	{
+		"id": "vault5", "name": "Bóveda", "price": 390000000, "hp": 424591, "vmult": 49604.33,
+		"art": "pack_vault", "art_open": "pack_vault_open",
+		"loot": [
+			{"id": "vlt_c", "name": "Moneda antigua", "art": "loot_old_coin", "graded": true,
+				"kind": "toys", "rarity": "common", "value": 3000, "w": 50},
+			{"id": "vlt_r", "name": "Collar de perlas", "art": "loot_pearls", "graded": true,
+				"kind": "toys", "rarity": "rare", "value": 4500, "w": 30},
+			{"id": "vlt_e", "name": "Huevo enjoyado", "art": "loot_jeweled_egg", "graded": true,
+				"kind": "toys", "rarity": "epic", "value": 7000, "w": 15},
+			{"id": "vlt_l", "name": "Corona", "art": "loot_crown", "graded": true,
+				"kind": "toys", "rarity": "legendary", "value": 11000, "w": 5},
+		],
+	},
+]
+
+# --------------------------------------------------------------------------- #
 # Estado de conservacion: la insignia que va con la nota en la tarjeta
 # --------------------------------------------------------------------------- #
 # No tiene peso ni multiplicador, es solo la etiqueta de la nota.
@@ -517,7 +598,7 @@ const TABLE_BASE := 8
 ## una barbaridad al principio, porque el dano se aplicaba ENTERO a cada paquete
 ## de la mesa: con los ocho huecos llenos eso es ocho veces el dano del jugador
 ## y, con el PC y la venta automatica, la partida se abria sola. Ahora pegan el
-## 60 % de lo que pega el jugador por segundo REPARTIDO entre los paquetes de la
+## 100 % de lo que pega el jugador por segundo REPARTIDO entre los paquetes de la
 ## mesa: la mesa entera avanza como avanza tu dedo. Sube con los items de dano
 ## -el item sigue sirviendo toda la partida- y no se multiplica por el numero de
 ## paquetes, que es lo que lo desequilibraba.
@@ -572,7 +653,8 @@ const KIND_BONUS_MAX := 0.25
 ## que salia. La rareza y el escalon del sobre son los que ponen el precio, asi
 ## que son los que multiplican (y se pueden leer en la ficha sin hacer cuentas).
 const LOCKER_RARITY := {"common": 1.0, "rare": 1.2, "epic": 1.45, "legendary": 1.75}
-const LOCKER_TIER: Array = [1.0, 1.3, 1.7, 2.2]
+## El 5 es el de la tienda pro.
+const LOCKER_TIER: Array = [1.0, 1.3, 1.7, 2.2, 2.8]
 ## CADA TIPO PESA DISTINTO porque no vale lo mismo un 10 % de cada cosa. El
 ## dinero (vinilos) lo multiplica TODO, monedas de rebirth incluidas, y con los
 ## cuatro iguales llenar el armario de vinilos era siempre lo mejor; la
@@ -661,17 +743,29 @@ static func pack_at(index: int) -> Dictionary:
 
 
 static func pack_by_id(pack_id: String) -> Dictionary:
-	for p in PACKS:
+	for p in PACKS + PRO_PACKS:
 		if p["id"] == pack_id:
 			return p
 	return PACKS[0]
 
 
+## El puesto del sobre en la escalera de la tienda normal. Los de la tienda pro
+## van por encima de todos: cuentan como el ultimo (para el sobre dorado, que
+## sale de esta escalera, y para limpiar la mesa de un guardado).
 static func pack_index(pack_id: String) -> int:
 	for i in PACKS.size():
 		if PACKS[i]["id"] == pack_id:
 			return i
+	if is_pro(pack_id):
+		return PACKS.size() - 1
 	return 0
+
+
+static func is_pro(pack_id: String) -> bool:
+	for p in PRO_PACKS:
+		if p["id"] == pack_id:
+			return true
+	return false
 
 
 ## Resistencia de un paquete. Sube con su nivel (su escalon de precio).
@@ -695,7 +789,7 @@ static func loot_table(pack_id: String) -> Array:
 
 
 static func _has_loot(pack_id: String) -> bool:
-	for p in PACKS:
+	for p in PACKS + PRO_PACKS:
 		if p["id"] == pack_id and p.has("loot"):
 			return true
 	return false

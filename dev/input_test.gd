@@ -190,8 +190,10 @@ func _run() -> void:
 	await _frames(2)
 
 	print("Zona de sobres:")
-	var celdas: Array = game._pack_cells
-	_check(celdas.size() == LootDB.pack_count(), "la columna trae los doce sobres")
+	# Las de la tienda normal van primero; detras van las de la tienda pro.
+	_check((game._pack_cells as Array).size() == LootDB.pack_count() + LootDB.PRO_PACKS.size(),
+		"la columna trae los veinte sobres y las cuatro cajas pro")
+	var celdas: Array = (game._pack_cells as Array).slice(0, LootDB.pack_count())
 	if not celdas.is_empty():
 		# Esta es la compra de verdad: un clic en la columna de la izquierda, sin
 		# abrir ningun panel de por medio. La primera celda es SOBRES, el sobre
@@ -216,6 +218,22 @@ func _run() -> void:
 		_check(scroll.scroll_vertical
 			<= int(scroll.get_v_scroll_bar().max_value),
 			"y no se pasa del final de la lista")
+
+	# LAS PESTANAS DE LA TIENDA PRO, con clic de verdad: tras ascender salen y la
+	# de la derecha cambia a la lista pro (la lista de debajo no se come el clic).
+	var ascensiones: int = Game.ascensions
+	Game.ascensions = 1
+	game._refresh_packs()
+	await _frames(2)
+	_check(_click(game._pack_tabs[1]["hit"]), "el clic en la pestana TIENDA PRO llega")
+	await _frames(2)
+	_check(game._pro_scroll.visible and not game._pack_scroll.visible,
+		"y cambia a la lista de cajas pro")
+	_check(_click(game._pack_tabs[0]["hit"]), "y la de TIENDA vuelve")
+	await _frames(2)
+	_check(game._pack_scroll.visible, "a la lista de siempre")
+	Game.ascensions = ascensiones
+	game._refresh_packs()
 
 
 	print("Compra automatica:")
@@ -394,30 +412,24 @@ func _run() -> void:
 			"y el arbol se queda donde se ha soltado")
 		_click_at(hucha.node_point("money"))
 		await _frames(3)
-		# EL CLIC NO COMPRA: ABRE LA FICHA. La compra se decide dentro, con el
-		# precio y lo que da el nodo delante, y se paga con el boton de la ficha.
-		var ficha_nodo: Node = hucha._card
-		_check(ficha_nodo != null, "el clic en un nodo abre su ficha de compra")
-		_check(not Game.skill_owned("money"), "y no la compra por su cuenta")
-		if ficha_nodo != null:
-			var comprar := _find_button(ficha_nodo, "Comprar")
-			_check(comprar != null, "la ficha del nodo trae el boton de comprar")
-			if comprar != null:
-				_check(_click(comprar), "el clic en COMPRAR llega al boton")
-			await _frames(3)
-			_check(Game.skill_owned("money"), "y compra la mejora del nodo")
-			_check(Game.rebirth_coins == 4, "pagando sus monedas de rebirth")
-			_check(is_equal_approx(Game.value_multiplier(), 1.50),
-				"y la mejora se nota en la partida")
-			# Y se cierra con su boton, que devuelve al arbol sin cerrarlo.
-			var cerrar_ficha := _find_tooltip(ficha_nodo, "Cerrar")
-			_check(cerrar_ficha != null, "la ficha trae su boton de cerrar")
-			if cerrar_ficha != null:
-				_check(_click(cerrar_ficha), "el clic en cerrar de la ficha llega al boton")
-			await _frames(3)
-			_check(hucha._card == null, "y el cerrar quita la ficha")
-			_check(Game.skill_owned("money") and Game.rebirth_coins == 4,
-				"sin tocar lo que ya se ha pagado")
+		# EL PRIMER CLIC ELIGE EL NODO Y EL SEGUNDO LO COMPRA (como en la telarana
+		# de la ascension): la ficha sale en la franja de abajo, sin tapar el arbol.
+		_check(hucha._selected == "money" and not Game.skill_owned("money"),
+			"el primer clic en un nodo lo elige y no lo compra")
+		_click_at(hucha.node_point("money"))
+		await _frames(3)
+		_check(Game.skill_owned("money"), "el segundo clic compra la mejora del nodo")
+		_check(Game.rebirth_coins == 4, "pagando sus monedas de rebirth")
+		_check(is_equal_approx(Game.value_multiplier(), 1.50),
+			"y la mejora se nota en la partida")
+		# Y el boton de la franja compra el elegido.
+		_click_at(hucha.node_point("damage"))
+		await _frames(3)
+		_check(hucha._selected == "damage", "el clic en otro nodo lo elige")
+		_check(_click(hucha._card_btn), "el clic en COMPRAR de la franja llega al boton")
+		await _frames(3)
+		_check(Game.skill_owned("damage") and Game.rebirth_coins == 1,
+			"y compra el nodo elegido")
 		# Y LA BARRA NO SE VA CON EL ARBOL: el boton de reiniciar se queda en su
 		# sitio (es lo unico de la pantalla que no se mueve).
 		var go_antes: Rect2 = hucha._go.get_global_rect()

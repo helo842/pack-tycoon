@@ -608,6 +608,241 @@ def draw_tin_rocket(s) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# LA TIENDA PRO: galeria, estudio, garaje y boveda (cuatro de cada)
+# --------------------------------------------------------------------------- #
+
+def _epic(i: int):
+    return (M.RARITIES["epic"].dark, M.RARITIES["epic"].base, M.RARITIES["epic"].light)[i]
+
+
+def draw_sketch(s) -> None:
+    """Boceto: una hoja de papel con un retrato a lapiz y la pinza del caballete."""
+    s.rect(6, 4, 25, 28, P("CREAM_L"))
+    s.rect(6, 4, 7, 28, P("WHITE"))
+    s.rect(24, 4, 25, 28, P("CREAM_D"))
+    s.ellipse(11, 8, 20, 18, P("CREAM"))             # la cara, a lapiz
+    s.ring(11, 8, 20, 18, P("SLATE"))
+    s.dots([(14, 12), (17, 12)], P("SLATE"))
+    s.line([(14, 15), (17, 15)], P("SLATE"))
+    s.line([(9, 25), (12, 19), (19, 19), (22, 25)], P("SLATE"))     # hombros
+    s.rect(13, 2, 18, 5, P("STEEL"))                  # la pinza
+    s.line([(22, 22), (29, 29)], P("GOLD"), 2)       # el lapiz
+    s.px(29, 29, P("SLATE"))
+
+
+def draw_etching(s) -> None:
+    """Grabado: una lamina enmarcada en negro con un paisaje a rayas."""
+    s.rect(4, 5, 27, 27, P("NIGHT"))
+    s.rect(4, 5, 27, 5, P("NIGHT_LL"))
+    s.rect(7, 8, 24, 24, P("CREAM_L"))
+    for y in range(10, 18, 2):                        # el cielo a rayas
+        s.line([(8, y), (23, y)], P("CREAM_D"))
+    s.poly([(8, 23), (13, 15), (17, 20), (20, 16), (23, 23)], P("SLATE"))  # montes
+    s.ellipse(17, 9, 21, 13, P("CREAM"))
+    s.dots([(5, 6), (6, 6)], P("WHITE"))
+
+
+def draw_oil_painting(s) -> None:
+    """Cuadro al oleo: marco dorado tallado y un bodegon de colores fuertes."""
+    s.rect(3, 4, 28, 27, P("GOLD"))
+    s.rect(3, 4, 28, 5, P("GOLD_XL"))
+    s.rect(3, 26, 28, 27, P("GOLD_D"))
+    s.dots([(x, 4) for x in range(5, 28, 4)], P("GOLD_HI"))
+    s.rect(6, 7, 25, 24, P("RED_D"))                  # fondo
+    s.ellipse(9, 13, 16, 20, P("RED_L"))              # manzana
+    s.ellipse(15, 12, 22, 19, P("GOLD_XL"))           # limon
+    s.rect(8, 20, 23, 23, P("BROWN"))                 # la mesa
+    s.rect(18, 8, 20, 12, P("GREEN"))                 # botella
+    s.px(10, 14, P("WHITE"))
+
+
+def draw_masterpiece(s) -> None:
+    """Obra maestra: el retrato famoso en marco barroco, con su cordon de museo."""
+    s.rect(2, 2, 29, 29, P("GOLD"))
+    s.rect(2, 2, 29, 3, P("GOLD_HI"))
+    s.rect(2, 28, 29, 29, P("GOLD_D"))
+    for x, y in ((2, 2), (26, 2), (2, 26), (26, 26)):
+        s.rect(x, y, x + 3, y + 3, P("GOLD_XL"))     # esquinas talladas
+    s.rect(6, 6, 25, 25, P("TEAL_D"))                 # el fondo del retrato
+    s.ellipse(11, 8, 20, 17, P("LEATHER_HI"))         # cara
+    s.rect(10, 7, 21, 10, P("BROWN_D"))               # pelo
+    s.dots([(14, 12), (17, 12)], P("DARK"))
+    s.line([(14, 15), (17, 15)], P("RED_D"))          # la sonrisa
+    s.poly([(8, 25), (11, 18), (20, 18), (23, 25)], P("NIGHT_L"))
+    s.dots([(1, 15), (30, 15)], _epic(2))
+
+
+def draw_master_tape(s) -> None:
+    """Cinta master: la bobina abierta de estudio, con la cinta marron."""
+    s.ellipse(3, 3, 28, 28, P("STEEL"))
+    s.ellipse(4, 4, 27, 27, P("STEEL_D"))
+    s.ellipse(7, 7, 24, 24, P("BROWN_D"))             # la cinta enrollada
+    s.ring(9, 9, 22, 22, P("BROWN"))
+    s.ellipse(12, 12, 19, 19, P("STEEL"))             # el buje
+    s.ellipse(14, 14, 17, 17, P("NIGHT"))
+    for x, y in ((15, 6), (6, 15), (24, 15), (15, 24)):
+        s.rect(x, y, x + 1, y + 1, P("STEEL_D"))     # agujeros
+    s.rect(9, 27, 22, 29, P("CREAM"))                 # la etiqueta MASTER
+    s.dots([(x, 28) for x in range(10, 22, 2)], P("RED"))
+
+
+def draw_gold_record(s) -> None:
+    """Disco de oro: el disco dorado en su placa enmarcada."""
+    s.rect(2, 2, 29, 29, P("NIGHT_L"))
+    s.rect(2, 2, 29, 2, P("NIGHT_LL"))
+    s.ellipse(6, 4, 25, 23, P("GOLD"))
+    s.ring(8, 6, 23, 21, P("GOLD_D"))
+    s.ring(10, 8, 21, 19, P("GOLD_D"))
+    s.ellipse(13, 11, 18, 16, P("RED"))
+    s.px(15, 13, P("NIGHT"))
+    s.dots([(9, 8), (10, 7)], P("WHITE"))
+    s.rect(9, 25, 22, 27, P("GOLD_XL"))               # la plaquita
+
+
+def draw_signed_guitar(s) -> None:
+    """Guitarra firmada: la electrica roja con la firma en blanco."""
+    s.line([(18, 13), (27, 3)], P("BROWN_L"), 3)     # mastil
+    s.rect(25, 1, 29, 4, P("BROWN_D"))                # clavijero
+    s.dots([(26, 1), (28, 1), (29, 3)], P("STEEL"))
+    s.ellipse(3, 13, 16, 26, P("RED"))                # el cuerpo
+    s.ellipse(9, 9, 20, 20, P("RED"))
+    s.ellipse(4, 14, 9, 19, P("RED_L"))
+    s.rect(9, 15, 14, 16, P("STEEL"))                 # pastillas
+    s.rect(8, 19, 13, 20, P("STEEL"))
+    s.line([(5, 23), (8, 21), (11, 23), (14, 20)], P("WHITE"))  # la firma
+    s.px(17, 13, P("CREAM"))
+
+
+def draw_platinum_record(s) -> None:
+    """Disco de platino: plateado, con destellos y la estrella de la ascension."""
+    s.ellipse(3, 3, 28, 28, P("STEEL"))
+    s.ring(5, 5, 26, 26, P("WHITE"))
+    s.ring(8, 8, 23, 23, P("STEEL_D"))
+    s.ring(11, 11, 20, 20, P("WHITE"))
+    s.ellipse(13, 13, 18, 18, _epic(1))
+    s.px(15, 15, P("WHITE"))
+    s.dots([(7, 6), (8, 5), (25, 24)], P("WHITE"))
+    s.dots([(28, 3), (2, 27), (29, 15)], P("SHINE_HI"))
+
+
+def draw_helmet(s) -> None:
+    """Casco: de carreras, blanco con franja roja y la visera oscura."""
+    s.ellipse(4, 5, 27, 28, P("CREAM_L"))
+    s.ellipse(4, 5, 13, 20, P("WHITE"))
+    s.rect(14, 5, 17, 28, P("RED"))                   # la franja
+    s.poly([(10, 14), (27, 14), (27, 21), (12, 21)], P("NIGHT"))   # visera
+    s.line([(13, 15), (24, 15)], P("TEAL_L"))
+    s.rect(4, 25, 27, 28, P("CREAM_D"))
+    s.dots([(8, 8), (9, 7)], P("WHITE"))
+
+
+def draw_chrome_rim(s) -> None:
+    """Llanta cromada: el neumatico negro y los radios brillando."""
+    s.ellipse(2, 2, 29, 29, P("STEEL_DD"))
+    s.ring(3, 3, 28, 28, P("NIGHT_LL"), 2)
+    s.ellipse(7, 7, 24, 24, P("STEEL"))
+    s.ellipse(9, 9, 22, 22, P("STEEL_D"))
+    for a, b in (((16, 9), (16, 22)), ((9, 16), (22, 16)), ((11, 11), (21, 21)), ((21, 11), (11, 21))):
+        s.line([a, b], P("WHITE"))
+    s.ellipse(13, 13, 18, 18, P("STEEL"))
+    s.px(15, 15, P("GOLD_XL"))
+    s.dots([(9, 8), (8, 9)], P("WHITE"))
+
+
+def draw_motorbike(s) -> None:
+    """Moto clasica: de perfil, deposito rojo, cromados y dos ruedas de radios."""
+    for cx in (7, 24):
+        s.ellipse(cx - 6, 17, cx + 6, 29, P("STEEL_DD"))
+        s.ring(cx - 6, 17, cx + 6, 29, P("NIGHT_LL"), 2)
+        s.ellipse(cx - 3, 20, cx + 3, 26, P("STEEL"))
+        s.ellipse(cx - 1, 22, cx + 1, 24, P("WHITE"))
+    s.poly([(7, 23), (12, 14), (23, 14), (24, 23)], P("STEEL_D"))  # el cuadro
+    s.rect(12, 18, 19, 22, P("STEEL"))                # motor
+    s.dots([(13, 19), (15, 19), (17, 19)], P("STEEL_DD"))
+    s.ellipse(10, 8, 22, 16, P("RED"))                # deposito
+    s.ellipse(12, 9, 17, 12, P("RED_L"))
+    s.rect(2, 12, 11, 14, P("BROWN_D"))               # asiento
+    s.rect(2, 12, 11, 12, P("BROWN"))
+    s.line([(21, 12), (25, 5)], P("STEEL"), 2)        # horquilla
+    s.rect(22, 4, 29, 5, P("STEEL"))                  # manillar
+    s.ellipse(26, 7, 29, 10, P("GOLD_XL"))            # faro
+    s.line([(3, 21), (10, 21)], P("STEEL"))           # escape
+
+
+def draw_classic_car(s) -> None:
+    """Coche clasico: descapotable azul cielo con cromados y ruedas de banda blanca."""
+    s.poly([(2, 18), (5, 12), (26, 12), (30, 18)], P("TEAL"))       # carroceria alta
+    s.rect(2, 17, 30, 23, P("TEAL"))
+    s.rect(2, 17, 30, 17, P("TEAL_L"))
+    s.rect(9, 9, 19, 12, P("TEAL_L"))                 # parabrisas
+    s.line([(10, 9), (18, 9)], P("WHITE"))
+    s.rect(2, 21, 30, 22, P("STEEL"))                 # el cromado
+    s.ellipse(27, 18, 30, 21, P("GOLD_XL"))           # faro
+    for cx in (8, 24):
+        s.ellipse(cx - 4, 20, cx + 4, 28, P("NIGHT"))
+        s.ring(cx - 3, 21, cx + 3, 27, P("WHITE"))
+        s.px(cx, 24, P("STEEL"))
+    s.rect(13, 14, 18, 15, P("RED"))                  # los asientos
+
+
+def draw_old_coin(s) -> None:
+    """Moneda antigua: oro gastado con la cara de un rey de perfil."""
+    s.ellipse(4, 4, 27, 27, P("GOLD_D"))
+    s.ellipse(5, 5, 26, 26, P("GOLD"))
+    s.ring(7, 7, 24, 24, P("GOLD_D"))
+    s.ellipse(11, 9, 20, 21, P("GOLD_L"))             # la cabeza
+    s.poly([(11, 9), (14, 6), (17, 9)], P("GOLD_XL"))  # corona
+    s.px(17, 13, P("GOLD_D"))                         # el ojo
+    s.line([(19, 15), (21, 16)], P("GOLD_D"))         # la nariz
+    s.dots([(x, 24) for x in range(11, 21, 2)], P("GOLD_D"))  # la leyenda
+    s.dots([(8, 7), (7, 8)], P("GOLD_HI"))
+
+
+def draw_pearls(s) -> None:
+    """Collar de perlas: una vuelta entera de perlas y el colgante de oro."""
+    import math as _m
+    for i in range(18):
+        a = i * 2 * _m.pi / 18
+        x = round(16 + 11 * _m.cos(a))
+        y = round(14 + 10 * _m.sin(a))
+        s.ellipse(x - 2, y - 2, x + 1, y + 1, P("CREAM_L"))
+        s.px(x - 1, y - 1, P("WHITE"))
+    s.rect(14, 2, 18, 5, P("GOLD"))                   # el cierre
+    s.px(16, 3, P("GOLD_HI"))
+    s.line([(16, 25), (16, 27)], P("GOLD_D"))         # el colgante
+    s.poly([(16, 26), (19, 28), (16, 30), (13, 28)], _epic(1))
+    s.px(15, 27, _epic(2))
+
+
+def draw_jeweled_egg(s) -> None:
+    """Huevo enjoyado: el huevo esmaltado de lujo con bandas de oro y joyas."""
+    s.rect(11, 26, 20, 29, P("GOLD_D"))               # la peana
+    s.rect(9, 28, 22, 29, P("GOLD"))
+    s.ellipse(7, 2, 24, 27, _epic(1))
+    s.ellipse(8, 3, 14, 15, _epic(2))
+    s.rect(7, 13, 24, 14, P("GOLD"))                  # bandas de oro
+    s.line([(16, 2), (16, 27)], P("GOLD"))
+    s.dots([(11, 9), (20, 9), (11, 20), (20, 20)], P("RED_L"))     # joyas
+    s.dots([(16, 7), (16, 21)], P("TEAL_L"))
+    s.px(16, 13, P("WHITE"))
+    s.dots([(10, 5), (9, 6)], P("WHITE"))
+
+
+def draw_crown(s) -> None:
+    """Corona: oro con picos, terciopelo morado y gemas."""
+    s.rect(5, 12, 26, 22, _epic(0))                   # el terciopelo
+    s.poly([(4, 24), (4, 10), (9, 16), (12, 6), (16, 14), (20, 6), (23, 16), (27, 10),
+            (27, 24)], P("GOLD"))
+    s.poly([(4, 24), (4, 10), (6, 13), (6, 24)], P("GOLD_XL"))
+    s.rect(4, 22, 27, 26, P("GOLD_D"))                # la banda
+    s.rect(4, 22, 27, 22, P("GOLD_XL"))
+    for x, col in ((8, "RED_L"), (15, "TEAL_L"), (22, "GREEN_L")):
+        s.rect(x, 23, x + 2, 25, P(col))
+    s.dots([(12, 5), (20, 5), (4, 9), (27, 9)], P("WHITE"))       # perlas de las puntas
+    s.dots([(15, 1), (29, 3), (2, 2)], P("GOLD_HI"))
+
+
+# --------------------------------------------------------------------------- #
 # Registro
 # --------------------------------------------------------------------------- #
 
@@ -637,6 +872,22 @@ DRAWINGS: Dict[str, Callable] = {
     "card_edited": draw_card_edited,
     "card_vintage": draw_card_vintage,
     "card_foil": draw_card_foil,
+    "sketch": draw_sketch,
+    "etching": draw_etching,
+    "oil_painting": draw_oil_painting,
+    "masterpiece": draw_masterpiece,
+    "master_tape": draw_master_tape,
+    "gold_record": draw_gold_record,
+    "signed_guitar": draw_signed_guitar,
+    "platinum_record": draw_platinum_record,
+    "helmet": draw_helmet,
+    "chrome_rim": draw_chrome_rim,
+    "motorbike": draw_motorbike,
+    "classic_car": draw_classic_car,
+    "old_coin": draw_old_coin,
+    "pearls": draw_pearls,
+    "jeweled_egg": draw_jeweled_egg,
+    "crown": draw_crown,
 }
 
 

@@ -3399,6 +3399,11 @@ GRADED_ITEMS: List[str] = [
     "console", "handheld", "cartridge", "headphones",
     "watch", "pocket_watch", "camera", "cable", "ingot",
     "teddy", "tin_robot", "action_figure", "tin_rocket",
+    # los de la tienda pro (loot_designs.py)
+    "sketch", "etching", "oil_painting", "masterpiece",
+    "master_tape", "gold_record", "signed_guitar", "platinum_record",
+    "helmet", "chrome_rim", "motorbike", "classic_car",
+    "old_coin", "pearls", "jeweled_egg", "crown",
 ]
 
 for _base in GRADED_ITEMS:

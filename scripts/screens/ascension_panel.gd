@@ -9,8 +9,12 @@
 # Por eso pide dos pulsaciones: la primera avisa y la segunda asciende. Despues
 # el panel se queda abierto, que es justo donde se gasta el punto.
 #
-# Los nodos son hexagonos (tree_asc_hex) con su dibujo dentro. Hoy solo hay uno,
-# HYPER, grande y en el centro; lo que da y lo que cuesta esta en AscensionTree.
+# EL ARBOL ES UNA TELARANA: HYPER grande en el centro y seis hilos que salen de
+# el, con tres anillos de hexagonos (tree_asc_hex con su dibujo dentro) unidos
+# por los hilos de la red. Pulsar un hexagono lo ELIGE y su ficha sale abajo a
+# la derecha (nombre, lo que da, el precio y el boton); pulsar el elegido otra
+# vez lo compra. Los interruptores (los automaticos) se encienden y se apagan
+# desde la misma ficha. Lo que da y lo que cuesta cada uno esta en AscensionTree.
 class_name AscensionPanel
 extends Control
 
@@ -42,26 +46,73 @@ const BUTTON_TINT := Color(0.85, 0.55, 1.25)
 const LILA := Color8(214, 160, 255)
 const PURPLE := Color8(150, 80, 230)
 
-## El nodo HYPER: un hexagono grande en el centro de lo que queda debajo de la
-## barra, con la persona morada dentro, y su nombre, lo que da y el precio debajo.
-const HEX_CENTER := Vector2(960, 560)
-const HEX_SIDE := 320.0
-const HEX_ART := Vector2(120, 120)
-const NAME_Y := 790.0
-const DESC_Y := 840.0
-const COST_Y := 885.0
+## LA TELARANA es mas grande que la vista y se NAVEGA: se arrastra con el raton
+## y se acerca o aleja con la rueda o las lupas, como el arbol del rebirth. Vive
+## en un "mundo" con HYPER en el origen; WEB_VIEW es el trozo de pantalla donde
+## se ve (entre la barra y la ficha). Los hilos van de 60 en 60 grados,
+## empezando a la derecha (AscensionTree.SPOKES), y se estiran un poco a lo
+## ancho porque la vista es mas ancha que alta.
+const WEB_VIEW := Rect2(224, 294, 1472, 546)
+const RING_R := [0.0, 230.0, 410.0, 590.0, 770.0]
+const STRETCH_X := 1.4
+## Donde va el nombre de cada hilo: fuera del ultimo anillo.
+const SPOKE_LABEL_R := 960.0
+## El hexagono de HYPER y el de los demas; el dibujo ocupa ART_PART de el.
+const HYPER_SIDE := 180.0
+const HEX_SIDE := 112.0
+const ART_PART := 0.52
+const THREAD := Color(0.42, 0.24, 0.62, 0.75)
+const THREAD_LIT := Color8(214, 160, 255)
+## El zoom (el ultimo es el tamano de verdad) y con cual se abre.
+const ZOOM_STEPS: Array[float] = [0.3, 0.45, 0.65, 1.0]
+const ZOOM_START := 2
+const ZOOM_SIDE := 72.0
+const ZOOM_IN_CENTER := Vector2(1640, 690)
+const ZOOM_OUT_CENTER := Vector2(1640, 776)
+## Lo que tiene que quedar de telarana dentro de la vista por mucho que se
+## arrastre, y lo que se puede mover el raton antes de que un clic sea arrastre.
+const KEEP := 200.0
+const DRAG_SLOP := 12.0
 
-const STAND_HINT := "Ascender lo borra todo y da 1 punto para siempre"
+## LA FICHA del hexagono elegido: una franja a lo ancho debajo de la red, con el
+## nombre y el precio arriba, lo que da abajo y el boton a la derecha. En una
+## esquina no cabia: la red ocupa casi todo y el texto salia en cuatro lineas.
+const CARD := Rect2(240, 846, 1440, 88)
+const CARD_ROW1 := 870.0
+const CARD_ROW2 := 910.0
+const CARD_TEXT_X := 264.0
+## Hasta donde llega el texto: luego va el boton.
+const CARD_TEXT_END := 1440.0
+
+const STAND_HINT := "Ascender lo borra todo menos lo morado y las mascotas"
 
 var _points: PixelNumber
 var _points_label: Label
 var _status: Label
 var _hint_label: Label
 var _go: Button
-var _hex: Control
-var _hex_btn: Button
-var _cost: Label
-var _pulse: Tween = null
+## Cada hexagono: {"view", "ring" (el marco del elegido), "pulse"} por su id.
+var _nodes: Dictionary = {}
+var _web: Control
+## La vista recortada, el mundo que se mueve dentro y donde esta.
+var _clip: Control
+var _world: Control
+var _offset := Vector2.ZERO
+var _zoom_i := ZOOM_START
+var _zoom_in: Button
+var _zoom_out: Button
+## El arrastre: donde se pulso (null si no hay), desde donde y cuanto se ha movido.
+var _drag_start = null
+var _drag_from := Vector2.ZERO
+var _last_pos := Vector2.ZERO
+var _dragged := 0.0
+var _selected := "hyper"
+var _card_name: Label
+var _card_desc: Label
+var _card_cost: Label
+var _card_btn: Button = null
+## Lo que pone el boton de la ficha ("Comprar", "Encender" o "Apagar").
+var _card_btn_text := ""
 ## La primera pulsacion de ASCENDER solo avisa; la segunda asciende.
 var _confirm := false
 var _hint_text := STAND_HINT
@@ -84,7 +135,7 @@ func _ready() -> void:
 	add_child(inside)
 	add_child(_rising_particles())
 
-	_build_node()
+	_build_web()
 	_build_bar()
 
 	Game.skills_changed.connect(refresh)
@@ -143,37 +194,230 @@ static func _pixel() -> Texture2D:
 	return _px
 
 
-func _build_node() -> void:
-	var n := AscensionTree.node_by_id("hyper")
-	_hex = Control.new()
-	_hex.size = Vector2(HEX_SIDE, HEX_SIDE)
-	_hex.position = HEX_CENTER - _hex.size * 0.5
-	_hex.pivot_offset = _hex.size * 0.5
-	_hex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_hex)
-	var mitad := _hex.size * 0.5
-	_hex.add_child(UIKit.image("rarity_glow_epic", mitad, _hex.size * 1.5))
-	_hex.add_child(UIKit.image("tree_asc_hex", mitad, _hex.size))
-	_hex.add_child(UIKit.fit_art(str(n["art"]), mitad + Vector2(0, 6), HEX_ART))
+## Donde va cada nodo en el MUNDO de la telarana (HYPER en el origen).
+static func node_pos(id: String) -> Vector2:
+	var n := AscensionTree.node_by_id(id)
+	if n.is_empty() or int(n["ring"]) == 0:
+		return Vector2.ZERO
+	return spoke_point(int(n["spoke"]), float(RING_R[int(n["ring"])]))
 
-	# El clic: un boton plano encima del hexagono (aqui no hay arrastre que
-	# respetar, como en el arbol del rebirth).
-	_hex_btn = Button.new()
-	_hex_btn.flat = true
-	_hex_btn.focus_mode = Control.FOCUS_NONE
-	_hex_btn.position = _hex.position
-	_hex_btn.size = _hex.size
-	_hex_btn.tooltip_text = str(n["name"]) + ": " + str(n["desc"])
-	_hex_btn.pressed.connect(_on_buy.bind("hyper"))
-	add_child(_hex_btn)
 
-	add_child(UIKit.label_at(str(n["name"]), Vector2(960, NAME_Y), Vector2(400, 50), 42,
-		LILA, HORIZONTAL_ALIGNMENT_CENTER))
-	add_child(UIKit.label_at(str(n["desc"]), Vector2(960, DESC_Y), Vector2(400, 30), 28,
-		Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER))
-	_cost = UIKit.label_at("", Vector2(960, COST_Y), Vector2(400, 30), 21,
-		Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_CENTER)
-	add_child(_cost)
+static func spoke_point(spoke: int, r: float) -> Vector2:
+	var a := deg_to_rad(60.0 * spoke)
+	return Vector2(cos(a) * r * STRETCH_X, sin(a) * r)
+
+
+## La caja del dibujo entero (con los nombres de los hilos), en el mundo.
+static func web_bounds() -> Rect2:
+	var w := SPOKE_LABEL_R * STRETCH_X + 160.0
+	var h := SPOKE_LABEL_R * 0.866 + 60.0
+	return Rect2(-w, -h, w * 2.0, h * 2.0)
+
+
+func zoom() -> float:
+	return ZOOM_STEPS[_zoom_i]
+
+
+## Un punto del mundo, en la pantalla (para los estallidos).
+func world_to_screen(p: Vector2) -> Vector2:
+	return WEB_VIEW.position + _offset + p * zoom()
+
+
+func _build_web() -> void:
+	_clip = Control.new()
+	_clip.position = WEB_VIEW.position
+	_clip.size = WEB_VIEW.size
+	_clip.clip_contents = true
+	_clip.mouse_filter = Control.MOUSE_FILTER_STOP
+	_clip.gui_input.connect(_on_view_input)
+	add_child(_clip)
+	_world = Control.new()
+	_world.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_clip.add_child(_world)
+	_web = Control.new()
+	_web.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_web.draw.connect(_draw_web)
+	_world.add_child(_web)
+	for spoke in AscensionTree.SPOKES.size():
+		_world.add_child(UIKit.label_at(str(AscensionTree.SPOKES[spoke]),
+				spoke_point(spoke, SPOKE_LABEL_R), Vector2(300, 50), 40, LILA,
+				HORIZONTAL_ALIGNMENT_CENTER, 1))
+	for n in AscensionTree.NODES:
+		_build_node(n)
+	_world.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
+	_build_card()
+	_build_zoom()
+	# Se abre con HYPER en el centro de la vista.
+	_set_offset(WEB_VIEW.size * 0.5)
+
+
+## Los hilos: los seis que salen del centro y los anillos que los unen.
+## Encendidos (lila) los que unen dos nodos comprados.
+func _draw_web() -> void:
+	for spoke in AscensionTree.SPOKES.size():
+		var antes := "hyper"
+		for ring in range(1, RING_R.size()):
+			var id := str(AscensionTree.node_at(spoke, ring).get("id", ""))
+			_thread(node_pos(antes), node_pos(id), Game.asc_owned(antes) and Game.asc_owned(id))
+			antes = id
+	for ring in range(1, RING_R.size()):
+		for spoke in AscensionTree.SPOKES.size():
+			var a := str(AscensionTree.node_at(spoke, ring).get("id", ""))
+			var b := str(AscensionTree.node_at((spoke + 1) % AscensionTree.SPOKES.size(),
+					ring).get("id", ""))
+			_thread(node_pos(a), node_pos(b), Game.asc_owned(a) and Game.asc_owned(b))
+
+
+func _thread(from: Vector2, to: Vector2, lit: bool) -> void:
+	_web.draw_line(from, to, THREAD_LIT if lit else THREAD, 5.0 if lit else 4.0)
+
+
+## Un hexagono con su dibujo y su nombre debajo. No es un boton: los clics los
+## reparte _on_view_input, para que pulsar y arrastrar encima de un nodo mueva la
+## telarana en vez de comprar.
+func _build_node(n: Dictionary) -> void:
+	var id := str(n["id"])
+	var lado := HYPER_SIDE if id == "hyper" else HEX_SIDE
+	var view := Control.new()
+	view.size = Vector2(lado, lado)
+	view.position = node_pos(id) - view.size * 0.5
+	view.pivot_offset = view.size * 0.5
+	_world.add_child(view)
+	var mitad := view.size * 0.5
+	var marco := UIKit.image("tree_asc_hex", mitad, view.size * 1.22, LILA)
+	marco.visible = false
+	view.add_child(marco)
+	if id == "hyper":
+		view.add_child(UIKit.image("rarity_glow_epic", mitad, view.size * 1.5))
+	view.add_child(UIKit.image("tree_asc_hex", mitad, view.size))
+	view.add_child(UIKit.fit_art(str(n["art"]), mitad + Vector2(0, lado * 0.02),
+			view.size * ART_PART))
+	view.add_child(UIKit.label_at(str(n["name"]), Vector2(mitad.x, lado + 16.0),
+			Vector2(lado + 60.0, 32), 24, Palette.CREAM, HORIZONTAL_ALIGNMENT_CENTER))
+	_nodes[id] = {"view": view, "ring": marco, "pulse": null}
+
+
+## El nodo que hay en este punto del MUNDO, o "".
+func _node_at(world: Vector2) -> String:
+	for id in _nodes:
+		var lado := HYPER_SIDE if str(id) == "hyper" else HEX_SIDE
+		if world.distance_to(node_pos(str(id))) <= lado * 0.5:
+			return str(id)
+	return ""
+
+
+## Pulsar y arrastrar mueve la telarana; pulsar y soltar en el sitio pulsa el
+## hexagono de debajo. La rueda acerca y aleja con el punto del raton quieto.
+func _on_view_input(event: InputEvent) -> void:
+	var mb := event as InputEventMouseButton
+	if mb != null and mb.pressed and (mb.button_index == MOUSE_BUTTON_WHEEL_UP
+			or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		set_zoom_step(_zoom_i + (1 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else -1),
+				mb.position)
+		return
+	if mb != null and mb.button_index == MOUSE_BUTTON_LEFT:
+		if mb.pressed:
+			_drag_start = mb.position
+			_drag_from = _offset
+			_last_pos = mb.position
+			_dragged = 0.0
+		elif _drag_start != null:
+			_drag_start = null
+			if _dragged <= DRAG_SLOP:
+				var id := _node_at((mb.position - _offset) / zoom())
+				if id != "":
+					_on_node_pressed(id)
+		return
+	var mm := event as InputEventMouseMotion
+	if mm == null or _drag_start == null:
+		return
+	_dragged += (mm.position - _last_pos).length()
+	_last_pos = mm.position
+	_set_offset(_drag_from + (mm.position - _drag_start))
+
+
+## Coloca el mundo en la vista, sin dejar que se escape entero (KEEP).
+func _set_offset(value: Vector2) -> void:
+	var caja := web_bounds()
+	var b := Rect2(caja.position * zoom(), caja.size * zoom())
+	var lo := Vector2(KEEP - b.end.x, KEEP - b.end.y)
+	var hi := WEB_VIEW.size - Vector2(KEEP, KEEP) - b.position
+	_offset = Vector2(clampf(value.x, minf(lo.x, hi.x), maxf(lo.x, hi.x)),
+			clampf(value.y, minf(lo.y, hi.y), maxf(lo.y, hi.y)))
+	_world.position = _offset
+	_world.scale = Vector2(zoom(), zoom())
+
+
+## Cambia el zoom dejando QUIETO el punto `anchor` de la vista (el del raton, o
+## el centro con las lupas).
+func set_zoom_step(index: int, anchor = null) -> void:
+	var nuevo := clampi(index, 0, ZOOM_STEPS.size() - 1)
+	if nuevo == _zoom_i:
+		return
+	var punto: Vector2 = anchor if anchor != null else WEB_VIEW.size * 0.5
+	var en_mundo := (punto - _offset) / zoom()
+	_zoom_i = nuevo
+	_set_offset(punto - en_mundo * zoom())
+	_paint_zoom()
+
+
+func _build_zoom() -> void:
+	_zoom_in = UIKit.icon_button("ui_icon_zoom_in", ZOOM_IN_CENTER, ZOOM_SIDE,
+			"Acercar la telaraña (o la rueda del ratón)")
+	_zoom_in.pressed.connect(func() -> void: _zoom_button(1))
+	add_child(_zoom_in)
+	_zoom_out = UIKit.icon_button("ui_icon_zoom_out", ZOOM_OUT_CENTER, ZOOM_SIDE,
+			"Alejar la telaraña para verla entera")
+	_zoom_out.pressed.connect(func() -> void: _zoom_button(-1))
+	add_child(_zoom_out)
+	_paint_zoom()
+
+
+func _zoom_button(step: int) -> void:
+	Sound.click()
+	set_zoom_step(_zoom_i + step)
+
+
+func _paint_zoom() -> void:
+	UIKit.dim_icon_button(_zoom_in, _zoom_i >= ZOOM_STEPS.size() - 1)
+	UIKit.dim_icon_button(_zoom_out, _zoom_i <= 0)
+
+
+## La ficha del elegido: nombre, lo que da, el precio (o si esta encendido) y el
+## boton que lo compra o lo enciende y apaga.
+func _build_card() -> void:
+	var edge := ColorRect.new()
+	edge.color = BAR_EDGE
+	edge.position = CARD.position
+	edge.size = CARD.size
+	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(edge)
+	var back := ColorRect.new()
+	back.color = BAR_BACK
+	back.position = CARD.position + Vector2(4, 4)
+	back.size = CARD.size - Vector2(8, 8)
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(back)
+	_card_name = UIKit.label("", 28, LILA, HORIZONTAL_ALIGNMENT_LEFT)
+	add_child(_card_name)
+	_card_desc = UIKit.label("", 21, Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT)
+	add_child(_card_desc)
+	_card_cost = UIKit.label("", 21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_LEFT)
+	add_child(_card_cost)
+
+
+## El boton de la ficha se rehace cuando cambia lo que pone: el texto va en una
+## etiqueta de dentro (UIKit.small_button), y Button.text lo ensanchaba.
+func _set_card_button(text: String) -> void:
+	if text == _card_btn_text and _card_btn != null:
+		return
+	if _card_btn != null:
+		_card_btn.queue_free()
+	_card_btn_text = text
+	_card_btn = UIKit.small_button(text, "tree_asc_star",
+			Vector2(CARD.end.x - 120.0, CARD.get_center().y), 192, 26)
+	_card_btn.pressed.connect(func() -> void: _on_buy(_selected))
+	add_child(_card_btn)
 
 
 func _build_bar() -> void:
@@ -244,25 +488,75 @@ func refresh() -> void:
 	_hint_label.text = _hint_text
 	_place_line(_hint_label, ROW_HINT)
 
-	# El nodo: comprado, comprable (late) o sin puntos (apagado).
-	if _pulse != null and _pulse.is_valid():
-		_pulse.kill()
-	_hex.scale = Vector2.ONE
-	if Game.asc_owned("hyper"):
-		_hex.modulate = Color.WHITE
-		_cost.text = "Comprado"
-		_cost.add_theme_color_override("font_color", LILA)
+	for id in _nodes:
+		_paint_node(str(id))
+	_paint_card()
+	_web.queue_redraw()
+
+
+## Comprado (claro), interruptor apagado (gris), comprable (late), abierto sin
+## puntos (medio) o cerrado porque falta el de dentro (muy apagado).
+func _paint_node(id: String) -> void:
+	var node: Dictionary = _nodes[id]
+	var view: Control = node["view"]
+	if node["pulse"] != null and (node["pulse"] as Tween).is_valid():
+		(node["pulse"] as Tween).kill()
+	node["pulse"] = null
+	view.scale = Vector2.ONE
+	(node["ring"] as CanvasItem).visible = id == _selected
+	if Game.asc_owned(id):
+		view.modulate = Color(0.55, 0.55, 0.62) if Game.asc_off.has(id) else Color.WHITE
+	elif Game.can_buy_asc(id):
+		view.modulate = Color(1.15, 1.15, 1.15)
+		var tw := view.create_tween().set_loops()
+		tw.tween_property(view, "scale", Vector2.ONE * 1.06, 0.6)
+		tw.tween_property(view, "scale", Vector2.ONE, 0.6)
+		node["pulse"] = tw
+	elif Game.asc_unlocked(id):
+		view.modulate = Color(0.6, 0.55, 0.7)
 	else:
-		var coste := int(AscensionTree.node_by_id("hyper")["cost"])
-		_cost.text = "%d punto%s" % [coste, "" if coste == 1 else "s"]
-		var listo := Game.can_buy_asc("hyper")
-		_cost.add_theme_color_override("font_color",
-			Palette.GOLD_XL if listo else Palette.RUST_L)
-		_hex.modulate = Color(1.15, 1.15, 1.15) if listo else Color(0.6, 0.55, 0.7)
-		if listo:
-			_pulse = _hex.create_tween().set_loops()
-			_pulse.tween_property(_hex, "scale", Vector2.ONE * 1.05, 0.6)
-			_pulse.tween_property(_hex, "scale", Vector2.ONE, 0.6)
+		view.modulate = Color(0.3, 0.26, 0.36)
+
+
+func _paint_card() -> void:
+	var n := AscensionTree.node_by_id(_selected)
+	_card_name.text = str(n["name"])
+	_card_desc.text = str(n["desc"])
+	_place_at(_card_name, CARD_TEXT_X, CARD_ROW1, 28)
+	var desc_size := UIKit.fit_size(_card_desc.text, CARD_TEXT_END - CARD_TEXT_X, 21)
+	_card_desc.add_theme_font_size_override("font_size", desc_size)
+	_place_at(_card_desc, CARD_TEXT_X, CARD_ROW2, desc_size)
+	var toggle := bool(n.get("toggle", false))
+	var color := Palette.GOLD_XL
+	var boton := "Comprar"
+	if Game.asc_owned(_selected):
+		if toggle:
+			var on := not Game.asc_off.has(_selected)
+			_card_cost.text = "Encendido" if on else "Apagado"
+			color = LILA if on else Palette.CREAM_D
+			boton = "Apagar" if on else "Encender"
+		else:
+			_card_cost.text = "Comprado"
+			color = LILA
+	else:
+		var coste := AscensionTree.cost_of(_selected)
+		_card_cost.text = "%d punto%s" % [coste, "" if coste == 1 else "s"]
+		if not Game.asc_unlocked(_selected):
+			_card_cost.text += " · antes: " + str(AscensionTree.node_by_id(
+					AscensionTree.req_of(_selected))["name"])
+		color = Palette.GOLD_XL if Game.can_buy_asc(_selected) else Palette.RUST_L
+	_card_cost.add_theme_color_override("font_color", color)
+	_place_at(_card_cost, CARD_TEXT_X + _card_name.size.x + 24.0, CARD_ROW1, 21)
+	_set_card_button(boton)
+	_card_btn.visible = not (Game.asc_owned(_selected) and not toggle)
+	_card_btn.modulate = BUTTON_TINT if (Game.can_buy_asc(_selected) or Game.asc_owned(_selected)) \
+			else Color(0.5, 0.42, 0.62)
+
+
+## Una etiqueta de la ficha, a su tamano y centrada en la fila `row`.
+func _place_at(label: Label, x: float, row: float, font_size: int) -> void:
+	label.size = Vector2(UIKit.text_width(label.text, font_size), UIKit.text_height(font_size))
+	label.position = Vector2(x, row - label.size.y * 0.5)
 
 
 ## Una linea de la barra pegada a la izquierda, encogida si no cabe.
@@ -283,12 +577,33 @@ func _hint(text: String, color: Color) -> void:
 # Acciones
 # --------------------------------------------------------------------------- #
 
+## Pulsar un hexagono lo elige; pulsar el que ya esta elegido lo compra.
+func _on_node_pressed(id: String) -> void:
+	if id == _selected:
+		_on_buy(id)
+		return
+	Sound.click()
+	_selected = id
+	refresh()
+
+
 func _on_buy(id: String) -> void:
 	_confirm = false
+	_selected = id
 	var n := AscensionTree.node_by_id(id)
 	if Game.asc_owned(id):
+		if bool(n.get("toggle", false)):
+			var on := Game.toggle_asc(id)
+			Sound.play("sfx_toggle")
+			_hint(str(n["name"]) + (": encendido" if on else ": apagado"), Palette.CREAM_D)
+			return
 		Sound.play("sfx_error")
 		_hint("Ya tienes " + str(n["name"]), Palette.CREAM_D)
+		return
+	if not Game.asc_unlocked(id):
+		Sound.play("sfx_error")
+		_hint("Antes: " + str(AscensionTree.node_by_id(AscensionTree.req_of(id))["name"]),
+				Palette.RUST_L)
 		return
 	if not Game.can_buy_asc(id):
 		Sound.play("sfx_error")
@@ -296,7 +611,7 @@ func _on_buy(id: String) -> void:
 		return
 	Game.buy_asc(id)
 	Sound.play("sfx_rare")
-	_burst()
+	_burst(world_to_screen(node_pos(id)))
 	MainRoot.get_root().banner(str(n["name"]), str(n["desc"]))
 	_hint("Comprado: " + str(n["name"]) + " " + str(n["desc"]), Palette.GOLD_XL)
 
@@ -318,14 +633,17 @@ func _on_ascend() -> void:
 	Sound.play("sfx_tool")
 	Sound.play("sfx_rare")
 	_burst()
-	MainRoot.get_root().banner("Ascensión", "+%d punto de ascensión" % puntos)
-	_hint("Has ascendido: gasta el punto en el hexágono", Palette.GOLD_XL)
+	MainRoot.get_root().banner("Ascensión", "+%d punto%s de ascensión"
+			% [puntos, "" if puntos == 1 else "s"])
+	_hint("Has ascendido: gasta los puntos en la telaraña", Palette.GOLD_XL)
 
 
-## Un estallido de particulas moradas desde el hexagono.
-func _burst() -> void:
+## Un estallido de particulas moradas desde un hexagono.
+func _burst(at: Vector2 = Vector2.ZERO) -> void:
+	if at == Vector2.ZERO:
+		at = world_to_screen(Vector2.ZERO)
 	var p := CPUParticles2D.new()
-	p.position = HEX_CENTER
+	p.position = at
 	p.texture = _pixel()
 	p.one_shot = true
 	p.explosiveness = 0.9

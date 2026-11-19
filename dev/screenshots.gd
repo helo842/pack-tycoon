@@ -195,10 +195,6 @@ func _run() -> void:
 		hucha._tap("spikes")
 		await _frames(4)
 		await _shot("03f_ficha_mejora")
-		var ficha_mejora: Node = hucha._card
-		if ficha_mejora != null:
-			ficha_mejora._close()
-		await _frames(3)
 		hucha._close()
 	await _frames(3)
 

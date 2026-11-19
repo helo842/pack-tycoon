@@ -666,6 +666,284 @@ def draw_asc_star(s) -> None:
     s.dots([(15, 8), (16, 7)], WHITE)                              # brillo
 
 
+# --- la telarana de la ascension: un dibujo por hexagono -------------------- #
+
+def draw_asc_money_1(s) -> None:
+    """BOLSA: un saco de monedas atado, con la estrella morada estampada."""
+    s.ellipse(5, 11, 26, 29, BROWN_L)                 # el saco
+    s.ellipse(5, 11, 12, 29, BROWN)
+    s.poly([(11, 11), (13, 6), (19, 6), (21, 11)], BROWN_L)   # cuello
+    s.rect(11, 9, 21, 10, RED)                        # el cordel
+    s.dots([(10, 8), (22, 8)], RED_L)
+    s.poly(_star(16, 20, 6, 3), PURPLE)               # la estrella
+    s.px(15, 18, PURPLE_L)
+    _coin(s, 3, 23, 5)
+    _coin(s, 23, 24, 5)
+
+
+def draw_asc_money_2(s) -> None:
+    """COFRE: el cofre abierto rebosando oro."""
+    s.rect(4, 15, 27, 28, BROWN)                      # caja
+    s.rect(4, 15, 27, 16, BROWN_L)
+    s.rect(4, 21, 27, 22, GOLD_D)                     # fleje
+    s.rect(14, 19, 17, 24, GOLD)                      # cerradura
+    s.px(15, 21, DARK)
+    s.poly([(4, 15), (6, 5), (25, 5), (27, 15)], BROWN_D)    # tapa abierta
+    s.rect(7, 6, 24, 7, BROWN)
+    s.ellipse(6, 9, 25, 17, GOLD)                     # el oro que asoma
+    _coin(s, 8, 9, 5)
+    _coin(s, 15, 8, 5)
+    _coin(s, 20, 11, 4)
+    s.dots([(12, 11), (19, 9)], GOLD_HI)
+
+
+def draw_asc_money_3(s) -> None:
+    """SUPERNOVA: una estrella que revienta en rayos dorados y morados."""
+    for i in range(8):
+        a = i * math.pi / 4
+        x = round(16 + 14 * math.cos(a))
+        y = round(16 + 14 * math.sin(a))
+        s.line([(16, 16), (x, y)], GOLD if i % 2 == 0 else PURPLE_L, 2)
+    s.ellipse(8, 8, 23, 23, PURPLE)
+    s.ellipse(10, 10, 21, 21, GOLD)
+    s.ellipse(12, 12, 19, 19, GOLD_XL)
+    s.ellipse(14, 14, 17, 17, WHITE)
+
+
+def draw_asc_rebirth_1(s) -> None:
+    """ECO: una moneda de rebirth con sus ecos en ondas a los lados."""
+    for r in (13, 10):
+        s.arc(16 - r, 16 - r, 16 + r, 16 + r, 140, 220, PURPLE_L if r == 13 else PURPLE, 2)
+        s.arc(16 - r, 16 - r, 16 + r, 16 + r, -40, 40, PURPLE_L if r == 13 else PURPLE, 2)
+    s.ellipse(10, 10, 21, 21, GOLD)
+    s.ellipse(10, 10, 20, 20, GOLD_XL)
+    s.poly(_star(16, 16, 4, 2), PURPLE_D)
+
+
+def draw_asc_rebirth_2(s) -> None:
+    """ATAJO: una flecha que corta en zigzag por el medio de un camino largo."""
+    s.ring(4, 4, 27, 27, STEEL_D, 2)                  # el camino largo
+    s.line([(6, 25), (14, 14), (18, 18), (25, 7)], PURPLE, 3)   # el atajo
+    s.poly([(20, 5), (27, 4), (26, 11)], PURPLE_L)    # la punta
+    s.dots([(7, 24), (15, 15)], PURPLE_L)
+
+
+def draw_asc_rebirth_3(s) -> None:
+    """BIG BANG: una explosion de colores con la moneda en el centro."""
+    s.poly(_star(16, 16, 15, 7), RED_L)
+    s.poly(_star(16, 16, 11, 5), GOLD)
+    s.ellipse(11, 11, 20, 20, PURPLE)
+    s.ellipse(13, 13, 18, 18, PURPLE_L)
+    s.dots([(3, 4), (28, 6), (4, 27), (27, 28), (16, 2)], WHITE)
+
+
+def draw_asc_auto_abil(s) -> None:
+    """PILOTO: un volante que conduce solo, con chispa de energia."""
+    s.ring(4, 4, 27, 27, STEEL, 3)                    # aro
+    s.ring(4, 4, 27, 27, STEEL_D, 1)
+    s.ellipse(12, 12, 19, 19, PURPLE)                 # centro
+    s.ellipse(13, 13, 17, 17, PURPLE_L)
+    s.line([(16, 12), (16, 6)], STEEL, 2)             # radios
+    s.line([(12, 18), (7, 23)], STEEL, 2)
+    s.line([(20, 18), (25, 23)], STEEL, 2)
+    s.line([(22, 3), (19, 8), (23, 8), (20, 13)], GOLD_XL)   # chispa
+
+
+def draw_asc_auto_tree(s) -> None:
+    """JARDINERO: una regadera morada regando un brote."""
+    s.rect(4, 13, 18, 25, PURPLE)                     # cuerpo
+    s.rect(4, 13, 18, 14, PURPLE_L)
+    s.ring(8, 7, 15, 15, PURPLE_D, 2)                 # asa
+    s.line([(18, 16), (25, 10)], PURPLE, 3)           # pitorro
+    s.rect(24, 8, 27, 10, PURPLE_L)
+    s.dots([(27, 13), (26, 16), (28, 18)], TEAL_L)     # agua
+    s.rect(24, 27, 29, 28, BROWN)                     # tierra
+    s.line([(26, 26), (26, 21)], GREEN)               # brote
+    s.dots([(25, 21), (27, 22)], GREEN_L)
+
+
+def draw_asc_auto_rebirth(s) -> None:
+    """BUCLE: dos flechas que dan vueltas una detras de otra."""
+    s.arc(4, 4, 27, 27, 200, 340, PURPLE_L, 3)
+    s.arc(4, 4, 27, 27, 20, 160, PURPLE, 3)
+    s.poly([(24, 4), (29, 11), (21, 11)], PURPLE_L)   # punta de arriba
+    s.poly([(7, 27), (2, 20), (10, 20)], PURPLE)      # punta de abajo
+    _coin(s, 13, 13, 6)
+
+
+def draw_asc_keep_album(s) -> None:
+    """RECUERDO: el album abierto con dos fotos dentro."""
+    s.rect(3, 7, 28, 26, PURPLE_D)                    # tapas
+    s.rect(4, 8, 15, 25, CREAM)                       # hojas
+    s.rect(16, 8, 27, 25, CREAM_L)
+    s.rect(15, 7, 16, 26, PURPLE)                     # lomo
+    s.rect(6, 10, 13, 16, TEAL)                       # foto 1
+    s.rect(6, 14, 13, 16, GREEN)
+    s.rect(18, 15, 25, 22, RED_L)                     # foto 2
+    s.ellipse(20, 16, 23, 19, GOLD_XL)
+    s.rect(6, 19, 13, 19, CREAM_D)                    # rayas de texto
+    s.rect(6, 22, 11, 22, CREAM_D)
+
+
+def draw_asc_keep_qol(s) -> None:
+    """HERENCIA: una llave antigua dorada con la gema morada."""
+    s.ring(3, 3, 14, 14, GOLD, 3)                     # ojo de la llave
+    s.ellipse(6, 6, 11, 11, PURPLE)
+    s.px(7, 7, PURPLE_L)
+    s.line([(12, 12), (27, 27)], GOLD, 3)             # cana
+    s.line([(12, 12), (26, 26)], GOLD_XL)
+    s.rect(20, 25, 22, 28, GOLD)                      # dientes
+    s.rect(24, 21, 27, 23, GOLD)
+
+
+def draw_asc_seed(s) -> None:
+    """SEMILLA: un brote morado saliendo de una semilla dorada."""
+    s.ellipse(9, 20, 22, 29, GOLD_D)                  # semilla
+    s.ellipse(10, 20, 20, 27, GOLD)
+    s.px(13, 22, GOLD_HI)
+    s.line([(16, 20), (16, 9)], GREEN, 2)             # tallo
+    s.ellipse(4, 6, 15, 12, PURPLE)                   # hojas
+    s.ellipse(17, 3, 28, 9, PURPLE_L)
+    s.line([(6, 9), (14, 9)], PURPLE_D)
+    s.line([(19, 6), (27, 6)], PURPLE)
+
+
+def draw_asc_points_1(s) -> None:
+    """ESTRELLA DOBLE: dos estrellas moradas, una delante de otra."""
+    s.poly(_star(20, 12, 10, 4), PURPLE_D)
+    s.poly(_star(20, 12, 7, 3), PURPLE)
+    s.poly(_star(12, 19, 11, 5), PURPLE)
+    s.poly(_star(12, 19, 8, 3), PURPLE_L)
+    s.dots([(11, 16), (12, 15)], WHITE)
+
+
+def draw_asc_pet_slot(s) -> None:
+    """COLLAR: un collar con hebilla y su placa dorada."""
+    s.ring(4, 3, 27, 22, RED, 3)                      # la correa
+    s.ring(4, 3, 27, 22, RED_D, 1)
+    s.rect(4, 11, 8, 15, STEEL)                       # hebilla
+    s.px(6, 13, DARK)
+    s.line([(16, 22), (16, 24)], STEEL_D)             # anilla
+    s.ellipse(11, 23, 20, 30, GOLD)                   # placa
+    s.ellipse(12, 24, 19, 29, GOLD_XL)
+    s.poly(_star(15, 26, 2, 1), PURPLE)
+
+
+def draw_asc_points_2(s) -> None:
+    """CONSTELACION: cinco estrellas unidas por lineas."""
+    pts = [(5, 24), (11, 13), (19, 17), (25, 6), (27, 26)]
+    s.line(pts[:4], PURPLE, 2)
+    s.line([pts[2], pts[4]], PURPLE, 2)
+    for x, y in pts:
+        s.poly(_star(x, y, 4, 2), PURPLE_L)
+        s.px(x, y, WHITE)
+
+
+def draw_asc_hit_1(s) -> None:
+    """FUERZA: un puno morado con lineas de golpe."""
+    s.rect(9, 9, 24, 22, PURPLE)                      # puno
+    s.rect(9, 9, 24, 10, PURPLE_L)
+    for x in (12, 16, 20):                            # nudillos
+        s.rect(x, 9, x, 15, PURPLE_D)
+    s.rect(6, 14, 10, 20, PURPLE)                     # pulgar
+    s.rect(11, 22, 21, 28, PURPLE_D)                  # muneca
+    _speed_lines(s, (5, 25), 2, 6, GOLD_XL)
+    s.dots([(27, 4), (28, 8), (25, 2)], GOLD_XL)
+
+
+def draw_asc_hit_2(s) -> None:
+    """RAYO: un rayo amarillo con el contorno morado."""
+    s.poly([(18, 2), (6, 18), (14, 18), (11, 29), (25, 12), (17, 12), (21, 2)], PURPLE_D)
+    s.poly([(18, 4), (8, 17), (15, 17), (13, 26), (23, 13), (16, 13), (20, 4)], GOLD_XL)
+    s.line([(18, 5), (10, 16)], GOLD_HI)
+
+
+def draw_asc_hit_3(s) -> None:
+    """COMETA: la bola de fuego morada con su cola."""
+    s.line([(4, 28), (17, 15)], PURPLE_D, 5)          # cola
+    s.line([(3, 22), (15, 13)], PURPLE, 3)
+    s.line([(10, 29), (19, 18)], PURPLE, 3)
+    s.ellipse(15, 5, 27, 17, RED_L)                   # la cabeza
+    s.ellipse(17, 7, 25, 15, GOLD)
+    s.ellipse(19, 9, 23, 13, GOLD_XL)
+    s.dots([(6, 6), (11, 3), (27, 22)], WHITE)
+
+
+def draw_asc_money_4(s) -> None:
+    """GALAXIA: una espiral de oro y morado con el nucleo blanco."""
+    for i in range(46):
+        t = i / 45.0
+        a = t * 3.6 * math.pi
+        r = 2 + t * 13
+        for k, col in ((0, GOLD_XL), (math.pi, PURPLE_L)):
+            x = round(16 + r * math.cos(a + k))
+            y = round(16 + r * 0.8 * math.sin(a + k))
+            s.rect(x, y, x + 1, y + 1, col)
+    s.ellipse(12, 13, 19, 19, GOLD)
+    s.ellipse(14, 14, 17, 17, WHITE)
+    s.dots([(3, 4), (27, 3), (28, 27), (4, 26)], WHITE)
+
+
+def draw_asc_rebirth_4(s) -> None:
+    """MULTIVERSO: tres mundos que se tocan, cada uno de un color."""
+    s.ellipse(2, 12, 15, 25, TEAL)
+    s.ellipse(3, 13, 9, 18, TEAL_L)
+    s.ellipse(16, 12, 29, 25, RED_L)
+    s.ellipse(17, 13, 23, 18, GOLD_XL)
+    s.ellipse(9, 3, 22, 16, PURPLE)
+    s.ellipse(10, 4, 16, 9, PURPLE_L)
+    s.ring(7, 24, 24, 29, GOLD, 1)                    # anillo de luz debajo
+    s.dots([(2, 4), (29, 5)], WHITE)
+
+
+def draw_asc_auto_perfect(s) -> None:
+    """PERFECCION: una diana con la flecha clavada en el centro dorado."""
+    s.ellipse(2, 2, 29, 29, CREAM)
+    s.ellipse(5, 5, 26, 26, RED)
+    s.ellipse(8, 8, 23, 23, CREAM)
+    s.ellipse(11, 11, 20, 20, PURPLE)
+    s.ellipse(13, 13, 18, 18, GOLD_XL)
+    s.line([(16, 15), (27, 4)], BROWN_D, 2)           # la flecha
+    s.poly([(25, 2), (29, 2), (29, 6)], PURPLE_L)     # plumas
+    s.rect(15, 15, 16, 16, DARK)
+
+
+def draw_asc_keep_locker(s) -> None:
+    """LEGADO: la vitrina del armario con una corona encima."""
+    s.rect(6, 11, 25, 29, WOOD_D)                     # mueble
+    s.rect(8, 13, 23, 27, TEAL_D)                     # cristal
+    s.rect(8, 19, 23, 20, WOOD_D)                     # balda
+    s.rect(10, 15, 13, 18, GOLD)                      # lo expuesto
+    s.rect(17, 14, 21, 18, RED_L)
+    s.rect(11, 22, 15, 26, PURPLE_L)
+    s.dots([(9, 14), (9, 21)], TEAL_L)
+    s.poly([(9, 9), (9, 3), (13, 6), (16, 2), (19, 6), (23, 3), (23, 9)], GOLD)   # corona
+    s.rect(9, 8, 23, 9, GOLD_D)
+    s.dots([(16, 5), (11, 7), (21, 7)], PURPLE_L)
+
+
+def draw_asc_points_3(s) -> None:
+    """NEBULOSA: una nube de gas morado con estrellas naciendo dentro."""
+    s.ellipse(2, 9, 17, 24, PURPLE_D)
+    s.ellipse(11, 4, 29, 21, PURPLE)
+    s.ellipse(8, 14, 27, 28, PURPLE_D)
+    s.ellipse(13, 9, 24, 19, PURPLE_L)
+    s.poly(_star(18, 14, 5, 2), WHITE)
+    s.poly(_star(9, 18, 3, 1), CREAM_L)
+    s.poly(_star(22, 23, 3, 1), CREAM_L)
+
+
+def draw_asc_hit_4(s) -> None:
+    """METEORITO: la roca en llamas cayendo en diagonal."""
+    s.poly([(2, 2), (14, 10), (10, 14)], RED_L)        # fuego de la estela
+    s.poly([(4, 2), (16, 12), (12, 16), (2, 4)], GOLD)
+    s.poly([(6, 4), (15, 13), (13, 15)], GOLD_XL)
+    s.ellipse(12, 12, 28, 28, STEEL_D)                # la roca
+    s.ellipse(13, 13, 24, 24, STEEL)
+    s.dots([(17, 17), (22, 20), (19, 24)], STEEL_DD)  # crateres
+    s.rect(15, 15, 16, 15, WHITE)
+
+
 # --------------------------------------------------------------------------- #
 # La tienda de mascotas (el gachapon, ver PetPanel y PetDB)
 # --------------------------------------------------------------------------- #
@@ -1147,6 +1425,30 @@ DRAWINGS: Dict[str, Callable] = {
     "cap_aim": draw_cap_aim, "cap_events": draw_cap_events,
     "qol_factory": draw_qol_factory,
     "asc_hex": draw_asc_hex, "asc_hyper": draw_asc_hyper, "asc_star": draw_asc_star,
+    "asc_money_1": draw_asc_money_1,
+    "asc_money_2": draw_asc_money_2,
+    "asc_money_3": draw_asc_money_3,
+    "asc_rebirth_1": draw_asc_rebirth_1,
+    "asc_rebirth_2": draw_asc_rebirth_2,
+    "asc_rebirth_3": draw_asc_rebirth_3,
+    "asc_auto_abil": draw_asc_auto_abil,
+    "asc_auto_tree": draw_asc_auto_tree,
+    "asc_auto_rebirth": draw_asc_auto_rebirth,
+    "asc_keep_album": draw_asc_keep_album,
+    "asc_keep_qol": draw_asc_keep_qol,
+    "asc_seed": draw_asc_seed,
+    "asc_points_1": draw_asc_points_1,
+    "asc_pet_slot": draw_asc_pet_slot,
+    "asc_points_2": draw_asc_points_2,
+    "asc_hit_1": draw_asc_hit_1,
+    "asc_hit_2": draw_asc_hit_2,
+    "asc_hit_3": draw_asc_hit_3,
+    "asc_money_4": draw_asc_money_4,
+    "asc_rebirth_4": draw_asc_rebirth_4,
+    "asc_auto_perfect": draw_asc_auto_perfect,
+    "asc_keep_locker": draw_asc_keep_locker,
+    "asc_points_3": draw_asc_points_3,
+    "asc_hit_4": draw_asc_hit_4,
     "pet_dog": draw_pet_dog, "pet_cat": draw_pet_cat, "pet_frog": draw_pet_frog,
     "pet_fish": draw_pet_fish, "pet_fox": draw_pet_fox, "pet_dragon": draw_pet_dragon,
     "pet_capsule": draw_pet_capsule, "pet_machine": draw_pet_machine,

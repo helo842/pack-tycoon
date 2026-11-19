@@ -1,7 +1,7 @@
 # SkillTree - el arbol de mejoras del rebirth: los nodos, lo que cuestan y lo
 # que dan.
 #
-# QUE ES. El rebirth paga MONEDAS (una por cada 1,5 M que haya en el contador al
+# QUE ES. El rebirth paga MONEDAS (raiz cuarta del dinero que haya en el contador al
 # reiniciar, ver LootDB.rebirth_coins_for) y esas monedas se gastan AQUI. Antes no
 # se gastaban: cada moneda subia un 5 % el valor de lo que vendias, para siempre,
 # y eso convertia el rebirth en una paga automatica en la que no habia nada que
@@ -235,13 +235,11 @@ const AUTO_ITEMS := {
 ## coordenadas del arbol (el centro es 0,0) y `req` el nodo que hay que tener
 ## antes: vacio es "no hace falta nada".
 ##
-## `desc` Y `detail` SON EL TEXTO DE LA FICHA (ver skill_card.gd), como en los
-## items de la tienda: `desc` es la linea corta que se lee de un vistazo y
-## `detail` la explicacion larga, partida en lineas por UIKit.wrap(). La larga
-## tiene que caber en DETAIL_LINES_MAX lineas (unas 40 letras cada una) y por eso
-## esta escrita asi de corta: lo que no cabe se dibuja ENCIMA de los numeros de
-## la ficha, y eso no da ningun error, solo una pantalla ilegible. El smoke test
-## lo comprueba nodo por nodo.
+## `desc` Y `detail` SON EL TEXTO DE LA FICHA: la franja de abajo del arbol (ver
+## rebirth_panel.gd, _paint_card) lleva `desc`, la linea corta que se lee de un
+## vistazo, con los numeros de ahora y al comprarlo; `detail`, la explicacion
+## larga, es el tooltip de esa franja. El smoke test mira que la linea de cada
+## nodo quepa en la franja.
 ##
 ## EN MAYUSCULAS, como todos los rotulos del juego: la fuente es de mapa de bits y
 ## NO TIENE MINUSCULAS, asi que una letra minuscula no sale "en minuscula", sale

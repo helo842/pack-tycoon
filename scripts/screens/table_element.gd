@@ -420,6 +420,10 @@ func _process(delta: float) -> void:
 		_ring.head_color = TimerRing.ZONE_COLOR
 	else:
 		_ring.head_color = Palette.GOLD_XL
+	# PERFECCION (ascension): el golpe sale solo en cuanto la punta entra en la
+	# zona dorada. Si un frame se la salta, sale igual (perfecto, sin la dorada).
+	if p >= _ring.sweet_from and Game.asc_flag("auto_perfect") and try_perfect():
+		return
 	if p >= 1.0:
 		# Un ciclo completo es un golpe. La vida no baja de golpe, pero sube
 		# otra vez la carga: por eso hacen falta varios ciclos para abrir.

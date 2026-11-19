@@ -18,8 +18,11 @@
 # desplazarse.
 #
 # EL ARRASTRE ES DE VERDAD. Pulsar y mover mueve el arbol; pulsar y soltar en el
-# mismo sitio abre la FICHA de ese nodo (SkillCard), que es donde se ve lo que da
-# y lo que cuesta y donde esta el boton de comprar. Son los dos gestos del MISMO
+# mismo sitio ELIGE ese nodo (marco dorado) y su ficha sale en la FRANJA de abajo:
+# lo que es, lo que da, lo que cuesta y el boton de comprar. Pulsar otra vez el
+# elegido lo compra: los dos clics de la telarana de la ascension, que es como
+# se pidio que fuera (antes se abria una ficha a pantalla completa, SkillCard,
+# que tapaba el arbol entero). Son los dos gestos del MISMO
 # boton, asi que quien decide es el movimiento acumulado (DRAG_SLOP): es la unica
 # forma de que arrastrar empezando encima de un nodo funcione, que es como se
 # empieza casi siempre. POR ESO LOS NODOS NO SON BOTONES: un Button de verdad se
@@ -27,11 +30,10 @@
 # son dibujos (nada de la vista recoge el raton) y quien sabe cual has pulsado es
 # _node_at(), que mira las cajas que ha colocado este mismo panel.
 #
-# LA FICHA NO COMPRA, pide la compra: quien cobra, suena y avisa es este panel
-# (ver _on_buy_skill), que es el mismo camino de siempre. Abrir la ficha de un
-# nodo NO cuesta nada y se puede hacer con cualquiera, tambien con los que ya son
-# tuyos o con los que todavia estan cerrados: es justo donde se explica por que
-# no se pueden comprar.
+# ELEGIR UN NODO NO CUESTA NADA y se puede con cualquiera, tambien con los que ya
+# son tuyos o con los que todavia estan cerrados: la franja es justo donde se
+# explica por que no se pueden comprar. Quien cobra, suena y avisa es
+# _on_buy_skill, venga del segundo clic o del boton de la franja.
 #
 # LOS NUMEROS SON DE GAME Y DE SKILLTREE, NO DE AQUI. Lo que te llevarias sale de
 # Game.pending_rebirth_coins() -el MISMO calculo que hace do_rebirth(), asi que la
@@ -50,8 +52,6 @@ extends Control
 signal closed()
 ## El boton de la ASCENSION: game.gd cierra este panel y abre el morado.
 signal ascension_requested()
-
-const SKILL_CARD_SCENE := preload("res://scenes/SkillCard.tscn")
 
 ## La vista del arbol: el recuadro interior del panel (ui_panel_shop es de
 ## 1600x960, con el interior de x 224..1696 e y 140..940), recortado, con el mundo
@@ -198,18 +198,29 @@ const DRAG_SLOP := 12.0
 const ZOOM_STEPS: Array[float] = [1.0 / 6.0, 0.2, 0.25, 1.0 / 3.0, 0.5, 2.0 / 3.0, 1.0,
 		4.0 / 3.0, 5.0 / 3.0]
 const ZOOM_DEFAULT := 6
-## Las dos lupas: una encima de la otra, en la esquina de abajo a la derecha de
-## la vista, que es la unica que no tapa ni la barra ni la cruz de cerrar.
+## Las dos lupas: una al lado de la otra, DENTRO de la franja de la ficha, a la
+## derecha del todo. Por encima de la franja tapaban los rotulos del arbol.
 const ZOOM_SIDE := 72.0
-const ZOOM_IN_CENTER := Vector2(1612, 780)
-const ZOOM_OUT_CENTER := Vector2(1612, 866)
+const ZOOM_IN_CENTER := Vector2(1640, 876)
+const ZOOM_OUT_CENTER := Vector2(1560, 876)
 ## El boton de la ASCENSION, en la esquina de abajo a la izquierda (la de enfrente
 ## de las lupas). Solo sale con el arbol entero comprado (Game.ascension_shown).
 ## 256 de ancho y pegado al borde para no tapar el rotulo de ESCAPARATE (x 519)
 ## con el arbol en su sitio de siempre.
-const ASC_CENTER := Vector2(368, 878)
+const ASC_CENTER := Vector2(368, 750)
 const ASC_W := 256.0
 const ASC_TINT := Color(0.85, 0.55, 1.25)
+## LA FICHA del nodo elegido: una franja como la de la telarana de la ascension,
+## pero de TRES lineas (nombre y precio, lo que hace, y los numeros de ahora y al
+## comprarlo: en dos no cabian), con el boton y las lupas a la derecha. El arbol
+## se recorta justo encima (ver _build_view): nada suyo queda debajo.
+const CARD := Rect2(240, 818, 1440, 116)
+const CARD_ROW1 := 842.0
+const CARD_ROW2 := 876.0
+const CARD_ROW3 := 908.0
+const CARD_TEXT_X := 264.0
+const CARD_TEXT_END := 1290.0
+const CARD_BUY_CENTER := Vector2(1392, 876)
 
 ## El color de un nodo segun lo que se puede hacer con el. El "ready" va mas
 ## claro que los demas a proposito: el nodo que se puede comprar ahora mismo es
@@ -282,11 +293,17 @@ var _drag_start = null
 var _drag_from := Vector2.ZERO
 var _last_pos := Vector2.ZERO
 var _dragged := 0.0
-## La ficha del nodo que se acaba de pulsar, o null si no hay ninguna abierta. Va
-## en la capa de encima (la de las tarjetas), no dentro del panel: el panel mide
-## la pantalla entera y un hijo suyo no se puede poner por encima de su marco (ver
-## shop_panel.gd, _open_card, que es exactamente el mismo caso).
-var _card: SkillCard = null
+## El nodo elegido (su ficha es la de la franja). Se abre SIN ninguno: con uno
+## ya elegido, el primer clic en el compraria sin haber leido nada.
+var _selected := ""
+## El marco de la franja: su tooltip es la explicacion larga del nodo elegido.
+var _card_edge: ColorRect
+var _card_name: Label
+var _card_cost: Label
+var _card_desc: Label
+## La tercera linea: lo que el arbol lleva sumado ahora y lo que llevara.
+var _card_nums: Label
+var _card_btn: Button = null
 
 
 func _ready() -> void:
@@ -298,6 +315,7 @@ func _ready() -> void:
 	# el arbol tiene que colarse por DEBAJO de la barra.
 	_build_view()
 	_build_bar()
+	_build_card()
 	_build_zoom()
 	_set_offset(_centered_offset())
 
@@ -321,7 +339,7 @@ func _build_view() -> void:
 	_view = Control.new()
 	_view.name = "View"
 	_view.position = VIEW_POS
-	_view.size = VIEW_SIZE
+	_view.size = Vector2(VIEW_SIZE.x, CARD.position.y - VIEW_POS.y)
 	_view.clip_contents = true
 	_view.mouse_filter = Control.MOUSE_FILTER_STOP
 	_view.gui_input.connect(_on_view_input)
@@ -380,6 +398,16 @@ func _build_node(node: Dictionary) -> Dictionary:
 		brillo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		view.add_child(brillo)
 		view.move_child(brillo, 0)
+	# El marco del elegido: un cuadrado dorado detras de la chapa, que asoma 10 px
+	# por cada lado.
+	var marco := ColorRect.new()
+	marco.color = Palette.GOLD_XL
+	marco.position = Vector2(-10, -10)
+	marco.size = Vector2(NODE + 20.0, NODE + 20.0)
+	marco.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marco.visible = false
+	view.add_child(marco)
+	view.move_child(marco, 0)
 	body.add_child(UIKit.image("ui_slot", Vector2(NODE, NODE) * 0.5, Vector2(NODE, NODE)))
 	body.add_child(UIKit.fit_art(str(node["art"]), NODE_ART_CENTER, NODE_ART))
 
@@ -421,7 +449,7 @@ func _build_node(node: Dictionary) -> Dictionary:
 	return {
 		"id": id, "center": center, "view": view, "body": body, "cost": cost,
 		"done": done,
-		"coin": coin, "effect": effect,
+		"coin": coin, "effect": effect, "sel": marco,
 	}
 
 
@@ -534,7 +562,7 @@ func _build_bar() -> void:
 	_go.pressed.connect(_on_rebirth)
 	add_child(_go)
 
-	_asc = UIKit.small_button("Ascensión", "tree_asc_hyper", ASC_CENTER, ASC_W, 32)
+	_asc = UIKit.small_button("Ascensión", "tree_asc_star", ASC_CENTER, ASC_W, 32)
 	_asc.modulate = ASC_TINT
 	_asc.tooltip_text = "El árbol morado: lo borra TODO a cambio de mejoras para siempre"
 	_asc.pressed.connect(_on_ascension)
@@ -594,48 +622,108 @@ func _node_at(tree_pos: Vector2) -> String:
 	return ""
 
 
-## Pulsar un nodo (pulsar y soltar sin moverse) ABRE SU FICHA, no lo compra: la
-## compra se decide dentro, con lo que da el nodo y lo que cuesta delante. Se
-## abre con cualquier nodo, tambien con el que ya es tuyo o con el que esta
-## cerrado, que es donde se explica por que no se puede comprar.
+## Pulsar un nodo (pulsar y soltar sin moverse) lo ELIGE y su ficha sale en la
+## franja de abajo; pulsar otra vez el elegido lo compra (como en la telarana).
 func _tap(id: String) -> void:
 	if id == "":
 		return
-	_open_card(id)
-
-
-## Abrir la ficha de un nodo. Si ya hay una abierta no se abre otra: el arbol
-## entero esta tapado por ella, asi que no hay forma de pulsar un segundo nodo
-## sin cerrarla antes, y dos fichas apiladas solo se pueden deber a un test.
-func _open_card(id: String) -> void:
-	if _card != null:
-		return
-	var raiz := MainRoot.get_root()
-	if raiz == null:
+	if id == _selected:
+		_on_buy_skill(id)
 		return
 	Sound.click()
-	_card = SKILL_CARD_SCENE.instantiate() as SkillCard
-	_card.closed.connect(_close_card)
-	# La ficha no compra: pide la compra, y aqui se hace con la misma logica de
-	# siempre (cobrar, sonar, avisar y refrescar el arbol).
-	_card.buy_requested.connect(_on_buy_skill)
-	_card.show_skill(id)
-	raiz.push_overlay(_card)
-
-
-## Cerrar la ficha. `_card` se suelta ANTES de refrescar: el refresco repinta los
-## nodos y la barra, y con la ficha a medias de quitar podria volver a pedirla.
-func _close_card() -> void:
-	if _card == null:
-		return
-	var raiz := MainRoot.get_root()
-	if raiz != null:
-		raiz.pop_overlay(_card)
-	_card = null
+	_selected = id
 	refresh()
 
 
-## Comprar el nodo que pide la ficha. Todo lo que puede salir mal se dice en el
+## La franja de la ficha. El fondo recoge el raton: un clic en la franja no puede
+## llegar a la vista del arbol que hay debajo y elegir otro nodo.
+func _build_card() -> void:
+	var edge := ColorRect.new()
+	edge.color = BAR_EDGE
+	edge.position = CARD.position
+	edge.size = CARD.size
+	add_child(edge)
+	_card_edge = edge
+	var back := ColorRect.new()
+	back.color = BAR_BACK
+	back.position = CARD.position + Vector2(4, 4)
+	back.size = CARD.size - Vector2(8, 8)
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(back)
+	_card_name = UIKit.label("", 28, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_LEFT)
+	add_child(_card_name)
+	_card_cost = UIKit.label("", 21, Palette.GOLD_XL, HORIZONTAL_ALIGNMENT_LEFT)
+	add_child(_card_cost)
+	_card_desc = UIKit.label("", 21, Palette.CREAM, HORIZONTAL_ALIGNMENT_LEFT)
+	add_child(_card_desc)
+	_card_nums = UIKit.label("", 21, Palette.CREAM_D, HORIZONTAL_ALIGNMENT_LEFT)
+	add_child(_card_nums)
+	_card_btn = UIKit.small_button("Comprar", "currency_piggy", CARD_BUY_CENTER, 192, 26)
+	_card_btn.pressed.connect(func() -> void: _on_buy_skill(_selected))
+	add_child(_card_btn)
+
+
+## La ficha del elegido: su nombre y lo que cuesta (o por que no se puede), lo que
+## da en corto y los dos numeros que hacen falta para decidir (lo que el arbol
+## lleva sumado AHORA y lo que llevara al comprarlo, de Game y SkillTree).
+func _paint_card() -> void:
+	if _card_name == null:
+		return
+	if not SkillTree.has_node(_selected):
+		_card_name.text = "Elige una mejora"
+		_card_cost.text = ""
+		_card_desc.text = "Pulsa un nodo para ver lo que hace"
+		_card_nums.text = "Pulsarlo otra vez lo compra"
+		_place_at(_card_name, CARD_TEXT_X, CARD_ROW1, 28)
+		_place_at(_card_desc, CARD_TEXT_X, CARD_ROW2, 21)
+		_place_at(_card_nums, CARD_TEXT_X, CARD_ROW3, 21)
+		_card_edge.tooltip_text = ""
+		_card_btn.visible = false
+		return
+	_card_edge.tooltip_text = SkillTree.detail_of(_selected)
+	var cost := Game.skill_cost(_selected)
+	_card_name.text = SkillTree.effect_text(_selected)
+	_place_at(_card_name, CARD_TEXT_X, CARD_ROW1, 28)
+	var color := Palette.GOLD_XL
+	if cost < 0:
+		_card_cost.text = "Comprado"
+	elif not Game.skill_unlocked(_selected):
+		_card_cost.text = "%d moneda%s · antes: %s" % [cost, "" if cost == 1 else "s",
+				SkillTree.effect_text(Game.skill_missing_req(_selected))]
+		color = Palette.RUST_L
+	elif not Game.can_buy_skill(_selected):
+		_card_cost.text = "%d moneda%s · te faltan %d" % [cost, "" if cost == 1 else "s",
+				Game.skill_missing_coins(_selected)]
+		color = Palette.RUST_L
+	else:
+		_card_cost.text = "%d moneda%s" % [cost, "" if cost == 1 else "s"]
+	_card_cost.add_theme_color_override("font_color", color)
+	_place_at(_card_cost, CARD_TEXT_X + _card_name.size.x + 24.0, CARD_ROW1, 21)
+
+	var stat := str(SkillTree.node_by_id(_selected)["stat"])
+	_card_desc.text = SkillTree.desc_of(_selected)
+	_place_at(_card_desc, CARD_TEXT_X, CARD_ROW2, 21)
+	# Un interruptor no suma a ningun stat: lo suyo es encendido o no.
+	if SkillTree.is_qol(_selected):
+		_card_nums.text = "Ahora: encendido" if cost < 0 else "Ahora: apagado; después, encendido"
+	else:
+		var ahora := Game.skill_bonus(stat)
+		_card_nums.text = "Ahora " + SkillTree.total_text(stat, ahora)
+		if cost >= 0:
+			_card_nums.text += "; después, " + SkillTree.total_text(stat,
+					ahora + float(SkillTree.node_by_id(_selected)["value"]))
+	_place_at(_card_nums, CARD_TEXT_X, CARD_ROW3, 21)
+	_card_btn.visible = cost >= 0
+	_card_btn.modulate = Color.WHITE if Game.can_buy_skill(_selected) \
+			else Color(0.55, 0.55, 0.62, 1.0)
+
+
+func _place_at(label: Label, x: float, row: float, font_size: int) -> void:
+	label.size = Vector2(UIKit.text_width(label.text, font_size), UIKit.text_height(font_size))
+	label.position = Vector2(x, row - label.size.y * 0.5)
+
+
+## Comprar el nodo elegido. Todo lo que puede salir mal se dice en el
 ## aviso de la barra: un nodo que no hace nada no explica nada, que es la misma
 ## regla que la chapa del rebirth y los botones de las automatizaciones. La ficha
 ## ya lo adelanta en su segunda linea, y aqui se repite para el que pulse COMPRAR
@@ -686,7 +774,7 @@ func zoom() -> float:
 
 func _build_zoom() -> void:
 	_zoom_in = UIKit.icon_button("ui_icon_zoom_in", ZOOM_IN_CENTER, ZOOM_SIDE,
-		"Acercar el árbol (o la rueda del raton)")
+		"Acercar el árbol (o la rueda del ratón)")
 	_zoom_in.pressed.connect(func() -> void: _zoom_button(1))
 	add_child(_zoom_in)
 	_zoom_out = UIKit.icon_button("ui_icon_zoom_out", ZOOM_OUT_CENTER, ZOOM_SIDE,
@@ -799,6 +887,8 @@ func refresh() -> void:
 		return
 	for id in _nodes:
 		_paint_node(str(id))
+		(_nodes[id]["sel"] as CanvasItem).visible = str(id) == _selected
+	_paint_card()
 	if _lines != null:
 		_lines.queue_redraw()
 
@@ -817,7 +907,7 @@ func refresh() -> void:
 	# requisito, porque el tooltip es el sitio de consultar las reglas de la chapa.
 	_go.tooltip_text = ("Reinicia la partida: se pierde TODO lo de esta partida."
 		+ " Hacen falta %s en el contador (el dinero que TIENES, no lo ganado en"
-		+ " la partida). Te llevas %d monedas (1 por cada 1,5 M que tengas) y la"
+		+ " la partida). Te llevas %d monedas (más cuanto más dinero tengas) y la"
 		+ " Electrónica del armario las multiplica: x%s. Lo que vendes ya no sube"
 		+ " con las monedas: se gastan en el árbol.") % [
 		PixelNumber.format(Game.rebirth_require()), premio,
@@ -1005,27 +1095,17 @@ func _on_rebirth() -> void:
 
 
 func _on_ascension() -> void:
-	if _card != null:
-		_close_card()
 	ascension_requested.emit()
 	_close()
 
 
 func _close() -> void:
 	Sound.click()
-	# La ficha que estuviera abierta se va con el arbol: si no, se quedaria sola
-	# encima de la pantalla, sin arbol detras y sin forma de volver a abrirla.
-	if _card != null:
-		_close_card()
 	closed.emit()
 	queue_free()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		# Con la ficha abierta, ESC es de la ficha: ella lo dice y para el evento
-		# (ver SkillCard._unhandled_input), asi que aqui no se cierra el arbol.
-		if _card != null:
-			return
 		_close()
 		get_viewport().set_input_as_handled()

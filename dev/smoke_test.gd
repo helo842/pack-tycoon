@@ -519,7 +519,14 @@ func _pisados(de: Node, tapado := Rect2()) -> Array:
 				if r.size.x > 0.0 and r.size.y > 0.0:
 					textos.append([c, r])
 			elif c is TextureRect and (c as TextureRect).texture != null:
+				# Recortado por las vistas con clip de encima, como los textos: lo
+				# que el recorte no deja ver (el arbol bajo la franja) no pisa nada.
 				var b := _dibujo(c as TextureRect)
+				var p := c.get_parent()
+				while p != null:
+					if p is Control and (p as Control).clip_contents:
+						b = b.intersection((p as Control).get_global_rect())
+					p = p.get_parent()
 				var tapada: bool = tapado.size.x > 0.0 and tapado.intersects(b)
 				if b.size.x > 0.0 and b.size.y > 0.0 and not tapada:
 					dibujos.append([c, b])
@@ -744,7 +751,7 @@ func _nivel_buscado(index: int, ultimo: int) -> int:
 ## Las chapas de UIKit son un Button pelado con un Label dentro (el texto va en un
 ## hijo, no en button.text), asi que para pulsar GUARDAR o VENDER desde una prueba
 ## hay que buscar: primero el rotulo, y de ahi para arriba hasta el boton.
-## Pulsar el COMPRAR de una ficha (SkillCard o ItemCard).
+## Pulsar el COMPRAR de una ficha (la ItemCard de la tienda).
 ##
 ## Existe para que las pruebas del arbol digan lo que hacen -"se compra desde la
 ## ficha"- y no como se pulsa: el boton lleva el texto en un Label hijo, asi que
@@ -961,8 +968,11 @@ func _run() -> void:
 	# ninguna parte de la pantalla de partida.
 	_check("la partida no lleva el rotulo de dano", not _dice(g, "Daño", true))
 	# La columna de sobres de la izquierda: doce, comprables sin abrir nada.
+	# Las celdas de la tienda normal van primero; detras, las de la tienda pro (que
+	# viven en su propia lista, ver _check_tienda_pro).
 	_check("la zona de sobres tiene una celda por sobre",
-		g._pack_cells.size() == LootDB.pack_count())
+		g._pack_cells.size() == LootDB.pack_count() + LootDB.PRO_PACKS.size())
+	var celdas_normales: Array = (g._pack_cells as Array).slice(0, LootDB.pack_count())
 	_check("hay veinte sobres", LootDB.pack_count() == 20)
 	# Cinco tipos y cuatro escalones de cada uno, en el mismo orden: sobre, vinilo,
 	# zapatillas, electronica, juguetes, y otra vez con mas precio y mas botin. El
@@ -1002,7 +1012,7 @@ func _run() -> void:
 	# px para que cupieran las doce, y ese apinamiento es lo que se ha quitado.
 	var filas: Array = []
 	var alto := 0.0
-	for cell in g._pack_cells:
+	for cell in celdas_normales:
 		var r := (cell["button"] as Control).get_rect()
 		filas.append(r)
 		alto = maxf(alto, r.end.y)
@@ -1026,15 +1036,16 @@ func _run() -> void:
 	# del dibujo, el lado mas largo del sobre siempre toca el borde de la suya.
 	var flojos: Array = []
 	var desbordan: Array = []
-	for i in g._pack_cells.size():
-		var arte: TextureRect = g._pack_cells[i]["art"]
-		var usado := Sprites.used_rect(str(LootDB.pack_at(i)["art"]))
+	for cell in g._pack_cells:
+		var arte: TextureRect = cell["art"]
+		var pack := LootDB.pack_by_id(str(cell["id"]))
+		var usado := Sprites.used_rect(str(pack["art"]))
 		var escala := arte.size.x / 512.0
 		var dibujo := usado.size * escala
 		if absf(maxf(dibujo.x, dibujo.y) - maxf(g.PACK_ART_BOX.x, g.PACK_ART_BOX.y)) > 1.0:
-			flojos.append(str(LootDB.pack_at(i)["name"]))
+			flojos.append(str(pack["name"]))
 		if dibujo.x > g.PACK_ART_BOX.x + 1.0 or dibujo.y > g.PACK_ART_BOX.y + 1.0:
-			desbordan.append(str(LootDB.pack_at(i)["name"]))
+			desbordan.append(str(pack["name"]))
 	_check("los doce sobres llenan su hueco (manda el dibujo, no el lienzo)",
 		flojos.is_empty() and desbordan.is_empty())
 	# Y ya no van dentro de un marco de ranura: doce marcos naranjas seguidos se
@@ -2778,24 +2789,13 @@ func _run() -> void:
 		and Game.skill_cost("locker") == SkillTree.COST_BRANCH
 		and Game.skill_cost("spikes") == SkillTree.COST_BRANCH)
 
-	# CADA MEJORA TIENE SU TEXTO PARA LA FICHA, como los items de la tienda: una
-	# linea corta y una explicacion larga. Se miran los CINCO y no el que se abra,
-	# porque la ficha enseña el que se pulse: un texto que no cabe (mas de
-	# DETAIL_LINES_MAX lineas) se dibuja ENCIMA de los numeros del AHORA y del
-	# AL COMPRARLO y eso no da ningun error, solo una pantalla ilegible.
+	# CADA MEJORA TIENE SU TEXTO: una linea corta (la de la franja de abajo del
+	# arbol) y una explicacion larga (el tooltip de la franja).
 	var sin_texto: Array = []
-	var textos_largos: Array = []
-	var textos_anchos: Array = []
 	for id_arbol in SkillTree.ids():
 		if SkillTree.desc_of(str(id_arbol)) == "" \
 				or SkillTree.detail_of(str(id_arbol)) == "":
 			sin_texto.append(str(id_arbol))
-		var lineas := UIKit.wrap(SkillTree.detail_of(str(id_arbol)),
-				SkillCard.COL_W, 21).size()
-		if lineas > SkillCard.DETAIL_LINES_MAX:
-			textos_largos.append("%s (%d lineas)" % [str(id_arbol), lineas])
-		if UIKit.text_width(SkillTree.desc_of(str(id_arbol)), 28) > SkillCard.COL_W:
-			textos_anchos.append(str(id_arbol))
 	# LA FUENTE DEL JUEGO ES DE MAPA DE BITS Y NO TIENE MINUSCULAS: una letra
 	# minuscula no sale "en minuscula", sale un cuadro de basura. Y no lo ve
 	# ninguno de los checks de encuadre, porque el texto CABE: se vio en la
@@ -2820,9 +2820,7 @@ func _run() -> void:
 			con_doble.append(SkillTree.effect_text(str(id_efe)))
 	_check("y el efecto lleva el signo una sola vez", con_doble.is_empty())
 	_check("y cada mejora trae el texto de su ficha", sin_texto.is_empty())
-	_check("y la explicacion de las cinco cabe en la ficha", textos_largos.is_empty())
-	_check("y su linea corta tampoco se sale", textos_anchos.is_empty())
-	for t in sin_texto + textos_largos + textos_anchos:
+	for t in sin_texto:
 		print("         se sale de la ficha: ", t)
 
 	# Y como se compra: primero el centro (una moneda), y los caminos no se abren
@@ -3059,84 +3057,45 @@ func _run() -> void:
 			arbol._state_of("damage") == "locked"
 			and arbol._state_of("spikes") == "locked"
 			and arbol.link_color("damage") == arbol.LINK_DIM)
-		# Y PULSAR UN NODO NO LO COMPRA: abre su FICHA (SkillCard), que es donde
-		# estan el precio y el boton. Antes el clic gastaba a ciegas y lo unico que
-		# explicaba lo que acababas de pagar era una linea de aviso que se borraba
-		# al siguiente clic.
+		# Y PULSAR UN NODO NO LO COMPRA: lo ELIGE y su ficha sale en la franja de
+		# abajo (como en la telarana de la ascension). El segundo clic en el
+		# elegido, o el boton de la franja, es el que compra.
 		arbol._tap("damage")
-		await get_tree().process_frame
-		var ficha_nodo = arbol._card
-		_check("pulsar un nodo abre su ficha en vez de comprarlo",
-			ficha_nodo != null and ficha_nodo.skill_id() == "damage"
-			and not Game.skill_owned("damage") and Game.rebirth_coins == 12)
-		_check("y la ficha se cuelga de la capa de encima, no dentro del panel",
-			ficha_nodo != null and ficha_nodo.get_parent() == _main._overlay_host)
-		if ficha_nodo != null:
-			# Lo que dice de un nodo cerrado: cual hay que comprar antes, cuanto
-			# cuesta y que es lo que va a cambiar. Los dos numeros salen de Game y
-			# de SkillTree, o sea que no pueden mentir.
-			_check("la ficha de un nodo cerrado dice cual falta antes",
-				_dice(ficha_nodo, "Antes: " + SkillTree.effect_text("money")))
-			_check("y trae su explicacion larga entera",
-				_dice(ficha_nodo, str(UIKit.wrap(SkillTree.detail_of("damage"),
-					SkillCard.COL_W, 21)[0])))
-			_check("y el numero que tendra al comprarlo",
-				_dice(ficha_nodo, "Si lo compras: " + SkillTree.total_text("damage",
-					Game.skill_bonus("damage") + 0.20)))
-			# El boton ESTA aunque no se pueda comprar (un boton escondido o muerto
-			# no explica nada) y quien comprueba de verdad es el panel, que lo dice
-			# en la barra: mismo camino que la chapa del rebirth.
-			_check("la ficha trae el boton de comprar",
-				_boton_de(ficha_nodo, "Comprar") != null)
-			var raras := _sin_glifo_en(ficha_nodo)
-			_check("y la ficha solo usa letras que tiene la fuente", raras.is_empty())
-			for r in raras:
-				print("         con minusculas: ", r)
-			_check("y pulsarlo en un nodo cerrado no cobra nada",
-				_pulsa_comprar(ficha_nodo) and not Game.skill_owned("damage")
-				and Game.rebirth_coins == 12
-				and arbol._hint_label.text.begins_with("Antes"))
-			ficha_nodo._close()
-			await get_tree().process_frame
-		_check("y al cerrar la ficha el arbol se queda sin ella", arbol._card == null)
+		_check("pulsar un nodo lo elige en vez de comprarlo",
+			arbol._selected == "damage" and not Game.skill_owned("damage")
+			and Game.rebirth_coins == 12 and arbol._nodes["damage"]["sel"].visible
+			and not arbol._nodes["money"]["sel"].visible)
+		_check("la franja de un nodo cerrado dice cual falta antes",
+			arbol._card_name.text == SkillTree.effect_text("damage")
+			and arbol._card_cost.text.contains("antes: " + SkillTree.effect_text("money")))
+		_check("y lo que hace y el numero que tendra al comprarlo",
+			arbol._card_desc.text == SkillTree.desc_of("damage")
+			and arbol._card_nums.text.ends_with("después, " + SkillTree.total_text("damage",
+				Game.skill_bonus("damage") + 0.20)))
+		_check("y la explicacion larga en el tooltip de la franja",
+			arbol._card_edge.tooltip_text == SkillTree.detail_of("damage"))
+		arbol._tap("damage")
+		_check("y el segundo clic en un nodo cerrado no cobra nada",
+			not Game.skill_owned("damage") and Game.rebirth_coins == 12
+			and arbol._hint_label.text.begins_with("Antes"))
 		# El clic: se pulsa DONDE SE VE el nodo (no en un id), que es lo que hace
 		# el jugador y lo que prueba de paso el paso de pantalla a arbol.
 		_check("pulsar donde se ve un nodo acierta cual es",
 			arbol._node_at(arbol._nodes["money"]["center"]) == "money")
 		arbol._tap(arbol._node_at(arbol._nodes["money"]["center"]))
+		_check("el primer clic en el centro lo elige y dice lo que tienes ahora",
+			arbol._selected == "money" and not Game.skill_owned("money")
+			and arbol._card_nums.text.begins_with("Ahora "
+				+ SkillTree.total_text("money", 0.0))
+			and arbol._card_nums.text.ends_with("después, "
+				+ SkillTree.total_text("money", 0.50)))
+		arbol._tap("money")
+		_check("y el segundo lo compra", Game.skill_owned("money")
+			and Game.rebirth_coins == 11 and is_equal_approx(Game.value_multiplier(), 1.50)
+			and arbol._hint_label.text.begins_with("Comprado"))
+		_check("y la franja lo dice y quita el boton",
+			arbol._card_cost.text == "Comprado" and not arbol._card_btn.visible)
 		await get_tree().process_frame
-		var ficha_centro = arbol._card
-		_check("y abre la ficha del centro",
-			ficha_centro != null and ficha_centro.skill_id() == "money")
-		if ficha_centro != null:
-			# Los dos numeros que hacen falta para decidir: lo que el arbol lleva
-			# sumado AHORA y lo que llevara al comprarlo.
-			_check("la ficha trae el numero de AHORA y el de despues",
-				_dice(ficha_centro, "Ahora tienes: "
-					+ SkillTree.total_text("money", Game.skill_bonus("money")))
-				and _dice(ficha_centro, "Si lo compras: "
-					+ SkillTree.total_text("money", 0.50)))
-			# Y LA FICHA CABE Y NO PISA NADA: es una pantalla nueva, y una linea de
-			# texto encima del dibujo del nodo no da ningun error (solo una ficha
-			# ilegible), asi que se mira con los mismos checks que la tienda.
-			_check_cabe("la ficha de la mejora no saca texto del panel", ficha_centro, PANEL)
-			_check_sin_encimarse("la ficha no pone texto encima de una chapa", ficha_centro)
-			_check_sin_pisar_dibujos("la ficha no dibuja texto encima del nodo", ficha_centro)
-			_check("y comprar desde la ficha compra la mejora del centro",
-				_pulsa_comprar(ficha_centro) and Game.skill_owned("money")
-				and Game.rebirth_coins == 11
-				and is_equal_approx(Game.value_multiplier(), 1.50))
-			_check("y el aviso de la barra lo dice",
-				arbol._hint_label.text.begins_with("Comprado"))
-			await get_tree().process_frame
-			# Y LA FICHA SE REPINTA SOLA (Game.skills_changed): el nodo pasa a
-			# COMPRADO y el boton de comprar desaparece, que es lo unico que se
-			# puede hacer con el ya.
-			_check("y la ficha se repinta con el nodo ya comprado",
-				_dice(ficha_centro, "Comprado")
-				and _boton_de(ficha_centro, "Comprar") == null)
-			ficha_centro._close()
-			await get_tree().process_frame
 		_check("y el nodo se pone en COMPRADO",
 			not arbol._nodes["money"]["cost"].visible
 			and not arbol._nodes["money"]["coin"].visible
@@ -3149,9 +3108,6 @@ func _run() -> void:
 		var chapa_money: Rect2 = arbol.node_rect("money")
 		_check("y el COMPRADO se dibuja en la fila del coste, abajo de la chapa",
 			comprado.position.y > chapa_money.position.y + chapa_money.size.y * 0.6)
-		# Y un frame antes de medir: los glifos del precio que se acaba de vaciar se
-		# sueltan con queue_free() (ver pixel_number.gd, _rebuild), asi que en el
-		# mismo frame en que se compra todavia estan en el arbol.
 		await get_tree().process_frame
 		_check_sin_pisar_dibujos("y con la mejora comprada tampoco pisa el dibujo", arbol,
 			_franja_barra(arbol))
@@ -3159,103 +3115,55 @@ func _run() -> void:
 			arbol._state_of("damage") == "ready"
 			and arbol._state_of("locker") == "ready")
 		arbol._tap("speed")
-		await get_tree().process_frame
-		var ficha_speed = arbol._card
-		_check("comprar un camino se lleva tres monedas",
-			ficha_speed != null and _pulsa_comprar(ficha_speed)
-			and Game.skill_owned("speed") and Game.rebirth_coins == 8)
-		if ficha_speed != null:
-			ficha_speed._close()
-			await get_tree().process_frame
+		arbol._card_btn.pressed.emit()
+		_check("el boton de la franja compra el elegido: un camino se lleva tres monedas",
+			Game.skill_owned("speed") and Game.rebirth_coins == 8)
 		_check("y sube la velocidad de la partida de verdad",
 			is_equal_approx(Game.charge_multiplier(), 1.20)
 			and arbol._state_of("speed") == "owned")
-		# LA LINEA DEL CAMINO CAMBIA DE COLOR con lo que se puede hacer con el, y
-		# el cambio se pide al lienzo que la pinta (pedirlo al mundo no repinta
-		# nada, que es el fallo que se cazo mirando la captura: comprabas la mejora
-		# y la linea seguia apagada).
 		_check("la linea del camino comprado se enciende",
 			arbol.link_color("money") == arbol.LINK_DONE
 			and arbol.link_color("spikes") == arbol.LINK_OPEN
 			and arbol._lines != null)
-		# Una mejora ya comprada: su ficha lo dice y no trae NADA que comprar.
 		var saldo2: int = Game.rebirth_coins
 		arbol._tap("speed")
-		await get_tree().process_frame
-		var ficha_ya = arbol._card
-		_check("la ficha de una mejora comprada lo dice y no cobra monedas",
-			ficha_ya != null and _dice(ficha_ya, "Comprado")
-			and _boton_de(ficha_ya, "Comprar") == null
-			and not _pulsa_comprar(ficha_ya)
-			and Game.rebirth_coins == saldo2)
-		if ficha_ya != null:
-			ficha_ya._close()
-			await get_tree().process_frame
-		# Sin monedas para el siguiente: la ficha dice cuanto falta, pulsar
-		# COMPRAR no cobra nada y la barra repite lo que falta.
+		_check("pulsar otra vez una mejora comprada no cobra monedas",
+			Game.rebirth_coins == saldo2 and arbol._hint_label.text.begins_with("Ya tienes"))
+		# Sin monedas para el siguiente: la franja dice cuanto falta y el segundo
+		# clic no cobra nada.
 		Game.rebirth_coins = 0
 		arbol.refresh()
 		arbol._tap("spikes")
-		await get_tree().process_frame
-		var ficha_pobre = arbol._card
-		_check("sin monedas la ficha dice cuanto falta y no compra nada",
-			ficha_pobre != null
-			and _dice(ficha_pobre, "Te faltan %d monedas"
-				% Game.skill_missing_coins("spikes"))
-			and not (_pulsa_comprar(ficha_pobre) and Game.skill_owned("spikes"))
+		arbol._tap("spikes")
+		_check("sin monedas la franja dice cuanto falta y no compra nada",
+			arbol._card_cost.text.contains("te faltan %d" % Game.skill_missing_coins("spikes"))
 			and Game.rebirth_coins == 0 and not Game.skill_owned("spikes")
 			and arbol._hint_label.text.begins_with("Te faltan")
 			and arbol._state_of("spikes") == "poor")
-		if ficha_pobre != null:
-			ficha_pobre._close()
-			await get_tree().process_frame
 
-		# TODAS LAS FICHAS, UNA POR UNA. Los checks de arriba abren las de un nodo
-		# cerrado, la del centro y la de un camino sin monedas, pero NUNCA la de un
-		# interruptor: y la de un interruptor reventaba entera (pulsar uno cerraba
-		# el juego) porque se le pedia el texto de un porcentaje que no tiene. El
-		# fallo no dejaba la ficha a medias, se llevaba por delante el montaje, asi
-		# que lo que se mira es que esten las DOS lineas de abajo, que son las que
-		# se escriben despues del numero.
-		var fichas_rotas: Array = []
-		for id_ficha in SkillTree.ids():
-			arbol._tap(str(id_ficha))
-			await get_tree().process_frame
-			var f = arbol._card
-			var bien := f != null and _dice(f, SkillTree.effect_text(str(id_ficha)))
-			if bien and Game.skill_owned(str(id_ficha)):
-				bien = _dice(f, "Comprado")
-			elif bien:
-				# Las dos lineas se escriben con el numero detras, asi que se mira el
-				# principio del texto (empieza = true) y no la linea entera.
-				bien = _dice(f, "Ahora tienes: ", true)
-				if SkillTree.is_qol(str(id_ficha)):
-					bien = _dice(f, "Ahora: ", true) and _dice(f, "Si lo compras: ", true)
-				else:
-					bien = bien and _dice(f, "Si lo compras: ", true)
-			if not bien:
-				fichas_rotas.append(str(id_ficha))
-			if f != null:
-				f._close()
-				await get_tree().process_frame
-		_check("la ficha de los treinta y ocho nodos se monta entera", fichas_rotas.is_empty())
-		for f_rota in fichas_rotas:
-			print("         ficha rota: ", f_rota)
-		# Y SE MIRA UNA DE INTERRUPTOR ENTERA, con los mismos checks de encuadre
-		# que la del centro: no tiene numeros de porcentaje, sino AHORA: APAGADO /
-		# AL COMPRARLO: ENCENDIDO, y esa linea tambien puede acabar encima del
-		# dibujo o fuera del marco sin que nada avise.
-		arbol._tap(SkillTree.QOL_AUTOSTORE)
-		await get_tree().process_frame
-		var ficha_qol = arbol._card
-		_check("la ficha de un interruptor se abre",
-			ficha_qol != null and ficha_qol.skill_id() == SkillTree.QOL_AUTOSTORE)
-		if ficha_qol != null:
-			_check_cabe("y no saca texto del panel", ficha_qol, PANEL)
-			_check_sin_encimarse("y no pone texto encima de una chapa", ficha_qol)
-			_check_sin_pisar_dibujos("y no dibuja texto encima del nodo", ficha_qol)
-			ficha_qol._close()
-			await get_tree().process_frame
+		# TODOS LOS NODOS, UNO POR UNO: la franja de cada uno trae su nombre y una
+		# linea que cabe a 21 sin encogerse (la de un interruptor no lleva numeros:
+		# no suma a ningun stat, y pedirle el texto de un porcentaje reventaba).
+		var franjas_mal: Array = []
+		for id_f in SkillTree.ids():
+			arbol._selected = str(id_f)
+			arbol.refresh()
+			var ancho := maxf(UIKit.text_width(arbol._card_desc.text, 21),
+				UIKit.text_width(arbol._card_nums.text, 21))
+			if arbol._card_name.text != SkillTree.effect_text(str(id_f)) \
+					or ancho > arbol.CARD_TEXT_END - arbol.CARD_TEXT_X:
+				franjas_mal.append("%s (%d px)" % [str(id_f), roundi(ancho)])
+		_check("la franja de los treinta y ocho nodos se monta entera y cabe",
+			franjas_mal.is_empty())
+		for f_mal in franjas_mal:
+			print("         franja mal: ", f_mal)
+		arbol._selected = "money"
+		arbol.refresh()
+		var franja_fuera: Array = []
+		for l in [arbol._card_name, arbol._card_cost, arbol._card_desc, arbol._card_nums]:
+			if not (arbol.CARD as Rect2).encloses(_visible(l)):
+				franja_fuera.append((l as Label).text)
+		_check("y su texto no se sale de la franja", franja_fuera.is_empty())
 
 		# El arrastre: el arbol se mueve y el tope no lo deja salir de la vista.
 		var antes_drag: Vector2 = arbol.node_point("money")
@@ -4146,8 +4054,256 @@ func _check_ascension() -> void:
 	await get_tree().process_frame
 	_check("y la pantalla morada se cierra", g._ascension == null)
 	await _check_mascotas()
+	await _check_telarana()
+	await _check_tienda_pro()
 	Game.ascensions = 0
 	Game.asc_skills = {}
+	Game.asc_off = []
+
+
+## LA TIENDA PRO: cuatro cajas mas caras que el techo de la tienda normal, con su
+## dibujo y su botin, que solo salen (pestanas incluidas) tras haber ascendido.
+func _check_tienda_pro() -> void:
+	var g = _main._current
+	var ascensiones: int = Game.ascensions
+	var ultimo := LootDB.pack_at(LootDB.pack_count() - 1)
+	var faltan: Array = []
+	var margen_ok := true
+	var precio := int(ultimo["price"])
+	for p in LootDB.PRO_PACKS:
+		var id := str(p["id"])
+		for art in [str(p["art"]), str(p["art_open"])] + [1, 2, 3].map(
+				func(k: int) -> String: return "%s_d%d" % [p["art"], k]):
+			if Sprites.path_of(art) == "":
+				faltan.append(art)
+		for row in p["loot"]:
+			for nota in range(1, 11):
+				if Sprites.path_of("%s_psa%d" % [row["art"], nota]) == "":
+					faltan.append("%s_psa%d" % [row["art"], nota])
+		margen_ok = margen_ok and int(p["price"]) > precio \
+			and absf(LootDB.pack_payout(id) / float(p["price"]) - LootDB.PRO_MARGIN) < 0.01
+		precio = int(p["price"])
+	_check("la tienda pro: cuatro cajas con todos sus dibujos (cerrada, abierta, dano y diez notas)",
+		LootDB.PRO_PACKS.size() == 4 and faltan.is_empty())
+	for f in faltan:
+		print("         falta: ", f)
+	_check("cada caja pro es mas cara que la anterior (y que JUGUETES MITO) y paga un 45 %",
+		margen_ok)
+
+	Game.ascensions = 0
+	g._refresh_packs()
+	_check("sin haber ascendido no salen las pestanas y se ve la tienda normal",
+		not (g._pack_tabs[0]["hit"] as CanvasItem).visible and g._pack_scroll.visible
+		and not g._pro_scroll.visible)
+	await _empty_table(g)
+	Game.money = 1_000_000_000
+	g._buy_pack("gallery5")
+	_check("y la caja pro no se puede comprar", g._elements.is_empty()
+		and Game.money == 1_000_000_000)
+
+	Game.ascensions = 1
+	g._refresh_packs()
+	_check("tras ascender salen las dos pestanas", (g._pack_tabs[1]["hit"] as CanvasItem).visible)
+	g._set_pack_tab("pro")
+	_check("y la de TIENDA PRO cambia a la lista pro", g._pro_scroll.visible
+		and not g._pack_scroll.visible)
+	var pestanas_dentro := true
+	for t in g._pack_tabs:
+		pestanas_dentro = pestanas_dentro and (g.PACK_ZONE as Rect2).grow(1.0).encloses(
+			_visible(t["label"])) and (g.PACK_ZONE as Rect2).encloses(
+			(t["back"] as Control).get_global_rect())
+	_check("las pestanas caben en la columna", pestanas_dentro)
+	g._buy_pack("gallery5")
+	var caja = g._elements[0] if not g._elements.is_empty() else null
+	_check("una caja pro se compra y cae en la mesa",
+		caja != null and str(caja.pack["id"]) == "gallery5"
+		and Game.money == 1_000_000_000 - Game.pack_price("gallery5"))
+	var botin := LootDB.roll_pack(RandomNumberGenerator.new(), "vault5")
+	_check("su botin es de su tipo y de escalon 5 para el armario",
+		botin["kind"] == "toys" and int(botin["tier"]) == 5
+		and LootDB.bonus_for(botin) > LootDB.bonus_for(botin.merged({"tier": 4}, true)))
+	g._set_pack_tab("normal")
+	await _empty_table(g)
+	Game.money = Game.START_MONEY
+	Game.ascensions = ascensiones
+	g._refresh_packs()
+
+
+## LA TELARANA DE LA ASCENSION: cada nodo pide el de dentro de su hilo, los de
+## farm multiplican, Estrellas da mas puntos, Herencia salva cosas al ascender,
+## los automaticos se encienden y apagan, y la pantalla lo ensena todo dentro.
+## Se llama con HYPER comprado; deja la ascension como la encontro.
+func _check_telarana() -> void:
+	var g = _main._current
+	var antes_asc: Dictionary = Game.asc_skills.duplicate()
+	Game.asc_skills = {"hyper": true}
+	Game.asc_off = []
+	_check("la telarana: HYPER y seis hilos de cuatro anillos",
+		AscensionTree.NODES.size() == 25 and AscensionTree.SPOKES.size() == 6)
+	var huerfanos := 0
+	for id in AscensionTree.ids():
+		var req := AscensionTree.req_of(str(id))
+		if str(id) != "hyper" and AscensionTree.node_by_id(req).is_empty():
+			huerfanos += 1
+		if Sprites.path_of(str(AscensionTree.node_by_id(str(id))["art"])) == "":
+			huerfanos += 1
+	_check("cada nodo pide uno que existe y tiene su dibujo", huerfanos == 0)
+	Game.ascension_points = 10
+	_check("el segundo anillo no se compra sin el primero",
+		not Game.buy_asc("asc_money_2") and Game.ascension_points == 10)
+	var dinero := Game.value_multiplier()
+	_check("Bolsa cuesta 1 punto y da x1,5 de dinero", Game.buy_asc("asc_money_1")
+		and Game.ascension_points == 9
+		and is_equal_approx(Game.value_multiplier(), dinero * 1.5))
+	_check("y el segundo anillo cuesta 2", Game.buy_asc("asc_money_2")
+		and Game.ascension_points == 7)
+	var requisito := Game.rebirth_require()
+	Game.buy_asc("asc_rebirth_1")
+	Game.buy_asc("asc_rebirth_2")
+	_check("Atajo baja el requisito del rebirth un 30 %",
+		Game.rebirth_require() == roundi(requisito * 0.7))
+	Game.ascension_points = 20
+	for id in ["asc_points_1", "asc_pet_slot", "asc_keep_album", "asc_keep_qol", "asc_seed",
+			"asc_auto_abil", "asc_auto_tree", "asc_auto_rebirth"]:
+		Game.buy_asc(id)
+	_check("Collar da un hueco mas de mascota", Game.pet_slots() == PetDB.SLOTS + 1)
+
+	# Ascender con la herencia comprada.
+	for id in SkillTree.ids():
+		Game.skills[str(id)] = SkillTree.levels_of(str(id))
+	Game.album = {"loot_vinyl": 3}
+	var puntos := Game.ascension_points
+	var ganados := Game.do_ascension()
+	_check("con Estrella doble ascender da 2 puntos",
+		ganados == 2 and Game.ascension_points == puntos + 2)
+	_check("Recuerdo guarda el album", Game.album.has("loot_vinyl"))
+	_check("Herencia guarda la calidad de vida y las habilidades del arbol",
+		Game.skill_owned(SkillTree.FACTORY) and Game.skill_owned("abil_charge")
+		and not Game.skill_owned("damage"))
+	_check("Semilla: la partida empieza con 250.000 mas y sin monedas de rebirth",
+		Game.money == Game.START_MONEY + 250000 and Game.rebirth_coins == 0)
+	# Lo que pide el rebirth con TODAS las rebajas (arbol y Atajo) tiene que
+	# quedar por encima: si no, se reiniciaria en bucle sin jugar.
+	var con_rebajas := roundi(LootDB.REBIRTH_REQUIRE * (1.0 - SkillTree.node_bonus(
+		SkillTree.node_by_id("require"), "require") - SkillTree.node_bonus(
+		SkillTree.node_by_id("cap_rebirth"), "require")) * 0.7)
+	_check("y la Semilla no llega para un rebirth ni con todas las rebajas",
+		Game.START_MONEY + SkillTree.START_BONUS + 250000 < con_rebajas)
+	Game.rebirth_coins = 10
+
+	# Los interruptores.
+	_check("Jardinero empieza encendido", Game.asc_flag("auto_tree"))
+	_check("y se apaga con su nodo", not Game.toggle_asc("asc_auto_tree")
+		and not Game.asc_flag("auto_tree"))
+	var guardado := Game.to_dict()
+	Game.asc_off = []
+	Game._apply(JSON.parse_string(JSON.stringify(guardado)))
+	_check("el apagado se guarda", not Game.asc_flag("auto_tree") and Game.asc_owned("asc_auto_tree"))
+	Game.toggle_asc("asc_auto_tree")
+	_check("un nodo que no es interruptor no se apaga", not Game.toggle_asc("asc_money_1"))
+	var monedas := Game.rebirth_coins
+	var comprado := Game.auto_buy_skill()
+	_check("Jardinero compra el nodo mas barato que se puede pagar",
+		comprado == "money" and Game.skill_owned("money")
+		and Game.rebirth_coins == monedas - int(SkillTree.node_by_id("money")["cost"]))
+	Game.money = Game.rebirth_require() * (Game.AUTO_REBIRTH_X - 1)
+	_check("Bucle no reinicia antes del doble de monedas", not Game.auto_rebirth_ready())
+	Game.money = Game.rebirth_require() * Game.AUTO_REBIRTH_X
+	_check("y al doble si", Game.auto_rebirth_ready())
+	var arbol_antes: Dictionary = Game.skills.duplicate()
+	for id in SkillTree.ids():
+		Game.skills[str(id)] = SkillTree.levels_of(str(id))
+	_check("con el arbol del rebirth entero ya no reinicia solo", not Game.auto_rebirth_ready())
+	Game.skills = arbol_antes
+	Game.money = Game.START_MONEY
+
+	# El cuarto anillo: LEGADO y PERFECCION.
+	Game.ascension_points = 8
+	_check("Legado cuesta 4 puntos", Game.buy_asc("asc_keep_locker")
+		and Game.ascension_points == 4)
+	var expuesto: Dictionary = LootDB.roll_item(RandomNumberGenerator.new(),
+		str(LootDB.pack_at(0)["id"]))
+	Game.locker = [expuesto]
+	Game.money = Game.rebirth_require()
+	Game.do_rebirth()
+	_check("con Legado el rebirth no quita lo expuesto",
+		(Game.locker + Game.inventory).has(expuesto))
+	Game.locker = []
+	Game.inventory = []
+	Game.buy_asc("asc_auto_perfect")
+	var gp_auto: TableElement = g._spawn_pack("electronics")
+	await get_tree().process_frame
+	gp_auto.start_opening()
+	var perfectos := Game.perfect_hits
+	gp_auto._charge = gp_auto._total * (gp_auto._ring.sweet_from + 0.001)
+	gp_auto._process(0.0)
+	_check("con Perfeccion el golpe sale solo y perfecto al llegar a la zona dorada",
+		Game.perfect_hits == perfectos + 1)
+	Game.toggle_asc("asc_auto_perfect")
+	gp_auto._charge = gp_auto._total * (gp_auto._ring.sweet_from + 0.001)
+	gp_auto._process(0.0)
+	_check("y apagada ya no", Game.perfect_hits == perfectos + 1)
+	await _empty_table(g)
+
+	# La pantalla.
+	g._open_ascension()
+	await get_tree().process_frame
+	var asc = g._ascension
+	_check("la telarana pinta un hexagono por nodo", asc._nodes.size() == 25)
+	_check_cabe("la telarana no saca nada de la pantalla", asc, PANTALLA)
+	Game.ascension_points = 3
+	asc._on_node_pressed("asc_hit_1")
+	_check("pulsar un hexagono lo elige y no lo compra",
+		asc._selected == "asc_hit_1" and not Game.asc_owned("asc_hit_1"))
+	_check("y su ficha dice lo que da y cuanto cuesta",
+		asc._card_name.text == "Fuerza" and asc._card_cost.text == "1 punto")
+	var zoom_antes: float = asc.zoom()
+	asc.set_zoom_step(0)
+	_check("la telarana se aleja para verla entera", asc.zoom() < zoom_antes)
+	var sitio: Vector2 = asc._offset
+	asc._set_offset(sitio + Vector2(300, 0))
+	_check("y se arrastra", asc._offset != sitio)
+	asc.set_zoom_step(asc.ZOOM_START)
+	asc._set_offset(asc.WEB_VIEW.size * 0.5)
+	asc._on_node_pressed("asc_hit_1")
+	_check("pulsarlo otra vez lo compra", Game.asc_owned("asc_hit_1"))
+	asc._on_node_pressed("asc_auto_abil")
+	asc._on_buy("asc_auto_abil")
+	_check("el boton de un interruptor comprado lo apaga",
+		not Game.asc_flag("auto_abil") and asc._card_btn_text == "Encender")
+	g._close_ascension()
+	await get_tree().process_frame
+
+	# Con el Collar caben cuatro en el menu EQUIPAR, sin salirse. Cuatro de cuatro
+	# stats distintos: son cuatro lineas en la nota de "Lo que te dan".
+	var mascotas_antes: Dictionary = Game.pets.duplicate()
+	var equipadas_antes: Array = Game.pets_equipped.duplicate()
+	Game.pets = {"dog": 1, "cat": 1, "hamster": 1, "bunny": 1}
+	Game.pets_equipped = ["dog", "cat", "hamster", "bunny"]
+	g._open_pets()
+	await get_tree().process_frame
+	g._pets._open_equip()
+	await get_tree().process_frame
+	_check_cabe("el menu equipar con cuatro huecos no saca nada", g._pets._equip, PANEL_TIENDA)
+	var nota := Rect2(PetPanel.MACHINE_CENTER.x - 270.0, PetPanel.TOTALS_Y - 34.0, 540, 90 + 40 * 4)
+	var totales: Array = []
+	for n in g._pets._equip.get_children():
+		if n is Label and (n as Label).text.begins_with("+") and (n as Label).text.contains(" de "):
+			totales.append(n)
+	_check("las cuatro lineas de lo que dan caben en su nota", totales.size() == 4
+		and _fuera(g._pets._equip, PANEL_TIENDA).is_empty()
+		and totales.all(func(l: Label) -> bool: return nota.grow(1.0).encloses(_visible(l))))
+	g._close_pets()
+	Game.pets = mascotas_antes
+	Game.pets_equipped = equipadas_antes
+	await get_tree().process_frame
+
+	Game.asc_skills = antes_asc
+	Game.asc_off = []
+	Game.skills = {}
+	Game.album = {}
+	Game.rebirth_coins = 0
+	Game.ascension_points = 0
 
 
 ## LA TIENDA DE MASCOTAS: sale con HYPER, cada tirada cuesta 1 moneda de rebirth

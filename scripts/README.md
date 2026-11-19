@@ -59,10 +59,8 @@ screens/    una clase por pantalla
                     DERECHA, con la suma de los cuatro bonus y VENDER TODO
   rebirth_panel.gd  el arbol de mejoras: la barra de arriba (el rebirth, lo que
                     te llevas y lo que falta) superpuesta al arbol, que se
-                    arrastra con el raton; pulsar un nodo abre su ficha
-  skill_card.gd     la ficha de una mejora del arbol: lo que da, lo que el stat
-                    lleva sumado y lo que sumara, el precio y el boton de
-                    comprar (que PIDE la compra al arbol, no la hace)
+                    arrastra con el raton; un clic elige un nodo (su ficha
+                    sale en la franja de abajo) y el segundo clic lo compra
   reveal_card.gd    la tarjeta de revelado
   settings_panel.gd los ajustes: volumen, pantalla completa, venta automatica,
                     la fila del AUTO GUARDAR (gris hasta comprarlo) y cuando
