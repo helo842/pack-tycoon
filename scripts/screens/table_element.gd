@@ -303,7 +303,9 @@ func start_opening() -> bool:
 	_charge = 0.0
 	# El rasgado va aqui y no en el clic: asi suena tambien cuando abre la
 	# automatizacion, que es la mitad de las aperturas de una partida larga.
-	Sound.play("sfx_rip")
+	# Cada material suena distinto (tools/make_sounds.py, sfx_rip_<tipo>).
+	var loot: Array = pack.get("loot", [])
+	Sound.play("sfx_rip_" + LootDB.kind_of(loot[0] if not loot.is_empty() else {}))
 	_ring.modulate.a = 1.0
 	# Delante de los vecinos: el anillo es mas ancho que la casilla y, si no, el
 	# de al lado le tapa el tramo del perfecto.

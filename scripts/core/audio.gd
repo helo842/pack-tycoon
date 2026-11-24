@@ -46,6 +46,13 @@ const BUS_SFX := "Sfx"
 const JITTER := {
 	"sfx_click": 0.06,   # +/- 6 %
 	"sfx_sell": 0.04,
+	# El rasgado suena en cada apertura (tambien las automaticas): con un poco de
+	# variacion no cansa tanto oirlo cien veces seguidas.
+	"sfx_rip_cards": 0.05,
+	"sfx_rip_vinyls": 0.05,
+	"sfx_rip_sneakers": 0.05,
+	"sfx_rip_electronics": 0.05,
+	"sfx_rip_toys": 0.05,
 }
 
 var _paths: Dictionary = {}

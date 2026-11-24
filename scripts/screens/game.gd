@@ -218,6 +218,8 @@ const AUTO_ITEMS_EVERY := 0.5
 var _table: Control
 var _fx: Control
 var _shake_tween: Tween = null
+var _hitstop_id := 0
+var _crit_shake_ms := -100000
 var _money_shown := 0
 var _money: PixelNumber
 ## La cuenta del contador del dinero cuando sube (ver _on_money_changed).
@@ -962,9 +964,12 @@ func _on_landed() -> void:
 
 ## La mesa tiembla. `k` es la fuerza: 1 es lo que tiembla al caer un objeto.
 func _shake(k: float) -> void:
+	if not Game.screen_shake:
+		return
 	if _shake_tween != null and _shake_tween.is_valid():
 		_shake_tween.kill()
-	_shake_tween = create_tween()
+	# En tiempo real: si no, durante un hitstop la mesa se queda torcida a medio temblar.
+	_shake_tween = create_tween().set_ignore_time_scale(true)
 	for off in [Vector2(0, 7), Vector2(-4, -3), Vector2(3, 2), Vector2.ZERO]:
 		_shake_tween.tween_property(_table, "position", off * k, 0.04)
 
@@ -972,10 +977,19 @@ func _shake(k: float) -> void:
 ## Un instante de juego congelado (el "hitstop"): el golpe se siente como un
 ## golpe. Se vuelve a la velocidad normal con un reloj de tiempo REAL, que el de
 ## siempre tambien va a camara lenta.
+##
+## Solo devuelve la velocidad el ULTIMO que se pidio: un dorado que rompe un jefe
+## pide 0,05 s y luego 0,12 s en el mismo golpe, y el reloj corto cortaba el largo.
 func _hitstop(seconds: float) -> void:
+	if not Game.screen_shake:
+		return
+	_hitstop_id += 1
+	var mio := _hitstop_id
 	Engine.time_scale = 0.05
 	get_tree().create_timer(seconds, true, false, true).timeout.connect(
-			func() -> void: Engine.time_scale = 1.0)
+			func() -> void:
+				if mio == _hitstop_id:
+					Engine.time_scale = 1.0)
 
 
 ## Un sobre roto a golpes: estalla en trozos, la mesa da un golpe y el jefe, ademas,
@@ -1426,6 +1440,12 @@ func _on_element_damaged(amount: float, crit: bool, el: TableElement) -> void:
 	var at: Vector2 = el.global_position \
 			+ Vector2(TableElement.BOX.x * 0.5, TableElement.ART_CENTER.y - 36.0)
 	DamagePopup.pop(_fx, at, amount, crit)
+	# El critico tambien mueve la mesa, pero como mucho cada 0,25 s: con la mesa
+	# llena y la apertura automatica salen varios por segundo y seria un terremoto.
+	var ahora := Time.get_ticks_msec()
+	if crit and ahora - _crit_shake_ms >= 250:
+		_crit_shake_ms = ahora
+		_shake(0.7)
 
 
 # --------------------------------------------------------------------------- #

@@ -340,7 +340,7 @@ const NODES: Array = [
 		"desc": "La mesa no para",
 		"detail": "El fondo del camino de la velocidad: 35 % más, que con los"
 			+ " dos nodos de arriba es casi el doble de rápido que sin el"
-			+ " árbol.",
+			+ " árbol. Si la carga ya va a tope, lo que sobra se vuelve daño.",
 		"effect": "Velocista",
 	},
 	{
@@ -590,7 +590,8 @@ const NODES: Array = [
 		"pos": Vector2(SEP.x * 4.0, -SEP.y * 4.0), "art": "tree_cap_speed",
 		"req": "speed_3", "scale": CAP_SCALE,
 		"desc": "Fin del camino de velocidad",
-		"detail": "Un 60 % más de velocidad de golpe, encima de todo el camino.",
+		"detail": "Un 60 % más de velocidad de golpe, encima de todo el camino."
+			+ " Si la carga ya va a tope, lo que sobra se vuelve daño.",
 		"effect": "Turbo",
 	},
 	{

@@ -179,7 +179,9 @@ puesto a mano) a los 123.508 de JUGUETES MITO. Un sobre que cuesta cuatro veces 
    (`Game.speed_overflow`, dentro de `Game.damage_multiplier`): si sin tope
    cargarías el triple de rápido, cada golpe pega el triple. El daño por segundo
    es el mismo; solo cambia que se puede apuntar. `Game.raw_charge_time` es la
-   carga sin tope, y el simulador aplica la misma regla.
+   carga sin tope, y el simulador aplica la misma regla. **En pantalla se dice**
+   (2026-11-23): en el tope, la ficha de los Guantes pone «Ahora: … (en el tope:
+   daño xN)», y los nodos Velocista y Turbo del árbol lo explican en su detalle.
 3. Cuando la resistencia llega a cero, sale la **tarjeta de revelado**: objeto, rareza,
    estado de conservación, nota PSA de 1 a 10 y el valor final. Abajo tiene los
    dos botones de la decisión: **GUARDAR** (al inventario) y **VENDER** (dinero
@@ -1054,6 +1056,8 @@ así que la banda del test de humo subió de 19 a 26.
   clic o una tecla la salta**. El chaval no tiene sprite: es pixel art escrito con
   letras en el propio script (`KID`, clase `Pix`). Solo sale si `Main` es la
   escena principal: las pruebas de `dev/` montan Main a mano y esperan el menú.
+- **REINICIAR** (borrar la partida), en Ajustes arriba de la columna de botones (encima de ADMIN):
+  dos clics y vuelve al menú con la partida a cero. Ver «Extras de la interfaz».
 - **AYUDA** (`HelpPanel`), en Ajustes encima de CREDITOS (los dos al final,
   abajo a la derecha): a la izquierda un anillo de verdad cargando en bucle que
   "pulsa" en la zona dorada, con la leyenda de colores; a la derecha el juego en
@@ -1425,12 +1429,14 @@ teñido por rareza, que es lo que había antes. El desgaste de carta es otro
 código (`apply_card_wear()`): roce de borde, humedad, esquina doblada, pliegue y
 mancha de anillo.
 
-**Sonido** — ya está: once WAV que genera `tools/make_sounds.py` (diez efectos y
+**Sonido** — ya está: dieciséis WAV que genera `tools/make_sounds.py` (quince efectos y
 una música en bucle que ya no suena), la música de fondo de **Stream Cafe** (una
 hora en OGG, con su crédito en Ajustes > CREDITOS) y los deslizadores de MÚSICA y SONIDOS enchufados a
-los buses de verdad. Ver `Sounds/README.md`. Queda **un sonido por material**: hoy
-el rasgado es el mismo en un sobre de cartón que en una caja de plástico, que era
-justo lo que pedía el documento.
+los buses de verdad. Ver `Sounds/README.md`. **Un rasgado por material** (2026-11-23):
+`sfx_rip_<tipo>` para cartas (aluminio que cruje), vinilos (plástico y funda que
+resbala), zapatillas (tapa de cartón y golpe), electrónica (blíster a chasquidos) y
+juguetes (cinta); `table_element.gd` lo elige por el tipo del botín del sobre, con un
+5 % de variación de tono para que no canse. `sfx_rip` queda para lo que no tenga tipo.
 
 **Letras** — ya está: tres letras (títulos, texto y los números de sprite), ver
 «Tres letras en todo el juego».
@@ -1458,8 +1464,19 @@ con dado (13,5) ya roza el 12 de abajo.
 
 **Extras de la interfaz** — los deslizadores de volumen de los ajustes ya mueven
 sus buses, y la casilla de venta automática enciende y apaga el ajuste. Falta
-cambiar de **idioma** (el selector se quitó: solo hay español), y el botón de empezar de cero (`hard_reset()` lo hace, pero solo lo
-llaman las pruebas).
+cambiar de **idioma** (el selector se quitó: solo hay español). El botón de empezar de
+cero ya está (2026-11-23): **Reiniciar** en Ajustes, con dos clics (el primero
+lo cambia por «¿Seguro?»). Llama a `Game.reset_progress()`, que es `hard_reset()` pero
+se queda con el volumen, la pantalla y las fichas, y deja una copia del guardado en
+`user://packtycoon_borrada.json` por si fue sin querer. Al lado, **Temblor sí/no**
+(`Game.screen_shake`, va en el guardado): apagado no tiembla la mesa ni hay hitstop,
+para quien se marea. Los botones de esa columna miden 240 para que el texto quepa a 21 px.
+
+**Animaciones** (2026-11-23, revisadas con la skill game-feel): el temblor de la mesa va
+en tiempo real (antes se quedaba torcido durante el hitstop); dos hitstops en el mismo
+golpe (dorado que rompe un jefe) ya no se cortan, solo devuelve la velocidad el último;
+`UIKit.punch` y `UIKit.shake` matan su tween anterior (dos ventas rápidas peleaban por la
+escala); y el crítico mueve un poco la mesa, como mucho cada 0,25 s.
 
 
 ## Guardado, copia y tiempo fuera

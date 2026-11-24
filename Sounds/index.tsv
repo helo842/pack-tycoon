@@ -9,6 +9,11 @@ sfx_error	sfx/sfx_error.wav
 sfx_open	sfx/sfx_open.wav
 sfx_rare	sfx/sfx_rare.wav
 sfx_rip	sfx/sfx_rip.wav
+sfx_rip_cards	sfx/sfx_rip_cards.wav
+sfx_rip_electronics	sfx/sfx_rip_electronics.wav
+sfx_rip_sneakers	sfx/sfx_rip_sneakers.wav
+sfx_rip_toys	sfx/sfx_rip_toys.wav
+sfx_rip_vinyls	sfx/sfx_rip_vinyls.wav
 sfx_sell	sfx/sfx_sell.wav
 sfx_sell_all	sfx/sfx_sell_all.wav
 sfx_toggle	sfx/sfx_toggle.wav

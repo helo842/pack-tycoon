@@ -3438,6 +3438,24 @@ func _run() -> void:
 		g.table_count() == 1 and vuelto_sobre)
 	_check("y el objeto de un guardado viejo va al inventario",
 		Game.inventory.size() == 1 and int(Game.inventory[0]["value"]) == 500)
+
+	# DOS HITSTOPS en el mismo golpe (dorado que rompe un jefe): el corto no
+	# corta el largo, y al acabar el largo todo vuelve a velocidad normal.
+	g._hitstop(0.05)
+	g._hitstop(0.12)
+	await get_tree().create_timer(0.08, true, false, true).timeout
+	_check("el hitstop corto no corta el largo", Engine.time_scale < 1.0)
+	await get_tree().create_timer(0.1, true, false, true).timeout
+	_check("y al acabar el largo vuelve la velocidad", is_equal_approx(Engine.time_scale, 1.0))
+	Engine.time_scale = 1.0
+	# TEMBLOR NO (Ajustes): ni hitstop ni temblor de mesa, y se guarda.
+	Game.set_screen_shake(false)
+	g._hitstop(0.12)
+	_check("con el temblor apagado no hay hitstop", is_equal_approx(Engine.time_scale, 1.0))
+	g._shake(3.0)
+	_check("ni tiembla la mesa", g._table.position == Vector2.ZERO)
+	_check("y el ajuste va en el guardado", Game.to_dict().get("screen_shake") == false)
+	Game.set_screen_shake(true)
 	Game.inventory = []
 	await _empty_table(g)
 	Game.table = []
@@ -3862,6 +3880,24 @@ func _run() -> void:
 	Game.money = 0
 	Game.load_game()
 	_check("con el juego cerrado no se gana nada", Game.money == 777)
+
+	# REINICIAR (Ajustes): borra el progreso, se queda con los ajustes y deja
+	# una copia del guardado borrado.
+	Game.music_volume = 0.33
+	Game.money = 999999
+	Game.save_game()
+	var copia := Game.save_path.get_basename() + "_borrada.json"
+	await Game.reset_progress()
+	_check("reiniciar vuelve al dinero inicial", Game.money == Game.START_MONEY)
+	_check("reiniciar se queda con el volumen", is_equal_approx(Game.music_volume, 0.33))
+	_check("reiniciar deja una copia del guardado", FileAccess.file_exists(copia))
+	if FileAccess.file_exists(copia):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(copia))
+
+	# Un rasgado por material: cada tipo de botin tiene el suyo en el indice.
+	for row in LootDB.LOOT_KINDS:
+		_check("hay rasgado para %s" % row["id"],
+				Sound.stream("sfx_rip_" + str(row["id"])) != null)
 
 	print("")
 	if _fails.is_empty():

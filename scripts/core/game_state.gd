@@ -140,6 +140,9 @@ var card_mode: String = "good"
 var music_volume: float = 0.7
 var sfx_volume: float = 0.45
 var fullscreen: bool = false
+## Temblor de la mesa y hitstop (Ajustes > Temblor). Apagado, los golpes no
+## mueven la pantalla ni congelan el juego: es para quien se marea.
+var screen_shake: bool = true
 
 ## Todo lo que ha ENTRADO en esta partida (no lo que hay en el contador: el
 ## dinero se va comprando sobres). Se sigue llevando la cuenta porque es un dato
@@ -1623,6 +1626,12 @@ func set_sfx_volume(v: float) -> void:
 	settings_changed.emit()
 
 
+func set_screen_shake(on: bool) -> void:
+	screen_shake = on
+	_dirty = true
+	settings_changed.emit()
+
+
 func set_fullscreen(on: bool) -> void:
 	fullscreen = on
 	_dirty = true
@@ -1756,8 +1765,31 @@ const CARD_GOOD_RARITIES: Array = ["epic", "legendary"]
 # Guardado
 # --------------------------------------------------------------------------- #
 
+## EMPEZAR DE CERO desde Ajustes (el boton "Reiniciar"). Es hard_reset()
+## pero se queda con los ajustes (volumen, pantalla, fichas) y deja una copia
+## del guardado en user://packtycoon_borrada.json por si fue sin querer.
+##
+## Espera un frame a proposito: quien lo llama manda antes al menu, y la
+## pantalla de partida, al irse, vuelve a dejar SU mesa en Game.table (ver
+## game.gd, _exit_tree). Borrando en el mismo frame, esa mesa vieja volvia.
+func reset_progress() -> void:
+	await get_tree().process_frame
+	if FileAccess.file_exists(save_path):
+		DirAccess.copy_absolute(ProjectSettings.globalize_path(save_path),
+				ProjectSettings.globalize_path(save_path.get_basename() + "_borrada.json"))
+	var prefs := [music_volume, sfx_volume, fullscreen, card_mode, screen_shake]
+	hard_reset()
+	music_volume = prefs[0]
+	sfx_volume = prefs[1]
+	fullscreen = prefs[2]
+	screen_shake = prefs[4]
+	card_mode = prefs[3]
+	settings_changed.emit()
+	save_game()
+
+
 ## Vuelve al estado inicial y borra el guardado. Lo usan las pruebas de humo y
-## las capturas; de momento no hay boton de "empezar de cero" en el juego.
+## las capturas, y reset_progress() (el boton de Ajustes).
 func hard_reset() -> void:
 	money = START_MONEY
 	rebirth_coins = 0
@@ -1782,6 +1814,7 @@ func hard_reset() -> void:
 	music_volume = 0.7
 	sfx_volume = 0.45
 	fullscreen = false
+	screen_shake = true
 	carry_damage = 0.0
 	lifetime_earned = 0
 	packs_opened = 0
@@ -1844,6 +1877,7 @@ func to_dict() -> Dictionary:
 		"music_volume": music_volume,
 		"sfx_volume": sfx_volume,
 		"fullscreen": fullscreen,
+		"screen_shake": screen_shake,
 		"lifetime_earned": lifetime_earned,
 		"packs_opened": packs_opened,
 		"items_found": items_found,
@@ -2009,6 +2043,7 @@ func _apply(d: Dictionary) -> void:
 	music_volume = float(d.get("music_volume", 0.7))
 	sfx_volume = float(d.get("sfx_volume", 0.45))
 	fullscreen = bool(d.get("fullscreen", false))
+	screen_shake = bool(d.get("screen_shake", true))
 	lifetime_earned = int(d.get("lifetime_earned", 0))
 	packs_opened = int(d.get("packs_opened", 0))
 	items_found = int(d.get("items_found", 0))

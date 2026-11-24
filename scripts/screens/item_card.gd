@@ -153,7 +153,12 @@ func refresh() -> void:
 	# Los numeros: el efecto de AHORA y el que tendra al subir. Es lo unico que
 	# cambia al comprar, y por eso van juntos y con el mismo texto: comparar dos
 	# lineas iguales es lo mas rapido que se puede leer.
-	_add(UIKit.label_at("Ahora: " + LootDB.item_effect(_index, level),
+	var ahora := "Ahora: " + LootDB.item_effect(_index, level)
+	# En el tope de la carga la velocidad que sobra se vuelve dano (ver
+	# Game.speed_overflow), y si no se dice, comprar mas Guantes parece inutil.
+	if str(item["id"]) == "guantes" and Game.raw_charge_time() <= Gameplay.MIN_CHARGE:
+		ahora += " (en el tope: daño x%s)" % LootDB.short_number(Game.speed_overflow())
+	_add(UIKit.label_at(ahora,
 			Vector2(COL_MID, NOW_Y), Vector2(COL_W, LINE_STEP), 21, Palette.CREAM,
 			HORIZONTAL_ALIGNMENT_CENTER))
 	if cost < 0:

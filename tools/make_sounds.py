@@ -269,6 +269,59 @@ def sfx_rip() -> List[float]:
     return b
 
 
+# UN RASGADO POR MATERIAL. Cada tipo de sobre se abre con el suyo (lo elige
+# table_element.gd por el "kind" del botin); sfx_rip queda para lo que no tenga
+# tipo. Todos acaban en un golpe grave, que es el "ya esta abierto".
+
+def sfx_rip_cards() -> List[float]:
+    """Sobre de cartas: papel de aluminio que cruje, rapido y brillante."""
+    b = blank(0.40)
+    place(b, 0.0, noise(0.30, 0.26, 1500.0, 6500.0,
+                        env_bumps([(0.06, 0.04), (0.22, 0.035), (0.38, 0.04),
+                                   (0.55, 0.035), (0.75, 0.08)]), seed=21))
+    place(b, 0.28, tone(0.09, 150.0, "triangle", 0.5, 0.24, env_perc(3.0, 0.003)))
+    return b
+
+
+def sfx_rip_vinyls() -> List[float]:
+    """Vinilo: se pela el plastico y la funda de carton resbala, suave y largo."""
+    b = blank(0.50)
+    place(b, 0.0, noise(0.40, 0.28, 500.0, 2500.0,
+                        env_bumps([(0.10, 0.12), (0.45, 0.20), (0.85, 0.10)]), seed=22))
+    place(b, 0.38, tone(0.11, 90.0, "triangle", 0.5, 0.30, env_perc(3.0, 0.003)))
+    return b
+
+
+def sfx_rip_sneakers() -> List[float]:
+    """Caja de zapatillas: la tapa de carton roza al subir y cae con un golpe."""
+    b = blank(0.50)
+    place(b, 0.0, noise(0.34, 0.30, 300.0, 1400.0,
+                        env_bumps([(0.15, 0.12), (0.55, 0.15)]), seed=23))
+    place(b, 0.34, tone(0.14, 80.0, "triangle", 0.5, 0.36, env_perc(2.5, 0.003)))
+    return b
+
+
+def sfx_rip_electronics() -> List[float]:
+    """Electronica: blister de plastico duro que salta a chasquidos secos."""
+    b = blank(0.42)
+    place(b, 0.0, noise(0.30, 0.30, 2500.0, 7000.0,
+                        env_bumps([(0.05, 0.015), (0.20, 0.015), (0.42, 0.02),
+                                   (0.62, 0.015), (0.85, 0.05)]), seed=24))
+    place(b, 0.18, tone(0.03, 1760.0, "square", 0.5, 0.10, env_perc(4.0, 0.001)))
+    place(b, 0.30, tone(0.10, 130.0, "triangle", 0.5, 0.26, env_perc(3.0, 0.003)))
+    return b
+
+
+def sfx_rip_toys() -> List[float]:
+    """Juguete: caja con ventana y cinta; tirones de cinta como el rasgado de siempre."""
+    b = blank(0.46)
+    place(b, 0.0, noise(0.34, 0.30, 900.0, 3600.0,
+                        env_bumps([(0.10, 0.06), (0.35, 0.05), (0.62, 0.05),
+                                   (0.85, 0.09)]), seed=25))
+    place(b, 0.32, tone(0.11, 110.0, "triangle", 0.5, 0.30, env_perc(3.0, 0.003)))
+    return b
+
+
 def sfx_open() -> List[float]:
     """Termina la espera y sale la tarjeta. Cuatro notas subiendo (C E G C)."""
     b = blank(0.60)
@@ -393,6 +446,11 @@ SFX: Dict[str, Callable[[], List[float]]] = {
     "sfx_toggle": sfx_toggle,
     "sfx_buy": sfx_buy,
     "sfx_rip": sfx_rip,
+    "sfx_rip_cards": sfx_rip_cards,
+    "sfx_rip_vinyls": sfx_rip_vinyls,
+    "sfx_rip_sneakers": sfx_rip_sneakers,
+    "sfx_rip_electronics": sfx_rip_electronics,
+    "sfx_rip_toys": sfx_rip_toys,
     "sfx_open": sfx_open,
     "sfx_sell": sfx_sell,
     "sfx_sell_all": sfx_sell_all,

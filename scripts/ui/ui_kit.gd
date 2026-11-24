@@ -650,7 +650,7 @@ static func punch(node: CanvasItem, amount: float = 1.25) -> void:
 		return
 	if node is Control:
 		(node as Control).pivot_offset = (node as Control).size * 0.5
-	var tw := node.create_tween()
+	var tw := _restart_tween(node, "punch_tw")
 	tw.tween_property(node, "scale", Vector2.ONE * amount, 0.07)
 	tw.tween_property(node, "scale", Vector2.ONE, 0.35) \
 			.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
@@ -664,9 +664,21 @@ static func shake(node: CanvasItem) -> void:
 	if not node.has_meta("shake_x0"):
 		node.set_meta("shake_x0", node.position.x)
 	var x0: float = node.get_meta("shake_x0")
-	var tw := node.create_tween()
+	var tw := _restart_tween(node, "shake_tw")
 	for off in [10.0, -8.0, 6.0, -4.0, 0.0]:
 		tw.tween_property(node, "position:x", x0 + off, 0.04)
+
+
+## Un tween nuevo para `node` que mata el anterior de la misma clave. Sin esto,
+## dos punch() seguidos (vender rapido) eran dos tweens peleando por la escala.
+static func _restart_tween(node: CanvasItem, key: String) -> Tween:
+	if node.has_meta(key):
+		var old = node.get_meta(key)
+		if old is Tween and (old as Tween).is_valid():
+			(old as Tween).kill()
+	var tw := node.create_tween()
+	node.set_meta(key, tw)
+	return tw
 
 
 # --------------------------------------------------------------------------- #

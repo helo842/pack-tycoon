@@ -45,6 +45,15 @@ const HELP_SCENE := preload("res://scenes/HelpPanel.tscn")
 ## ADMIN (trampas para probar) encima de AYUDA, y solo en depuracion.
 const ADMIN_POS := Vector2(1580, ROW_SELL)
 const ADMIN_SCENE := preload("res://scenes/AdminPanel.tscn")
+## REINICIAR encima de ADMIN (la fila de PANTALLA COMPLETA).
+const RESET_POS := Vector2(1580, ROW_SCREEN)
+## TEMBLOR en la misma columna, a la altura del deslizador de SONIDOS (que acaba
+## en x 1280, lejos del boton que empieza en 1480).
+const SHAKE_POS := Vector2(1580, ROW_SLIDER_2)
+## Ancho de los botones de esa columna: a 200 «Temblor sí» no cabia a 21 px y
+## salia con letra pequeña. A 240 caben 168 px de texto (UIKit.SMALL_BODY).
+const COL_BTN_W := 240
+var _reset_armed := false
 const CARD_NAMES := {"always": "Siempre", "good": "Lo bueno", "never": "Nunca"}
 
 ## Ultimo valor del deslizador de SONIDOS al que ya se le ha dado el clic de
@@ -70,21 +79,67 @@ func _ready() -> void:
 	_build_autostore()
 	_build_card_mode()
 
-	var help := UIKit.small_button("Ayuda", "", HELP_POS, 200, 22)
+	var help := UIKit.small_button("Ayuda", "", HELP_POS, COL_BTN_W, 22)
 	help.tooltip_text = "Cómo se juega"
 	help.pressed.connect(_open_help)
 	add_child(help)
 
 	if OS.is_debug_build():
-		var admin := UIKit.small_button("ADMIN", "", ADMIN_POS, 200, 22)
+		var admin := UIKit.small_button("ADMIN", "", ADMIN_POS, COL_BTN_W, 22)
 		admin.tooltip_text = "Trampas para probar (solo en depuracion)"
 		admin.pressed.connect(_open_admin)
 		add_child(admin)
 
-	var credits := UIKit.small_button("Créditos", "", CREDITS_POS, 200, 22)
+	var credits := UIKit.small_button("Créditos", "", CREDITS_POS, COL_BTN_W, 22)
 	credits.tooltip_text = "Créditos (música)"
 	credits.pressed.connect(_open_credits)
 	add_child(credits)
+
+	_build_reset()
+	_build_shake()
+
+
+## TEMBLOR SI/NO, en la columna de botones a la altura de SONIDOS (el unico hueco:
+## las filas de casilla de la izquierda ya llenan el panel). Al pulsarlo se
+## cambia el boton entero, como en REINICIAR, porque el texto va dentro.
+func _build_shake() -> void:
+	var b := UIKit.small_button("Temblor " + ("sí" if Game.screen_shake else "no"),
+			"", SHAKE_POS, COL_BTN_W, 22)
+	b.tooltip_text = "Temblor de la mesa y parón al golpear. Apágalo si te mareas."
+	b.pressed.connect(func() -> void:
+		Sound.click()
+		Game.set_screen_shake(not Game.screen_shake)
+		b.queue_free()
+		_build_shake())
+	add_child(b)
+
+
+## REINICIAR (borrar la partida) con dos clics, como comprar en el arbol: el primero cambia el
+## boton por "¿Seguro?" y solo el segundo borra. Va arriba del todo de la columna
+## de botones, lejos de los que se pulsan a menudo.
+func _build_reset() -> void:
+	var reset := UIKit.small_button("Reiniciar", "", RESET_POS, COL_BTN_W, 22)
+	reset.tooltip_text = "Borra la partida y empieza de cero. Se pide confirmación."
+	reset.pressed.connect(_on_reset.bind(reset))
+	add_child(reset)
+
+
+func _on_reset(button: Button) -> void:
+	if not _reset_armed:
+		_reset_armed = true
+		Sound.play("sfx_error")
+		button.queue_free()
+		var sure := UIKit.small_button("¿Seguro?", "", RESET_POS, COL_BTN_W, 22)
+		sure.tooltip_text = "Pulsa otra vez para borrarlo todo"
+		sure.pressed.connect(_on_reset.bind(sure))
+		add_child(sure)
+		UIKit.shake(sure)
+		return
+	Sound.click()
+	MainRoot.get_root().show_menu()
+	Game.reset_progress()
+	closed.emit()
+	queue_free()
 
 
 func _build_sliders() -> void:
