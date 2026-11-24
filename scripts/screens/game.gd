@@ -252,6 +252,11 @@ var _auto_buy_panel: AutoBuyPanel = null
 var _locker: LockerPanel = null
 var _rebirth: RebirthPanel = null
 var _ascension: AscensionPanel = null
+## EL MERCADO NEGRO: la furgoneta aparcada en la mesa (null si no esta) y el
+## maletin abierto (null si no). Ver BlackMarket y BlackMarketPanel.
+var _van: Control = null
+var _van_bar: ColorRect = null
+var _market: BlackMarketPanel = null
 var _pets: PetPanel = null
 var _reveal: RevealCard = null
 var _auto_open_btn: Button = null
@@ -361,6 +366,8 @@ func _ready() -> void:
 	# mesa que se lleva cada guardado la saca esta pantalla.
 	_restore_table()
 	Game.table_provider = _snapshot_table
+	if Game.van_here():
+		_show_van()
 
 
 func _exit_tree() -> void:
@@ -1167,6 +1174,80 @@ func _close_ascension() -> void:
 	_refresh_top()
 
 
+## LA FURGONETA del mercado negro, aparcada en la esquina de abajo a la derecha
+## de la mesa, con su bocadillo y la barra de lo que le queda. Pulsarla abre el
+## maletin.
+const VAN_CENTER := Vector2(1772, 836)
+const VAN_SIZE := Vector2(176, 176)
+
+
+func _show_van() -> void:
+	if _van != null:
+		return
+	_van = Control.new()
+	_van.name = "Van"
+	_van.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_van)
+	var art := UIKit.image("tree_bm_van", VAN_CENTER, VAN_SIZE)
+	_van.add_child(art)
+	UIKit.bob(art, 2.0, 1.6)
+	var bubble := Rect2(VAN_CENTER.x - 250.0, VAN_CENTER.y - 120.0, 220, 52)
+	var edge := ColorRect.new()
+	edge.position = bubble.position - Vector2(3, 3)
+	edge.size = bubble.size + Vector2(6, 6)
+	edge.color = Palette.OUTLINE
+	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_van.add_child(edge)
+	var paper := ColorRect.new()
+	paper.position = bubble.position
+	paper.size = bubble.size
+	paper.color = Palette.CREAM
+	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_van.add_child(paper)
+	_van.add_child(UIKit.label_at("Psst... ¿cajas?", bubble.get_center(), bubble.size, 21,
+			Palette.OUTLINE))
+	var track := ColorRect.new()
+	track.position = Vector2(VAN_CENTER.x - 78.0, VAN_CENTER.y + 66.0)
+	track.size = Vector2(156, 14)
+	track.color = Palette.OUTLINE
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_van.add_child(track)
+	_van_bar = ColorRect.new()
+	_van_bar.position = track.position + Vector2(3, 3)
+	_van_bar.size = Vector2(150, 8)
+	_van_bar.color = Color8(200, 60, 40)
+	_van_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_van.add_child(_van_bar)
+	var hit := UIKit.hit_area(_van, Rect2(VAN_CENTER - VAN_SIZE * 0.5, VAN_SIZE),
+			"Mercado negro")
+	hit.pressed.connect(_open_market)
+	UIKit.pop_in([art])
+
+
+func _hide_van() -> void:
+	if _van != null:
+		_van.queue_free()
+		_van = null
+		_van_bar = null
+
+
+func _open_market() -> void:
+	if _market != null or not Game.van_here():
+		return
+	Sound.click()
+	_market = BlackMarketPanel.new()
+	_market.closed.connect(_close_market)
+	_main().push_veil(_market)
+
+
+func _close_market() -> void:
+	if _market != null:
+		_main().pop_veil(_market)
+		_market = null
+	if not Game.van_here():
+		_hide_van()
+
+
 ## La tienda de mascotas (el gachapon, ver PetPanel).
 func _open_pets() -> void:
 	if _pets != null:
@@ -1898,6 +1979,15 @@ static func _pack_kind(pack_id: String) -> String:
 
 ## Los relojes que hacen aparecer los eventos. Solo corren con la mesa a la vista.
 func _events_step(delta: float) -> void:
+	match Game.market_step(delta):
+		"llega":
+			_show_van()
+			Sound.play("sfx_rare")
+			_main().banner("Mercado negro", "Pincha la furgoneta antes de que se vaya")
+		"se_va":
+			_hide_van()
+	if _van != null:
+		_van_bar.size.x = 150.0 * clampf(Game.van_left / BlackMarket.VAN_LIFE, 0.0, 1.0)
 	_golden_timer -= delta
 	if _golden_timer <= 0.0:
 		_golden_timer = Gameplay.between(_rng, Gameplay.GOLDEN_EVERY) \
@@ -2323,7 +2413,8 @@ func _combo_window() -> float:
 func _table_clear() -> bool:
 	return _reveal == null and _settings == null and _locker == null \
 			and _shop == null and _rebirth == null and _auto_buy_panel == null \
-			and _libreta == null and _pets == null and _ascension == null
+			and _libreta == null and _pets == null and _ascension == null \
+			and _market == null
 
 
 ## "2.10" -> "2.1"

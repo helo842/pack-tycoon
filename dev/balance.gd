@@ -163,6 +163,32 @@ func _sk_add(id: String) -> void:
 		_sk[stat] = _skb(stat) + SkillTree.node_bonus(n, stat)
 
 
+## LA ASCENSION (ver _asc_report): los nodos de la telaraña comprados en esta
+## simulacion. Hacen lo mismo que en Game.asc_mult / asc_add / asc_flag.
+var _asc: Array = []
+
+
+func _am(stat: String) -> float:
+	var m := 1.0
+	for id in _asc:
+		m *= float(AscensionTree.node_by_id(str(id)).get("mult", {}).get(stat, 1.0))
+	return m
+
+
+func _aa(stat: String) -> float:
+	var t := 0.0
+	for id in _asc:
+		t += float(AscensionTree.node_by_id(str(id)).get("add", {}).get(stat, 0.0))
+	return t
+
+
+func _af(flag: String) -> bool:
+	for id in _asc:
+		if str(AscensionTree.node_by_id(str(id)).get("flag", "")) == flag:
+			return true
+	return false
+
+
 static func _uniq(a: Array) -> Array:
 	var out: Array = []
 	for x in a:
@@ -189,7 +215,11 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 		st["share"] = share
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
-	var money := Game.START_MONEY + int(_skb("start"))
+	# PERFECCION (ascension): todos los golpes perfectos y en la zona dorada.
+	if _af("auto_perfect"):
+		st["perfect"] = 1.0
+		st["sweet"] = 1.0
+	var money := Game.START_MONEY + int(_skb("start")) + int(_aa("start_money"))
 	var levels: Array = []
 	for i in LootDB.item_count():
 		levels.append(0)
@@ -216,6 +246,7 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	var first_buy := -1.0
 	_gp_reset(st, seed_value)
 	_gp["fixed"] = fixed_loot
+	var van_k := int(floor(_clock0 / _van_every()))
 	# SE PARA CUANDO EL CONTADOR LLEGA AL REQUISITO, que es la regla del rebirth
 	# desde que su requisito se mide en el dinero que TIENES y no en lo ganado (ver
 	# Game.can_rebirth). El requisito de la partida no es "hacer tal cosa": es
@@ -223,7 +254,7 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	# mira `money` y no `earned`, que se sigue llevando solo para el informe.
 	# Con until_min la partida NO se para en el requisito: sigue hasta ese minuto,
 	# que es lo que mide como va la partida larga (informe "armario").
-	var require := roundi(float(LootDB.REBIRTH_REQUIRE) * (1.0 - _skb("require")))
+	var require := roundi(float(LootDB.REBIRTH_REQUIRE) * (1.0 - _skb("require")) * _am("require"))
 	while (t < until_min * 60.0 if until_min > 0.0 else money < require) \
 			and t < CAP:
 		if trace and opened % 10 == 0:
@@ -269,6 +300,12 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 		var buy := _shop(st, levels, money)
 		money = int(buy["money"])
 		spent += int(buy["spent"])
+		# La furgoneta: una visita cada media de BlackMarket.VAN_EVERY de juego.
+		if _skb("market") > 0.0 and not _off.has("mercado"):
+			var k := int(floor((_clock0 + t) / _van_every()))
+			if k > van_k:
+				van_k = k
+				money = _market_visit(money, rungs)
 		if int(buy["spent"]) > 0:
 			if first_buy < 0.0:
 				first_buy = t
@@ -277,7 +314,7 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	if until_min > 0.0:
 		var tot := LootDB.locker_totals(locker)
 		return {"money": money, "levels": LootDB.total_levels(levels),
-			"coins": LootDB.rebirth_coins_raw(money, 1.0 + float(tot["electronics"])),
+			"coins": LootDB.rebirth_coins_raw(money, (1.0 + float(tot["electronics"])) * _am("rebirth")),
 			"totals": tot, "packs": opened}
 	if money < require:
 		return {"minutes": INF, "packs": opened, "spent": spent, "levels": 0}
@@ -289,13 +326,46 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 		"first_buy": first_buy / 60.0, "gp": _gp.duplicate()}
 
 
+static func _van_every() -> float:
+	return (BlackMarket.VAN_EVERY.x + BlackMarket.VAN_EVERY.y) * 0.5
+
+
+## Una visita de la furgoneta: compra cada caja que le cabe (de barata a cara) y
+## cobra lo que paga DE MEDIA (BlackMarket.expected_mult x lo que pagan los sobres,
+## menos lo que se lleva la redada de media). Con dado o sin el, la media: el
+## mercado es para medir el ritmo, no la suerte.
+func _market_visit(money: int, rungs: Dictionary) -> int:
+	var ref_id := "cards"
+	var ref_price := 0
+	for id in rungs:
+		var pr := int(LootDB.pack_by_id(str(id))["price"])
+		if pr > ref_price:
+			ref_price = pr
+			ref_id = str(id)
+	if ref_price <= 0:
+		return money
+	var mult := (1.0 + float(_tot["vinyls"])) * (1.0 + _skb("money")) * _am("money") \
+			* (1.0 + _album_bonus("money"))
+	var roi := LootDB.pack_payout(ref_id) * mult / float(ref_price)
+	for box in BlackMarket.BOXES:
+		var price := BlackMarket.box_price(box, ref_price)
+		if float(price) > float(money) * MARKET_SHARE:
+			continue
+		var raid := BlackMarket.raid_chance(box) * minf(float(box["raid_share"]), BlackMarket.RAID_CAP) \
+				* float(money - price)
+		money += roundi(float(price) * (BlackMarket.expected_mult(box)
+				* pow(roi, BlackMarket.ROI_POWER) - 1.0) - raid)
+		_gp["market_n"] = int(_gp.get("market_n", 0)) + 1
+	return money
+
+
 ## Los paquetes de una partida automatica: los Pinchos reparten su dano entre los
 ## que hay en la mesa, y la compra automatica mete uno cada 0,75 s.
 func _step_auto(st: Dictionary, levels: Array, locker: Array, table: Array,
 		buy_left: float, dt: float, money: int, earned: int, opened: int,
 		rungs: Dictionary, rng: RandomNumberGenerator, fixed_loot: bool,
 		paid: int, income: int) -> Dictionary:
-	var dps := LootDB.spike_dps(levels, float(money)) * (1.0 + _skb("spikes"))
+	var dps := LootDB.spike_dps(levels, float(money)) * (1.0 + _skb("spikes")) * _am("spikes")
 	var n := maxi(1, table.size())
 	for i in table.size():
 		var row: Array = table[i]
@@ -334,6 +404,22 @@ func _step_auto(st: Dictionary, levels: Array, locker: Array, table: Array,
 ## automatica lo SALTA (game.gd, _auto_buy_step()) pero el jugador lo puede
 ## coger a mano cuando quiere, y sin eso una partida sin dinero se quedaria
 ## parada para siempre.
+## ¿Hay tienda pro? (se ha ascendido alguna vez, ver _asc_report).
+var _pro := false
+## EL MERCADO NEGRO (ver BlackMarket): ¿ya se compro el nodo (es para siempre)?
+## y el reloj de juego con el que empieza la partida que se simula, en segundos
+## (la furgoneta va por tiempo jugado, no por partida). Con "sin_mercado" en la
+## linea de comandos el nodo se compra igual pero nunca se usa (para comparar).
+var _market := false
+var _clock0 := 0.0
+## Lo que se gasta como mucho en cada caja (parte del dinero que lleva). El
+## jugador simulado se juega la mitad: es el que mas saca del mercado.
+const MARKET_SHARE := 0.5
+## Las ascensiones hechas (encarecen el arbol, ver SkillTree.cost_for).
+var _asc_n := 0
+
+
+
 func _best_pack(money: int) -> String:
 	var best := ""
 	var best_price := -1
@@ -343,6 +429,13 @@ func _best_pack(money: int) -> String:
 		if price > 0 and price <= money and price > best_price:
 			best_price = price
 			best = str(p["id"])
+	# La TIENDA PRO sale en cuanto se ha ascendido (Game.pro_shop_shown).
+	if _pro:
+		for p in LootDB.PRO_PACKS:
+			var price := int(p["price"])
+			if price <= money and price > best_price:
+				best_price = price
+				best = str(p["id"])
 	return best if best != "" else "cards"
 
 
@@ -377,6 +470,8 @@ func _perfect_factor(st: Dictionary) -> float:
 	for j in range(1, 60):
 		racha += (1.0 - p) * pow(p, j - 1) \
 				* Gameplay.streak_mult(roundi(float(j) * (1.0 + sweet)), _skb("streak"))
+	# Lo que queda de la cola (rachas de 60 o mas): con p = 1 (PERFECCION) es todo.
+	racha += pow(p, 59) * Gameplay.streak_mult(roundi(60.0 * (1.0 + sweet)), _skb("streak"))
 	var perfecto := Gameplay.PERFECT_MULT * (1.0 + sweet * (Gameplay.SWEET_MULT - 1.0)) * racha
 	return 1.0 + p * (perfecto - 1.0)
 
@@ -400,7 +495,7 @@ func _cycle(levels: Array, st: Dictionary) -> float:
 		# El golpe perfecto llega antes: se pulsa entre PERFECT_FROM y el final del anillo.
 		charge *= 1.0 - float(st.get("perfect", 0.0)) * (1.0 - (1.0 + Gameplay.PERFECT_FROM) * 0.5)
 		charge /= 1.0 + _album_bonus("speed")
-	charge /= (1.0 + float(_tot["sneakers"])) * (1.0 + _skb("speed"))
+	charge /= (1.0 + float(_tot["sneakers"])) * (1.0 + _skb("speed")) * _am("speed")
 	# El tope de la carga (Gameplay.MIN_CHARGE): lo que sobra es dano, o sea
 	# golpes que valen por mas de uno; aqui, el ciclo dividido por eso.
 	var sobra := maxf(1.0, Gameplay.MIN_CHARGE / charge)
@@ -419,14 +514,14 @@ func _average_hit(levels: Array) -> float:
 	var crit := (LootDB.crit_chance(levels) + _album_bonus("crit")) \
 			* (LootDB.crit_mult(levels) - 1.0)
 	return LootDB.damage_per_hit(levels) * (1.0 + crit) * (1.0 + _album_bonus("damage")) \
-			* (1.0 + float(_tot["cards"])) * (1.0 + _skb("damage"))
+			* (1.0 + float(_tot["cards"])) * (1.0 + _skb("damage")) * _am("damage")
 
 
 ## Lo que paga un sobre: el botin de verdad (roll_pack, con su rareza y su nota)
 ## o, en la pasada "sin suerte", su valor medio (pack_payout).
 func _loot(levels: Array, locker: Array, pack_id: String, st: Dictionary,
 		rng: RandomNumberGenerator, fixed_loot: bool) -> int:
-	var mult := (1.0 + float(_tot["vinyls"])) * (1.0 + _skb("money"))
+	var mult := (1.0 + float(_tot["vinyls"])) * (1.0 + _skb("money")) * _am("money")
 	mult *= 1.0 + _album_bonus("money")
 	_gp_mission("open", 1, pack_id.rstrip("0123456789"))
 	if fixed_loot:
@@ -626,7 +721,7 @@ func _gp_events(st: Dictionary, levels: Array, locker: Array,
 		if bool(st["auto"]) and LootDB.item_level(levels, "pinchos") > 0 \
 				and LootDB.item_level(levels, "pc") > 0:
 			out["seconds"] = float(out["seconds"]) + float(LootDB.pack_hp(pack_id)) \
-					/ maxf(0.001, LootDB.spike_dps(levels, float(LootDB.REBIRTH_REQUIRE) * 0.5) * (1.0 + _skb("spikes")))
+					/ maxf(0.001, LootDB.spike_dps(levels, float(LootDB.REBIRTH_REQUIRE) * 0.5) * (1.0 + _skb("spikes")) * _am("spikes"))
 		else:
 			out["seconds"] = float(out["seconds"]) + _pack_seconds(levels, pack_id, st)
 		var gain := _gp_golden_loot(levels, locker, pack_id, rng, fixed_loot)
@@ -668,7 +763,7 @@ func _gp_events(st: Dictionary, levels: Array, locker: Array,
 func _gp_golden_loot(levels: Array, locker: Array, pack_id: String,
 		rng: RandomNumberGenerator, fixed_loot: bool,
 		min_grade: int = Gameplay.GOLDEN_MIN_GRADE) -> int:
-	var mult := (1.0 + float(_tot["vinyls"])) * (1.0 + _skb("money"))
+	var mult := (1.0 + float(_tot["vinyls"])) * (1.0 + _skb("money")) * _am("money")
 	mult *= 1.0 + _album_bonus("money")
 	_gp_mission("open", 1, pack_id.rstrip("0123456789"))
 	if fixed_loot:
@@ -748,6 +843,10 @@ func _ready() -> void:
 		return
 	if args.has("arbol"):
 		_tree_report()
+		get_tree().quit(0)
+		return
+	if args.has("ascension"):
+		_asc_report(1 if args.has("optimizado") else (2 if args.has("automatico") else 0))
 		get_tree().quit(0)
 		return
 	if args.has("final"):
@@ -1051,60 +1150,156 @@ func _curve_report(full_tree: bool) -> void:
 
 
 func _final_report() -> void:
-	var minutos := [2, 3, 4, 5, 6, 8, 10, 12, 15, 18, 22, 26, 30, 40, 50, 60]
 	print("FINAL: horas de juego hasta tener el arbol entero")
 	for strat in [0, 1, 2]:
-		var owned: Array = []
-		var coins := 0
-		var total := 0.0
-		var runs := 0
-		var hitos := ""
-		while owned.size() < SkillTree.node_count() and runs < 400:
-			_sk = {}
-			for id in owned:
-				_sk_add(str(id))
-			var req := float(LootDB.REBIRTH_REQUIRE) * (1.0 - _skb("require"))
-			var best_rate := -1.0
-			var best_t := 0.0
-			var best_c := 0
-			for m in minutos:
-				var r := simulate(strat, runs, true, false, -1.0, float(m))
-				if float(r["money"]) < req:
-					continue
-				var c := maxi(1, int(floor(float(r["coins"]) + 0.000001)))
-				if runs == 0:
-					c = maxi(c, Game.FIRST_REBIRTH_COINS)
-				c += int(_skb("coins"))
-				if float(c) / float(m) > best_rate:
-					best_rate = float(c) / float(m)
-					best_t = float(m)
-					best_c = c
-			if best_rate < 0.0:
-				print("  %s no llega al rebirth" % STRATEGIES[strat]["id"])
-				break
-			total += best_t
-			coins += best_c
-			runs += 1
-			var compro := true
-			while compro:
-				compro = false
-				var barato := ""
-				for id in SkillTree.ids():
-					if owned.has(id):
-						continue
-					var abierto := true
-					for rq in SkillTree.reqs_of(str(id)):
-						abierto = abierto and owned.has(rq)
-					var cost := int(SkillTree.node_by_id(str(id))["cost"])
-					if abierto and cost <= coins and (barato == ""
-							or cost < int(SkillTree.node_by_id(barato)["cost"])):
-						barato = str(id)
-				if barato != "":
-					coins -= int(SkillTree.node_by_id(barato)["cost"])
-					owned.append(barato)
-					compro = true
-			if runs in [1, 5, 10, 20, 40]:
-				hitos += "  [rebirth %d: %.1f h, %d nodos, %d min/partida, %d monedas]" \
-						% [runs, total / 60.0, owned.size(), roundi(best_t), best_c]
-		print("  %-11s %5.1f h  %3d rebirths%s" % [STRATEGIES[strat]["id"], total / 60.0, runs, hitos])
+		var r := _tree_run(strat, [])
+		if not bool(r["ok"]):
+			print("  %s no llega al rebirth" % STRATEGIES[strat]["id"])
+			continue
+		print("  %-11s %5.1f h  %3d rebirths%s" % [STRATEGIES[strat]["id"],
+			float(r["minutes"]) / 60.0, int(r["runs"]), r["hitos"]])
 	_sk = {}
+
+
+## Un arbol del rebirth entero, de cero (o desde `owned`, lo que ya se tiene):
+## cada partida reinicia en el minuto que mas monedas por minuto da (probando
+## unos cuantos) y gasta lo que tiene en el nodo mas barato que pueda comprar.
+## Botin en su media (sin dado). Aplica lo que haya en _asc.
+func _tree_run(strat: int, start_owned: Array) -> Dictionary:
+	var minutos := [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 18, 22, 26, 30, 40, 50, 60]
+	var owned: Array = start_owned.duplicate()
+	# El mercado negro, comprado una vez, sale comprado en todos los arboles.
+	if _market and not owned.has(SkillTree.MARKET):
+		owned.append(SkillTree.MARKET)
+	var coins := 0
+	var total := 0.0
+	var runs := 0
+	var first := 0.0
+	var hitos := ""
+	while owned.size() < SkillTree.node_count() and runs < 400:
+		_sk = {}
+		for id in owned:
+			_sk_add(str(id))
+		var req := float(LootDB.REBIRTH_REQUIRE) * (1.0 - _skb("require")) * _am("require")
+		var best_rate := -1.0
+		var best_t := 0.0
+		var best_c := 0
+		_clock0 = total * 60.0
+		for m in minutos:
+			var r := simulate(strat, runs, true, false, -1.0, float(m))
+			if float(r["money"]) < req:
+				continue
+			var c := maxi(1, int(floor(float(r["coins"]) + 0.000001)))
+			if runs == 0:
+				c = maxi(c, Game.FIRST_REBIRTH_COINS)
+			c += int(_skb("coins"))
+			if float(c) / float(m) > best_rate:
+				best_rate = float(c) / float(m)
+				best_t = float(m)
+				best_c = c
+		if best_rate < 0.0:
+			_sk = {}
+			return {"ok": false, "minutes": total, "runs": runs, "hitos": hitos, "first": first}
+		total += best_t
+		coins += best_c
+		runs += 1
+		if runs == 1:
+			first = best_t
+		var compro := true
+		while compro:
+			compro = false
+			var barato := ""
+			for id in SkillTree.ids():
+				if owned.has(id):
+					continue
+				var abierto := true
+				for rq in SkillTree.reqs_of(str(id)):
+					abierto = abierto and owned.has(rq)
+				var cost := SkillTree.cost_for(str(id), _asc_n)
+				if abierto and cost <= coins and (barato == ""
+						or cost < SkillTree.cost_for(barato, _asc_n)):
+					barato = str(id)
+			if barato != "":
+				coins -= SkillTree.cost_for(barato, _asc_n)
+				owned.append(barato)
+				compro = true
+		if runs in [1, 5, 10, 20, 40]:
+			hitos += "  [rebirth %d: %.1f h, %d nodos, %d min/partida, %d monedas]" \
+					% [runs, total / 60.0, owned.size(), roundi(best_t), best_c]
+	_sk = {}
+	return {"ok": owned.size() >= SkillTree.node_count(), "minutes": total, "runs": runs,
+		"hitos": hitos, "first": first}
+
+
+## EL JUEGO ENTERO: arboles del rebirth y ascensiones hasta tener la telaraña.
+## Cada ascension es un _tree_run con lo comprado de la telaraña puesto; los
+## puntos se gastan en el hexagono abierto mas barato (a igualdad, en el orden de
+## ASC_ORDER). La partida "completa" es la telaraña entera (61 puntos).
+## NO entra: mascotas, Recuerdo (el album ya se reinicia en cada partida
+## simulada), Legado, Piloto (las habilidades no se simulan) ni Auto rebirth (el
+## jugador simulado ya reinicia en su mejor minuto). Herencia si: arranca cada
+## arbol con los nodos de calidad de vida.
+##   $G --headless --path . res://dev/BalanceTest.tscn ascension [optimizado]
+const ASC_ORDER := [4, 0, 5, 1, 3, 2]
+
+
+func _asc_report(strat: int) -> Dictionary:
+	_asc = []
+	_pro = false
+	_market = false
+	var points := 0
+	var total := 0.0
+	var n := 0
+	print("ASCENSION (%s): horas hasta la telaraña entera" % STRATEGIES[strat]["id"])
+	while _asc.size() < AscensionTree.NODES.size() and n < 200:
+		var start: Array = []
+		if _af("keep_qol"):
+			start = SkillTree.ids().filter(func(id: String) -> bool: return SkillTree.is_qol(id))
+		_asc_n = n
+		var r := _tree_run(strat, start)
+		if not bool(r["ok"]):
+			print("  ascension %d: no llega" % (n + 1))
+			break
+		total += float(r["minutes"])
+		n += 1
+		_market = true
+		var ganados := 1 + int(_aa("points"))
+		points += ganados
+		_pro = true
+		var compra := ""
+		while true:
+			var barato := ""
+			for id in AscensionTree.ids():
+				if _asc.has(id):
+					continue
+				var req := AscensionTree.req_of(str(id))
+				if req != "" and not _asc.has(req):
+					continue
+				var c := AscensionTree.cost_of(str(id))
+				if c > points:
+					continue
+				if barato == "" or c < AscensionTree.cost_of(barato) or (c == AscensionTree.cost_of(barato)
+						and _asc_rank(str(id)) < _asc_rank(barato)):
+					barato = str(id)
+			if barato == "":
+				break
+			points -= AscensionTree.cost_of(barato)
+			_asc.append(barato)
+			compra += " " + barato
+		print("  asc %2d  %5.1f h (total %5.1f h)  %3d rebirths, 1.a partida %2d min  +%d ptos ->%s" % [
+			n, float(r["minutes"]) / 60.0, total / 60.0, int(r["runs"]), roundi(float(r["first"])),
+			ganados, compra])
+	var out := {"hours": total / 60.0, "ascensions": n, "done": _asc.size() >= AscensionTree.NODES.size()}
+	print("  TOTAL %s: %.1f h, %d ascensiones%s" % [STRATEGIES[strat]["id"], total / 60.0, n,
+		"" if bool(out["done"]) else " (SIN acabar)"])
+	_asc = []
+	_pro = false
+	_asc_n = 0
+	_market = false
+	_clock0 = 0.0
+	return out
+
+
+func _asc_rank(id: String) -> int:
+	var sp := int(AscensionTree.node_by_id(id)["spoke"])
+	return -1 if sp < 0 else ASC_ORDER.find(sp)

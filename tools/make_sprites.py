@@ -3404,6 +3404,10 @@ GRADED_ITEMS: List[str] = [
     "master_tape", "gold_record", "signed_guitar", "platinum_record",
     "helmet", "chrome_rim", "motorbike", "classic_car",
     "old_coin", "pearls", "jeweled_egg", "crown",
+    # los del mercado negro (loot_designs.py, scripts/data/black_market.gd)
+    "bm_stolen_card", "bm_misprint", "bm_bootleg", "bm_lost_tape",
+    "bm_sample", "bm_unreleased", "bm_devkit", "bm_hot_watch",
+    "bm_recalled", "bm_prototype", "bm_lead_ingot",
 ]
 
 for _base in GRADED_ITEMS:

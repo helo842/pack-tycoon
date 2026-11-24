@@ -253,11 +253,11 @@ class TreeLines extends Control:
 		for n in SkillTree.NODES:
 			# LEYENDA no se une con nada: corona el arbol entero (pide todos los
 			# nodos) y treinta y tantas lineas hasta ella serian una maraña.
-			if str(n["id"]) == SkillTree.LEGEND:
+			if str(n["id"]) == SkillTree.LEGEND or not RebirthPanel.node_shown(str(n["id"])):
 				continue
 			for req in SkillTree.reqs_of(str(n["id"])):
 				var base := SkillTree.node_by_id(str(req))
-				if base.is_empty():
+				if base.is_empty() or not RebirthPanel.node_shown(str(req)):
 					continue
 				panel._draw_link(self, base["pos"], n["pos"], str(n["id"]))
 
@@ -704,7 +704,7 @@ func _paint_card() -> void:
 	_card_desc.text = SkillTree.desc_of(_selected)
 	_place_at(_card_desc, CARD_TEXT_X, CARD_ROW2, 21)
 	# Un interruptor no suma a ningun stat: lo suyo es encendido o no.
-	if SkillTree.is_qol(_selected):
+	if SkillTree.is_switch(_selected):
 		_card_nums.text = "Ahora: encendido" if cost < 0 else "Ahora: apagado; después, encendido"
 	else:
 		var ahora := Game.skill_bonus(stat)
@@ -929,9 +929,10 @@ func refresh() -> void:
 
 
 ## ¿Se dibuja este nodo? Todos, menos LEYENDA hasta que se puede comprar (o sea,
-## hasta tener todo lo demas) o ya es tuya.
+## hasta tener todo lo demas) o ya es tuya, y el MERCADO NEGRO, que sale detras de
+## LEYENDA en cuanto es tuya.
 static func node_shown(id: String) -> bool:
-	if id != SkillTree.LEGEND:
+	if id != SkillTree.LEGEND and id != SkillTree.MARKET:
 		return true
 	return Game.skill_owned(id) or Game.skill_unlocked(id)
 

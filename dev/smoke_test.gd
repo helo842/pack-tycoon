@@ -2644,7 +2644,8 @@ func _run() -> void:
 	# Dieciseis: el centro, cuatro caminos de los que tres siguen dos nodos mas
 	# (dano, velocidad y Pinchos) y cinco INTERRUPTORES de calidad de vida en la
 	# rama de abajo.
-	_check("el arbol trae treinta y ocho mejoras", SkillTree.node_count() == 38)
+	# Treinta y nueve con el MERCADO NEGRO (detras de LEYENDA).
+	_check("el arbol trae treinta y nueve mejoras", SkillTree.node_count() == 39)
 	# LOS TRES CAMINOS QUE SIGUEN: cada anillo esta en SU diagonal (2 x SEP y
 	# 3 x SEP) y cuelga del nodo de antes, asi que un camino se compra de arriba
 	# abajo y no se puede empezar por el fondo.
@@ -2714,6 +2715,14 @@ func _run() -> void:
 		Gameplay.streak_mult(3, 0.5) > Gameplay.streak_mult(3)
 		and zona_ancha.y - zona_ancha.x > Gameplay.SWEET_TO - Gameplay.SWEET_FROM
 		and zona_ancha.x >= Gameplay.PERFECT_FROM and zona_ancha.y <= 1.0)
+	# Con la carga en el tope la zona dorada dura SWEET_MIN_SECONDS (antes, 30 ms).
+	var zona_tope := Gameplay.sweet_zone(0.0, Gameplay.MIN_CHARGE)
+	var zona_lenta := Gameplay.sweet_zone(0.0, 1.65)
+	_check("la zona dorada dura 80 ms como poco y no cambia con la carga lenta",
+		is_equal_approx((zona_tope.y - zona_tope.x) * Gameplay.MIN_CHARGE, Gameplay.SWEET_MIN_SECONDS)
+		and zona_tope.x >= Gameplay.PERFECT_FROM and zona_tope.y <= 1.0
+		and is_equal_approx(zona_lenta.x, Gameplay.SWEET_FROM)
+		and is_equal_approx(zona_lenta.y, Gameplay.SWEET_TO))
 	# LA RAMA DE LA CALIDAD DE VIDA: seis interruptores (con el AUTO GUARDAR), todos por debajo del
 	# centro y todos de UN NIVEL (pagar dos veces por tener los atajos no
 	# significa nada). Sus ids son los que consulta el juego para saber si quitar
@@ -3899,6 +3908,8 @@ func _run() -> void:
 		_check("hay rasgado para %s" % row["id"],
 				Sound.stream("sfx_rip_" + str(row["id"])) != null)
 
+	await _check_market()
+
 	print("")
 	if _fails.is_empty():
 		print("HUMO: todo correcto.")
@@ -4241,7 +4252,14 @@ func _check_telarana() -> void:
 	var comprado := Game.auto_buy_skill()
 	_check("Jardinero compra el nodo mas barato que se puede pagar",
 		comprado == "money" and Game.skill_owned("money")
-		and Game.rebirth_coins == monedas - int(SkillTree.node_by_id("money")["cost"]))
+		and Game.rebirth_coins == monedas - SkillTree.cost_for("money", Game.ascensions))
+	# Cada ascension encarece el arbol (SkillTree.ASC_COST_GROWTH): la LEYENDA
+	# (15) cuesta 20 tras una y 25 tras dos (x1,30), y sin ascender lo de siempre.
+	_check("cada ascension encarece el arbol del rebirth",
+		SkillTree.cost_for(SkillTree.LEGEND, 0) == SkillTree.COST_LEGEND
+		and SkillTree.cost_for(SkillTree.LEGEND, 1) == 20
+		and SkillTree.cost_for(SkillTree.LEGEND, 2) == 25
+		and Game.skill_cost(SkillTree.LEGEND) == SkillTree.cost_for(SkillTree.LEGEND, Game.ascensions))
 	Game.money = Game.rebirth_require() * (Game.AUTO_REBIRTH_X - 1)
 	_check("Bucle no reinicia antes del doble de monedas", not Game.auto_rebirth_ready())
 	Game.money = Game.rebirth_require() * Game.AUTO_REBIRTH_X
@@ -4493,3 +4511,106 @@ func _check_mascotas() -> void:
 		Game.pets == {"dog": 2, "cat": PetDB.MAX_LEVEL} and Game.pets_equipped.size() == 2)
 	Game.ascension_points = 0
 	Game.pets = {}
+
+
+## EL MERCADO NEGRO (BlackMarket, Game.market_*): el nodo, la furgoneta, las cajas
+## y el guardado. Solo la logica: el panel se prueba aparte.
+func _check_market() -> void:
+	var antes: Dictionary = Game.to_dict()
+	Game.hard_reset()
+	_check("mercado: LEYENDA no pide el mercado y el mercado pide LEYENDA",
+		not SkillTree.reqs_of(SkillTree.LEGEND).has(SkillTree.MARKET)
+		and SkillTree.reqs_of(SkillTree.MARKET) == [SkillTree.LEGEND]
+		and SkillTree.node_by_id(SkillTree.MARKET)["cost"] > SkillTree.COST_LEGEND)
+	_check("mercado: sin el nodo la furgoneta no llega",
+		Game.market_step(9999.0) == "" and not Game.van_here())
+	Game.market_unlocked = true
+	Game.market_next = 1.0
+	_check("mercado: con el nodo llega cuando toca el reloj",
+		Game.market_step(2.0) == "llega" and Game.van_here()
+		and Game.market_next >= BlackMarket.VAN_EVERY.x and Game.market_next <= BlackMarket.VAN_EVERY.y)
+	var caja := "bm_box_carton"
+	Game.money = Game.box_price(caja) - 1
+	_check("mercado: sin dinero no se compra", not Game.can_buy_box(caja) and Game.buy_box(caja).is_empty())
+	Game.money = Game.box_price(caja) * 3
+	var dinero := Game.money
+	var r := Game.buy_box(caja)
+	_check("mercado: comprar cobra la caja y saca algo",
+		not r.is_empty() and int(r["price"]) == Game.box_price(caja)
+		and Game.money == dinero - int(r["price"]) - int(r["loss"])
+		and (str(r["outcome"]) == "raid" or not (r["item"] as Dictionary).is_empty()))
+	_check("mercado: cada caja una vez por visita", not Game.can_buy_box(caja))
+	# El precio va por el sobre mas caro comprado.
+	var barato := Game.box_price(caja)
+	Game.note_pack_bought("toys3", int(LootDB.pack_by_id("toys3")["price"]))
+	_check("mercado: la caja sube con el sobre mas caro comprado",
+		Game.box_price(caja) == roundi(float(LootDB.pack_by_id("toys3")["price"]) * 4.0)
+		and Game.box_price(caja) > barato)
+	# La rueda de cada caja: la media, las redadas con tope y los objetos bien hechos.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var bien := true
+	for box in BlackMarket.BOXES:
+		var suma := 0.0
+		var n := 4000
+		for i in n:
+			var o := BlackMarket.open_box(rng, box, 1000, 1.0, 10000, 3)
+			if str(o["outcome"]) == "raid":
+				bien = bien and int(o["loss"]) <= roundi(10000.0 * BlackMarket.RAID_CAP) and int(o["loss"]) > 0
+				continue
+			var it: Dictionary = o["item"]
+			bien = bien and int(it["value"]) > 0 and LootDB.kind_ids().has(str(it["kind"])) \
+				and int(it["grade"]) >= 1 and int(it["grade"]) <= 10 and int(it["tier"]) == 3 \
+				and str(it["art"]).ends_with("_psa%d" % int(it["grade"])) \
+				and str(it["rarity"]) == str(BlackMarket.OUTCOME_RARITY[str(o["outcome"])])
+			suma += float(it["value"]) / 1000.0
+		# La nota no cambia la media: lo que sale se parece a expected_mult.
+		var media := suma / float(n)
+		bien = bien and absf(media - BlackMarket.expected_mult(box)) < 0.12 * BlackMarket.expected_mult(box)
+	_check("mercado: las cajas pagan lo que dicen de media y la redada no pasa del tope", bien)
+	# Se va, y vuelve con el estante lleno.
+	_check("mercado: la furgoneta se va al acabar su rato",
+		Game.market_step(BlackMarket.VAN_LIFE + 1.0) == "se_va" and not Game.van_here()
+		and Game.van_sold.is_empty())
+	# Para siempre: ni el rebirth ni la ascension lo quitan, y se guarda.
+	Game.market_next = 123.0
+	for id in SkillTree.ids():
+		Game.skills[str(id)] = SkillTree.levels_of(str(id))
+	Game.do_ascension()
+	_check("mercado: es para siempre (la ascension no lo quita ni para el reloj)",
+		Game.market_open() and Game.skill_owned(SkillTree.MARKET)
+		and is_equal_approx(Game.market_next, 123.0))
+	Game.van_left = 30.0
+	Game.van_sold = ["bm_box_metal", "inventada"]
+	Game._apply(JSON.parse_string(JSON.stringify(Game.to_dict())))
+	_check("mercado: se guarda (y sin cajas inventadas)", Game.market_unlocked
+		and is_equal_approx(Game.van_left, 30.0) and Game.van_sold == ["bm_box_metal"])
+	# El maletin: comprar abre la caja al momento y lo que sale se guarda.
+	Game.van_left = 60.0
+	Game.van_sold = []
+	Game.inventory = []
+	Game.money = Game.box_price("bm_box_carton") * 10
+	var panel := BlackMarketPanel.new()
+	get_tree().root.add_child(panel)
+	await get_tree().process_frame
+	var intentos := 0
+	var guardado_ok := false
+	# Se repite si sale una redada (la Caja sin marca no tiene, pero por si acaso).
+	while intentos < 3 and not guardado_ok:
+		Game.van_sold = []
+		panel._on_box("bm_box_carton")
+		await get_tree().create_timer(0.8).timeout
+		if panel._result != null and not (panel._pending["item"] as Dictionary).is_empty():
+			panel._keep()
+			guardado_ok = Game.inventory.size() == 1 and panel._result == null
+		intentos += 1
+	_check("mercado: el maletin abre la caja y guarda lo que sale", guardado_ok
+		and Game.van_sold.has("bm_box_carton"))
+	_check("mercado: el maletin cabe en la pantalla", panel.size == Vector2(1920, 1080))
+	panel._on_box("bm_box_carton")
+	_check("mercado: la misma caja no se vende dos veces", panel._result == null
+		and not panel._busy)
+	panel.queue_free()
+	Game.hard_reset()
+	_check("mercado: empezar de cero lo quita", not Game.market_open())
+	Game._apply(antes)

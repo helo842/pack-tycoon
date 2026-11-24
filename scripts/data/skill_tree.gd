@@ -158,6 +158,13 @@ const COST_COINS := 10
 ## Pinchos, y las habilidades recargan el doble de rapido.
 const LEGEND := "legend"
 const COST_LEGEND := 15
+## EL MERCADO NEGRO (ver BlackMarket): detras de LEYENDA y lo mas caro del arbol.
+## No sube ningun numero: abre la furgoneta. Se compra UNA vez y es para siempre
+## (Game.market_unlocked): la primera vez es parte del arbol entero, y despues de
+## ascender ya sale comprado.
+const MARKET := "black_market"
+const MARKET_STAT := "market"
+const COST_MARKET := 25
 const BIG_SCALE := 2.0
 
 ## LOS FINALES DE CAMINO: un nodo grande (CAP_SCALE, menos que LEYENDA) al final
@@ -396,6 +403,16 @@ const NODES: Array = [
 		"detail": "+100 % dinero y +50 % daño, velocidad y pinchos. Y las"
 			+ " habilidades se recargan el doble de rápido. Pide todo el árbol.",
 		"effect": "Leyenda",
+	},
+	{
+		"id": MARKET, "stat": MARKET_STAT, "value": 1.0, "cost": COST_MARKET,
+		"pos": Vector2(0, -QOL_STEP * 5.5), "art": "tree_black_market",
+		"req": LEGEND, "scale": CAP_SCALE,
+		"desc": "Abre el mercado negro",
+		"detail": "Una furgoneta aparca en la mesa cada 8-10 minutos con cajas"
+			+ " de contrabando: pueden pagar mucho, nada o traer a la poli."
+			+ " Es para siempre: ni ascender te lo quita.",
+		"effect": "Mercado negro",
 	},
 
 	# --- LA CALIDAD DE VIDA (los interruptores) --------------------------- #
@@ -650,6 +667,19 @@ const NODES: Array = [
 # Consultas
 # --------------------------------------------------------------------------- #
 
+## CADA ASCENSION ENCARECE EL ARBOL: los nodos cuestan su "cost" por
+## ASC_COST_GROWTH elevado a las ascensiones hechas. Sin esto la telaraña
+## multiplica tanto que, pasadas unas pocas ascensiones, el arbol entero sale en
+## un par de partidas y la ascension se queda en minutos. Con esto cada
+## ascension sigue pidiendo su rato (ver BalanceTest "ascension": el juego
+## entero, telaraña incluida, ~24 h para el jugador normal).
+const ASC_COST_GROWTH := 1.30
+
+
+static func cost_for(id: String, ascensions: int) -> int:
+	return roundi(float(node_by_id(id)["cost"]) * pow(ASC_COST_GROWTH, ascensions))
+
+
 static func node_count() -> int:
 	return NODES.size()
 
@@ -686,6 +716,8 @@ static func reqs_of(id: String) -> Array:
 	if id == LEGEND:
 		var todos := ids()
 		todos.erase(LEGEND)
+		# El mercado negro va DETRAS de LEYENDA: pedirlo aqui seria un circulo.
+		todos.erase(MARKET)
 		return todos
 	var r = node_by_id(id).get("req", "")
 	if typeof(r) == TYPE_ARRAY:
@@ -759,6 +791,12 @@ static func effect_text(id: String) -> String:
 ## ¿Este nodo es un interruptor de calidad de vida? Lo es todo el que no suma un
 ## numero a un stat, y lo preguntan la ficha (no tiene AHORA ni AL COMPRARLO de
 ## porcentajes) y los tests (que no le buscan un `value` con sentido).
+## ¿Es un nodo de "encendido o no" (calidad de vida o el mercado negro), sin
+## numero que sumar? Lo mira la ficha del arbol.
+static func is_switch(id: String) -> bool:
+	return is_qol(id) or str(node_by_id(id).get("stat", "")) == MARKET_STAT
+
+
 static func is_qol(id: String) -> bool:
 	var n := node_by_id(id)
 	return not n.is_empty() and str(n["stat"]) == QOL_STAT

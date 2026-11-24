@@ -30,7 +30,7 @@ GOLD_D = GOLD = GOLD_L = GOLD_XL = GOLD_HI = CREAM = CREAM_D = CREAM_L = None
 TEAL = TEAL_D = TEAL_L = WHITE = STEEL = STEEL_D = STEEL_DD = SLATE = None
 GREEN_D = GREEN = GREEN_L = RED_D = RED = RED_L = RUST_D = RUST_L = None
 WOOD_D = WOOD_DD = CARD = CARD_L = CRINKLE = CRINKLE_L = TRANSPARENT = None
-LEATHER_HI = LEATHER_L = LEATHER = NIGHT_LL = None
+LEATHER_HI = LEATHER_L = LEATHER = NIGHT_LL = NIGHT = None
 PURPLE_D = PURPLE = PURPLE_L = None
 TISSUE = LEATHER_D = LCD = LCD_D = LCD_L = STAR_OFF_L = None
 
@@ -1406,6 +1406,95 @@ def _variant(fn: Callable, variant: str) -> Callable:
     return lambda s: fn(_Recolor(s, _ramp(variant)))
 
 
+# --------------------------------------------------------------------------- #
+# EL MERCADO NEGRO: el nodo del arbol, la furgoneta y las tres cajas
+# --------------------------------------------------------------------------- #
+
+def _case(s, y0: int, open_: bool) -> None:
+    """El maletin de cuero negro (cerrado o abierto con el brillo dorado)."""
+    s.rect(12, y0 - 3, 19, y0 - 1, DARK_SOFT)                 # el asa
+    s.rect(13, y0 - 2, 18, y0 - 2, TRANSPARENT)
+    s.rect(3, y0, 28, y0 + 14, DARK)
+    s.rect(3, y0, 28, y0, DARK_SOFT)
+    s.rect(3, y0 + 5, 28, y0 + 5, DARK_SOFT)                  # la junta
+    for x in (9, 21):                                         # los cierres
+        s.rect(x, y0 + 3, x + 2, y0 + 6, GOLD)
+        s.px(x, y0 + 3, GOLD_HI)
+    s.dots([(4, y0 + 14), (27, y0 + 14)], STEEL_D)            # pies
+    if open_:
+        s.rect(4, y0 - 9, 27, y0 - 1, RED_D)                  # la tapa abierta
+        s.rect(5, y0 - 8, 26, y0 - 2, RED)
+        s.rect(4, y0 - 9, 27, y0 - 9, DARK_SOFT)
+        s.dots([(8, y0 - 5), (15, y0 - 6), (22, y0 - 4), (12, y0 - 3), (25, y0 - 7)],
+               GOLD_HI)
+
+
+def draw_black_market(s) -> None:
+    """El nodo: el maletin abierto con el dinero brillando dentro."""
+    _case(s, 15, True)
+    s.rect(7, 13, 24, 14, GREEN)                              # fajos asomando
+    s.rect(7, 13, 24, 13, GREEN_L)
+    s.dots([(10, 14), (16, 14), (22, 14)], GREEN_D)
+
+
+def draw_bm_van(s) -> None:
+    """La furgoneta negra de perfil, mirando a la izquierda, con lunas tintadas."""
+    s.rect(2, 9, 29, 23, DARK)                                # la caja
+    s.rect(2, 9, 29, 9, DARK_SOFT)
+    s.poly([(2, 23), (2, 15), (5, 11), (9, 11), (9, 23)], DARK)   # el morro
+    s.poly([(4, 15), (6, 12), (9, 12), (9, 15)], SLATE)       # la luna delantera
+    s.px(6, 13, STEEL)
+    s.rect(11, 12, 18, 15, NIGHT_LL)                          # ventanilla tintada
+    s.rect(20, 11, 28, 21, DARK_SOFT)                         # las puertas de atras
+    s.rect(24, 11, 24, 21, DARK)
+    s.dots([(23, 16), (25, 16)], STEEL)                       # manillas
+    s.rect(2, 19, 3, 20, GOLD_XL)                             # faro
+    s.rect(28, 18, 29, 19, RED)                               # piloto
+    s.rect(11, 18, 18, 18, RED_D)                             # la raya roja
+    s.rect(2, 22, 29, 23, NIGHT)                              # bajos
+    for cx in (8, 24):                                        # ruedas
+        s.ellipse(cx - 3, 20, cx + 3, 26, DARK_SOFT)
+        s.ellipse(cx - 1, 22, cx + 1, 24, STEEL_D)
+
+
+def draw_bm_box_carton(s) -> None:
+    """Caja sin marca: carton con cinta negra en cruz y un '?' a rotulador."""
+    s.rect(3, 6, 28, 27, CARD)
+    s.rect(3, 6, 28, 7, CARD_L)
+    s.rect(3, 26, 28, 27, BROWN)
+    s.rect(14, 6, 17, 27, DARK)                               # la cinta
+    s.rect(3, 15, 28, 18, DARK)
+    s.rect(5, 8, 11, 14, CREAM_L)                             # la etiqueta del '?'
+    s.rect(7, 9, 9, 9, RED)
+    s.dots([(6, 10), (10, 10), (10, 11), (9, 12), (8, 12)], RED)
+    s.px(8, 14, RED)
+    s.dots([(20, 21), (23, 23), (25, 20)], BROWN)             # manchas
+
+
+def draw_bm_box_metal(s) -> None:
+    """Caja sellada: caja de metal con remaches y la franja de peligro."""
+    s.rect(3, 7, 28, 27, STEEL)
+    s.rect(3, 7, 28, 7, WHITE)
+    s.rect(27, 8, 28, 27, STEEL_D)
+    s.rect(3, 26, 28, 27, STEEL_DD)
+    for x in range(3, 29, 4):                                 # franja amarilla y negra
+        s.rect(x, 10, min(x + 1, 28), 12, GOLD_XL)
+        if x + 2 <= 28:
+            s.rect(x + 2, 10, min(x + 3, 28), 12, DARK)
+    s.rect(11, 16, 20, 23, STEEL_D)                           # el candado
+    s.rect(12, 17, 19, 22, STEEL)
+    s.rect(15, 19, 16, 20, GOLD)
+    s.dots([(5, 9), (26, 9), (5, 25), (26, 25)], WHITE)       # remaches
+
+
+def draw_bm_box_case(s) -> None:
+    """Maletin: el maletin cerrado, con una cadena a la muñeca que no esta."""
+    _case(s, 12, False)
+    s.dots([(29, 14), (29, 16), (30, 18), (29, 20)], STEEL)   # la cadena
+    s.ellipse(25, 20, 30, 25, STEEL)
+    s.ellipse(26, 21, 29, 24, TRANSPARENT)
+
+
 DRAWINGS: Dict[str, Callable] = {
     "money": draw_money, "damage": draw_damage, "speed": draw_speed,
     "locker": draw_locker, "spikes": draw_spikes,
@@ -1459,6 +1548,9 @@ DRAWINGS: Dict[str, Callable] = {
     "pet_whale": draw_pet_whale, "pet_robot": draw_pet_robot, "pet_alien": draw_pet_alien,
     "pet_ghost": draw_pet_ghost, "pet_phoenix": draw_pet_phoenix,
     "pet_unicorn": draw_pet_unicorn, "pet_golem": draw_pet_golem,
+    "black_market": draw_black_market, "bm_van": draw_bm_van,
+    "bm_box_carton": draw_bm_box_carton, "bm_box_metal": draw_bm_box_metal,
+    "bm_box_case": draw_bm_box_case,
 }
 
 

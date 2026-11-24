@@ -40,6 +40,8 @@ signal missions_changed()
 signal abilities_changed()
 ## La racha de golpes perfectos ha subido o se ha roto (ver Gameplay.STREAK_STEP).
 signal streak_changed(streak: int)
+## La furgoneta del mercado negro ha llegado, se ha ido o ha vendido una caja.
+signal market_changed()
 
 const SAVE_PATH := "user://packtycoon.json"
 ## Las pruebas y las capturas (las escenas de res://dev/) guardan AQUI y no en la
@@ -180,6 +182,16 @@ var top_pack_price: int = 0
 var top_pack_index: int = 0
 ## Golpes perfectos dados en toda la cuenta (estadistica).
 var perfect_hits: int = 0
+## EL MERCADO NEGRO (ver BlackMarket): segundos de juego que faltan para la
+## furgoneta, los que le quedan aparcada (0 = no esta) y las cajas ya vendidas en
+## esta visita. Se guardan y NO se reinician con el rebirth ni con la ascension:
+## el reloj es de tiempo jugado (con el nodo comprado).
+## Comprado el nodo MERCADO NEGRO una vez, es para siempre: ni el rebirth ni la
+## ascension lo quitan (y el arbol entero ya no lo pide, porque ya lo tienes).
+var market_unlocked: bool = false
+var market_next: float = BlackMarket.VAN_FIRST
+var van_left: float = 0.0
+var van_sold: Array = []
 
 ## Lo que NO se guarda: los eventos en curso y las recargas. Son de este rato de
 ## juego, como el dano que sobra de un golpe.
@@ -880,6 +892,93 @@ func auto_rebirth_ready() -> bool:
 
 
 # --------------------------------------------------------------------------- #
+# El mercado negro (ver BlackMarket)
+# --------------------------------------------------------------------------- #
+
+func market_open() -> bool:
+	return skill_owned(SkillTree.MARKET)
+
+
+func van_here() -> bool:
+	return van_left > 0.0
+
+
+## Avanza el reloj de la furgoneta (lo llama la pantalla de juego con la mesa a la
+## vista, como los demas eventos). Devuelve "llega", "se_va" o "".
+func market_step(delta: float) -> String:
+	if van_left > 0.0:
+		van_left -= delta
+		if van_left > 0.0:
+			return ""
+		van_left = 0.0
+		van_sold = []
+		_dirty = true
+		market_changed.emit()
+		return "se_va"
+	if not market_open():
+		return ""
+	market_next -= delta
+	if market_next > 0.0:
+		return ""
+	market_next = _rng_play.randf_range(BlackMarket.VAN_EVERY.x, BlackMarket.VAN_EVERY.y)
+	van_left = BlackMarket.VAN_LIFE
+	van_sold = []
+	_dirty = true
+	market_changed.emit()
+	return "llega"
+
+
+## El sobre que pone el precio de las cajas: el mas caro comprado en la partida,
+## o el primero de pago si aun no se ha comprado ninguno.
+func market_ref_pack() -> Dictionary:
+	for p in LootDB.PACKS + LootDB.PRO_PACKS:
+		if top_pack_price > 0 and int(p["price"]) == top_pack_price:
+			return p
+	for p in LootDB.PACKS:
+		if int(p["price"]) > 0:
+			return p
+	return LootDB.PACKS[0]
+
+
+func box_price(box_id: String) -> int:
+	return BlackMarket.box_price(BlackMarket.box_by_id(box_id), int(market_ref_pack()["price"]))
+
+
+## Lo que pagan los sobres por cada moneda gastada en ellos, con tus
+## multiplicadores: el sobre de referencia (su media) entre su precio.
+func market_roi() -> float:
+	var p := market_ref_pack()
+	return LootDB.pack_payout(str(p["id"])) * value_multiplier() / float(maxi(1, int(p["price"])))
+
+
+func can_buy_box(box_id: String) -> bool:
+	return van_here() and not van_sold.has(box_id) \
+			and not BlackMarket.box_by_id(box_id).is_empty() and money >= box_price(box_id)
+
+
+## Compra y abre una caja. Devuelve lo que ha salido ({} si no se podia):
+## {"outcome", "item", "loss", "price"}. El objeto NO se guarda ni se vende aqui:
+## lo decide el jugador en el panel (store / payout). La redada ya se ha cobrado.
+func buy_box(box_id: String) -> Dictionary:
+	if not can_buy_box(box_id):
+		return {}
+	var box := BlackMarket.box_by_id(box_id)
+	var price := box_price(box_id)
+	var roi := market_roi()
+	money -= price
+	van_sold.append(box_id)
+	var ref := market_ref_pack()
+	var r := BlackMarket.open_box(_rng_play, box, price, roi, money,
+			LootDB.pack_tier(str(ref["id"])))
+	money -= int(r["loss"])
+	r["price"] = price
+	_dirty = true
+	money_changed.emit(money)
+	market_changed.emit()
+	return r
+
+
+# --------------------------------------------------------------------------- #
 # La tienda de mascotas (el gachapon, ver PetDB)
 # --------------------------------------------------------------------------- #
 
@@ -994,6 +1093,9 @@ func roll_pet(machine_id: String = "basic") -> String:
 
 ## El nivel comprado de un nodo (0 si no se ha comprado).
 func skill_level(id: String) -> int:
+	# El MERCADO NEGRO, una vez comprado, es para siempre (ver market_unlocked).
+	if id == SkillTree.MARKET and market_unlocked:
+		return 1
 	return int(skills.get(id, 0))
 
 
@@ -1027,7 +1129,7 @@ func skill_missing_req(id: String) -> String:
 func skill_cost(id: String) -> int:
 	if not SkillTree.has_node(id) or skill_level(id) >= SkillTree.levels_of(id):
 		return -1
-	return int(SkillTree.node_by_id(id)["cost"])
+	return SkillTree.cost_for(id, ascensions)
 
 
 ## ¿Le llega para comprarlo? Es lo que mira el panel para pintar el nodo de una
@@ -1055,6 +1157,8 @@ func buy_skill(id: String) -> bool:
 		return false
 	rebirth_coins -= cost
 	skills[id] = skill_level(id) + 1
+	if id == SkillTree.MARKET:
+		market_unlocked = true
 	_factory_pieces()
 	_dirty = true
 	skills_changed.emit()
@@ -1827,6 +1931,10 @@ func hard_reset() -> void:
 	top_pack_price = 0
 	top_pack_index = 0
 	perfect_hits = 0
+	market_unlocked = false
+	market_next = BlackMarket.VAN_FIRST
+	van_left = 0.0
+	van_sold = []
 	buyer = {}
 	happy = {}
 	cooldowns = {}
@@ -1888,6 +1996,10 @@ func to_dict() -> Dictionary:
 		"top_pack_price": top_pack_price,
 		"top_pack_index": top_pack_index,
 		"perfect_hits": perfect_hits,
+		"market_unlocked": market_unlocked,
+		"market_next": market_next,
+		"van_left": van_left,
+		"van_sold": van_sold,
 		"play_seconds": play_seconds,
 		"rebirth_count": rebirth_count,
 	}
@@ -1936,6 +2048,14 @@ func _apply(d: Dictionary) -> void:
 	money = int(d.get("money", START_MONEY))
 	rebirth_coins = int(d.get("rebirth_coins", 0))
 	play_seconds = float(d.get("play_seconds", 0.0))
+	market_unlocked = bool(d.get("market_unlocked", false))
+	market_next = maxf(0.0, float(d.get("market_next", BlackMarket.VAN_FIRST)))
+	van_left = clampf(float(d.get("van_left", 0.0)), 0.0, BlackMarket.VAN_LIFE)
+	van_sold = []
+	if typeof(d.get("van_sold")) == TYPE_ARRAY:
+		for id in d["van_sold"]:
+			if not BlackMarket.box_by_id(str(id)).is_empty():
+				van_sold.append(str(id))
 	# Un guardado de antes del contador: si ya tenia monedas o arbol, ya habia
 	# hecho rebirth (y no le toca otra vez el minimo del primero).
 	var tenia_arbol: bool = typeof(d.get("skills")) == TYPE_DICTIONARY \

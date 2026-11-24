@@ -843,6 +843,146 @@ def draw_crown(s) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# EL MERCADO NEGRO (scripts/data/black_market.gd): dos de cada tipo y la
+# falsificacion. Cada uno lleva algo que dice "esto no es de una tienda".
+# --------------------------------------------------------------------------- #
+
+def draw_bm_stolen_card(s) -> None:
+    """Carta robada: la carta de lujo con la esquina arrancada de su funda y una
+    pegatina roja de 'buscada'."""
+    draw_card_foil(s)
+    s.poly([(18, 2), (25, 2), (25, 9)], P("TRANSPARENT"))      # la esquina que falta
+    s.rect(9, 22, 22, 27, P("RED"))                            # la pegatina
+    s.rect(9, 22, 22, 22, P("RED_L"))
+    s.dots([(x, 24) for x in range(11, 21, 2)], P("CREAM_L"))
+    s.dots([(x, 26) for x in range(12, 20, 2)], P("CREAM_L"))
+
+
+def draw_bm_misprint(s) -> None:
+    """Carta mal impresa: el bicho y el marco salen dos veces, corridos."""
+    r = M.RARITIES["rare"]
+    _card_frame(s, r.base, r.light, r.dark, P("CREAM_D"))
+    s.rect(9, 9, 22, 20, P("NIGHT_L"))
+    _monster(s, 17, 15, P("RED_L"), P("RED_L"), P("RED_D"))   # la tinta corrida
+    _monster(s, 14, 13, P("TEAL"), P("TEAL_L"), P("OUTLINE"))
+    s.rect(9, 6, 22, 7, P("CREAM_L"))
+    s.rect(12, 6, 21, 6, P("RED_L"))                           # el titulo, corrido
+    s.rect(10, 7, 18, 7, P("TEAL_D"))
+    _card_text(s, 22, P("RED_D"))
+
+
+def draw_bm_bootleg(s) -> None:
+    """Vinilo pirata: disco negro con la etiqueta blanca escrita a boli."""
+    _disc(s, 16, 16, 13, P("DARK"), P("DARK_SOFT"), P("WHITE"), P("CREAM_L"))
+    s.dots([(13, 14), (14, 15), (15, 14), (17, 15), (18, 14)], P("TEAL_D"))
+    s.dots([(14, 17), (16, 18), (18, 17)], P("TEAL_D"))
+    s.px(16, 16, P("OUTLINE"))
+
+
+def draw_bm_lost_tape(s) -> None:
+    """Cinta perdida: un casete sin caja con la etiqueta en blanco y un '?'."""
+    s.rect(3, 7, 28, 24, P("DARK_SOFT"))
+    s.rect(3, 7, 28, 7, P("SLATE"))
+    s.rect(5, 9, 26, 16, P("CREAM_L"))                         # la etiqueta
+    s.rect(14, 10, 17, 10, P("RED"))                           # el '?'
+    s.dots([(17, 11), (16, 12), (15, 13), (15, 15)], P("RED"))
+    s.ellipse(8, 17, 12, 21, P("STEEL"))                       # bobinas
+    s.ellipse(19, 17, 23, 21, P("STEEL"))
+    s.dots([(10, 19), (21, 19)], P("NIGHT"))
+    s.rect(13, 18, 18, 20, P("BROWN_D"))                       # la cinta
+    s.poly([(8, 24), (10, 21), (21, 21), (23, 24)], P("SLATE"))
+    s.dots([(4, 8), (5, 8)], P("WHITE"))
+
+
+def draw_bm_sample(s) -> None:
+    """Zapatilla de muestra: gris, sin marca, con la etiqueta roja colgando."""
+    _sneaker(s, P("STEEL"), P("WHITE"), P("STEEL_D"), P("CREAM_D"), P("SLATE"),
+             P("STEEL_D"), P("CREAM"))
+    s.line([(18, 11), (21, 6)], P("CREAM_D"))                  # el hilo
+    s.rect(20, 3, 27, 7, P("RED"))                             # la etiqueta
+    s.rect(20, 3, 27, 3, P("RED_L"))
+    s.dots([(22, 5), (24, 5), (26, 5)], P("CREAM_L"))
+
+
+def draw_bm_unreleased(s) -> None:
+    """Zapatilla sin estrenar: negra y dorada, a medio sacar de su caja."""
+    s.rect(2, 18, 29, 29, P("BROWN"))                          # la caja
+    s.rect(2, 18, 29, 19, P("BROWN_L"))
+    s.rect(2, 28, 29, 29, P("BROWN_D"))
+    s.rect(12, 22, 19, 25, P("CREAM"))                         # la pegatina
+    s.dots([(13, 23), (15, 23), (17, 23)], P("BROWN_D"))
+    # la zapatilla, dibujada aparte y subida 7 filas: asoma por encima de la caja
+    sub = M.Sprite()
+    _sneaker(sub, P("DARK"), P("DARK_SOFT"), P("NIGHT"), P("GOLD"), P("GOLD_D"),
+             P("GOLD_XL"), P("GOLD_L"))
+    for y in range(8, 27):
+        for x in range(1, 31):
+            c = sub.img.getpixel((x, y))
+            if c[3] > 0:
+                s.px(x, y - 7, c)
+
+
+def draw_bm_devkit(s) -> None:
+    """Consola de desarrollo: la placa verde a la vista y cables sueltos."""
+    s.rect(3, 9, 28, 21, P("GREEN_D"))                         # la placa
+    s.rect(3, 9, 28, 9, P("GREEN"))
+    s.rect(6, 12, 12, 17, P("NIGHT"))                          # chip
+    s.dots([(x, 11) for x in range(6, 13, 2)] + [(x, 18) for x in range(6, 13, 2)],
+           P("STEEL"))
+    s.rect(15, 12, 19, 14, P("DARK_SOFT"))
+    s.rect(22, 12, 26, 18, P("STEEL_D"))                       # ranura
+    s.dots([(16, 17), (18, 17), (20, 19)], P("GOLD_XL"))       # soldaduras
+    s.dots([(24, 20), (26, 20)], P("RED_L"))                   # leds
+    s.line([(8, 21), (6, 25), (9, 28)], P("RED"), 1)           # cables
+    s.line([(14, 21), (15, 26), (19, 28)], P("TEAL_L"), 1)
+    s.rect(21, 23, 27, 27, P("CREAM_L"))                       # la pegatina DEV
+    s.rect(22, 25, 26, 25, P("RED"))
+
+
+def draw_bm_hot_watch(s) -> None:
+    """Reloj caliente: un reloj de oro con las lineas de calor rojas."""
+    draw_watch(s)
+    for x in (4, 26):
+        s.dots([(x, 6), (x + 1, 8), (x, 10), (x + 1, 12)], P("RED_L"))
+    s.dots([(15, 1), (16, 2)], P("RED_L"))
+
+
+def draw_bm_recalled(s) -> None:
+    """Juguete retirado: el robot de hojalata con el triangulo de peligro."""
+    draw_tin_robot(s)
+    s.poly([(19, 30), (24, 21), (29, 30)], P("GOLD_XL"))       # el aviso
+    s.rect(24, 24, 24, 27, P("OUTLINE"))
+    s.px(24, 29, P("OUTLINE"))
+
+
+def draw_bm_prototype(s) -> None:
+    """Prototipo: una figura de arcilla gris sin pintar con cotas de medida."""
+    s.ellipse(11, 3, 20, 12, P("STEEL"))                       # cabeza
+    s.ellipse(12, 4, 16, 8, P("WHITE"))
+    s.rect(9, 13, 22, 23, P("STEEL"))                          # cuerpo
+    s.rect(9, 13, 22, 13, P("WHITE"))
+    s.rect(22, 14, 22, 23, P("STEEL_D"))
+    s.rect(6, 14, 8, 21, P("STEEL_D"))                         # brazos
+    s.rect(23, 14, 25, 21, P("STEEL_D"))
+    s.rect(10, 24, 14, 29, P("STEEL"))                         # piernas
+    s.rect(17, 24, 21, 29, P("STEEL"))
+    s.line([(27, 3), (27, 29)], P("RED"))                      # la cota
+    s.dots([(26, 3), (28, 3), (26, 29), (28, 29)], P("RED"))
+    s.dots([(14, 7), (17, 7)], P("SLATE"))                     # ojos marcados
+    s.dots([(12, 16), (15, 18), (19, 16)], P("SLATE"))         # marcas de lapiz
+
+
+def draw_bm_lead_ingot(s) -> None:
+    """Lingote de plomo: el lingote de oro con la pintura saltada y el gris debajo."""
+    draw_ingot(s)
+    for (x, y) in [(12, 14), (13, 14), (14, 15), (6, 24), (7, 23), (7, 24), (19, 25),
+                   (20, 25), (20, 24), (24, 18), (25, 19), (16, 11), (17, 11)]:
+        s.px(x, y, P("SLATE"))
+    s.rect(10, 17, 13, 19, P("STEEL_D"))
+    s.rect(11, 18, 12, 18, P("SLATE"))
+
+
+# --------------------------------------------------------------------------- #
 # Registro
 # --------------------------------------------------------------------------- #
 
@@ -888,6 +1028,17 @@ DRAWINGS: Dict[str, Callable] = {
     "pearls": draw_pearls,
     "jeweled_egg": draw_jeweled_egg,
     "crown": draw_crown,
+    "bm_stolen_card": draw_bm_stolen_card,
+    "bm_misprint": draw_bm_misprint,
+    "bm_bootleg": draw_bm_bootleg,
+    "bm_lost_tape": draw_bm_lost_tape,
+    "bm_sample": draw_bm_sample,
+    "bm_unreleased": draw_bm_unreleased,
+    "bm_devkit": draw_bm_devkit,
+    "bm_hot_watch": draw_bm_hot_watch,
+    "bm_recalled": draw_bm_recalled,
+    "bm_prototype": draw_bm_prototype,
+    "bm_lead_ingot": draw_bm_lead_ingot,
 }
 
 

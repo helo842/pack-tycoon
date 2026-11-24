@@ -626,7 +626,8 @@ func _on_ascend() -> void:
 	if not _confirm:
 		_confirm = true
 		Sound.play("sfx_error")
-		_hint("Se borra todo. Pulsa otra vez para ascender", Palette.RUST_L)
+		_hint("Se borra todo y el árbol del rebirth sube un %d %%. Pulsa otra vez"
+				% roundi((SkillTree.ASC_COST_GROWTH - 1.0) * 100.0), Palette.RUST_L)
 		return
 	_confirm = false
 	var puntos := Game.do_ascension()

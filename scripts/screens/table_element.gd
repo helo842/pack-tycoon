@@ -232,7 +232,7 @@ func _build_pack() -> void:
 	_ring.position = ART_CENTER - RING_SIZE * 0.5
 	_ring.progress = 0.0
 	_ring.zone_from = Gameplay.PERFECT_FROM
-	var zona := Gameplay.sweet_zone(Game.skill_bonus("sweet"))
+	var zona := Gameplay.sweet_zone(Game.skill_bonus("sweet"), Game.charge_time())
 	_ring.sweet_from = zona.x
 	_ring.sweet_to = zona.y
 	_ring.modulate.a = 0.0

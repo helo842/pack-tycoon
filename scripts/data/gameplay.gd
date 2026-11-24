@@ -97,11 +97,15 @@ const SWEET_TO := 0.97
 const SWEET_MULT := 1.25
 ## LO MAS RAPIDO QUE CARGA UN SOBRE. Sin tope, con las piezas al maximo y el
 ## arbol entero la vuelta duraba 0,14 s (el tramo perfecto, 27 ms) y con las
-## mascotas 0,05 s: imposible acertar un perfecto. Con 0,6 s el perfecto dura
-## 120 ms y la zona dorada 30 ms. La velocidad que pase del tope NO se pierde:
-## se vuelve dano en la misma proporcion (ver Game.speed_overflow), asi que el
-## dano por segundo es el mismo que sin tope.
-const MIN_CHARGE := 0.6
+## mascotas 0,05 s: imposible acertar un perfecto. Con 0,6 s el perfecto duraba
+## 120 ms y la zona dorada 30 ms, imposible de verdad (2026-11-24): se subio a
+## 0,8 s (perfecto de 160 ms) y la zona dorada nunca baja de SWEET_MIN_SECONDS.
+## La velocidad que pase del tope NO se pierde: se vuelve dano en la misma
+## proporcion (ver Game.speed_overflow), asi que el dano por segundo es el mismo.
+const MIN_CHARGE := 0.8
+## LO QUE DURA COMO POCO LA ZONA DORADA, en segundos: con la carga rapida el 5 %
+## de la vuelta se quedaba en nada. 80 ms es la mitad del tramo perfecto en el tope.
+const SWEET_MIN_SECONDS := 0.08
 ## Pulsar ANTES del tramo perfecto ya no es gratis: el anillo pierde esta parte
 ## de la vuelta y la racha se rompe. Sin esto, machacar el sobre no costaba nada.
 const EARLY_PENALTY := 0.15
@@ -115,10 +119,16 @@ static func streak_mult(streak: int, bonus := 0.0) -> float:
 
 ## El tramo de la zona dorada (x desde, y hasta), ensanchado por el arbol (nodo
 ## ZONA DORADA) a los dos lados de su centro y sin salirse del tramo perfecto.
-static func sweet_zone(bonus := 0.0) -> Vector2:
-	var mid := (SWEET_FROM + SWEET_TO) * 0.5
-	var half := (SWEET_TO - SWEET_FROM) * 0.5 * (1.0 + bonus)
-	return Vector2(maxf(mid - half, PERFECT_FROM), minf(mid + half, 1.0))
+## `charge` es lo que dura la vuelta (s): si es corta, la zona se ensancha hasta
+## durar SWEET_MIN_SECONDS (0 = sin minimo, la de siempre). Si toca el final de la
+## vuelta, se corre hacia atras para no perder ancho.
+static func sweet_zone(bonus := 0.0, charge := 0.0) -> Vector2:
+	var width := SWEET_TO - SWEET_FROM
+	if charge > 0.0:
+		width = maxf(width, SWEET_MIN_SECONDS / charge)
+	width = minf(width * (1.0 + bonus), 1.0 - PERFECT_FROM)
+	var to := minf((SWEET_FROM + SWEET_TO) * 0.5 + width * 0.5, 1.0)
+	return Vector2(maxf(to - width, PERFECT_FROM), to)
 
 
 # --------------------------------------------------------------------------- #

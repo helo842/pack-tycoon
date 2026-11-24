@@ -171,10 +171,14 @@ puesto a mano) a los 123.508 de JUGUETES MITO. Un sobre que cuesta cuatro veces 
    los **Guantes**, un 15 % de velocidad por nivel. A medida que se daña, el
    sprite cambia (agrietado, roto...).
 
-   **La carga no baja de 0,6 s** (`Gameplay.MIN_CHARGE`). Sin tope, con las
+   **La carga no baja de 0,8 s** (`Gameplay.MIN_CHARGE`). Sin tope, con las
    piezas al máximo y el árbol entero la vuelta duraba 0,14 s (el tramo del
    perfecto, 27 ms), y con las mascotas 0,05 s: imposible acertar un perfecto.
-   Con 0,6 s el perfecto dura 120 ms y la zona dorada 30 ms. **La velocidad que
+   Con 0,8 s el perfecto dura 160 ms. **La zona dorada nunca dura menos de 80 ms**
+   (`Gameplay.SWEET_MIN_SECONDS`, 2026-11-24): con la carga rápida se ensancha
+   (`Gameplay.sweet_zone(bonus, charge)`); antes, en el tope de 0,6 s, duraba
+   30 ms y era imposible. Con la carga lenta del principio sigue siendo el 5 % de
+   siempre. El simulador no lo mide (no cambia el daño por segundo). **La velocidad que
    pasa del tope no se pierde: se vuelve daño** en la misma proporción
    (`Game.speed_overflow`, dentro de `Game.damage_multiplier`): si sin tope
    cargarías el triple de rápido, cada golpe pega el triple. El daño por segundo
@@ -661,7 +665,89 @@ muy apagado si falta el de dentro. Los hilos se encienden en lila entre dos
 nodos comprados. Cada hexágono tiene su dibujo (`tree_asc_*` en
 `tools/tree_designs.py`). En cuanto se ha ascendido una vez, el botón sigue
 saliendo aunque el árbol del rebirth esté vacío, para poder entrar a gastar los
-puntos. Los costes están puestos a ojo: `dev/balance.gd` no simula la ascensión.
+puntos.
+
+#### El juego entero dura unas 24 horas (2026-11-24)
+
+Se pidió que **completar el juego** (la telaraña entera, sin contar las
+mascotas) le cueste **unas 24 h al jugador normal**, sin que el primer rebirth
+pase de una hora. Antes eran **6 h**: la telaraña multiplica tanto que, desde la
+séptima ascensión, el árbol del rebirth salía en un par de partidas y cada
+ascensión duraba minutos.
+
+**Cada ascensión encarece el árbol del rebirth un 30 %** (`SkillTree.ASC_COST_GROWTH`
+= 1,30, `SkillTree.cost_for`, que es lo que devuelve `Game.skill_cost`): un nodo
+cuesta su precio × 1,30 elevado a las ascensiones hechas (la LEYENDA, 15, pasa a
+20, 25, 33…). El aviso de ASCENDER lo dice («el árbol del rebirth sube un 30 %»).
+Era 1,29 hasta que llegó el mercado negro (abajo), que acorta el juego un 8 %.
+Así la telaraña sigue dando su subidón y cada ascensión sigue pidiendo su hora larga.
+
+Se probaron otras dos palancas y no valen: **subir los precios de la telaraña**
+(1-2-4-8-16) solo da 50-60 ascensiones de cinco minutos, y **subir lo que pide el
+rebirth** en cada ascensión choca con el techo de la escalera de sobres (la
+Bóveda, 390 M): el dinero deja de crecer y la partida se atasca hacia la sexta.
+
+`$G --headless --path . res://dev/BalanceTest.tscn ascension [optimizado|automatico]`
+juega el juego entero: árboles, ascensiones y la telaraña (hexágono abierto más
+barato; a igualdad Estrellas, Dinero, Golpe, Rebirth, Herencia y Automático), con
+la tienda pro después de ascender. Medido el 2026-11-24:
+
+| Jugador | Telaraña entera | Ascensiones | 1.ª ascensión | Primer rebirth |
+|---|---:|---:|---:|---:|
+| Normal | **24,6 h** | 20 | 1,9 h | 12,5 min (mediana; el simulador reinicia a los 30 por rendimiento) |
+| Optimizado | 19,1 h | 20 | 1,3 h | 9,2 min |
+| Automático | 18,5 h | 20 | 0,9 h | 8,2 min |
+
+(Medido con el mercado negro, que el jugador simulado usa desde la 2.ª ascensión;
+`ascension sin_mercado` lo apaga para comparar.)
+
+Del normal, cada ascensión dura entre 0,7 y 2,3 h (la más larga, la 13, justo
+antes de Supernova); las dos últimas, con todo, bajan a media hora. No entran
+las **mascotas** (ayudan, así que acortan algo), Recuerdo, Legado, Piloto ni Auto
+rebirth. El simulador **reinicia en el minuto que más monedas por minuto da**, y a
+mitad de la telaraña eso son partidas de 1-2 minutos (40-90 rebirths por
+ascensión hasta que llega Auto rebirth): una persona que alarga las partidas
+tarda algo más.
+
+#### El mercado negro (la furgoneta y sus cajas, 2026-11-24)
+
+Diseño en el vault (`Juego/Mercado negro.md`). Se abre con el nodo **MERCADO NEGRO**
+del árbol (`SkillTree.MARKET`, 25 monedas, **detrás de LEYENDA**: LEYENDA ya no lo
+pide, ver `SkillTree.reqs_of`). Solo se ve con LEYENDA comprada. **Se compra una vez y es
+para siempre** (`Game.market_unlocked`): la primera vez hace falta para tener el
+árbol entero; después de ascender sale ya comprado (`Game.skill_level` lo da por
+tenido).
+
+Desde entonces una **furgoneta negra** aparca en la esquina de abajo a la derecha
+de la mesa cada **8-10 min de juego** y se queda **90 s** (`BlackMarket.VAN_*`). El
+reloj (`Game.market_next`, `van_left`) se guarda y **no se reinicia** con el rebirth
+ni con la ascensión, y solo corre con la mesa a la vista, como los eventos
+(`game.gd`, `_events_step`). Pulsarla abre **el maletín** (`BlackMarketPanel`,
+estilo B de los mockups): tapa de cuero con el saldo y el reloj, y tres cajas en
+huecos de espuma con su etiqueta de papel:
+
+| Caja | Precio (× el sobre más caro comprado) | Riesgo | Falso | Normal | Bueno | Golpe maestro | Redada |
+|---|---:|---|---:|---:|---:|---:|---:|
+| Sin marca | ×4 | 1 | 40 % | 45 % | 12 % (×2-3) | 3 % (×5) | — |
+| Sellada | ×15 | 2 | 45 % | 29 % | 13 % (×2-4) | 4 % (×8) | 9 % (−10 % del dinero) |
+| Maletín | ×50 | 3 | 50 % | 18 % | 12 % (×2-5) | 5 % (×10) | 15 % (−20 %) |
+
+Se pagan con dinero normal, **cada una una vez por visita**, y se abren **al
+momento**: la caja tiembla y sale la tarjeta con el sello (FALSO, CONTRABANDO, BUEN
+GOLPE, GOLPE MAESTRO o REDADA). Lo que sale se guarda (para el armario: cuenta como
+su tipo) o se vende ahí mismo; cerrar el maletín con algo sin decidir lo vende. La
+redada no da nada y se lleva una parte del dinero, **nunca más del 25 %**
+(`RAID_CAP`). Lo que sale son **11 objetos nuevos** con dibujo propio y sus diez
+notas (`bm_*` en `tools/loot_designs.py`): dos de cada tipo y la falsificación (un
+lingote de plomo pintado). La furgoneta, las cajas y el nodo están en
+`tools/tree_designs.py`.
+
+**Lo que paga una caja**: precio × «mult» (la tabla) × **ROI^0,3**, donde ROI es lo
+que pagan los sobres por moneda con tus multiplicadores (`Game.market_roi`). Con el
+ROI entero (lo que pagan los sobres, pero sin golpear) el simulador bajaba el juego
+entero de 24,7 h a **14,2 h**; con ^0,5, a 20,3 h; con **^0,3**, a 22,8 h, y con la
+subida del árbol a ×1,30 vuelve a **24,6 h**. La nota PSA no cambia la media.
+`dev/probe_market.gd` saca capturas de la furgoneta, el maletín y los resultados.
 
 #### La tienda pro (cajas de después de ascender)
 
@@ -1219,6 +1305,8 @@ G=/ruta/a/Godot_v4.7.2-stable_linux.x86_64
 # juega rápido, compra bien y pone el PC y los Pinchos. Con `trace buys` saca
 # además cada compra de una partida.
 $G --headless --path . res://dev/BalanceTest.tscn
+# El juego entero (árboles, ascensiones y telaraña): ~24,6 h el normal.
+$G --headless --path . res://dev/BalanceTest.tscn ascension
 
 # Prueba de integración: recorre el bucle entero sin ratón y dice qué falla.
 $G --headless --path . res://dev/SmokeTest.tscn     # sale con 0 si todo pasa
