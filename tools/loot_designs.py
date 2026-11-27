@@ -983,6 +983,91 @@ def draw_bm_lead_ingot(s) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# LOS MITICOS DE LA SUBASTA (scripts/data/auction.gd, prefijo myth_)
+# --------------------------------------------------------------------------- #
+# Uno por tipo, con sus diez notas. Son la pieza dorada de su tipo con la estrella
+# morada de mitico en una esquina: dorados para que se lean como "lo mejor que hay"
+# y la estrella para no confundirlos con los dorados de la tienda pro.
+
+def _gild(s, keep=()) -> None:
+    """Pasa a la rampa de oro todo lo pintado menos lo muy oscuro y `keep`."""
+    golds = [P("GOLD_D"), P("GOLD"), P("GOLD_L"), P("GOLD_XL"), P("GOLD_HI")]
+    img = s.img
+    for y in range(s.h):
+        for x in range(s.w):
+            c = img.getpixel((x, y))
+            if c[3] == 0 or c in keep:
+                continue
+            lum = (0.30 * c[0] + 0.59 * c[1] + 0.11 * c[2]) / 255.0
+            if lum < 0.16:
+                continue
+            img.putpixel((x, y), golds[min(4, int(lum * 5.0))])
+
+
+def _myth_star(s, x: int, y: int) -> None:
+    """La estrella morada de los miticos (la rareza epica, que el auditor admite)."""
+    epic = M.RARITIES["epic"]
+    s.dots([(x, y - 2), (x - 2, y), (x + 2, y), (x, y + 2)], epic.base)
+    s.dots([(x, y - 1), (x - 1, y), (x + 1, y), (x, y + 1)], epic.light)
+    s.px(x, y, P("WHITE"))
+
+
+def draw_myth_cards(s) -> None:
+    """Carta primigenia: la carta holo en oro, con un ojo morado en el centro."""
+    draw_card_foil(s)
+    _gild(s)
+    epic = M.RARITIES["epic"]
+    s.ellipse(11, 12, 20, 19, epic.dark)
+    s.ellipse(13, 13, 18, 18, epic.base)
+    s.rect(15, 14, 16, 17, P("OUTLINE"))
+    s.px(14, 14, P("WHITE"))
+    _myth_star(s, 26, 5)
+
+
+def draw_myth_vinyls(s) -> None:
+    """Master original: disco negro de surcos dorados y la galleta morada con corona."""
+    epic = M.RARITIES["epic"]
+    _disc(s, 15, 16, 13, P("DARK"), P("GOLD_D"), epic.base, epic.light)
+    s.ellipse(11, 12, 19, 20, epic.base)
+    s.ellipse(12, 13, 15, 16, epic.light)
+    s.poly([(12, 17), (12, 14), (13, 15), (15, 13), (17, 15), (18, 14), (18, 17)], P("GOLD_XL"))
+    s.rect(12, 17, 18, 18, P("GOLD"))
+    s.px(15, 15, P("RED_L"))
+    _myth_star(s, 27, 4)
+
+
+def draw_myth_sneakers(s) -> None:
+    """Par cero: la zapatilla limitada toda en oro, con alas blancas en el talon."""
+    draw_sneaker_limited(s)
+    _gild(s, keep=(P("WHITE"),))
+    s.poly([(2, 10), (8, 12), (7, 15), (3, 14)], P("WHITE"))
+    s.poly([(2, 14), (7, 16), (6, 18), (3, 17)], P("CREAM"))
+    s.dots([(3, 11), (4, 15)], P("STEEL"))
+    _myth_star(s, 26, 25)
+
+
+def draw_myth_electronics(s) -> None:
+    """Consola de oro: la portatil en oro macizo, con la pantalla encendida."""
+    draw_handheld(s)
+    _gild(s, keep=(P("LCD"), P("LCD_D"), P("LCD_L"), P("RED"), P("RED_L")))
+    _myth_star(s, 27, 4)
+
+
+def draw_myth_toys(s) -> None:
+    """Osito numero uno: el osito con corona de oro y la medalla del 1."""
+    draw_teddy(s)
+    s.poly([(10, 5), (10, 2), (12, 4), (15, 1), (18, 4), (21, 2), (21, 5)], P("GOLD_XL"))
+    s.rect(10, 4, 21, 5, P("GOLD"))
+    s.dots([(15, 3), (12, 4), (19, 4)], P("RED_L"))
+    s.ellipse(18, 19, 24, 25, P("GOLD_XL"))          # la medalla
+    s.ellipse(19, 20, 23, 24, P("GOLD"))
+    s.rect(21, 21, 21, 23, P("GOLD_D"))              # el 1
+    s.px(20, 21, P("GOLD_D"))
+    s.dots([(19, 17), (20, 18), (23, 17), (22, 18)], P("RED"))  # la cinta
+    _myth_star(s, 27, 27)
+
+
+# --------------------------------------------------------------------------- #
 # Registro
 # --------------------------------------------------------------------------- #
 
@@ -1039,6 +1124,11 @@ DRAWINGS: Dict[str, Callable] = {
     "bm_recalled": draw_bm_recalled,
     "bm_prototype": draw_bm_prototype,
     "bm_lead_ingot": draw_bm_lead_ingot,
+    "myth_cards": draw_myth_cards,
+    "myth_vinyls": draw_myth_vinyls,
+    "myth_sneakers": draw_myth_sneakers,
+    "myth_electronics": draw_myth_electronics,
+    "myth_toys": draw_myth_toys,
 }
 
 

@@ -232,7 +232,11 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	var rungs: Dictionary = {}
 	var locker: Array = []
 	_locker = locker
-	_tot = LootDB.locker_totals(locker)
+	_myth_now = _mythics.duplicate()
+	_rain = false
+	_stars_now = 0.0
+	_rain_now = 0
+	_tot = _ltot(levels, locker)
 	var table: Array = []
 	var buy_left := 0.0
 	# EL RITMO, ademas del minuto final: cuando se abre por primera vez cada sobre
@@ -247,6 +251,7 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 	_gp_reset(st, seed_value)
 	_gp["fixed"] = fixed_loot
 	var van_k := int(floor(_clock0 / _van_every()))
+	var auc_k := int(floor(_clock0 / _auction_every()))
 	# SE PARA CUANDO EL CONTADOR LLEGA AL REQUISITO, que es la regla del rebirth
 	# desde que su requisito se mide en el dinero que TIENES y no en lo ganado (ver
 	# Game.can_rebirth). El requisito de la partida no es "hacer tal cosa": es
@@ -306,16 +311,22 @@ func simulate(strategy: int, seed_value: int, fixed_loot: bool = false,
 			if k > van_k:
 				van_k = k
 				money = _market_visit(money, rungs)
+		if _auction:
+			var ka := int(floor((_clock0 + t) / _auction_every()))
+			if ka > auc_k:
+				auc_k = ka
+				money = _auction_visit(money, rungs, ka, income, t, levels, locker)
 		if int(buy["spent"]) > 0:
 			if first_buy < 0.0:
 				first_buy = t
 			max_gap = maxf(max_gap, t - last_buy)
 			last_buy = t
 	if until_min > 0.0:
-		var tot := LootDB.locker_totals(locker)
+		var tot := _ltot(levels, locker)
 		return {"money": money, "levels": LootDB.total_levels(levels),
 			"coins": LootDB.rebirth_coins_raw(money, (1.0 + float(tot["electronics"])) * _am("rebirth")),
-			"totals": tot, "packs": opened}
+			"totals": tot, "packs": opened, "mythics": _myth_now.duplicate(),
+			"stars": _stars_now, "rain": _rain_now}
 	if money < require:
 		return {"minutes": INF, "packs": opened, "spent": spent, "levels": 0}
 	max_gap = maxf(max_gap, t - last_buy)
@@ -417,6 +428,129 @@ var _clock0 := 0.0
 const MARKET_SHARE := 0.5
 ## Las ascensiones hechas (encarecen el arbol, ver SkillTree.cost_for).
 var _asc_n := 0
+## LAS SUBASTAS (ver Auction): ¿se compro el hexagono? Con "sin_subasta" en la linea
+## de comandos no se compra (para comparar). Los miticos ganados (tipo -> nota) no
+## se pierden nunca: _mythics es lo que hay al empezar la partida simulada y
+## _myth_now lo que hay en este momento de ella (lo ganado en la partida que se
+## elige pasa a _mythics, ver _tree_run). _rain: se gano la Lluvia de monedas en
+## esta partida (el jugador la toma antes de reiniciar: x1,5 monedas).
+var _auction := false
+var _mythics: Dictionary = {}
+var _myth_now: Dictionary = {}
+var _rain := false
+## Estrellas fugaces (+1 punto) y Lluvias de monedas ganadas en la partida que se
+## simula; las de la partida elegida se suman en _tree_run. La lluvia se guarda y
+## se toma justo antes de reiniciar: x1,5 monedas en los rebirths de los 5 min
+## siguientes (_rain_store guardadas, _rain_until hasta cuando dura, en reloj).
+var _stars_now := 0.0
+var _star_bank := 0.0
+var _rain_now := 0
+var _rain_store := 0
+var _rain_until := -1.0
+var _auction_n := 0
+var _auction_won := 0
+## El jugador simulado puja hasta AUCTION_WILL veces el precio de salida, sin pasar
+## de AUCTION_SHARE de su dinero.
+const AUCTION_WILL := 2.2
+const AUCTION_SHARE := 0.6
+
+
+static func _auction_every() -> float:
+	return (Auction.VAN_EVERY.x + Auction.VAN_EVERY.y) * 0.5
+
+
+## Lo que suma el armario por tipo con los MITICOS dentro: van primero (se colocan
+## solos) y lo expuesto ocupa los huecos que quedan.
+func _ltot(levels: Array, locker: Array) -> Dictionary:
+	var slots := LootDB.locker_slots(levels)
+	var m: Array = []
+	for def in Auction.MYTHICS:
+		if _myth_now.has(str(def["kind"])):
+			m.append(Auction.mythic_item(def, int(_myth_now[str(def["kind"])]), 1))
+	var k := mini(m.size(), slots)
+	return LootDB.locker_totals(locker.slice(0, maxi(0, slots - k)) + m.slice(0, k))
+
+
+## Una visita de la furgoneta VIP: sale un lote (siempre el mismo para la misma
+## visita, aunque se simule la partida varias veces), el jugador puja hasta su
+## tope y gana si pasa el de los dos rivales. Lo ganado vale:
+##   pociones: lo que da su efecto mientras dura, con lo que esta ganando ahora;
+##   mitico (o lote a ciegas con suerte): al armario, para siempre;
+##   sello: +1 al peor mitico; lote a ciegas sin suerte: la basura vendida.
+## El huevo no se mide (las mascotas no se simulan).
+func _auction_visit(money: int, rungs: Dictionary, k: int, income: int, t: float,
+		levels: Array, locker: Array) -> int:
+	var ref_price := 0
+	for id in rungs:
+		ref_price = maxi(ref_price, int(LootDB.pack_by_id(str(id))["price"]))
+	if ref_price <= 0:
+		return money
+	var rr := RandomNumberGenerator.new()
+	rr.seed = k * 7919 + 13
+	# LA ESTRELLA FUGAZ va por su VALOR ESPERADO (la probabilidad de que salga y de
+	# ganarla, en puntos con decimales): con el dado, una estrella de mas o de menos
+	# en mal momento movia el juego entero de 15 a 31 h y no habia forma de medir
+	# la media. Lo demas se sortea entre los otros lotes.
+	var total_w := 0.0
+	for l in Auction.LOTS:
+		total_w += float(l["w"])
+	var star := Auction.lot_by_id("star")
+	var p_star := float(star["w"]) / total_w
+	var s_start := Auction.lot_price(star, ref_price)
+	var s_tope := mini(roundi(float(s_start) * AUCTION_WILL), roundi(float(money) * AUCTION_SHARE))
+	var gana := clampf((float(s_tope) / float(s_start) - Auction.RIVAL_CAP.x)
+			/ (Auction.RIVAL_CAP.y - Auction.RIVAL_CAP.x), 0.0, 1.0)
+	_stars_now += p_star * gana * gana   # el mayor de dos rivales por debajo de tu tope
+	money -= roundi(p_star * gana * gana * float(s_start) * 1.9)
+	var lot := Auction.roll_lot(rr, ["star"])
+	var start := Auction.lot_price(lot, ref_price)
+	var rival := 0
+	for i in 2:
+		rival = maxi(rival, roundi(float(start) * rr.randf_range(Auction.RIVAL_CAP.x,
+				Auction.RIVAL_CAP.y)))
+	var tope := mini(roundi(float(start) * AUCTION_WILL), roundi(float(money) * AUCTION_SHARE))
+	_auction_n += 1
+	if tope <= rival:
+		return money
+	var price := mini(tope, ceili(float(rival) * (1.0 + Auction.BID_STEP)))
+	money -= price
+	_auction_won += 1
+	var rate := float(income) / maxf(t, 60.0)
+	match str(lot["type"]):
+		"potion":
+			match str(lot["potion"]):
+				"money":
+					money += roundi(rate * float(Auction.POTIONS["money"]["seconds"])
+							* (Auction.POTION_MONEY - 1.0))
+				"fury":
+					money += roundi(rate * float(Auction.POTIONS["fury"]["seconds"]))
+				"luck":
+					money += roundi(rate * float(Auction.POTIONS["luck"]["seconds"]) * 0.3)
+				"rain":
+					_rain_now += 1
+		"mythic":
+			_win_mythic(rr)
+		"blind":
+			if rr.randf() < Auction.BLIND_MYTHIC:
+				_win_mythic(rr)
+			else:
+				money += roundi(float(price) * Auction.BLIND_JUNK)
+		"seal":
+			var peor := ""
+			for kind in _myth_now:
+				if int(_myth_now[kind]) < 10 and (peor == "" or int(_myth_now[kind]) < int(_myth_now[peor])):
+					peor = str(kind)
+			if peor != "":
+				_myth_now[peor] = int(_myth_now[peor]) + 1
+	_tot = _ltot(levels, locker)
+	return money
+
+
+func _win_mythic(rr: RandomNumberGenerator) -> void:
+	var def: Dictionary = Auction.MYTHICS[rr.randi_range(0, Auction.MYTHICS.size() - 1)]
+	var g := maxi(LootDB.roll_grade(rr), LootDB.roll_grade(rr))
+	var kind := str(def["kind"])
+	_myth_now[kind] = maxi(int(_myth_now.get(kind, 0)), g)
 
 
 
@@ -539,7 +673,8 @@ func _keep(levels: Array, locker: Array, loot: Dictionary, st: Dictionary) -> Di
 	if bool(st["locker"]) and LootDB.item_level(levels, "armario") > 0 \
 			and _locker_kinds.has(str(loot["kind"])):
 		locker.append(loot)
-		if locker.size() > LootDB.locker_slots(levels):
+		if locker.size() > LootDB.locker_slots(levels) - mini(_myth_now.size(),
+				LootDB.locker_slots(levels)) and locker.size() > 0:
 			var count := {}
 			for it in locker:
 				count[str(it["kind"])] = int(count.get(str(it["kind"]), 0)) + 1
@@ -554,7 +689,7 @@ func _keep(levels: Array, locker: Array, loot: Dictionary, st: Dictionary) -> Di
 				if worst < 0 or LootDB.bonus_for(locker[i]) < LootDB.bonus_for(locker[worst]):
 					worst = i
 			locker.remove_at(worst)
-		_tot = LootDB.locker_totals(locker)
+		_tot = _ltot(levels, locker)
 	return loot
 
 
@@ -1168,6 +1303,7 @@ func _final_report() -> void:
 func _tree_run(strat: int, start_owned: Array) -> Dictionary:
 	var minutos := [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 18, 22, 26, 30, 40, 50, 60]
 	var owned: Array = start_owned.duplicate()
+	var stars := 0.0
 	# El mercado negro, comprado una vez, sale comprado en todos los arboles.
 	if _market and not owned.has(SkillTree.MARKET):
 		owned.append(SkillTree.MARKET)
@@ -1184,6 +1320,9 @@ func _tree_run(strat: int, start_owned: Array) -> Dictionary:
 		var best_rate := -1.0
 		var best_t := 0.0
 		var best_c := 0
+		var best_m: Dictionary = _mythics
+		var best_s := 0.0
+		var best_r := 0
 		_clock0 = total * 60.0
 		for m in minutos:
 			var r := simulate(strat, runs, true, false, -1.0, float(m))
@@ -1197,11 +1336,24 @@ func _tree_run(strat: int, start_owned: Array) -> Dictionary:
 				best_rate = float(c) / float(m)
 				best_t = float(m)
 				best_c = c
+				best_m = r.get("mythics", _mythics)
+				best_s = float(r.get("stars", 0.0))
+				best_r = int(r.get("rain", 0))
 		if best_rate < 0.0:
 			_sk = {}
 			return {"ok": false, "minutes": total, "runs": runs, "hitos": hitos, "first": first}
+		# LA LLUVIA DE MONEDAS: se toma al acabar la partida, justo antes de reiniciar.
+		_rain_store += best_r
+		var fin := (total + best_t) * 60.0
+		if _rain_store > 0 and fin > _rain_until:
+			_rain_store -= 1
+			_rain_until = fin + float(Auction.POTIONS["rain"]["seconds"])
+		if fin <= _rain_until:
+			best_c = roundi(float(best_c) * Auction.POTION_RAIN)
+		stars += best_s
 		total += best_t
 		coins += best_c
+		_mythics = best_m
 		runs += 1
 		if runs == 1:
 			first = best_t
@@ -1228,7 +1380,7 @@ func _tree_run(strat: int, start_owned: Array) -> Dictionary:
 					% [runs, total / 60.0, owned.size(), roundi(best_t), best_c]
 	_sk = {}
 	return {"ok": owned.size() >= SkillTree.node_count(), "minutes": total, "runs": runs,
-		"hitos": hitos, "first": first}
+		"hitos": hitos, "first": first, "stars": stars}
 
 
 ## EL JUEGO ENTERO: arboles del rebirth y ascensiones hasta tener la telaraña.
@@ -1247,6 +1399,13 @@ func _asc_report(strat: int) -> Dictionary:
 	_asc = []
 	_pro = false
 	_market = false
+	_auction = false
+	_mythics = {}
+	_auction_n = 0
+	_auction_won = 0
+	_rain_store = 0
+	_rain_until = -1.0
+	_star_bank = 0.0
 	var points := 0
 	var total := 0.0
 	var n := 0
@@ -1263,10 +1422,20 @@ func _asc_report(strat: int) -> Dictionary:
 		total += float(r["minutes"])
 		n += 1
 		_market = true
-		var ganados := 1 + int(_aa("points"))
+		_star_bank += float(r.get("stars", 0.0))
+		var estrellas := int(floor(_star_bank))
+		_star_bank -= float(estrellas)
+		var ganados := 1 + int(_aa("points")) + estrellas
 		points += ganados
 		_pro = true
 		var compra := ""
+		# LA SUBASTA: el jugador la compra en cuanto tiene 3 puntos despues de HYPER
+		# (lo que antes la pone en marcha: es el caso que mas la nota).
+		if not _auction and not _off.has("subasta") and _asc.has("hyper") \
+				and points >= AscensionTree.cost_of(AscensionTree.AUCTION):
+			points -= AscensionTree.cost_of(AscensionTree.AUCTION)
+			_auction = true
+			compra += " SUBASTA"
 		while true:
 			var barato := ""
 			for id in AscensionTree.ids():
@@ -1292,10 +1461,15 @@ func _asc_report(strat: int) -> Dictionary:
 	var out := {"hours": total / 60.0, "ascensions": n, "done": _asc.size() >= AscensionTree.NODES.size()}
 	print("  TOTAL %s: %.1f h, %d ascensiones%s" % [STRATEGIES[strat]["id"], total / 60.0, n,
 		"" if bool(out["done"]) else " (SIN acabar)"])
+	if _auction:
+		print("  subastas: %d visitas simuladas, %d ganadas; miticos al final: %s" % [
+			_auction_n, _auction_won, str(_mythics)])
 	_asc = []
 	_pro = false
 	_asc_n = 0
 	_market = false
+	_auction = false
+	_mythics = {}
 	_clock0 = 0.0
 	return out
 

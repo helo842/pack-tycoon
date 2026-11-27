@@ -3909,6 +3909,7 @@ func _run() -> void:
 				Sound.stream("sfx_rip_" + str(row["id"])) != null)
 
 	await _check_market()
+	await _check_auction()
 
 	print("")
 	if _fails.is_empty():
@@ -4303,7 +4304,8 @@ func _check_telarana() -> void:
 	g._open_ascension()
 	await get_tree().process_frame
 	var asc = g._ascension
-	_check("la telarana pinta un hexagono por nodo", asc._nodes.size() == 25)
+	_check("la telarana pinta un hexagono por nodo (y la subasta, fuera)",
+		asc._nodes.size() == 26 and asc._nodes.has(AscensionTree.AUCTION))
 	_check_cabe("la telarana no saca nada de la pantalla", asc, PANTALLA)
 	Game.ascension_points = 3
 	asc._on_node_pressed("asc_hit_1")
@@ -4438,8 +4440,11 @@ func _check_mascotas() -> void:
 	_check("y otro clic la quita", not Game.pet_equipped("dog"))
 	pp._close_equip()
 	_check("la X del menu vuelve a las maquinas", pp._equip == null)
-	_check("hay cuatro maquinas de seis mascotas", PetDB.MACHINES.size() == 4
-		and PetDB.PETS.size() == 24 and PetDB.pets_of("cosmic").size() == 6)
+	_check("hay cuatro maquinas de seis mascotas y las tres exclusivas de subasta",
+		PetDB.MACHINES.size() == 5 and PetDB.PETS.size() == 27
+		and PetDB.pets_of("cosmic").size() == 6 and PetDB.pets_of("auction").size() == 3)
+	_check("las exclusivas de subasta no se tiran en ninguna maquina",
+		not Game.can_roll_pet("auction"))
 	Game.rebirth_coins = 9
 	_check("la de oro cuesta 10 monedas", Game.roll_pet("gold") == "")
 	Game.rebirth_coins = 10
@@ -4455,7 +4460,7 @@ func _check_mascotas() -> void:
 		ids[str(p["id"])] = true
 		_check("la mascota %s tiene su dibujo propio" % p["id"],
 			Sprites.tex(str(p["art"])) != null)
-	_check("las 24 mascotas son distintas", ids.size() == 24)
+	_check("las 27 mascotas son distintas", ids.size() == 27)
 	Game.pets = {"bear": 1, "hamster": 1, "owl": 1, "bunny": 1, "turtle": 1}
 	# Las cinco a la vez (mas que los huecos) solo para medir que cada stat entra.
 	Game.pets_equipped = Game.pets.keys()
@@ -4483,10 +4488,14 @@ func _check_mascotas() -> void:
 	Game.pets = {oro: 1, astral: 1}
 	pp._step_page(-1)
 	await get_tree().process_frame
-	_check("la flecha pasa de pagina (y da la vuelta)", pp._page == 3
-		and pp._cells.has("golem"))
+	_check("la flecha pasa de pagina (y da la vuelta): la ultima es la de subasta",
+		pp._page == 4 and pp._cells.has("rat") and not pp._roll.visible)
+	_check_cabe("la pagina de subasta no saca nada del panel", pp, PANTALLA)
+	pp._step_page(-1)
+	await get_tree().process_frame
+	_check("y antes esta la cosmica", pp._page == 3 and pp._cells.has("golem"))
 	_check_cabe("la pagina cosmica no saca nada del panel", pp, PANTALLA)
-	pp._step_page(1)
+	pp._step_page(2)
 	Game.pets.erase(oro)
 	Game.pets.erase(astral)
 	Game.pets = {"dog": 2, "zzz": 4, "cat": 99}
@@ -4613,4 +4622,208 @@ func _check_market() -> void:
 	panel.queue_free()
 	Game.hard_reset()
 	_check("mercado: empezar de cero lo quita", not Game.market_open())
+	Game._apply(antes)
+
+
+## LAS SUBASTAS (Auction): el hexagono fuera de la telaraña, la furgoneta VIP, la
+## puja contra los rivales, cada lote, las pociones, los miticos en el armario, el
+## sello, el guardado y la sala.
+func _check_auction() -> void:
+	var antes: Dictionary = Game.to_dict()
+	Game.hard_reset()
+	var nodo := AscensionTree.node_by_id(AscensionTree.AUCTION)
+	_check("subasta: el hexagono esta fuera de la telaraña, cuesta 3 y no pide nada",
+		not nodo.is_empty() and AscensionTree.cost_of(AscensionTree.AUCTION) == 3
+		and AscensionTree.req_of(AscensionTree.AUCTION) == ""
+		and not AscensionTree.ids().has(AscensionTree.AUCTION) and AscensionTree.NODES.size() == 25)
+	_check("subasta: sin el hexagono no llega la furgoneta",
+		Game.auction_step(99999.0) == "" and not Game.auction_here())
+	Game.ascension_points = 3
+	_check("subasta: se compra con 3 puntos sin tener HYPER",
+		Game.buy_asc(AscensionTree.AUCTION) and Game.auction_open() and Game.ascension_points == 0)
+	Game.auction_next = 1.0
+	_check("subasta: la furgoneta VIP llega con su reloj (unos 18 min) y trae un lote",
+		Game.auction_step(2.0) == "llega" and Game.auction_here()
+		and Game.auction_next >= Auction.VAN_EVERY.x and Game.auction_next <= Auction.VAN_EVERY.y
+		and not Auction.lot_by_id(Game.auction_lot).is_empty())
+	_check("subasta: su reloj es otro que el de la negra", not Game.van_here())
+
+	# La puja, a mano: precio de salida, +10 %, el reloj y los topes de los rivales.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var a := Auction.create(rng, Auction.lot_by_id("seal"), 1000)
+	_check("subasta: empieza en el precio de salida, sin nadie y con 20 s",
+		a.price == 1000 and a.leader == "" and a.next_bid() == 1000
+		and is_equal_approx(a.time_left, Auction.CLOCK) and a.rivals.size() == 2)
+	_check("subasta: sin dinero no se puja", not a.player_bid(999))
+	_check("subasta: pujar te pone primero", a.player_bid(5000) and a.leader == "tu"
+		and a.price == 1000 and a.next_bid() == 1100)
+	_check("subasta: no se puja contra uno mismo", not a.player_bid(5000))
+	a.time_left = 3.0
+	a._bid("La Duquesa")
+	_check("subasta: cada puja suma 5 s al reloj (sin pasar de 20)",
+		is_equal_approx(a.time_left, 8.0) and a.price == 1100)
+	a.time_left = 18.0
+	a._bid("tu")
+	_check("subasta: y el reloj no pasa de 20", is_equal_approx(a.time_left, Auction.CLOCK))
+	# Hasta el final: los rivales se retiran en su tope y alguien gana.
+	var b := Auction.create(rng, Auction.lot_by_id("seal"), 1000)
+	var pasos := 0
+	while not b.done and pasos < 10000:
+		b.step(0.1)
+		pasos += 1
+	var tope := 0
+	for r in b.rivals:
+		tope = maxi(tope, int(r["cap"]))
+	_check("subasta: sin ti la gana un rival por debajo de su tope y se acaba",
+		b.done and b.leader != "tu" and b.leader != "" and b.price <= tope
+		and not b.won())
+	var rata := Auction.create(rng, Auction.lot_by_id("seal"), 1000, 0.5)
+	_check("subasta: la Rata baja el tope de los rivales",
+		int(rata.rivals[0]["cap"]) <= roundi(1000.0 * Auction.RIVAL_CAP.y * 0.5))
+
+	# Ganar cada lote: se cobra la puja y se entrega.
+	for lot_id in ["potion_money", "seal", "mythic", "egg"]:
+		var w := Auction.create(rng, Auction.lot_by_id(lot_id), 500)
+		w.player_bid(10000)
+		w.rivals = []
+		while not w.done:
+			w.step(1.0)
+		Game.money = 10000
+		var res := Game.auction_win(w)
+		_check("subasta: ganar «%s» cobra la puja y lo entrega" % lot_id,
+			not res.is_empty() and Game.money == 10000 - w.price)
+	_check("subasta: la pocion va al estante", Game.potion_count("money") == 1)
+	_check("subasta: el sello se guarda", Game.seals == 1)
+	_check("subasta: el mitico se guarda con su nota", Game.mythics.size() == 1)
+	var mascota := ""
+	for id in ["crow", "raccoon", "rat"]:
+		if Game.pet_level(id) > 0:
+			mascota = id
+	_check("subasta: el huevo da una de las tres exclusivas (y se equipa sola)",
+		mascota != "" and Game.pet_equipped(mascota))
+	var perdida := Auction.create(rng, Auction.lot_by_id("seal"), 500)
+	perdida._bid("La Duquesa")
+	perdida.done = true
+	var dinero := Game.money
+	_check("subasta: perder no cuesta nada", Game.auction_win(perdida).is_empty()
+		and Game.money == dinero)
+
+	# Las pociones: se toman del estante, duran y dos iguales suman tiempo.
+	var sin := Game.value_multiplier()
+	_check("subasta: tomar la pocion de dinero la gasta y dobla el dinero",
+		Game.drink_potion("money") and Game.potion_count("money") == 0
+		and is_equal_approx(Game.value_multiplier(), sin * Auction.POTION_MONEY))
+	_check("subasta: sin pociones no se toma", not Game.drink_potion("money"))
+	Game.potions["money"] = 1
+	Game.drink_potion("money")
+	_check("subasta: dos iguales suman tiempo", is_equal_approx(float(Game.potion_left["money"]),
+		float(Auction.POTIONS["money"]["seconds"]) * 2.0))
+	Game._tick_play(9999.0)
+	_check("subasta: y se acaban", not Game.potion_active("money")
+		and is_equal_approx(Game.value_multiplier(), sin))
+	var furia := Game.damage_multiplier()
+	Game.potion_left["fury"] = 10.0
+	_check("subasta: la Furia triplica el daño",
+		is_equal_approx(Game.damage_multiplier(), furia * Auction.POTION_FURY))
+	Game.potion_left = {}
+	Game.money = LootDB.REBIRTH_REQUIRE * 2
+	var monedas := Game.pending_rebirth_coins()
+	Game.potion_left["rain"] = 10.0
+	_check("subasta: la Lluvia de monedas da x1,5 monedas al reiniciar",
+		Game.pending_rebirth_coins() == roundi(float(monedas) * Auction.POTION_RAIN))
+	Game.potion_left = {}
+
+	# Los miticos: en el armario ocupan un hueco normal y se colocan solos.
+	Game.mythics = {}
+	Game.mythic_off = []
+	Game.locker = []
+	Game.items[LootDB.item_index("armario")] = 0
+	var mit := Auction.mythic_item(Auction.mythic_by_kind("cards"), 8, 1000)
+	Game._give_mythic(mit)
+	_check("subasta: sin armario el mitico espera", Game.mythics_active().is_empty()
+		and Game.mythics_shown().size() == 1)
+	Game.items[LootDB.item_index("armario")] = 1
+	_check("subasta: con un hueco se coloca solo y cuenta en el armario",
+		Game.mythics_active().size() == 1 and not Game.locker_free()
+		and Game.kind_bonus("cards") > 0.0)
+	var normal := mit.duplicate()
+	normal.erase("mythic")
+	_check("subasta: un mitico vale 2,5 veces su legendario en el armario",
+		is_equal_approx(LootDB.bonus_for(mit), LootDB.bonus_for(normal) * Auction.MYTHIC_LOCKER))
+	Game.toggle_mythic("cards")
+	_check("subasta: se puede quitar del armario (y no se pierde)",
+		Game.mythics_active().is_empty() and Game.locker_free() and Game.mythics.has("cards"))
+	Game.toggle_mythic("cards")
+	var peor := Auction.mythic_item(Auction.mythic_by_kind("cards"), 3, 1000)
+	var r := Game._give_mythic(peor)
+	_check("subasta: un mitico repetido peor se vende y se queda el mejor",
+		int(r["sold"]) > 0 and int(Game.mythics["cards"]["grade"]) == 8)
+	var mejor := Auction.mythic_item(Auction.mythic_by_kind("cards"), 10, 1000)
+	Game._give_mythic(mejor)
+	_check("subasta: y uno mejor sustituye al que tenias",
+		int(Game.mythics["cards"]["grade"]) == 10)
+	Game.money = LootDB.REBIRTH_REQUIRE * 2
+	Game.do_rebirth()
+	Game.items[LootDB.item_index("armario")] = 2
+	_check("subasta: el mitico no se pierde con el rebirth y vuelve a su hueco",
+		Game.mythics.has("cards") and Game.mythics_active().size() == 1)
+
+	# El sello: +1 a la nota (con su dibujo) y no pasa de 10.
+	Game.seals = 2
+	Game.mythics["cards"] = Auction.mythic_item(Auction.mythic_by_kind("cards"), 9, 1000)
+	_check("subasta: el sello sube la nota del mitico y su dibujo",
+		Game.use_seal_on_mythic("cards") and int(Game.mythics["cards"]["grade"]) == 10
+		and str(Game.mythics["cards"]["art"]) == "loot_myth_cards_psa10" and Game.seals == 1)
+	_check("subasta: no pasa de 10", not Game.use_seal_on_mythic("cards") and Game.seals == 1)
+	for m in Auction.MYTHICS:
+		for g in range(1, 11):
+			if Sprites.tex("%s_psa%d" % [m["art"], g]) == null:
+				_check("subasta: falta el dibujo %s_psa%d" % [m["art"], g], false)
+	for art in ["tree_vip_van", "tree_asc_auction", "tree_auction_mythic", "tree_auction_seal",
+			"tree_auction_blind", "tree_auction_egg", "tree_auction_rival_a",
+			"tree_auction_rival_b", "tree_auction_rival_c"] + Auction.POTION_ORDER.map(
+				func(id): return str(Auction.POTIONS[id]["art"])):
+		_check("subasta: hay dibujo para %s" % art, Sprites.tex(str(art)) != null)
+
+	# El guardado: lo ganado no se pierde ni al ascender.
+	Game.potions = {"fury": 2}
+	Game.potion_left = {"luck": 50.0}
+	Game.auction_left = 30.0
+	Game.auction_lot = "blind"
+	Game._apply(JSON.parse_string(JSON.stringify(Game.to_dict())))
+	_check("subasta: se guarda (pociones, miticos, sellos y la furgoneta)",
+		Game.potion_count("fury") == 2 and Game.potion_active("luck") and Game.seals == 1
+		and Game.mythics.has("cards") and bool(Game.mythics["cards"]["mythic"])
+		and Game.auction_here() and Game.auction_lot == "blind")
+	for id in SkillTree.ids():
+		Game.skills[str(id)] = SkillTree.levels_of(str(id))
+	Game.do_ascension()
+	_check("subasta: ascender no quita lo ganado ni el hexagono",
+		Game.mythics.has("cards") and Game.potion_count("fury") == 2 and Game.auction_open())
+
+	# La sala: abre, se puja con el boton y al cerrar la furgoneta se va.
+	Game.auction_left = 60.0
+	Game.auction_done = false
+	Game.auction_lot = "seal"
+	Game.money = 1_000_000_000
+	var sala := AuctionPanel.new(Game.auction_start())
+	get_tree().root.add_child(sala)
+	await get_tree().process_frame
+	_check("subasta: una subasta por visita", Game.auction_start() == null)
+	sala._on_bid()
+	_check("subasta: el boton puja", sala.auction.leader == "tu")
+	_check_cabe("subasta: la sala cabe en la pantalla", sala, PANTALLA)
+	sala.auction.rivals = []
+	sala.auction.time_left = 0.05
+	var sellos := Game.seals
+	await get_tree().create_timer(0.2).timeout
+	_check("subasta: al acabar sale el sello y se entrega el lote",
+		sala._ended and Game.seals == sellos + 1)
+	sala.queue_free()
+	Game.auction_finished()
+	_check("subasta: al salir la furgoneta se va", not Game.auction_here())
+	Game.hard_reset()
+	_check("subasta: empezar de cero lo quita todo", not Game.auction_open()
+		and Game.mythics.is_empty() and Game.potions.is_empty() and Game.seals == 0)
 	Game._apply(antes)

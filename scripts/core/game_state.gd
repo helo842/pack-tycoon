@@ -42,6 +42,9 @@ signal abilities_changed()
 signal streak_changed(streak: int)
 ## La furgoneta del mercado negro ha llegado, se ha ido o ha vendido una caja.
 signal market_changed()
+## Las subastas: la furgoneta VIP llega o se va, o cambia lo ganado (pociones,
+## miticos, sellos).
+signal auction_changed()
 
 const SAVE_PATH := "user://packtycoon.json"
 ## Las pruebas y las capturas (las escenas de res://dev/) guardan AQUI y no en la
@@ -192,6 +195,22 @@ var market_unlocked: bool = false
 var market_next: float = BlackMarket.VAN_FIRST
 var van_left: float = 0.0
 var van_sold: Array = []
+## LAS SUBASTAS (ver Auction): el reloj de la furgoneta VIP (tiempo jugado, no se
+## reinicia con el rebirth), lo que le queda aparcada, el lote que trae y si ya se
+## ha pujado por el en esta visita (una subasta por visita).
+var auction_next: float = Auction.VAN_FIRST
+var auction_left: float = 0.0
+var auction_lot: String = ""
+var auction_done: bool = false
+## Lo ganado en las subastas, que NO se pierde nunca (solo hard_reset): las
+## pociones guardadas (id -> cuantas), el tiempo que le queda a cada una tomada,
+## los miticos (tipo -> objeto), los que el jugador ha quitado del armario y los
+## sellos sin usar.
+var potions: Dictionary = {}
+var potion_left: Dictionary = {}
+var mythics: Dictionary = {}
+var mythic_off: Array = []
+var seals: int = 0
 
 ## Lo que NO se guarda: los eventos en curso y las recargas. Son de este rato de
 ## juego, como el dano que sobra de un golpe.
@@ -479,7 +498,7 @@ func locker_size() -> int:
 
 
 func locker_free() -> bool:
-	return locker.size() < locker_slots()
+	return locker.size() + mythics_shown().size() < locker_slots()
 
 
 ## Exponer el objeto `index` del inventario. Devuelve false si no hay hueco (ni
@@ -553,7 +572,7 @@ func kind_bonus(kind_id: String) -> float:
 ## Las cuatro sumas a la vez, para leerlas de una vez en el panel. Cada pieza
 ## del mismo tipo cuenta menos que la anterior (ver LootDB.locker_totals).
 func kind_totals() -> Dictionary:
-	return LootDB.locker_totals(locker)
+	return LootDB.locker_totals(locker + mythics_active())
 
 
 ## Cuanto sube el DANO del golpe: lo que dan las Cartas expuestas EN EL ARMARIO y
@@ -563,7 +582,7 @@ func kind_totals() -> Dictionary:
 func damage_multiplier() -> float:
 	return (1.0 + kind_bonus("cards")) * (1.0 + skill_bonus("damage")) \
 			* (1.0 + album_bonus("damage")) * (1.0 + pet_bonus("damage")) * speed_overflow() \
-			* asc_mult("damage")
+			* asc_mult("damage") * (Auction.POTION_FURY if potion_active("fury") else 1.0)
 
 
 ## Cuanto se acelera la CARGA del boton (Zapatillas expuestas y la mejora de
@@ -585,7 +604,8 @@ func charge_multiplier() -> float:
 ## (+30 %) y las monedas se gastan ahi.
 func value_multiplier() -> float:
 	return (1.0 + kind_bonus("vinyls")) * (1.0 + skill_bonus("money")) \
-			* (1.0 + album_bonus("money")) * asc_mult("money") * (1.0 + pet_bonus("money"))
+			* (1.0 + album_bonus("money")) * asc_mult("money") * (1.0 + pet_bonus("money")) \
+			* (Auction.POTION_MONEY if potion_active("money") else 1.0)
 
 
 ## Cuanto se multiplican las monedas de rebirth que da reiniciar (Electronica
@@ -631,7 +651,11 @@ func pending_rebirth_coins() -> int:
 	var coins := LootDB.rebirth_coins_for(money, rebirth_multiplier())
 	if rebirth_count == 0:
 		coins = maxi(coins, FIRST_REBIRTH_COINS)
-	return coins + int(skill_bonus(SkillTree.COINS_STAT))
+	coins += int(skill_bonus(SkillTree.COINS_STAT))
+	# LA LLUVIA DE MONEDAS (pocion de la subasta), si se reinicia mientras dura.
+	if potion_active("rain"):
+		coins = roundi(float(coins) * Auction.POTION_RAIN)
+	return coins
 
 
 ## El dinero con el que empieza cada partida (el centro del arbol y la Semilla
@@ -941,7 +965,9 @@ func market_ref_pack() -> Dictionary:
 
 
 func box_price(box_id: String) -> int:
-	return BlackMarket.box_price(BlackMarket.box_by_id(box_id), int(market_ref_pack()["price"]))
+	# EL CUERVO (mascota de subasta) abarata las cajas.
+	return maxi(1, roundi(float(BlackMarket.box_price(BlackMarket.box_by_id(box_id),
+			int(market_ref_pack()["price"]))) * clampf(1.0 - pet_bonus("bm_price"), 0.2, 1.0)))
 
 
 ## Lo que pagan los sobres por cada moneda gastada en ellos, con tus
@@ -969,13 +995,219 @@ func buy_box(box_id: String) -> Dictionary:
 	van_sold.append(box_id)
 	var ref := market_ref_pack()
 	var r := BlackMarket.open_box(_rng_play, box, price, roi, money,
-			LootDB.pack_tier(str(ref["id"])))
+			LootDB.pack_tier(str(ref["id"])), pet_bonus("bm_raid"))
 	money -= int(r["loss"])
 	r["price"] = price
 	_dirty = true
 	money_changed.emit(money)
 	market_changed.emit()
 	return r
+
+
+# --------------------------------------------------------------------------- #
+# Las subastas (ver Auction)
+# --------------------------------------------------------------------------- #
+
+func auction_open() -> bool:
+	return asc_flag("auction")
+
+
+## La furgoneta VIP esta aparcada y todavia no se ha pujado por su lote.
+func auction_here() -> bool:
+	return auction_left > 0.0 and not auction_done
+
+
+## Avanza el reloj de la furgoneta VIP (como market_step, con la mesa a la vista).
+## Devuelve "llega", "se_va" o "".
+func auction_step(delta: float) -> String:
+	if auction_left > 0.0:
+		auction_left -= delta
+		if auction_left > 0.0:
+			return ""
+		auction_left = 0.0
+		auction_done = false
+		_dirty = true
+		auction_changed.emit()
+		return "se_va"
+	if not auction_open():
+		return ""
+	auction_next -= delta
+	if auction_next > 0.0:
+		return ""
+	auction_next = _rng_play.randf_range(Auction.VAN_EVERY.x, Auction.VAN_EVERY.y)
+	auction_left = Auction.VAN_LIFE
+	auction_done = false
+	var skip: Array = []
+	if PetDB.roll(pets, "auction") == "":
+		skip.append("egg")
+	auction_lot = str(Auction.roll_lot(_rng_play, skip)["id"])
+	_dirty = true
+	auction_changed.emit()
+	return "llega"
+
+
+## El precio de salida del lote de la furgoneta.
+func auction_price() -> int:
+	return Auction.lot_price(Auction.lot_by_id(auction_lot), int(market_ref_pack()["price"]))
+
+
+## Empieza la subasta del lote de la furgoneta (una por visita). null si no hay.
+func auction_start() -> Auction:
+	if not auction_here():
+		return null
+	auction_done = true
+	_dirty = true
+	return Auction.create(_rng_play, Auction.lot_by_id(auction_lot), auction_price(),
+			pet_bonus("rival"))
+
+## La furgoneta se va despues de la puja (ganada o perdida).
+func auction_finished() -> void:
+	auction_left = 0.0
+	auction_done = false
+	_dirty = true
+	auction_changed.emit()
+
+
+## Cobra la puja ganada y entrega el lote. Devuelve lo que ha pasado:
+## {"type", "potion", "item" (mitico o basura), "sold" (lo vendido), "pet"}.
+## {} si no se ha ganado o no llega el dinero.
+func auction_win(a: Auction) -> Dictionary:
+	if a == null or not a.won() or money < a.price:
+		return {}
+	money -= a.price
+	var r := {"type": str(a.lot["type"]), "price": a.price}
+	match str(a.lot["type"]):
+		"potion":
+			var id := str(a.lot["potion"])
+			potions[id] = int(potions.get(id, 0)) + 1
+			r["potion"] = id
+		"seal":
+			seals += 1
+		"star":
+			ascension_points += 1
+			skills_changed.emit()
+		"mythic":
+			r.merge(_give_mythic(Auction.make_mythic(_rng_play, a.price)))
+		"blind":
+			if _rng_play.randf() < Auction.BLIND_MYTHIC:
+				r.merge(_give_mythic(Auction.make_mythic(_rng_play, a.price)))
+				r["blind"] = "mythic"
+			else:
+				var junk := Auction.junk_item(_rng_play, a.price)
+				r["item"] = junk
+				r["sold"] = payout(junk)
+				r["blind"] = "junk"
+		"egg":
+			var pet := PetDB.roll(pets, "auction")
+			if pet != "":
+				pets[pet] = pet_level(pet) + 1
+				if pets[pet] == 1 and pets_equipped.size() < pet_slots():
+					pets_equipped.append(pet)
+				skills_changed.emit()
+			r["pet"] = pet
+	_dirty = true
+	money_changed.emit(money)
+	locker_changed.emit()
+	items_changed.emit()
+	auction_changed.emit()
+	save_game()
+	return r
+
+
+## Un mitico nuevo: si ya hay uno de su tipo se queda el de mejor nota y el otro
+## se vende.
+func _give_mythic(item: Dictionary) -> Dictionary:
+	var kind := str(item["kind"])
+	var r := {"item": item, "sold": 0}
+	if mythics.has(kind):
+		var viejo: Dictionary = mythics[kind]
+		if int(viejo["grade"]) >= int(item["grade"]):
+			r["sold"] = payout(item)
+			r["kept"] = viejo
+			return r
+		r["sold"] = payout(viejo)
+	mythics[kind] = item
+	r["kept"] = item
+	return r
+
+
+## Los miticos que el jugador quiere en el armario, en el orden de los tipos.
+func mythics_shown() -> Array:
+	var out: Array = []
+	for m in Auction.MYTHICS:
+		var kind := str(m["kind"])
+		if mythics.has(kind) and not mythic_off.has(kind):
+			out.append(mythics[kind])
+	return out
+
+
+## Los que de verdad estan expuestos: los que quieren estar, mientras haya hueco.
+## Se colocan solos (van primero) y los que no caben esperan a un hueco libre.
+func mythics_active() -> Array:
+	var shown := mythics_shown()
+	var k := clampi(locker_slots() - locker.size(), 0, shown.size())
+	return shown.slice(0, k)
+
+
+## Pone o quita del armario el mitico de un tipo. Devuelve si queda puesto.
+func toggle_mythic(kind: String) -> bool:
+	if not mythics.has(kind):
+		return false
+	if mythic_off.has(kind):
+		mythic_off.erase(kind)
+	else:
+		mythic_off.append(kind)
+	_dirty = true
+	locker_changed.emit()
+	return not mythic_off.has(kind)
+
+
+## El SELLO: +1 a la nota de un objeto expuesto (`kind` de un mitico, o el indice
+## de un objeto normal del armario). Devuelve si se ha puesto.
+func use_seal_on_locker(index: int) -> bool:
+	if seals <= 0 or index < 0 or index >= locker.size() or int(locker[index]["grade"]) >= 10:
+		return false
+	locker[index] = Auction.sealed(locker[index])
+	return _seal_used()
+
+
+func use_seal_on_mythic(kind: String) -> bool:
+	if seals <= 0 or not mythics.has(kind) or int(mythics[kind]["grade"]) >= 10:
+		return false
+	mythics[kind] = Auction.sealed(mythics[kind])
+	return _seal_used()
+
+
+func _seal_used() -> bool:
+	seals -= 1
+	_dirty = true
+	locker_changed.emit()
+	auction_changed.emit()
+	save_game()
+	return true
+
+
+func potion_active(id: String) -> bool:
+	return float(potion_left.get(id, 0.0)) > 0.0
+
+
+func potion_count(id: String) -> int:
+	return int(potions.get(id, 0))
+
+
+## Toma una pocion del estante. Dos iguales suman tiempo.
+func drink_potion(id: String) -> bool:
+	if potion_count(id) <= 0 or not Auction.POTIONS.has(id):
+		return false
+	potions[id] = potion_count(id) - 1
+	if int(potions[id]) <= 0:
+		potions.erase(id)
+	potion_left[id] = float(potion_left.get(id, 0.0)) + float(Auction.POTIONS[id]["seconds"])
+	_dirty = true
+	money_changed.emit(money)
+	items_changed.emit()
+	auction_changed.emit()
+	return true
 
 
 # --------------------------------------------------------------------------- #
@@ -1033,7 +1265,7 @@ func pets_maxed(machine_id: String = "") -> bool:
 	if machine_id != "":
 		return PetDB.roll(pets, machine_id) == ""
 	for m in PetDB.MACHINES:
-		if PetDB.roll(pets, str(m["id"])) != "":
+		if bool(m.get("gacha", true)) and PetDB.roll(pets, str(m["id"])) != "":
 			return false
 	return true
 
@@ -1045,7 +1277,8 @@ func pet_currency(machine_id: String) -> int:
 
 
 func can_roll_pet(machine_id: String = "basic") -> bool:
-	return pet_shop_shown() and pet_currency(machine_id) >= int(PetDB.machine(machine_id)["cost"]) \
+	return pet_shop_shown() and bool(PetDB.machine(machine_id).get("gacha", true)) \
+			and pet_currency(machine_id) >= int(PetDB.machine(machine_id)["cost"]) \
 			and not pets_maxed(machine_id)
 
 
@@ -1310,7 +1543,7 @@ func crit_mult() -> float:
 ## La suerte: el Trebol, los Juguetes expuestos y la coleccion de JUGUETES.
 func luck() -> float:
 	return LootDB.luck(items) * (1.0 + kind_bonus("toys")) * (1.0 + album_bonus("luck")) \
-			* (1.0 + pet_bonus("luck"))
+			* (1.0 + pet_bonus("luck")) * (Auction.POTION_LUCK if potion_active("luck") else 1.0)
 
 
 func open_count() -> int:
@@ -1432,6 +1665,13 @@ func _tick_play(delta: float) -> void:
 		events_changed.emit()
 	frenzy_left = maxf(0.0, frenzy_left - delta)
 	rain_left = maxf(0.0, rain_left - delta)
+	if not potion_left.is_empty():
+		for id in potion_left.keys():
+			potion_left[id] = float(potion_left[id]) - delta
+			if float(potion_left[id]) <= 0.0:
+				potion_left.erase(id)
+				auction_changed.emit()
+				notice.emit("Se acabó: " + str(Auction.POTIONS[id]["name"]), Palette.CREAM_D)
 	var listas := false
 	for id in cooldowns.keys():
 		cooldowns[id] = float(cooldowns[id]) - delta
@@ -1935,6 +2175,15 @@ func hard_reset() -> void:
 	market_next = BlackMarket.VAN_FIRST
 	van_left = 0.0
 	van_sold = []
+	auction_next = Auction.VAN_FIRST
+	auction_left = 0.0
+	auction_lot = ""
+	auction_done = false
+	potions = {}
+	potion_left = {}
+	mythics = {}
+	mythic_off = []
+	seals = 0
 	buyer = {}
 	happy = {}
 	cooldowns = {}
@@ -2000,6 +2249,15 @@ func to_dict() -> Dictionary:
 		"market_next": market_next,
 		"van_left": van_left,
 		"van_sold": van_sold,
+		"auction_next": auction_next,
+		"auction_left": auction_left,
+		"auction_lot": auction_lot,
+		"auction_done": auction_done,
+		"potions": potions,
+		"potion_left": potion_left,
+		"mythics": mythics,
+		"mythic_off": mythic_off,
+		"seals": seals,
 		"play_seconds": play_seconds,
 		"rebirth_count": rebirth_count,
 	}
@@ -2056,6 +2314,37 @@ func _apply(d: Dictionary) -> void:
 		for id in d["van_sold"]:
 			if not BlackMarket.box_by_id(str(id)).is_empty():
 				van_sold.append(str(id))
+	auction_next = maxf(0.0, float(d.get("auction_next", Auction.VAN_FIRST)))
+	auction_left = clampf(float(d.get("auction_left", 0.0)), 0.0, Auction.VAN_LIFE)
+	auction_lot = str(d.get("auction_lot", ""))
+	if Auction.lot_by_id(auction_lot).is_empty():
+		auction_lot = ""
+		auction_left = 0.0
+	auction_done = bool(d.get("auction_done", false))
+	potions = {}
+	potion_left = {}
+	for pair in [["potions", potions], ["potion_left", potion_left]]:
+		var raw = d.get(pair[0], {})
+		if typeof(raw) == TYPE_DICTIONARY:
+			for id in raw:
+				if Auction.POTIONS.has(str(id)) and float(raw[id]) > 0.0:
+					(pair[1] as Dictionary)[str(id)] = int(raw[id]) if pair[0] == "potions" \
+							else float(raw[id])
+	mythics = {}
+	var raw_m = d.get("mythics", {})
+	if typeof(raw_m) == TYPE_DICTIONARY:
+		for kind in raw_m:
+			var it = raw_m[kind]
+			if typeof(it) == TYPE_DICTIONARY and not Auction.mythic_by_kind(str(kind)).is_empty():
+				it["grade"] = clampi(int(it.get("grade", 1)), 1, 10)
+				it["mythic"] = true
+				mythics[str(kind)] = it
+	mythic_off = []
+	if typeof(d.get("mythic_off")) == TYPE_ARRAY:
+		for kind in d["mythic_off"]:
+			if mythics.has(str(kind)) and not mythic_off.has(str(kind)):
+				mythic_off.append(str(kind))
+	seals = maxi(0, int(d.get("seals", 0)))
 	# Un guardado de antes del contador: si ya tenia monedas o arbol, ya habia
 	# hecho rebirth (y no le toca otra vez el minimo del primero).
 	var tenia_arbol: bool = typeof(d.get("skills")) == TYPE_DICTIONARY \

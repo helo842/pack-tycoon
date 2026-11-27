@@ -462,35 +462,35 @@ const DOLAR_COST_GROWTH := 2.3
 const ITEMS: Array = [
 	{"id": "tijeras", "name": "Tijeras", "art": "item_tijeras", "base_cost": 300,
 		"desc": "Más daño por golpe",
-		"detail": "El ítem del daño: un 39 % más por nivel (los demás ítems solo suman un 4 %). Las tres primeras mejoras son baratas; después el precio se dispara."},
+		"detail": "El ítem del daño: cada nivel suma un 39 % de daño a cada golpe (cualquier otro ítem suma solo un 4 %). Las tres primeras mejoras son baratas; después el precio se dispara."},
 	{"id": "trebol", "name": "Trébol", "art": "item_trebol", "base_cost": 600,
 		"desc": "Más botín raro",
-		"detail": "Sube las probabilidades de que salga botín raro, épico o legendario. La nota PSA no cambia. Vale para todos los sobres."},
+		"detail": "Sube la probabilidad de que salga botín raro, épico o legendario en todos los sobres. La nota PSA no cambia."},
 	{"id": "cajon", "name": "Cajón", "art": "item_cajon", "base_cost": 1100,
-		"desc": "Más espacio en la mesa",
-		"detail": "Más huecos en la mesa para dejar paquetes y objetos a la vez. A partir del nivel 5 cada nivel da cinco huecos en vez de dos."},
+		"desc": "Más sitio en la mesa",
+		"detail": "Más huecos en la mesa: caben más sobres y puedes abrir más a la vez. Del nivel 1 al 5 da dos huecos por nivel, y del 6 en adelante cinco."},
 	{"id": "ojo_verde", "name": "Ojo verde", "art": "item_ojo_verde", "base_cost": 1800,
 		"desc": "Probabilidad de crítico",
-		"detail": "Cada golpe tiene esta probabilidad de ser crítico, y un crítico hace el doble de daño y sale en amarillo."},
+		"detail": "Cada nivel da un 5 % de probabilidad de que un golpe sea crítico. Un crítico hace el doble de daño (más con el láser) y su número sale en amarillo."},
 	{"id": "laser", "name": "Láser", "art": "item_laser", "base_cost": 2600,
 		"desc": "Más daño crítico",
-		"detail": "Sube el daño que hace cada golpe crítico. Sin críticos no hace nada, así que va detrás del ojo verde."},
+		"detail": "Cada nivel sube un 5 % el daño de los golpes críticos. Sin críticos no hace nada, así que conviene después del ojo verde."},
 	{"id": "pc", "name": "PC", "art": "item_pc", "base_cost": 24000,
 		"desc": "Compra los sobres solo",
-		"detail": "Compra solo, al ritmo que dice aquí, el sobre más barato de los que tengas marcados en su menú. Se paga una sola vez."},
+		"detail": "Enciende la compra automática: compra solo el sobre más barato de los que marques en su menú, siempre que quepa en la mesa y te llegue el dinero. Se paga una sola vez."},
 	{"id": "pinchos", "name": "Pinchos", "art": "item_pinchos", "base_cost": 40000,
-		"desc": "Abre los paquetes solo",
-		"detail": "Con la apertura automática encendida golpean todos los paquetes de la mesa a la vez, sin que les hagas clic. Se pagan una sola vez."},
+		"desc": "Abre los sobres solos",
+		"detail": "Enciende la apertura automática: dañan solos los sobres de la mesa, sin clics, repartiendo su daño entre todos. Suben con tus ítems de daño y velocidad y con tu dinero. Se pagan una vez."},
 	{"id": "armario", "name": "Armario", "art": "item_armario", "base_cost": 35000,
 		"desc": "Expone botín y da sus bonus",
-		"detail": "Cada objeto expuesto da el bonus de su tipo: cartas daño, zapatillas velocidad, vinilos dinero, electrónica rebirth y juguetes suerte."},
+		"detail": "Un hueco por nivel para exponer objetos (hasta ocho). Cada uno da el bonus de su tipo: cartas daño, zapatillas velocidad, vinilos dinero, electrónica monedas de rebirth y juguetes suerte."},
 	# EL NOVENO, Y VA AL FINAL A PROPOSITO: los niveles de un guardado se leen
 	# por POSICION, asi que anadir un item en medio muda de sitio los niveles de
 	# todos los que vienen detras y una partida vieja se encontraria el dano
 	# donde tenia la suerte. Al final no mueve a nadie.
 	{"id": "guantes", "name": "Guantes", "art": "item_guantes", "base_cost": 400,
 		"desc": "Más velocidad de golpe",
-		"detail": "Acelera la carga un 15 % por nivel: los golpes salen más seguidos. Las tres primeras son baratas y suben poco; después el precio se dispara."},
+		"detail": "Acelera la carga un 15 % por nivel: los golpes salen más seguidos. Las tres primeras mejoras son baratas; después el precio se dispara."},
 	# EL DECIMO, TAMBIEN AL FINAL y por lo mismo: los niveles de una partida
 	# guardada se leen por POSICION (ver game_state.gd), asi que meterlo en medio
 	# le cambiaria el item a los niveles de todo el que viniera detras.
@@ -948,7 +948,7 @@ static func item_effect(index: int, level: int) -> String:
 		"ojo_verde":
 			return "%d%% de golpes críticos" % roundi(crit_chance(levels) * 100.0)
 		"laser":
-			return "X%s de daño en un crítico" % short_number(crit_mult(levels))
+			return "x%s de daño en un crítico" % short_number(crit_mult(levels))
 		"pc":
 			return "Un sobre cada %s s" % short_number(auto_buy_interval(levels))
 		"pinchos":
@@ -977,7 +977,8 @@ static func short_number(v: float) -> String:
 		s = s.substr(0, s.length() - 1)
 	if s.ends_with("."):
 		s = s.substr(0, s.length() - 1)
-	return s
+	# Coma decimal, como se escribe en español (x2,05 y no x2.05).
+	return s.replace(".", ",")
 
 
 ## Suma de niveles de todos los items. Es la medida de "cuanto llevo mejorado" y
@@ -1125,9 +1126,11 @@ static func kind_bonus(kind_id: String, grade: int) -> float:
 ## guardado de antes de este cambio) cuenta como comun del escalon 1.
 static func bonus_for(item: Dictionary) -> float:
 	var tier := clampi(int(item.get("tier", 1)), 1, LOCKER_TIER.size())
+	# Un MITICO de subasta vale Auction.MYTHIC_LOCKER legendarios.
 	return kind_bonus(kind_of(item), int(item.get("grade", PSA_MIN))) \
 			* float(LOCKER_RARITY.get(str(item.get("rarity", "common")), 1.0)) \
-			* float(LOCKER_TIER[tier - 1])
+			* float(LOCKER_TIER[tier - 1]) \
+			* (Auction.MYTHIC_LOCKER if bool(item.get("mythic", false)) else 1.0)
 
 
 ## Lo que suma TODO el armario a cada tipo: por tipo, la mejor pieza entera, la

@@ -100,6 +100,10 @@ const FAKE := {"id": "bm_lead_ingot", "name": "Lingote de plomo", "art": "loot_b
 	"kind": "electronics"}
 
 
+static func _weight(o: Dictionary, raid_cut: float) -> float:
+	return float(o["w"]) * (clampf(1.0 - raid_cut, 0.0, 1.0) if str(o["id"]) == "raid" else 1.0)
+
+
 static func box_by_id(id: String) -> Dictionary:
 	for b in BOXES:
 		if str(b["id"]) == id:
@@ -145,19 +149,20 @@ static func _mean_grade_mult() -> float:
 
 ## ABRE una caja. `price` es lo que se ha pagado, `roi` lo que pagan los sobres por
 ## moneda, `money` el dinero que queda (para la redada) y `tier` el escalon del
-## sobre de referencia (para el armario). Devuelve {"outcome", "item" (vacio en la
+## sobre de referencia (para el armario). `raid_cut` quita parte del peso de la
+## redada (el Mapache, mascota de subasta: 0,3 = un 30 % menos). Devuelve {"outcome", "item" (vacio en la
 ## redada), "loss" (lo que se lleva la redada)}.
 static func open_box(rng: RandomNumberGenerator, box: Dictionary, price: int, roi: float,
-		money: int, tier: int) -> Dictionary:
-	var total := 0
+		money: int, tier: int, raid_cut: float = 0.0) -> Dictionary:
+	var total := 0.0
 	for o in box["outcomes"]:
-		total += int(o["w"])
-	var r := rng.randi_range(1, total)
-	var pick: Dictionary = box["outcomes"][box["outcomes"].size() - 1]
-	var acc := 0
+		total += _weight(o, raid_cut)
+	var r := rng.randf() * total
+	var pick: Dictionary = box["outcomes"][0]
+	var acc := 0.0
 	for o in box["outcomes"]:
-		acc += int(o["w"])
-		if r <= acc:
+		acc += _weight(o, raid_cut)
+		if r < acc:
 			pick = o
 			break
 	var outcome := str(pick["id"])

@@ -195,7 +195,10 @@ func _build_page() -> void:
 	var m := _machine_data()
 	_page_box.add_child(UIKit.fit_art(_currency_icon(),
 			Vector2(COINS_PLATE.position.x + 50.0, HEAD_Y), Vector2(52, 52)))
-	_machine = UIKit.fit_art("tree_pet_machine" + str(m["suffix"]), MACHINE_CENTER, MACHINE_BOX)
+	# Las exclusivas de subasta no tienen maquina: salen del huevo.
+	var gacha := bool(m.get("gacha", true))
+	_machine = UIKit.fit_art("tree_pet_machine" + str(m["suffix"]) if gacha else "tree_auction_egg",
+			MACHINE_CENTER, MACHINE_BOX)
 	_page_box.add_child(_machine)
 	# La maquina se mece despacio, como si esperara la moneda.
 	UIKit.bob(_machine, 5.0, 3.2)
@@ -209,6 +212,8 @@ func _build_page() -> void:
 	_roll5.tooltip_text = "Tirar %d veces seguidas: %s" % [MULTI, _cost_text(MULTI)]
 	_roll5.pressed.connect(_on_roll.bind(MULTI))
 	_page_box.add_child(_roll5)
+	_roll.visible = gacha
+	_roll5.visible = gacha
 	_page_name.text = "%s  %d/%d" % [m["name"], _page + 1, PetDB.MACHINES.size()]
 	_page_name.add_theme_font_size_override("font_size",
 			UIKit.fit_size(_page_name.text, PAGE_ARROW_DX * 2.0 - 90.0, 40))
@@ -310,6 +315,13 @@ func refresh() -> void:
 		(c["frame"] as ColorRect).color = ShopPanel.EDGE_DONE if nivel >= PetDB.MAX_LEVEL \
 				else ShopPanel.EDGE_OPEN
 
+	var gacha := bool(m.get("gacha", true))
+	for l in _prices:
+		l.visible = gacha
+	if not gacha:
+		_status.text = "Solo salen del huevo de la subasta"
+		_status.add_theme_font_size_override("font_size", UIKit.fit_size(_status.text, 520.0, 21))
+		return
 	var puede := Game.can_roll_pet(str(m["id"]))
 	_roll.modulate = Color.WHITE if puede else Color(0.55, 0.55, 0.62, 1.0)
 	_roll5.modulate = Color.WHITE if _can_roll_multi() else Color(0.55, 0.55, 0.62, 1.0)

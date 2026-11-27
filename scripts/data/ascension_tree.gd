@@ -108,11 +108,29 @@ const NODES: Array = [
 ]
 
 
+## LOS HEXAGONOS DE FUERA DE LA TELARAÑA: no estan en ningun hilo, no piden nada
+## antes, cuestan "cost" y NO cuentan para completarla (ni para el simulador de las
+## 24 h, que solo mira NODES). Hoy, la SUBASTA (ver Auction).
+const AUCTION := "asc_auction"
+const EXTRA: Array = [
+	{"id": AUCTION, "name": "Subasta", "art": "tree_asc_auction", "spoke": -2, "ring": 0,
+		"cost": 3, "flag": "auction",
+		"desc": "Una furgoneta roja y dorada trae subastas cada ~18 min"},
+]
+
+
 static func node_by_id(id: String) -> Dictionary:
 	for n in NODES:
 		if str(n["id"]) == id:
 			return n
+	for n in EXTRA:
+		if str(n["id"]) == id:
+			return n
 	return {}
+
+
+static func is_extra(id: String) -> bool:
+	return int(node_by_id(id).get("spoke", 0)) == -2
 
 
 static func ids() -> Array:
@@ -121,14 +139,16 @@ static func ids() -> Array:
 
 static func cost_of(id: String) -> int:
 	var n := node_by_id(id)
-	return 0 if n.is_empty() else int(RING_COST[int(n["ring"])])
+	if n.is_empty():
+		return 0
+	return int(n["cost"]) if n.has("cost") else int(RING_COST[int(n["ring"])])
 
 
 ## El nodo que hay que tener antes: el del anillo de dentro del mismo hilo, y
 ## HYPER para el primer anillo. "" para HYPER.
 static func req_of(id: String) -> String:
 	var n := node_by_id(id)
-	if n.is_empty() or int(n["ring"]) == 0:
+	if n.is_empty() or int(n["ring"]) == 0 or int(n["spoke"]) == -2:
 		return ""
 	if int(n["ring"]) == 1:
 		return "hyper"

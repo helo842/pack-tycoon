@@ -78,6 +78,18 @@ var _inv_cells: Array = []
 var _locker_cells: Array = []
 ## Las lineas de bonus, en el orden de LootDB.kind_ids().
 var _stat_labels: Array = []
+## LOS MITICOS DE LA SUBASTA (ver Auction): la tira de la cabecera con los cinco
+## (tipo -> {holder, art, frame}), el boton del SELLO y si se esta eligiendo a que
+## objeto ponerselo.
+var _myth_cells: Dictionary = {}
+var _seal_btn: Button = null
+var _seal_mode := false
+
+## La tira de los miticos, en la cabecera entre el titulo y VENDER TODO.
+const MYTH_X0 := 744.0
+const MYTH_STEP := 72.0
+const MYTH_SIDE := 64.0
+const SEAL_CENTER := Vector2(1150, HEAD_Y)
 
 
 func _ready() -> void:
@@ -101,10 +113,12 @@ func _ready() -> void:
 	_build_inventory()
 	_build_locker()
 	_build_stats()
+	_build_mythics()
 
 	Game.inventory_changed.connect(refresh)
 	Game.locker_changed.connect(refresh)
 	Game.items_changed.connect(refresh)
+	Game.auction_changed.connect(refresh)
 	refresh()
 	# Al abrir, lo que hay en las fichas entra una detras de otra.
 	var arts: Array = []
@@ -220,6 +234,123 @@ func _build_locker() -> void:
 		_locker_cells.append({"holder": holder, "button": b})
 
 
+## Los cinco miticos (si se tiene alguno o algun sello): pulsar uno lo pone o lo
+## quita del armario (no se pierde nunca). Y el boton del sello.
+func _build_mythics() -> void:
+	if Game.mythics.is_empty() and Game.seals <= 0:
+		return
+	var cell_back := {}
+	for i in Auction.MYTHICS.size():
+		var kind := str(Auction.MYTHICS[i]["kind"])
+		var c := Vector2(MYTH_X0 + MYTH_STEP * float(i), HEAD_Y)
+		var frame := ColorRect.new()
+		frame.position = c - Vector2(MYTH_SIDE, MYTH_SIDE) * 0.5 - Vector2(4, 4)
+		frame.size = Vector2(MYTH_SIDE, MYTH_SIDE) + Vector2(8, 8)
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(frame)
+		var back := ColorRect.new()
+		back.position = c - Vector2(MYTH_SIDE, MYTH_SIDE) * 0.5
+		back.size = Vector2(MYTH_SIDE, MYTH_SIDE)
+		back.color = Palette.NIGHT_D
+		back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(back)
+		cell_back[kind] = back
+		var holder := Control.new()
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(holder)
+		var b := UIKit.hit_area(self, Rect2(c - Vector2(MYTH_SIDE, MYTH_SIDE) * 0.5,
+				Vector2(MYTH_SIDE, MYTH_SIDE)), "")
+		b.pressed.connect(_on_mythic.bind(kind))
+		_myth_cells[kind] = {"holder": holder, "frame": frame, "button": b, "center": c,
+			"back": cell_back[kind]}
+	_seal_btn = UIKit.small_button("Sello", "", SEAL_CENTER, 190, 21)
+	_seal_btn.tooltip_text = "Sello de autenticidad: +1 a la nota de un objeto del armario"
+	_seal_btn.pressed.connect(_on_seal)
+	add_child(_seal_btn)
+
+
+func _paint_mythics() -> void:
+	var activos := Game.mythics_active()
+	for kind in _myth_cells:
+		var cell: Dictionary = _myth_cells[kind]
+		var holder: Control = cell["holder"]
+		for ch in holder.get_children():
+			ch.queue_free()
+		var b: Button = cell["button"]
+		var frame: ColorRect = cell["frame"]
+		var back: ColorRect = cell["back"]
+		back.color = Palette.NIGHT_D if Game.mythics.has(kind) else Color8(176, 136, 92)
+		if not Game.mythics.has(kind):
+			# Sin ganar: un hueco de carton con la interrogacion.
+			frame.color = Palette.OUTLINE
+			holder.add_child(UIKit.label_at("?", cell["center"], Vector2(MYTH_SIDE, MYTH_SIDE), 35,
+					Color(0.18, 0.12, 0.10, 0.55)))
+			b.tooltip_text = "Mítico de %s: se gana en la subasta" % \
+					str(LootDB.kind_row(str(kind))["name"]).to_lower()
+			continue
+		var item: Dictionary = Game.mythics[kind]
+		var puesto := false
+		for a in activos:
+			if str(a["kind"]) == kind:
+				puesto = true
+		var art := UIKit.fit_art(str(item["art"]), cell["center"], Vector2(MYTH_SIDE, MYTH_SIDE) * 0.9)
+		art.modulate = Color.WHITE if puesto else Color(0.5, 0.5, 0.55, 0.8)
+		holder.add_child(art)
+		frame.color = Palette.GOLD_XL if puesto else Palette.CREAM_D
+		var estado := "en el armario" if puesto else ("guardado" if Game.mythic_off.has(kind)
+				else "esperando un hueco libre")
+		b.tooltip_text = "%s · Mítico · PSA %d (%s). Clic: %s" % [item["name"], int(item["grade"]),
+				estado, "quitarlo" if not Game.mythic_off.has(kind) else "ponerlo"]
+	if _seal_btn != null:
+		_set_seal_text()
+
+
+func _set_seal_text() -> void:
+	var t := "Sello x%d" % Game.seals
+	if _seal_mode:
+		t = "Elige objeto"
+	for ch in _seal_btn.get_children():
+		if ch is Label:
+			(ch as Label).text = t
+	_seal_btn.modulate = Color.WHITE if Game.seals > 0 else Color(0.55, 0.55, 0.62, 1.0)
+
+
+func _on_mythic(kind: String) -> void:
+	if not Game.mythics.has(kind):
+		Sound.play("sfx_error")
+		return
+	if _seal_mode:
+		_seal_done(Game.use_seal_on_mythic(kind))
+		return
+	Sound.click()
+	var puesto := Game.toggle_mythic(kind)
+	if puesto and not Game.mythics_active().has(Game.mythics[kind]):
+		Game.notice.emit("Se pondrá en cuanto haya un hueco libre", Palette.CREAM_D)
+
+
+func _on_seal() -> void:
+	if Game.seals <= 0:
+		Sound.play("sfx_error")
+		Game.notice.emit("No tienes sellos: se ganan en la subasta", Palette.RUST_L)
+		return
+	Sound.click()
+	_seal_mode = not _seal_mode
+	if _seal_mode:
+		Game.notice.emit("Elige un objeto del armario o un mítico", Palette.GOLD_XL)
+	_set_seal_text()
+
+
+func _seal_done(ok: bool) -> void:
+	_seal_mode = false
+	if ok:
+		Sound.play("sfx_rare")
+		Game.notice.emit("¡Sellado! +1 a la nota", Palette.GOLD_XL)
+	else:
+		Sound.play("sfx_error")
+		Game.notice.emit("Ese ya tiene la nota 10", Palette.RUST_L)
+	refresh()
+
+
 ## La nota de papel con lo que da el armario: una linea por tipo de botin (el
 ## total que da cada uno a su stat) y debajo la pista de como sube.
 func _build_stats() -> void:
@@ -262,10 +393,12 @@ func refresh() -> void:
 	if not is_node_ready():
 		return
 	_inv_label.text = "Inventario %d/%d" % [Game.inventory.size(), Game.INVENTORY_SLOTS]
-	_locker_label.text = "Armario %d/%d" % [Game.locker_size(), Game.locker_slots()]
+	_locker_label.text = "Armario %d/%d" % [Game.locker_size() + Game.mythics_active().size(),
+			Game.locker_slots()]
 	_paint_inventory()
 	_paint_locker()
 	_paint_stats()
+	_paint_mythics()
 
 
 func _paint_inventory() -> void:
@@ -304,6 +437,8 @@ func _paint_inventory() -> void:
 
 func _paint_locker() -> void:
 	var slots := Game.locker_slots()
+	# Detras de lo expuesto van los MITICOS que caben (se colocan solos).
+	var miticos := Game.mythics_active()
 	for i in _locker_cells.size():
 		var holder: Control = _locker_cells[i]["holder"]
 		var b: Button = _locker_cells[i]["button"]
@@ -320,6 +455,26 @@ func _paint_locker() -> void:
 			b.disabled = true
 			continue
 		back.modulate = Color.WHITE
+		var m := i - Game.locker.size()
+		if m >= 0 and m < miticos.size():
+			b.disabled = false
+			var mit: Dictionary = miticos[m]
+			holder.add_child(UIKit.image("rarity_glow_epic", Vector2(LOCK_CARD.x * 0.5, 66.0),
+					Vector2(150, 150)))
+			var dib := UIKit.fit_art(str(mit["art"]), Vector2(LOCK_CARD.x * 0.5, 66.0),
+					Vector2(104, 92))
+			holder.add_child(dib)
+			UIKit.bob(dib, 3.0, 2.8, float(i) * 0.21)
+			var que_m := _kind_bonus_text(LootDB.kind_of(mit), LootDB.bonus_for(mit))
+			holder.add_child(UIKit.label_at(que_m, Vector2(LOCK_CARD.x * 0.5, 128.0),
+					Vector2(LOCK_CARD.x - 12, 24), UIKit.fit_size(que_m, LOCK_CARD.x - 16, 21),
+					Palette.GOLD_D, HORIZONTAL_ALIGNMENT_CENTER))
+			holder.add_child(UIKit.label_at("Mítico", Vector2(LOCK_CARD.x * 0.5, 156.0),
+					Vector2(LOCK_CARD.x - 12, 24), 21, Color8(120, 60, 170),
+					HORIZONTAL_ALIGNMENT_CENTER))
+			b.tooltip_text = "%s · Mítico · PSA %d (%s). Clic: quitarlo (no se pierde)" % [
+					mit["name"], int(mit["grade"]), que_m]
+			continue
 		var hay := i < Game.locker.size()
 		b.disabled = not hay
 		if not hay:
@@ -404,6 +559,14 @@ func _expose(index: int) -> void:
 ## decision sin vuelta atras (el objeto no vale para otra cosa mientras esta ahi).
 func _take(index: int) -> void:
 	if index >= Game.locker.size():
+		# Un mitico: se quita (vuelve a su vitrina de la cabecera) o se sella.
+		var m := index - Game.locker.size()
+		var miticos := Game.mythics_active()
+		if m >= 0 and m < miticos.size():
+			_on_mythic(str(miticos[m]["kind"]))
+		return
+	if _seal_mode:
+		_seal_done(Game.use_seal_on_locker(index))
 		return
 	Sound.click()
 	if not Game.locker_take(index):

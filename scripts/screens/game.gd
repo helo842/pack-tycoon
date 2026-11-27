@@ -257,6 +257,13 @@ var _ascension: AscensionPanel = null
 var _van: Control = null
 var _van_bar: ColorRect = null
 var _market: BlackMarketPanel = null
+## LAS SUBASTAS: la furgoneta VIP (abajo a la izquierda de la mesa), su barra, la
+## sala abierta y el estante de pociones (arriba a la derecha de la mesa).
+var _vip_van: Control = null
+var _vip_bar: ColorRect = null
+var _auction: AuctionPanel = null
+var _shelf: Control = null
+var _shelf_cells: Dictionary = {}
 var _pets: PetPanel = null
 var _reveal: RevealCard = null
 var _auto_open_btn: Button = null
@@ -368,6 +375,11 @@ func _ready() -> void:
 	Game.table_provider = _snapshot_table
 	if Game.van_here():
 		_show_van()
+	if Game.auction_here():
+		_show_vip_van()
+	Game.auction_changed.connect(_refresh_shelf)
+	Game.auction_changed.connect(_refresh_locker)
+	_refresh_shelf()
 
 
 func _exit_tree() -> void:
@@ -1231,6 +1243,164 @@ func _hide_van() -> void:
 		_van_bar = null
 
 
+# --------------------------------------------------------------------------- #
+# Las subastas: la furgoneta VIP, la sala y el estante de pociones
+# --------------------------------------------------------------------------- #
+
+## Abajo a la IZQUIERDA de la mesa (la negra esta a la derecha) y un poco mas
+## arriba que ella: a su altura tapaba el rotulo del armario.
+const VIP_VAN_CENTER := Vector2(660, 790)
+
+
+## La furgoneta VIP (mockup B «Corona»): mira hacia la mesa, con su globo dorado y
+## su barra dorada de lo que le queda.
+func _show_vip_van() -> void:
+	if _vip_van != null:
+		return
+	_vip_van = Control.new()
+	_vip_van.name = "VipVan"
+	_vip_van.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_vip_van)
+	var art := UIKit.image("tree_vip_van", VIP_VAN_CENTER, VAN_SIZE)
+	art.flip_h = true
+	_vip_van.add_child(art)
+	UIKit.bob(art, 2.0, 1.4)
+	var bubble := Rect2(VIP_VAN_CENTER.x + 40.0, VIP_VAN_CENTER.y - 130.0, 240, 52)
+	var edge := ColorRect.new()
+	edge.position = bubble.position - Vector2(3, 3)
+	edge.size = bubble.size + Vector2(6, 6)
+	edge.color = Palette.OUTLINE
+	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vip_van.add_child(edge)
+	var paper := ColorRect.new()
+	paper.position = bubble.position
+	paper.size = bubble.size
+	paper.color = Palette.GOLD_XL
+	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vip_van.add_child(paper)
+	_vip_van.add_child(UIKit.label_at("¡Subasta VIP!", bubble.get_center(), bubble.size, 21,
+			Palette.OUTLINE))
+	var track := ColorRect.new()
+	track.position = Vector2(VIP_VAN_CENTER.x - 78.0, VIP_VAN_CENTER.y + 66.0)
+	track.size = Vector2(156, 14)
+	track.color = Palette.OUTLINE
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vip_van.add_child(track)
+	_vip_bar = ColorRect.new()
+	_vip_bar.position = track.position + Vector2(3, 3)
+	_vip_bar.size = Vector2(150, 8)
+	_vip_bar.color = Palette.GOLD_XL
+	_vip_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vip_van.add_child(_vip_bar)
+	var hit := UIKit.hit_area(_vip_van, Rect2(VIP_VAN_CENTER - VAN_SIZE * 0.5, VAN_SIZE),
+			"Subasta VIP")
+	hit.pressed.connect(_open_auction)
+	UIKit.pop_in([art])
+
+
+func _hide_vip_van() -> void:
+	if _vip_van != null:
+		_vip_van.queue_free()
+		_vip_van = null
+		_vip_bar = null
+
+
+func _open_auction() -> void:
+	if _auction != null:
+		return
+	var a := Game.auction_start()
+	if a == null:
+		return
+	Sound.click()
+	_auction = AuctionPanel.new(a)
+	_auction.closed.connect(_close_auction)
+	_main().push_veil(_auction)
+
+
+## Al salir de la sala (ganada, perdida o retirandose) la furgoneta se va.
+func _close_auction() -> void:
+	if _auction != null:
+		_main().pop_veil(_auction)
+		_auction = null
+	Game.auction_finished()
+	_hide_vip_van()
+
+
+const SHELF_POS := Vector2(1544, 150)
+const SHELF_STEP := 76.0
+const SHELF_BOTTLE := Vector2(72, 72)
+
+
+## EL ESTANTE DE POCIONES (mockup A): una balda colgada arriba a la derecha de la
+## mesa con los frascos de pie, su cantidad y, las tomadas, el tiempo debajo. Solo
+## sale si hay alguna pocion guardada o tomada. Clic en un frasco: tomarlo.
+func _refresh_shelf() -> void:
+	var hay := not Game.potions.is_empty() or not Game.potion_left.is_empty()
+	if not hay:
+		if _shelf != null:
+			_shelf.queue_free()
+			_shelf = null
+			_shelf_cells = {}
+		return
+	if _shelf == null:
+		_shelf = Control.new()
+		_shelf.name = "PotionShelf"
+		_shelf.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_shelf)
+		var balda := ColorRect.new()
+		balda.position = SHELF_POS + Vector2(-8, 76)
+		balda.size = Vector2(SHELF_STEP * 4.0 + 8.0, 12)
+		balda.color = Color8(110, 70, 40)
+		balda.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var borde := ColorRect.new()
+		borde.position = balda.position - Vector2(3, 3)
+		borde.size = balda.size + Vector2(6, 6)
+		borde.color = Palette.OUTLINE
+		borde.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_shelf.add_child(borde)
+		_shelf.add_child(balda)
+		for i in Auction.POTION_ORDER.size():
+			var id: String = Auction.POTION_ORDER[i]
+			var c := SHELF_POS + Vector2(SHELF_STEP * float(i) + SHELF_BOTTLE.x * 0.5, 38)
+			var glow := UIKit.image("rarity_glow_legendary", c, Vector2(120, 120))
+			_shelf.add_child(glow)
+			var art := UIKit.image(str(Auction.POTIONS[id]["art"]), c, SHELF_BOTTLE)
+			_shelf.add_child(art)
+			var count := UIKit.label_at("", c + Vector2(26, 26), Vector2(40, 24), 14, Palette.CREAM)
+			_shelf.add_child(count)
+			var left := UIKit.label_at("", c + Vector2(0, 64), Vector2(80, 24), 14, Palette.GOLD_XL)
+			_shelf.add_child(left)
+			var hit := UIKit.hit_area(_shelf, Rect2(c - SHELF_BOTTLE * 0.5, SHELF_BOTTLE),
+					"%s: %s" % [Auction.POTIONS[id]["name"], Auction.POTIONS[id]["desc"]])
+			hit.pressed.connect(_drink.bind(id))
+			_shelf_cells[id] = {"art": art, "glow": glow, "count": count, "left": left}
+	_paint_shelf()
+
+
+func _paint_shelf() -> void:
+	for id in _shelf_cells:
+		var c: Dictionary = _shelf_cells[id]
+		var n := Game.potion_count(str(id))
+		var activa := Game.potion_active(str(id))
+		(c["art"] as CanvasItem).modulate = Color.WHITE if n > 0 or activa \
+				else Color(0.35, 0.35, 0.4, 0.6)
+		(c["glow"] as CanvasItem).visible = activa
+		(c["count"] as Label).text = "x%d" % n if n > 0 else ""
+		var t := float(Game.potion_left.get(id, 0.0))
+		(c["left"] as Label).text = "%d:%02d" % [int(t) / 60, int(t) % 60] if activa else ""
+
+
+func _drink(id: String) -> void:
+	if not Game.drink_potion(id):
+		Sound.play("sfx_error")
+		Game.notice.emit("No te quedan de esa", Palette.RUST_L)
+		return
+	Sound.play("sfx_tool")
+	_main().banner(str(Auction.POTIONS[id]["name"]), str(Auction.POTIONS[id]["desc"]))
+	if _shelf_cells.has(id):
+		UIKit.punch(_shelf_cells[id]["art"], 1.4)
+
+
 func _open_market() -> void:
 	if _market != null or not Game.van_here():
 		return
@@ -1356,6 +1526,11 @@ func _on_element_opened(pack_id: String, el: TableElement) -> void:
 		# EL SOBRE DORADO y EL JEFE traen la nota alta: se vuelve a tirar hasta
 		# llegar al minimo (con la misma regla que la lupa del tasador, que escala
 		# el valor).
+		# LA POCION DE SUERTE (subasta): la nota se tira dos veces y se queda la mejor.
+		if Game.potion_active("luck"):
+			var otra := Game.regrade(item)
+			if int(otra["grade"]) > int(item["grade"]):
+				item = otra
 		var vueltas := 0
 		while int(item["grade"]) < min_grade and vueltas < 200:
 			item = Game.regrade(item)
@@ -1536,6 +1711,8 @@ func _on_element_damaged(amount: float, crit: bool, el: TableElement) -> void:
 func _process(delta: float) -> void:
 	_refresh_event_band()
 	_refresh_abilities()
+	if _shelf != null and not Game.potion_left.is_empty():
+		_paint_shelf()
 	if _reveal != null:
 		return
 	_golden_step(delta)
@@ -1635,7 +1812,8 @@ func _auto_buy_step() -> void:
 	# compra seguia gastando por debajo del panel y el numero bajaba mientras se
 	# leia. Ni con los ajustes, por lo mismo que con la tienda.
 	if not table_free() or _shop != null or _auto_buy_panel != null or _locker != null \
-			or _reveal != null or _rebirth != null or _settings != null or _libreta != null:
+			or _reveal != null or _rebirth != null or _settings != null or _libreta != null \
+			or _auction != null:
 		return
 	var best := ""
 	var best_price := 1 << 60
@@ -1932,9 +2110,11 @@ func _refresh_rebirth() -> void:
 ## La tira de la vitrina: el rotulo y los ocho huecos.
 func _refresh_locker() -> void:
 	if is_instance_valid(_locker_label):
-		_locker_label.text = "Armario: %d/%d expuestos" % [Game.locker_size(),
-				Game.locker_slots()]
+		_locker_label.text = "Armario: %d/%d expuestos" % [Game.locker_size()
+				+ Game.mythics_active().size(), Game.locker_slots()]
 	var slots := Game.locker_slots()
+	# Lo expuesto y detras los MITICOS que caben (se colocan solos).
+	var vitrina: Array = Game.locker + Game.mythics_active()
 	for i in _locker_slots.size():
 		var holder: Control = _locker_slots[i]["holder"]
 		var b: Button = _locker_slots[i]["button"]
@@ -1945,9 +2125,12 @@ func _refresh_locker() -> void:
 		var back := holder.get_node_or_null("Back") as TextureRect
 		if back != null:
 			back.modulate = Color.WHITE if i < slots else Color(0.35, 0.35, 0.4, 1.0)
-		if i >= Game.locker.size():
+		if i >= vitrina.size():
 			continue
-		var item: Dictionary = Game.locker[i]
+		var item: Dictionary = vitrina[i]
+		if bool(item.get("mythic", false)):
+			holder.add_child(UIKit.image("rarity_glow_epic", Vector2(LOCK_SIDE, LOCK_SIDE) * 0.5,
+					Vector2(LOCK_SIDE, LOCK_SIDE)))
 		# fit_art y no square: los objetos no llenan igual su lienzo y escalados
 		# por el lienzo se verian de tres tamanos distintos en la misma fila.
 		var dibujo := UIKit.fit_art(str(item.get("art", "loot_vinyl")),
@@ -1988,6 +2171,15 @@ func _events_step(delta: float) -> void:
 			_hide_van()
 	if _van != null:
 		_van_bar.size.x = 150.0 * clampf(Game.van_left / BlackMarket.VAN_LIFE, 0.0, 1.0)
+	match Game.auction_step(delta):
+		"llega":
+			_show_vip_van()
+			Sound.play("sfx_rare")
+			_main().banner("Subasta VIP", "Pincha la furgoneta roja antes de que se vaya")
+		"se_va":
+			_hide_vip_van()
+	if _vip_van != null:
+		_vip_bar.size.x = 150.0 * clampf(Game.auction_left / Auction.VAN_LIFE, 0.0, 1.0)
 	_golden_timer -= delta
 	if _golden_timer <= 0.0:
 		_golden_timer = Gameplay.between(_rng, Gameplay.GOLDEN_EVERY) \
@@ -2414,7 +2606,7 @@ func _table_clear() -> bool:
 	return _reveal == null and _settings == null and _locker == null \
 			and _shop == null and _rebirth == null and _auto_buy_panel == null \
 			and _libreta == null and _pets == null and _ascension == null \
-			and _market == null
+			and _market == null and _auction == null
 
 
 ## "2.10" -> "2.1"

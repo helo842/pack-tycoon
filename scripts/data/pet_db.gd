@@ -72,6 +72,16 @@ const MACHINES: Array = [
 		{"id": "golem", "name": "Golem", "stat": "damage", "per_level": 1.60,
 			"rarity": "legendary"},
 	]},
+	# LAS EXCLUSIVAS DE SUBASTA: no es una maquina de verdad ("gacha": false, no se
+	# tira): solo salen del HUEVO que se gana en la subasta (ver Auction). Sus
+	# efectos son del mercado negro y de la propia subasta.
+	{"id": "auction", "name": "Subasta", "suffix": "_auction", "cost": 0, "currency": "auction",
+		"gacha": false, "pets": [
+		{"id": "crow", "name": "Cuervo", "stat": "bm_price", "per_level": 0.08, "rarity": "rare"},
+		{"id": "raccoon", "name": "Mapache", "stat": "bm_raid", "per_level": 0.12,
+			"rarity": "rare"},
+		{"id": "rat", "name": "Rata", "stat": "rival", "per_level": 0.06, "rarity": "rare"},
+	]},
 ]
 
 const RARITY_WEIGHT := {"common": 30, "rare": 15, "legendary": 5}
@@ -82,7 +92,11 @@ const STAT_NAMES := {
 	"damage": ["Daño", "Daño"], "speed": ["Velocidad", "Velocidad"],
 	"crit": ["De crítico", "Crítico"], "luck": ["Suerte", "Suerte"],
 	"spikes": ["Pinchos", "Pinchos"],
+	"bm_price": ["Precio de las cajas", "Cajas"], "bm_raid": ["Redadas", "Redadas"],
+	"rival": ["Tope de los rivales", "Rivales"],
 }
+## Los stats que se BAJAN (se escriben con un menos delante).
+const LESS_STATS := ["bm_price", "bm_raid", "rival"]
 
 ## Todas las mascotas de todas las maquinas, cada una con su "machine", su
 ## "weight" y su "art" (tree_pet_<id>). Las ids son las de siempre para las de la
@@ -124,7 +138,8 @@ static func pet_by_id(id: String) -> Dictionary:
 ## `short` usa el nombre corto, para que quepa en la ficha.
 static func bonus_text(p: Dictionary, level: int, short := false) -> String:
 	var que: String = str(STAT_NAMES[str(p["stat"])][1 if short else 0]).to_lower()
-	return "+%d%% %s" % [roundi(float(p["per_level"]) * float(maxi(level, 1)) * 100.0), que]
+	return "%s%d%% %s" % ["-" if LESS_STATS.has(str(p["stat"])) else "+",
+			roundi(float(p["per_level"]) * float(maxi(level, 1)) * 100.0), que]
 
 
 ## Una mascota al azar por su peso, entre las de la maquina `machine_id` que NO

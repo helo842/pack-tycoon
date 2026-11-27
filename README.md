@@ -749,6 +749,77 @@ entero de 24,7 h a **14,2 h**; con ^0,5, a 20,3 h; con **^0,3**, a 22,8 h, y con
 subida del árbol a ×1,30 vuelve a **24,6 h**. La nota PSA no cambia la media.
 `dev/probe_market.gd` saca capturas de la furgoneta, el maletín y los resultados.
 
+#### Las subastas (la furgoneta VIP, 2026-11-27)
+
+Fases 2 y 3 del mercado negro (diseño en el vault, `Juego/Mercado negro.md`). Se
+abren con el hexágono **SUBASTA** de la ascensión (`AscensionTree.AUCTION`, en
+`AscensionTree.EXTRA`): **3 puntos**, no pide nada antes y está **fuera de la
+telaraña** (en el hueco entre los hilos de Dinero y Rebirth, sin hilo). No cuenta
+para completarla: `AscensionTree.ids()` y el simulador solo miran `NODES`.
+
+Desde entonces una **furgoneta roja y dorada** (mockup B «Corona»: la forma de la
+negra con molduras doradas, cortinas y corona en la baca) aparca **abajo a la
+izquierda** de la mesa cada **16-20 min de juego** y se queda **90 s**
+(`Auction.VAN_*`). Es otra furgoneta que la negra: su reloj es suyo
+(`Game.auction_next`, `auction_left`), se guarda y no se reinicia con el rebirth.
+Trae **un lote** (`Game.auction_lot`) y se puja una vez por visita: pulsarla abre la
+**sala de subastas** (`AuctionPanel`, estilo B de los mockups): el lote en un
+pedestal bajo el foco, la pizarra con la puja actual y quién la lleva, el reloj, el
+botón **Pujar +10 %** y dos pujadores inventados con su paleta.
+
+- **El reloj** empieza en **20 s** y cada puja (tuya o de un rival) le suma **5 s**,
+  sin pasar de 20. Cada rival tiene un **tope secreto** (1,3-2,6 × el precio de
+  salida) y se retira al llegar a él.
+- **Solo paga quien gana**: perder no cuesta nada. Al acabar cae un **sello** sobre el
+  lote (mockup A del resultado): dorado «¡Tuyo!» o rojo con el nombre del rival.
+  Cerrar la sala a media puja es retirarse; la furgoneta se va igual.
+- **El precio de salida** va por el sobre más caro de la partida (como las cajas del
+  mercado negro) por el «start» del lote.
+
+| Lote | Peso | Salida | Qué da |
+|---|---:|---:|---|
+| Poción Dinero x2 | 14 | ×3 | x2 de dinero 5 min |
+| Poción Furia | 14 | ×3 | x3 de daño 3 min |
+| Poción Suerte | 12 | ×3 | x2 de suerte y la nota se tira dos veces (la mejor) 5 min |
+| Lluvia de monedas | 10 | ×3 | x1,5 monedas en cada rebirth durante 5 min |
+| Mítico | 14 | ×12 | uno de los cinco, con su nota (la mejor de dos tiradas) |
+| Sello de autenticidad | 12 | ×4 | +1 a la nota de un objeto del armario (máx. 10) |
+| Lote a ciegas | 14 | ×5 | 20 % un mítico; si no, basura vendida por el 15 % de lo pagado |
+| Huevo exclusivo | 10 | ×6 | Cuervo, Mapache o Rata (no sale si están al máximo) |
+| **Estrella fugaz** | 13 | ×8 | **+1 punto de ascensión** |
+
+- **Las pociones se guardan** en el **estante** colgado arriba a la derecha de la mesa
+  (mockup A; sale si hay alguna) y se toman con un clic. Dos iguales **suman tiempo**;
+  dos distintas van a la vez (`Game.potions`, `potion_left`, que corre en tiempo
+  jugado en `Game._tick_play`). Las activas brillan con el tiempo debajo.
+- **Los míticos** (`Auction.MYTHICS`: Carta primigenia, Máster original, Par cero,
+  Consola de oro y Osito número uno, con dibujo propio y sus diez notas, `myth_*` en
+  `tools/loot_designs.py`) **no se pierden nunca** (`Game.mythics`, tipo → objeto).
+  Ocupan un **hueco normal** del armario y **se colocan solos**: van primero en cuanto
+  hay hueco (`Game.mythics_active`) y los que no caben esperan. Se quitan y se ponen
+  desde su tira de la cabecera del armario (`Game.mythic_off`). En el armario valen
+  **2,5 legendarios** (`Auction.MYTHIC_LOCKER` en `LootDB.bonus_for`) del escalón 5. Si
+  ganas uno de un tipo que ya tienes, se queda el de mejor nota y el otro se vende.
+- **El sello** se guarda (`Game.seals`) y se pone a mano: botón «Sello» del armario y
+  clic en un objeto expuesto o en un mítico (`Auction.sealed`, con su dibujo nuevo).
+- **Las tres mascotas exclusivas** son la quinta página de MASCOTAS («Subasta», sin
+  máquina: `PetDB` máquina `auction` con `"gacha": false`) y bajan cosas: **Cuervo**
+  −8 % el precio de las cajas por nivel, **Mapache** −12 % las redadas, **Rata** −6 % el
+  tope de los rivales. Como las demás, solo dan su efecto equipadas.
+- **Lo ganado no se pierde** ni al ascender (solo `hard_reset`).
+
+**El equilibrio** (`BalanceTest ascension`, con el jugador simulado que compra la
+subasta en cuanto tiene 3 puntos después de HYPER, en la 6.ª ascensión). Sin la
+Estrella fugaz, comprarla alargaba el juego entero de **24,6 h a 36,7 h**: esos 3
+puntos retrasan la telaraña, cada ascensión de más sube el árbol un 30 %, y lo demás
+(dinero, míticos) apenas mueve el final del juego, donde mandan los puntos y las
+monedas (que van con la raíz cuarta del dinero). Con la estrella (peso 13): **23,3 h**
+el normal, **21,3** el optimizado y **21,4** el automático; sin comprarla, 24,6 h como
+siempre (`sin_subasta`). La estrella entra en el simulador por su **valor esperado**:
+con el dado, una estrella de más o de menos en mal momento movía el total de 15 a 31 h.
+La Lluvia se toma justo antes de reiniciar. Los huevos no se miden (las mascotas no se
+simulan). `dev/probe_market.gd` saca también las capturas de la subasta (35-41).
+
 #### La tienda pro (cajas de después de ascender)
 
 En cuanto se ha ascendido una vez (`Game.pro_shop_shown`), la columna de sobres
@@ -1305,7 +1376,8 @@ G=/ruta/a/Godot_v4.7.2-stable_linux.x86_64
 # juega rápido, compra bien y pone el PC y los Pinchos. Con `trace buys` saca
 # además cada compra de una partida.
 $G --headless --path . res://dev/BalanceTest.tscn
-# El juego entero (árboles, ascensiones y telaraña): ~24,6 h el normal.
+# El juego entero (árboles, ascensiones y telaraña): ~24,6 h el normal sin la
+# subasta y ~23,3 h comprándola pronto (`sin_subasta`, `sin_mercado` para comparar).
 $G --headless --path . res://dev/BalanceTest.tscn ascension
 
 # Prueba de integración: recorre el bucle entero sin ratón y dice qué falla.

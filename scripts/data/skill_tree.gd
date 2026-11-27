@@ -191,7 +191,7 @@ const STAT_NAME := {
 	"locker": "Armario",
 	"spikes": "Pinchos",
 	"streak": "Racha",
-	"sweet": "Zona oro",
+	"sweet": "Zona dorada",
 	"combo": "Combo",
 	"happy": "Hora feliz",
 	"boss": "Tiempo jefe",
@@ -265,7 +265,7 @@ const NODES: Array = [
 		"pos": Vector2(0, 0), "art": "tree_money", "req": "",
 		"desc": "Vendes más y sales con 25.000",
 		"detail": "Todo lo que vendes vale un 50 % más y cada partida empieza"
-			+ " con 25.000 en vez de 500. Es la puerta del árbol: nada se"
+			+ " con 25.000 de dinero más. Es la puerta del árbol: nada se"
 			+ " abre sin ella.",
 		"effect": "Trastienda",
 	},
@@ -273,35 +273,34 @@ const NODES: Array = [
 		"id": "damage", "stat": "damage", "value": 0.20, "cost": COST_BRANCH,
 		"pos": Vector2(-SEP.x, -SEP.y), "art": "tree_damage", "req": "money",
 		"desc": "Los sobres caen antes",
-		"detail": "Multiplica el daño de cada golpe, o sea lo que tarda un sobre"
-			+ " en abrirse. Se suma a las cartas del armario. Los pinchos van"
-			+ " por su cuenta.",
+		"detail": "Un 20 % más de daño en cada golpe: los sobres se abren con"
+			+ " menos golpes. Se multiplica con las cartas del armario. A los"
+			+ " pinchos no les afecta.",
 		"effect": "Bate",
 	},
 	{
 		"id": "speed", "stat": "speed", "value": 0.20, "cost": COST_BRANCH,
 		"pos": Vector2(SEP.x, -SEP.y), "art": "tree_speed", "req": "money",
 		"desc": "Cada golpe tarda menos",
-		"detail": "Multiplica la velocidad con la que avanza la cola de la mesa."
-			+ " Se suma a lo que dan las zapatillas del armario.",
+		"detail": "La carga del golpe va un 20 % más rápida: los golpes salen"
+			+ " más seguidos. Se multiplica con las zapatillas del armario.",
 		"effect": "Reflejos",
 	},
 	{
 		"id": "locker", "stat": "locker", "value": 2.0, "cost": COST_BRANCH,
 		"pos": Vector2(-SEP.x, SEP.y), "art": "tree_locker", "req": "money",
 		"desc": "Dos huecos más para exponer",
-		"detail": "Dos huecos más de armario, o sea dos objetos expuestos más:"
-			+ " el armario reparte los bonus de daño, velocidad, dinero y"
-			+ " rebirth.",
+		"detail": "Dos huecos más de armario (sin pasar de ocho): dos objetos"
+			+ " expuestos más, con su bonus de daño, velocidad, dinero, monedas"
+			+ " de rebirth o suerte.",
 		"effect": "Escaparate",
 	},
 	{
 		"id": "spikes", "stat": "spikes", "value": 0.30, "cost": COST_BRANCH,
 		"pos": Vector2(SEP.x, SEP.y), "art": "tree_spikes", "req": "money",
 		"desc": "Pinchos que hacen más daño",
-		"detail": "Multiplica el daño de los pinchos, que se reparte entre los"
-			+ " sobres de la mesa. Sin el PC y los pinchos no hay nada que"
-			+ " subir.",
+		"detail": "Un 30 % más de daño de los pinchos, que se reparte entre los"
+			+ " sobres de la mesa. Sin los pinchos de la tienda no hace nada.",
 		"effect": "Espinas",
 	},
 
@@ -316,9 +315,8 @@ const NODES: Array = [
 		"pos": Vector2(-SEP.x * 2.0, -SEP.y * 2.0), "art": "tree_damage_2",
 		"req": "damage",
 		"desc": "Los sobres caen aún antes",
-		"detail": "Otro 25 % de daño encima del camino de arriba. Se suma a él"
-			+ " y a las cartas del armario: con el camino y este, el golpe va"
-			+ " por encima del doble.",
+		"detail": "Otro 25 % de daño, que se suma al nodo de arriba: entre los"
+			+ " dos, un 45 % más por golpe.",
 		"effect": "Palanca",
 	},
 	{
@@ -326,18 +324,17 @@ const NODES: Array = [
 		"pos": Vector2(-SEP.x * 3.0, -SEP.y * 3.0), "art": "tree_damage_3",
 		"req": "damage_2",
 		"desc": "El golpe más duro del árbol",
-		"detail": "El fondo del camino del daño: 35 % más, que con los dos"
-			+ " nodos de arriba es casi el doble de lo que pegas sin el"
-			+ " árbol. Los pinchos van por su camino.",
+		"detail": "Otro 35 % de daño: con los dos nodos de arriba, un 80 % más"
+			+ " por golpe. A los pinchos no les afecta.",
 		"effect": "Maza",
 	},
 	{
 		"id": "speed_2", "stat": "speed", "value": 0.25, "cost": COST_BRANCH2,
 		"pos": Vector2(SEP.x * 2.0, -SEP.y * 2.0), "art": "tree_speed_2",
 		"req": "speed",
-		"desc": "La cola de la mesa acelera",
-		"detail": "Otro 25 % de velocidad encima del camino de arriba, que se"
-			+ " suma a él y a las zapatillas del armario.",
+		"desc": "Los golpes aún más seguidos",
+		"detail": "Otro 25 % de velocidad de carga, que se suma al nodo de"
+			+ " arriba: entre los dos, un 45 % más.",
 		"effect": "Carrerilla",
 	},
 	{
@@ -345,9 +342,8 @@ const NODES: Array = [
 		"pos": Vector2(SEP.x * 3.0, -SEP.y * 3.0), "art": "tree_speed_3",
 		"req": "speed_2",
 		"desc": "La mesa no para",
-		"detail": "El fondo del camino de la velocidad: 35 % más, que con los"
-			+ " dos nodos de arriba es casi el doble de rápido que sin el"
-			+ " árbol. Si la carga ya va a tope, lo que sobra se vuelve daño.",
+		"detail": "Otro 35 % de velocidad: con los dos nodos de arriba, un 80 %"
+			+ " más. Si la carga ya va a tope, lo que sobra se vuelve daño.",
 		"effect": "Velocista",
 	},
 	{
@@ -355,19 +351,17 @@ const NODES: Array = [
 		"pos": Vector2(SEP.x * 2.0, SEP.y * 2.0), "art": "tree_spikes_2",
 		"req": "spikes",
 		"desc": "Los pinchos pican más",
-		"detail": "Otro 35 % de daño de pinchos encima del camino de arriba."
-			+ " Se reparte entre los sobres de la mesa, así que con la mesa"
-			+ " llena es donde más se nota.",
+		"detail": "Otro 35 % de daño de pinchos, que se suma al nodo de arriba:"
+			+ " entre los dos, un 65 % más.",
 		"effect": "Cardo",
 	},
 	{
 		"id": "spikes_3", "stat": "spikes", "value": 0.50, "cost": COST_BRANCH3,
 		"pos": Vector2(SEP.x * 3.0, SEP.y * 3.0), "art": "tree_spikes_3",
 		"req": "spikes_2",
-		"desc": "Pinchos de fin de partida",
-		"detail": "El fondo del camino de los pinchos: 50 % más, el nodo más"
-			+ " fuerte del árbol en porcentaje. Con los dos de arriba los"
-			+ " pinchos pegan más que nada.",
+		"desc": "Pinchos aún más fuertes",
+		"detail": "Otro 50 % de daño de pinchos: con los dos nodos de arriba,"
+			+ " un 115 % más.",
 		"effect": "Cactus",
 	},
 
@@ -378,7 +372,7 @@ const NODES: Array = [
 		"req": "locker",
 		"desc": "El rebirth pide menos",
 		"detail": "El rebirth se puede hacer con un 15 % menos de dinero en el"
-			+ " contador. Las monedas se cuentan igual.",
+			+ " contador. Las monedas salen del dinero que tengas, como siempre.",
 		"effect": "Regateo",
 	},
 	{
@@ -428,8 +422,8 @@ const NODES: Array = [
 		"pos": Vector2(0, QOL_STEP * 2.0), "art": "tree_qol_carry",
 		"req": QOL_AUTOSTORE,
 		"desc": "El golpe que sobra no se tira",
-		"detail": "El daño que le sobra a un golpe pasa al siguiente sobre"
-			+ " que golpees. Con la caja a un toque, ese golpe ya no se pierde.",
+		"detail": "Si un golpe rompe un sobre y le sobra daño, lo que sobra"
+			+ " se suma al siguiente sobre que golpees.",
 		"effect": "Sobrante",
 	},
 	# LAS COMPRAS AUTOMATICAS DE LA TIENDA: APRENDIZ y AMULETO bajan por la
@@ -469,9 +463,10 @@ const NODES: Array = [
 		"id": QOL_LOCKER, "stat": QOL_STAT, "value": 1.0, "cost": COST_QOL_LOCKER,
 		"pos": Vector2(QOL_WIDE, QOL_STEP * 2.0), "art": "tree_qol_locker",
 		"req": QOL_AUTOSTORE,
-		"desc": "Exponer ya no es comparar",
-		"detail": "Al exponer algo, si ya hay una pieza de su tipo entra la"
-			+ " mejor. La peor vuelve al inventario.",
+		"desc": "El armario lleno se ordena solo",
+		"detail": "Con el armario lleno, al exponer algo se cambia por la pieza"
+			+ " de su tipo que menos da, si la nueva da más. La otra vuelve al"
+			+ " inventario.",
 		"effect": "Armario solo",
 	},
 	{
@@ -535,8 +530,8 @@ const NODES: Array = [
 		"id": "combo", "stat": "combo", "value": 1.0, "cost": COST_COMBO,
 		"pos": Vector2(-SIDE_START, 0), "art": "tree_combo", "req": "money",
 		"desc": "El combo aguanta más",
-		"detail": "El tiempo entre sobre y sobre para no perder el combo de"
-			+ " apertura dura el doble.",
+		"detail": "Tienes el doble de tiempo entre un sobre roto y el siguiente"
+			+ " para no perder el combo.",
 		"effect": "Ritmo",
 	},
 	{
@@ -607,7 +602,7 @@ const NODES: Array = [
 		"pos": Vector2(SEP.x * 4.0, -SEP.y * 4.0), "art": "tree_cap_speed",
 		"req": "speed_3", "scale": CAP_SCALE,
 		"desc": "Fin del camino de velocidad",
-		"detail": "Un 60 % más de velocidad de golpe, encima de todo el camino."
+		"detail": "Un 60 % más de velocidad de carga, encima de todo el camino."
 			+ " Si la carga ya va a tope, lo que sobra se vuelve daño.",
 		"effect": "Turbo",
 	},
@@ -763,7 +758,12 @@ static func total_text(stat: String, total: float) -> String:
 		return "%d huecos de armario" % roundi(total)
 	if stat == COINS_STAT:
 		return "%d moneda extra" % roundi(total)
-	return "+%d %% de %s" % [roundi(total * 100.0), str(STAT_NAME[stat]).to_lower()]
+	# La rebaja BAJA lo que pide el rebirth: escrita como "+15 % de rebaja" no se
+	# entendia.
+	if stat == "require":
+		return "-%d %% de requisito" % roundi(total * 100.0)
+	return "+%d %% de %s" % [roundi(total * 100.0),
+			str(STAT_NAME[stat]).to_lower().replace("vip", "VIP")]
 
 
 ## Como se escribe el efecto de un nodo: "+30 % DE DINERO", "+2 HUECOS DE

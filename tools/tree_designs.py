@@ -1495,7 +1495,233 @@ def draw_bm_box_case(s) -> None:
     s.ellipse(26, 21, 29, 24, TRANSPARENT)
 
 
+# --------------------------------------------------------------------------- #
+# LAS SUBASTAS: el hexagono, la furgoneta VIP, las pociones, los lotes, las
+# mascotas exclusivas y los rivales de la sala (scripts/data/auction.gd)
+# --------------------------------------------------------------------------- #
+
+def draw_asc_auction(s) -> None:
+    """SUBASTA: el mazo de madera dorado sobre su taco."""
+    s.rect(5, 23, 26, 27, BROWN)                              # el taco
+    s.rect(5, 23, 26, 23, BROWN_L)
+    s.rect(5, 27, 26, 27, BROWN_D)
+    s.poly([(9, 6), (15, 2), (21, 11), (15, 15)], GOLD)       # la cabeza del mazo
+    s.poly([(9, 6), (15, 2), (16, 4), (10, 8)], GOLD_HI)
+    s.poly([(15, 15), (21, 11), (20, 13), (16, 16)], GOLD_D)
+    s.line([(17, 12), (26, 21)], BROWN_D, 2)                  # el mango
+    s.line([(17, 11), (26, 20)], BROWN_L, 1)
+    s.dots([(5, 18), (7, 16), (24, 7), (27, 9)], GOLD_HI)     # el golpe
+
+
+def draw_vip_van(s) -> None:
+    """La furgoneta VIP: la forma de la negra en rojo, molduras doradas, cortinas y
+    corona en la baca (mockup B, elegido el 2026-11-27)."""
+    s.rect(2, 11, 29, 23, RED)
+    s.rect(2, 11, 29, 12, RED_L)
+    s.poly([(2, 23), (2, 16), (5, 12), (9, 12), (9, 23)], RED)
+    s.poly([(4, 16), (6, 13), (9, 13), (9, 16)], NIGHT_LL)
+    s.rect(11, 13, 19, 17, CREAM)                             # ventanilla con cortinas
+    s.rect(11, 13, 12, 17, RED_D)
+    s.rect(18, 13, 19, 17, RED_D)
+    s.rect(11, 13, 19, 13, GOLD)
+    s.rect(2, 18, 29, 18, GOLD_XL)                            # molduras
+    s.rect(2, 21, 29, 21, GOLD)
+    s.rect(21, 13, 28, 20, RED_D)                             # puertas de atras
+    s.rect(24, 13, 24, 20, GOLD_D)
+    s.rect(12, 9, 26, 10, GOLD_D)                             # la baca
+    s.poly([(15, 9), (15, 5), (17, 7), (19, 4), (21, 7), (23, 5), (23, 9)], GOLD_XL)
+    s.px(19, 6, RED_L)
+    s.dots([(16, 8), (22, 8)], GOLD_HI)
+    s.rect(2, 19, 3, 20, GOLD_HI)                             # faro
+    s.rect(28, 19, 29, 20, RED_L)
+    s.rect(2, 22, 29, 23, RED_D)
+    for cx in (8, 24):                                        # ruedas con tapacubos
+        s.ellipse(cx - 3, 20, cx + 3, 26, DARK_SOFT)
+        s.ellipse(cx - 1, 22, cx + 1, 24, GOLD_XL)
+
+
+def _flask(s, liquid, liquid_l, liquid_d) -> None:
+    """El frasco de las pociones: corcho, cuello y la bola llena."""
+    s.rect(13, 2, 18, 5, BROWN_L)                             # corcho
+    s.rect(13, 5, 18, 5, BROWN)
+    s.rect(12, 6, 19, 10, TEAL_L)                             # cuello de cristal
+    s.rect(12, 6, 12, 10, WHITE)
+    s.ellipse(5, 9, 26, 29, TEAL_L)                           # la bola
+    s.ellipse(6, 13, 25, 28, liquid)
+    s.ellipse(6, 13, 25, 16, liquid_l)                        # la superficie
+    s.ellipse(9, 22, 24, 28, liquid_d)
+    s.line([(8, 14), (7, 19)], WHITE)                         # reflejo
+    s.px(9, 12, WHITE)
+
+
+def draw_potion_money(s) -> None:
+    """Pocion Dinero x2: oro liquido con una moneda dentro."""
+    _flask(s, GOLD, GOLD_XL, GOLD_D)
+    _coin(s, 13, 17, 6)
+
+
+def draw_potion_fury(s) -> None:
+    """Pocion de Furia: roja, con la llama."""
+    _flask(s, RED, RED_L, RED_D)
+    s.poly([(15, 25), (11, 21), (13, 17), (14, 19), (16, 15), (18, 19), (20, 21)], GOLD_XL)
+    s.poly([(15, 25), (13, 22), (15, 19), (17, 22)], GOLD_HI)
+
+
+def draw_potion_luck(s) -> None:
+    """Pocion de Suerte: verde, con el trebol de cuatro hojas."""
+    _flask(s, GREEN, GREEN_L, GREEN_D)
+    for x, y in ((12, 17), (16, 17), (12, 21), (16, 21)):
+        s.ellipse(x, y, x + 3, y + 3, GREEN_L)
+    s.rect(15, 21, 15, 26, GREEN_D)
+    s.px(14, 20, WHITE)
+
+
+def draw_potion_rain(s) -> None:
+    """Lluvia de monedas: turquesa, con monedas cayendo."""
+    _flask(s, TEAL, TEAL_L, TEAL_D)
+    for x, y in ((10, 17), (16, 20), (13, 23), (19, 16)):
+        s.ellipse(x, y, x + 3, y + 3, GOLD_XL)
+        s.px(x + 1, y + 1, GOLD_HI)
+
+
+def draw_auction_mythic(s) -> None:
+    """El lote MITICO: un marco dorado sobre terciopelo con la interrogacion."""
+    s.rect(4, 3, 27, 28, GOLD)
+    s.rect(4, 3, 27, 4, GOLD_HI)
+    s.rect(4, 27, 27, 28, GOLD_D)
+    s.rect(7, 6, 24, 25, PURPLE_D)
+    s.rect(8, 7, 23, 24, PURPLE)
+    s.rect(13, 10, 18, 11, GOLD_XL)                           # la ?
+    s.rect(18, 11, 19, 15, GOLD_XL)
+    s.rect(15, 15, 17, 17, GOLD_XL)
+    s.rect(15, 20, 16, 21, GOLD_XL)
+    s.dots([(10, 9), (21, 22), (22, 9)], PURPLE_L)
+
+
+def draw_auction_seal(s) -> None:
+    """El SELLO de autenticidad: lacre rojo con cintas doradas."""
+    s.poly([(10, 18), (6, 29), (10, 27), (13, 30), (15, 20)], GOLD)      # cintas
+    s.poly([(21, 18), (25, 29), (21, 27), (18, 30), (16, 20)], GOLD_D)
+    s.ellipse(5, 3, 26, 23, RED_D)                            # el lacre
+    s.ellipse(6, 4, 25, 22, RED)
+    s.ellipse(10, 8, 21, 18, RED_D)
+    s.rect(13, 11, 18, 12, GOLD_XL)                           # el 10 grabado
+    s.dots([(12, 13), (13, 14), (15, 15), (17, 14), (19, 13)], GOLD_XL)
+    s.dots([(9, 6), (8, 8)], RED_L)
+
+
+def draw_auction_blind(s) -> None:
+    """El LOTE A CIEGAS: un paquete de papel de estraza atado con cuerda."""
+    s.rect(4, 8, 27, 27, CARD)
+    s.rect(4, 8, 27, 9, CARD_L)
+    s.rect(4, 26, 27, 27, BROWN)
+    s.rect(15, 8, 16, 27, CREAM_D)                            # la cuerda
+    s.rect(4, 16, 27, 17, CREAM_D)
+    s.ellipse(11, 3, 15, 8, CREAM_D)                          # el lazo
+    s.ellipse(16, 3, 20, 8, CREAM_D)
+    s.rect(19, 19, 25, 25, CREAM_L)                           # la etiqueta del ?
+    s.rect(21, 20, 23, 20, RED)
+    s.dots([(23, 21), (22, 22)], RED)
+    s.px(22, 24, RED)
+
+
+def draw_auction_egg(s) -> None:
+    """El HUEVO exclusivo: crema con motas rojas y doradas, en su nido."""
+    s.ellipse(4, 21, 27, 29, BROWN)                           # el nido
+    s.ellipse(6, 22, 25, 27, BROWN_D)
+    s.ellipse(8, 3, 23, 26, CREAM_L)
+    s.ellipse(9, 4, 21, 24, CREAM)
+    s.ellipse(10, 6, 13, 10, WHITE)
+    for x, y, c in [(15, 9, RED), (19, 14, GOLD), (12, 15, GOLD_XL), (17, 19, RED_L),
+                    (13, 21, RED)]:
+        s.ellipse(x, y, x + 2, y + 2, c)
+    s.dots([(5, 24), (26, 25), (8, 28)], BROWN_L)
+
+
+def draw_pet_crow(s) -> None:
+    """CUERVO: negro azulado, con un anillo de oro en el pico."""
+    s.ellipse(7, 12, 24, 28, NIGHT_LL)                        # cuerpo
+    s.poly([(22, 18), (29, 26), (22, 26)], DARK_SOFT)         # cola
+    s.ellipse(8, 4, 21, 16, NIGHT_LL)                         # cabeza
+    s.poly([(3, 10), (9, 8), (9, 12)], STEEL_D)               # pico
+    s.ring(2, 11, 6, 15, GOLD_XL)                             # el anillo
+    s.rect(12, 8, 13, 9, GOLD_XL)                             # ojo
+    s.px(12, 8, WHITE)
+    s.ellipse(11, 16, 20, 25, SLATE)                          # ala
+    s.line([(12, 18), (18, 23)], NIGHT_LL)
+    s.dots([(11, 28), (16, 28)], GOLD)                        # patas
+
+
+def draw_pet_raccoon(s) -> None:
+    """MAPACHE: gris con el antifaz negro y la cola a rayas."""
+    s.ellipse(17, 18, 28, 29, STEEL)                          # cola
+    for x in (19, 23):
+        s.rect(x, 19, x + 1, 28, DARK_SOFT)
+    s.ellipse(6, 15, 21, 29, STEEL)                           # cuerpo
+    s.ellipse(9, 19, 18, 29, WHITE)
+    s.poly([(5, 7), (7, 2), (10, 6)], STEEL_D)                # orejas
+    s.poly([(17, 6), (20, 2), (22, 7)], STEEL_D)
+    s.ellipse(4, 4, 23, 18, STEEL)                            # cabeza
+    s.rect(5, 9, 22, 12, DARK)                                # el antifaz
+    s.dots([(9, 10), (18, 10)], WHITE)
+    s.ellipse(10, 12, 17, 17, WHITE)                          # hocico
+    s.rect(13, 13, 14, 14, DARK)
+
+
+def draw_pet_rat(s) -> None:
+    """RATA: gris parda, orejas rosas, cola larga y una moneda robada."""
+    s.line([(22, 25), (27, 22), (29, 17)], RUST_L, 1)         # cola
+    s.ellipse(7, 14, 24, 28, SLATE)                           # cuerpo
+    s.ellipse(10, 18, 18, 27, STEEL)
+    s.ellipse(5, 3, 11, 9, RUST_L)                            # orejas
+    s.ellipse(16, 3, 22, 9, RUST_L)
+    s.ellipse(6, 5, 21, 17, SLATE)                            # cabeza
+    s.poly([(10, 14), (13, 19), (16, 14)], STEEL)             # hocico
+    s.px(13, 18, RED_L)
+    s.dots([(10, 10), (17, 10)], DARK)
+    s.dots([(10, 9), (17, 9)], WHITE)
+    _coin(s, 18, 20, 7)                                       # la moneda robada
+
+
+def _rival(s, coat, coat_l, hat) -> None:
+    """Un pujador de la sala: busto con traje y su paleta numerada levantada."""
+    s.rect(24, 4, 25, 20, BROWN_D)                            # el palo de la paleta
+    s.rect(20, 2, 29, 9, CREAM)                               # la paleta
+    s.rect(20, 2, 29, 2, WHITE)
+    s.rect(23, 4, 26, 7, OUTLINE)
+    s.poly([(4, 30), (6, 19), (20, 19), (24, 30)], coat)      # el traje
+    s.poly([(6, 19), (13, 19), (12, 22), (7, 25)], coat_l)
+    s.poly([(11, 19), (16, 19), (13, 26)], WHITE)             # camisa
+    s.rect(13, 20, 13, 24, RED_D)                             # corbata
+    s.rect(20, 18, 23, 21, CREAM_D)                           # la mano
+    s.ellipse(8, 7, 19, 19, CREAM_D)                          # cara
+    s.dots([(11, 12), (16, 12)], DARK)
+    s.rect(12, 15, 15, 15, BROWN)
+    s.rect(7, 6, 20, 8, hat)                                  # el sombrero
+    s.rect(9, 2, 18, 6, hat)
+
+
+def draw_auction_rival_a(s) -> None:
+    _rival(s, NIGHT_LL, SLATE, DARK)
+
+
+def draw_auction_rival_b(s) -> None:
+    _rival(s, RED_D, RED, PURPLE_D)
+
+
+def draw_auction_rival_c(s) -> None:
+    _rival(s, GREEN_D, GREEN, BROWN_D)
+
+
 DRAWINGS: Dict[str, Callable] = {
+    "asc_auction": draw_asc_auction, "vip_van": draw_vip_van,
+    "potion_money": draw_potion_money, "potion_fury": draw_potion_fury,
+    "potion_luck": draw_potion_luck, "potion_rain": draw_potion_rain,
+    "auction_mythic": draw_auction_mythic, "auction_seal": draw_auction_seal,
+    "auction_blind": draw_auction_blind, "auction_egg": draw_auction_egg,
+    "pet_crow": draw_pet_crow, "pet_raccoon": draw_pet_raccoon, "pet_rat": draw_pet_rat,
+    "auction_rival_a": draw_auction_rival_a, "auction_rival_b": draw_auction_rival_b,
+    "auction_rival_c": draw_auction_rival_c,
     "money": draw_money, "damage": draw_damage, "speed": draw_speed,
     "locker": draw_locker, "spikes": draw_spikes,
     "damage_2": draw_damage_2, "damage_3": draw_damage_3,

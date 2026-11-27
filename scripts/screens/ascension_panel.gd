@@ -197,6 +197,11 @@ static func _pixel() -> Texture2D:
 ## Donde va cada nodo en el MUNDO de la telarana (HYPER en el origen).
 static func node_pos(id: String) -> Vector2:
 	var n := AscensionTree.node_by_id(id)
+	# LOS DE FUERA DE LA TELARAÑA (la SUBASTA): en el hueco entre los hilos de
+	# Dinero y Rebirth, a la altura de sus nombres, sin hilo que los una.
+	if AscensionTree.is_extra(id):
+		var a := deg_to_rad(30.0)
+		return Vector2(cos(a) * SPOKE_LABEL_R * STRETCH_X, sin(a) * SPOKE_LABEL_R)
 	if n.is_empty() or int(n["ring"]) == 0:
 		return Vector2.ZERO
 	return spoke_point(int(n["spoke"]), float(RING_R[int(n["ring"])]))
@@ -242,7 +247,7 @@ func _build_web() -> void:
 		_world.add_child(UIKit.label_at(str(AscensionTree.SPOKES[spoke]),
 				spoke_point(spoke, SPOKE_LABEL_R), Vector2(300, 50), 40, LILA,
 				HORIZONTAL_ALIGNMENT_CENTER, 1))
-	for n in AscensionTree.NODES:
+	for n in AscensionTree.NODES + AscensionTree.EXTRA:
 		_build_node(n)
 	_world.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
 	_build_card()
@@ -289,6 +294,8 @@ func _build_node(n: Dictionary) -> void:
 	view.add_child(marco)
 	if id == "hyper":
 		view.add_child(UIKit.image("rarity_glow_epic", mitad, view.size * 1.5))
+	elif AscensionTree.is_extra(id):
+		view.add_child(UIKit.image("rarity_glow_legendary", mitad, view.size * 1.5))
 	view.add_child(UIKit.image("tree_asc_hex", mitad, view.size))
 	view.add_child(UIKit.fit_art(str(n["art"]), mitad + Vector2(0, lado * 0.02),
 			view.size * ART_PART))

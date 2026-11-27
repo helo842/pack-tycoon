@@ -3408,6 +3408,8 @@ GRADED_ITEMS: List[str] = [
     "bm_stolen_card", "bm_misprint", "bm_bootleg", "bm_lost_tape",
     "bm_sample", "bm_unreleased", "bm_devkit", "bm_hot_watch",
     "bm_recalled", "bm_prototype", "bm_lead_ingot",
+    # los miticos de la subasta (loot_designs.py, scripts/data/auction.gd)
+    "myth_cards", "myth_vinyls", "myth_sneakers", "myth_electronics", "myth_toys",
 ]
 
 for _base in GRADED_ITEMS:
